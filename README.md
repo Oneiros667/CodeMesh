@@ -54,7 +54,7 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
 Persist graph/content and generate Qdrant embeddings with Ollama:
 
 ```powershell
-docker compose --profile ollama up -d ollama
+ollama pull nomic-embed-text:latest
 
 dotnet run --project src/CodeMesh.Cli -- ingest `
   --root C:\Users\developer\source\repos\YoutubeDownloader `
@@ -76,11 +76,35 @@ copy .env.example .env
 docker compose up -d neo4j mongodb qdrant csharp-parser agent-access
 ```
 
-Enable Ollama only when you want a local model provider:
+### Ollama Modes
+
+Native Windows Ollama is the recommended mode when you want GPU acceleration on Windows. It serves the host CLI at `http://localhost:11434`, while Dockerized Agent Access reaches it through `http://host.docker.internal:11434`.
+
+In `.env`, use:
+
+```text
+CODEMESH_MODEL_PROVIDER=ollama
+CODEMESH_OLLAMA_URL=http://localhost:11434
+CODEMESH_AGENT_OLLAMA_URL=http://host.docker.internal:11434
+CODEMESH_EMBEDDING_MODEL=nomic-embed-text:latest
+```
+
+Then recreate Agent Access:
 
 ```powershell
-docker compose --profile ollama up -d ollama
+docker compose up -d --force-recreate agent-access
+Invoke-RestMethod http://localhost:8088/status
 ```
+
+Use the optional Ollama container only when you intentionally want Ollama isolated in Docker. Set the Agent Access URL to the compose service name:
+
+```powershell
+$env:CODEMESH_AGENT_OLLAMA_URL = 'http://ollama:11434'
+docker compose --profile ollama up -d ollama
+docker compose up -d --force-recreate agent-access
+```
+
+The Ollama container mounts `${CODEMESH_OLLAMA_HOME}` to `/root/.ollama`; set it to your Windows Ollama home, for example `C:/Users/developer/.ollama`, if you want the container to reuse the same local model files.
 
 ## Service Endpoints
 

@@ -45,16 +45,16 @@ services:
     environment:
       CODEMESH_AGENT_HOST: "0.0.0.0"
       CODEMESH_AGENT_PORT: "8080"
-      CODEMESH_NEO4J_URI: "${CODEMESH_NEO4J_URI:-bolt://neo4j:7687}"
+      CODEMESH_NEO4J_URI: "${CODEMESH_AGENT_NEO4J_URI:-bolt://neo4j:7687}"
       CODEMESH_NEO4J_AUTH: "${CODEMESH_NEO4J_AUTH:-neo4j/codemesh}"
       CODEMESH_NEO4J_DATABASE: "${CODEMESH_NEO4J_DATABASE:-neo4j}"
-      CODEMESH_MONGO_URI: "${CODEMESH_MONGO_URI:-mongodb://mongodb:27017}"
+      CODEMESH_MONGO_URI: "${CODEMESH_AGENT_MONGO_URI:-mongodb://mongodb:27017}"
       CODEMESH_MONGO_DATABASE: "${CODEMESH_MONGO_DATABASE:-codemesh}"
       CODEMESH_MONGO_CONTENT_COLLECTION: "${CODEMESH_MONGO_CONTENT_COLLECTION:-content}"
-      CODEMESH_QDRANT_URL: "${CODEMESH_QDRANT_URL:-http://qdrant:6333}"
+      CODEMESH_QDRANT_URL: "${CODEMESH_AGENT_QDRANT_URL:-http://qdrant:6333}"
       CODEMESH_QDRANT_COLLECTION: "${CODEMESH_QDRANT_COLLECTION:-codemesh-code}"
       CODEMESH_MODEL_PROVIDER: "${CODEMESH_MODEL_PROVIDER:-none}"
-      CODEMESH_OLLAMA_URL: "${CODEMESH_OLLAMA_URL:-http://ollama:11434}"
+      CODEMESH_OLLAMA_URL: "${CODEMESH_AGENT_OLLAMA_URL:-http://host.docker.internal:11434}"
       CODEMESH_EMBEDDING_MODEL: "${CODEMESH_EMBEDDING_MODEL:-nomic-embed-text:latest}"
     ports:
       - "${CODEMESH_AGENT_ACCESS_PORT:-8088}:8080"
@@ -70,7 +70,7 @@ services:
     ports:
       - "${CODEMESH_OLLAMA_PORT:-11434}:11434"
     volumes:
-      - C:/Users/developer/.ollama:/root/.ollama
+      - "${CODEMESH_OLLAMA_HOME:-C:/Users/developer/.ollama}:/root/.ollama"
 
 volumes:
   neo4j_data:
