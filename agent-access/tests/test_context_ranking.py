@@ -17,6 +17,7 @@ def test_vector_search_expands_parameter_declaration_to_method_context() -> None
                 repository_id="repo:test",
                 limit=1,
                 vector=[1.0, 0.0],
+                include_context_relationships=True,
             )
         )
     )
@@ -36,6 +37,45 @@ def test_vector_search_expands_parameter_declaration_to_method_context() -> None
     assert hit.expanded_context["source"]["kind"] == "Declaration"
     assert hit.expanded_context["selected"]["kind"] == "Method"
     assert hit.expanded_context["declaration"]["start_line"] == 10
+    assert hit.expanded_context["relationships"] == [
+        {
+            "kind": "Contains",
+            "label": "contains",
+            "direction": "out",
+            "source_node_id": "csharp:method:Sample.Downloader.DownloadAsync(System.String)",
+            "target_node_id": "csharp:param:Sample.Downloader.DownloadAsync(System.String):0:url",
+            "other": {
+                "node_id": "csharp:param:Sample.Downloader.DownloadAsync(System.String):0:url",
+                "kind": "Parameter",
+                "name": "url",
+                "file_path": "Downloader.cs",
+                "start_line": 0,
+                "end_line": 0,
+            },
+        }
+    ]
+
+
+def test_vector_search_can_disable_context_expansion() -> None:
+    store = FakeReadStore()
+
+    response = asyncio.run(
+        store.search_context(
+            ContextQuery(
+                query="download video subtitles",
+                repository_id="repo:test",
+                limit=1,
+                vector=[1.0, 0.0],
+                expand_context=False,
+            )
+        )
+    )
+
+    assert len(response.hits) == 1
+    hit = response.hits[0]
+    assert hit.node_id == store.parameter_declaration["id"]
+    assert hit.kind == "Declaration"
+    assert hit.expanded_context is None
 
 
 def test_ranked_unique_hits_keeps_best_expanded_context() -> None:
@@ -143,6 +183,7 @@ class FakeReadStore(CodeMeshReadStore):
         self,
         node_id: str,
         repository_id: str | None = None,
+        depth: int = 4,
     ) -> list[dict[str, object]]:
         if node_id != self.parameter_declaration["id"]:
             return []
@@ -160,6 +201,33 @@ class FakeReadStore(CodeMeshReadStore):
         if node.get("id") == self.method_symbol["id"]:
             return self.method_declaration
         return None
+
+    async def _get_context_relationship_summaries(
+        self,
+        node_id: str,
+        repository_id: str | None = None,
+        limit: int = 8,
+    ) -> list[dict[str, object]]:
+        if node_id != self.method_symbol["id"]:
+            return []
+
+        return [
+            {
+                "kind": "Contains",
+                "label": "contains",
+                "direction": "out",
+                "source_node_id": self.method_symbol["id"],
+                "target_node_id": self.parameter_symbol["id"],
+                "other": {
+                    "node_id": self.parameter_symbol["id"],
+                    "kind": "Parameter",
+                    "name": "url",
+                    "file_path": "Downloader.cs",
+                    "start_line": 0,
+                    "end_line": 0,
+                },
+            }
+        ][:limit]
 
     async def _get_content(self, content_hash: str) -> dict[str, object] | None:
         contents = {

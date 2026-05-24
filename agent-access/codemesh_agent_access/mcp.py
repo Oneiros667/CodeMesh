@@ -27,9 +27,25 @@ def build_server() -> Any:
         limit: int = 8,
         kinds: list[str] | None = None,
         vector: list[float] | None = None,
+        expand_context: bool = True,
+        context_depth: int = 4,
+        include_context_relationships: bool = False,
+        context_relationship_limit: int = 8,
     ) -> dict[str, Any]:
         """Search CodeMesh context for code relevant to an agent task."""
-        return (await tools.search_context(query, repository_id, limit, kinds, vector)).model_dump(mode="json")
+        return (
+            await tools.search_context(
+                query,
+                repository_id=repository_id,
+                limit=limit,
+                kinds=kinds,
+                vector=vector,
+                expand_context=expand_context,
+                context_depth=context_depth,
+                include_context_relationships=include_context_relationships,
+                context_relationship_limit=context_relationship_limit,
+            )
+        ).model_dump(mode="json")
 
     @server.tool()
     async def codemesh_get_node(

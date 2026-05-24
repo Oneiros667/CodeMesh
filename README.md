@@ -167,7 +167,7 @@ Set `CODEMESH_MODEL_PROVIDER=ollama` for Agent Access when you want text queries
 
 Pass `repository_id` in REST/MCP context, node, and neighbor queries to constrain lookups to one ingested repository. CLI commands accept the equivalent `--repository-id` option.
 
-Context search results are ranked for agent usefulness. Low-level matches such as parameter declarations are expanded to their defining symbol or containing method/type before they are returned, and each hit includes `repository_id`, `content_hash`, `score_components`, and `expanded_context` when expansion occurred.
+Context search results are ranked for agent usefulness. Low-level matches such as parameter declarations are expanded to their defining symbol or containing method/type before they are returned, and each hit includes `repository_id`, `content_hash`, `score_components`, and `expanded_context` when expansion occurred. Use `expand_context=false` in REST/MCP or `--no-expand-context` in the CLI for compact raw hits. Use `include_context_relationships=true` or `--include-context-relationships` when each hit should include a small immediate relationship summary.
 
 ## Development Notes
 

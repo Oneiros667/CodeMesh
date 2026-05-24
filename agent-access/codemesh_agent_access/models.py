@@ -20,6 +20,10 @@ class ContextQuery(BaseModel):
     kinds: list[str] = Field(default_factory=list)
     filters: dict[str, str] = Field(default_factory=dict)
     vector: list[float] = Field(default_factory=list)
+    expand_context: bool = True
+    context_depth: int = 4
+    include_context_relationships: bool = False
+    context_relationship_limit: int = 8
 
 
 class ContextHit(BaseModel):

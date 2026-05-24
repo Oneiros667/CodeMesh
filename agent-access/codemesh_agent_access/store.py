@@ -314,10 +314,12 @@ class CodeMeshReadStore:
         self,
         node_id: str,
         repository_id: str | None = None,
+        depth: int = 4,
     ) -> list[dict[str, Any]]:
         if AsyncGraphDatabase is None:
             return []
 
+        clamped_depth = min(max(depth, 1), 6)
         if repository_id:
             start_match = "MATCH (start:CodeMeshNode {storageKey: $storage_key})"
             parameters = {"storage_key": _storage_key(repository_id, node_id)}
@@ -332,13 +334,13 @@ class CodeMeshReadStore:
           WHERE relationship.kind = 'Defines'
           RETURN properties(defined) AS node, 0 AS distance, 'defines' AS reason
           UNION
-          MATCH path = (ancestor:CodeMeshNode)-[relationships:CODEMESH_REL*1..4]->(start)
+          MATCH path = (ancestor:CodeMeshNode)-[relationships:CODEMESH_REL*1..{clamped_depth}]->(start)
           WHERE all(relationship IN relationships WHERE relationship.kind = 'Contains')
           RETURN properties(ancestor) AS node, length(path) AS distance, 'ancestor' AS reason
           UNION
           MATCH (start)-[defines:CODEMESH_REL]->(defined:CodeMeshNode)
           WHERE defines.kind = 'Defines'
-          MATCH path = (ancestor:CodeMeshNode)-[relationships:CODEMESH_REL*1..4]->(defined)
+          MATCH path = (ancestor:CodeMeshNode)-[relationships:CODEMESH_REL*1..{clamped_depth}]->(defined)
           WHERE all(relationship IN relationships WHERE relationship.kind = 'Contains')
           RETURN properties(ancestor) AS node, length(path) AS distance, 'defined_ancestor' AS reason
         }}
@@ -401,6 +403,67 @@ class CodeMeshReadStore:
 
         return dict(record["node"]) if record else None
 
+    async def _get_context_relationship_summaries(
+        self,
+        node_id: str,
+        repository_id: str | None = None,
+        limit: int = 8,
+    ) -> list[dict[str, Any]]:
+        if AsyncGraphDatabase is None or limit <= 0:
+            return []
+
+        clamped_limit = min(max(limit, 1), 50)
+        if repository_id:
+            node_match = "MATCH (node:CodeMeshNode {storageKey: $storage_key})"
+            parameters = {"storage_key": _storage_key(repository_id, node_id), "limit": clamped_limit}
+        else:
+            node_match = "MATCH (node:CodeMeshNode {id: $node_id})"
+            parameters = {"node_id": node_id, "limit": clamped_limit}
+
+        query = f"""
+        {node_match}
+        MATCH (node)-[relationship:CODEMESH_REL]-(other:CodeMeshNode)
+        RETURN properties(relationship) AS relationship, properties(other) AS other
+        ORDER BY
+          CASE relationship.kind
+            WHEN 'Defines' THEN 0
+            WHEN 'Contains' THEN 1
+            WHEN 'Invokes' THEN 2
+            WHEN 'UsesType' THEN 3
+            WHEN 'Returns' THEN 4
+            ELSE 9
+          END,
+          coalesce(other.name, other.id, '')
+        LIMIT $limit
+        """
+
+        try:
+            driver = self._neo4j()
+            async with driver.session(database=self._settings.neo4j_database) as session:
+                result = await session.run(query, **parameters)
+                records = await result.data()
+        except Exception:
+            return []
+
+        summaries = []
+        for record in records:
+            relationship = dict(record["relationship"])
+            other = dict(record["other"])
+            source_node_id = str(relationship.get("sourceNodeId") or "")
+            target_node_id = str(relationship.get("targetNodeId") or "")
+            summaries.append(
+                {
+                    "kind": str(relationship.get("kind") or ""),
+                    "label": relationship.get("label"),
+                    "direction": "out" if source_node_id == node_id else "in",
+                    "source_node_id": source_node_id,
+                    "target_node_id": target_node_id,
+                    "other": _context_ref(other),
+                }
+            )
+
+        return summaries
+
     async def _get_content(self, content_hash: str) -> dict[str, Any] | None:
         if not content_hash or MongoClient is None:
             return None
@@ -421,12 +484,17 @@ class CodeMeshReadStore:
         self,
         node: dict[str, Any],
         repository_id: str | None = None,
+        expand_context: bool = True,
+        context_depth: int = 4,
     ) -> tuple[dict[str, Any], str]:
         node_id = str(node.get("id") or "")
         if not node_id:
             return node, "self"
 
-        candidates = await self._get_context_candidates(node_id, repository_id)
+        if not expand_context:
+            return node, "self"
+
+        candidates = await self._get_context_candidates(node_id, repository_id, context_depth)
         if not _needs_context_expansion(node) and not candidates:
             return node, "self"
 
@@ -444,9 +512,18 @@ class CodeMeshReadStore:
         raw_score_name: str = "raw",
         preview: str | None = None,
         source_node: dict[str, Any] | None = None,
+        expand_context: bool = True,
+        context_depth: int = 4,
+        include_context_relationships: bool = False,
+        context_relationship_limit: int = 8,
     ) -> ContextHit:
         source = source_node or node
-        selected, expansion_reason = await self._select_context_node(node, repository_id)
+        selected, expansion_reason = await self._select_context_node(
+            node,
+            repository_id,
+            expand_context,
+            context_depth,
+        )
         declaration = await self._get_primary_declaration_node(selected, repository_id)
 
         content_node = declaration or selected
@@ -468,6 +545,21 @@ class CodeMeshReadStore:
                 "selected": _context_ref(selected),
                 "declaration": _context_ref(declaration) if declaration else None,
             }
+
+        if include_context_relationships:
+            relationships = await self._get_context_relationship_summaries(
+                selected_id,
+                repository_id,
+                context_relationship_limit,
+            )
+            if expanded_context is None:
+                expanded_context = {
+                    "reason": expansion_reason,
+                    "source": _context_ref(source),
+                    "selected": _context_ref(selected),
+                    "declaration": _context_ref(declaration) if declaration else None,
+                }
+            expanded_context["relationships"] = relationships
 
         return _context_hit_for_node(
             selected,
@@ -533,6 +625,10 @@ class CodeMeshReadStore:
                     _lexical_score(node, search_text),
                     query.repository_id,
                     raw_score_name="lexical_score",
+                    expand_context=query.expand_context,
+                    context_depth=query.context_depth,
+                    include_context_relationships=query.include_context_relationships,
+                    context_relationship_limit=query.context_relationship_limit,
                 )
             )
 
@@ -568,6 +664,10 @@ class CodeMeshReadStore:
                     repository_id,
                     raw_score_name="vector_score",
                     preview=preview,
+                    expand_context=query.expand_context,
+                    context_depth=query.context_depth,
+                    include_context_relationships=query.include_context_relationships,
+                    context_relationship_limit=query.context_relationship_limit,
                 )
             )
 

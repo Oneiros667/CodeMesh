@@ -21,6 +21,10 @@ def main() -> None:
     search_parser.add_argument("--repository-id")
     search_parser.add_argument("--limit", type=int, default=8)
     search_parser.add_argument("--kind", action="append", default=[])
+    search_parser.add_argument("--no-expand-context", action="store_true")
+    search_parser.add_argument("--context-depth", type=int, default=4)
+    search_parser.add_argument("--include-context-relationships", action="store_true")
+    search_parser.add_argument("--context-relationship-limit", type=int, default=8)
 
     node_parser = subcommands.add_parser("get-node", help="Fetch a stored CodeMesh node.")
     node_parser.add_argument("node_id")
@@ -56,6 +60,10 @@ def main() -> None:
                 repository_id=args.repository_id,
                 limit=args.limit,
                 kinds=args.kind,
+                expand_context=not args.no_expand_context,
+                context_depth=args.context_depth,
+                include_context_relationships=args.include_context_relationships,
+                context_relationship_limit=args.context_relationship_limit,
             )
         )
         print(json.dumps(result.model_dump(mode="json"), indent=2))
