@@ -11,7 +11,7 @@ public sealed record Neo4jGraphStoreOptions(
     string Password,
     string? Database = null);
 
-public sealed class Neo4jGraphStore : IGraphStore, IStoreHealthCheck, IAsyncDisposable
+public sealed class Neo4jGraphStore : IGraphStore, IRefreshableGraphStore, IStoreHealthCheck, IAsyncDisposable
 {
     private readonly IDriver _driver;
     private readonly string _uri;
@@ -49,10 +49,10 @@ public sealed class Neo4jGraphStore : IGraphStore, IStoreHealthCheck, IAsyncDisp
                 session,
                 """
                 UNWIND $nodes AS node
-                MERGE (n:CodeMeshNode {id: node.id})
+                MERGE (n:CodeMeshNode {storageKey: node.storageKey})
                 SET n += node
                 """,
-                new { nodes = batch.Nodes.Select(ToNodeProperties).ToArray() },
+                new { nodes = batch.Nodes.Select(node => ToNodeProperties(node, batch)).ToArray() },
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -62,22 +62,69 @@ public sealed class Neo4jGraphStore : IGraphStore, IStoreHealthCheck, IAsyncDisp
                 session,
                 """
                 UNWIND $relationships AS relationship
-                MATCH (source:CodeMeshNode {id: relationship.sourceNodeId})
-                MATCH (target:CodeMeshNode {id: relationship.targetNodeId})
-                MERGE (source)-[r:CODEMESH_REL {id: relationship.id}]->(target)
+                MATCH (source:CodeMeshNode {storageKey: relationship.sourceStorageKey})
+                MATCH (target:CodeMeshNode {storageKey: relationship.targetStorageKey})
+                MERGE (source)-[r:CODEMESH_REL {storageKey: relationship.storageKey}]->(target)
                 SET r += relationship
                 """,
-                new { relationships = batch.Relationships.Select(ToRelationshipProperties).ToArray() },
+                new { relationships = batch.Relationships.Select(relationship => ToRelationshipProperties(relationship, batch)).ToArray() },
                 cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    public async Task RemoveStaleGraphAsync(
+        string repositoryId,
+        string ingestionRunId,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
+
+        await using var session = OpenSession();
+        await RunAndConsumeAsync(
+            session,
+            """
+            MATCH ()-[r:CODEMESH_REL]-()
+            WHERE r.repositoryId = $repositoryId AND r.ingestionRunId <> $ingestionRunId
+            DELETE r
+            """,
+            new { repositoryId, ingestionRunId },
+            cancellationToken).ConfigureAwait(false);
+        await RunAndConsumeAsync(
+            session,
+            """
+            MATCH (n:CodeMeshNode)
+            WHERE n.repositoryId = $repositoryId AND n.ingestionRunId <> $ingestionRunId
+            DETACH DELETE n
+            """,
+            new { repositoryId, ingestionRunId },
+            cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<CodeNode?> GetNodeAsync(string nodeId, CancellationToken cancellationToken = default)
     {
         await using var session = OpenSession();
         var cursor = await session.RunAsync(
-            "MATCH (n:CodeMeshNode {id: $nodeId}) RETURN n LIMIT 1",
+            """
+            MATCH (n:CodeMeshNode {id: $nodeId})
+            RETURN n
+            ORDER BY n.lastSeenAt DESC
+            LIMIT 1
+            """,
             new { nodeId }).ConfigureAwait(false);
+        var record = await cursor.SingleOrDefaultAsync().ConfigureAwait(false);
+
+        return record is null ? null : ToCodeNode(record["n"].As<INode>());
+    }
+
+    public async Task<CodeNode?> GetNodeAsync(
+        string nodeId,
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var session = OpenSession();
+        var cursor = await session.RunAsync(
+            "MATCH (n:CodeMeshNode {storageKey: $storageKey}) RETURN n LIMIT 1",
+            new { storageKey = StorageKey(repositoryId, nodeId) }).ConfigureAwait(false);
         var record = await cursor.SingleOrDefaultAsync().ConfigureAwait(false);
 
         return record is null ? null : ToCodeNode(record["n"].As<INode>());
@@ -88,14 +135,39 @@ public sealed class Neo4jGraphStore : IGraphStore, IStoreHealthCheck, IAsyncDisp
         int depth = 1,
         CancellationToken cancellationToken = default)
     {
+        var clampedDepth = Math.Clamp(depth, 1, 4);
         await using var session = OpenSession();
         var cursor = await session.RunAsync(
-            """
-            MATCH (:CodeMeshNode {id: $nodeId})-[r:CODEMESH_REL]-(:CodeMeshNode)
-            RETURN r
+            $$"""
+            MATCH path = (:CodeMeshNode {id: $nodeId})-[rels:CODEMESH_REL*1..{{clampedDepth}}]-()
+            UNWIND rels AS r
+            RETURN DISTINCT r
             ORDER BY r.id
             """,
             new { nodeId }).ConfigureAwait(false);
+        var records = await cursor.ToListAsync().ConfigureAwait(false);
+
+        return records
+            .Select(record => ToCodeRelationship(record["r"].As<IRelationship>()))
+            .ToArray();
+    }
+
+    public async Task<IReadOnlyList<CodeRelationship>> GetRelationshipsAsync(
+        string nodeId,
+        string repositoryId,
+        int depth = 1,
+        CancellationToken cancellationToken = default)
+    {
+        var clampedDepth = Math.Clamp(depth, 1, 4);
+        await using var session = OpenSession();
+        var cursor = await session.RunAsync(
+            $$"""
+            MATCH path = (:CodeMeshNode {storageKey: $storageKey})-[rels:CODEMESH_REL*1..{{clampedDepth}}]-()
+            UNWIND rels AS r
+            RETURN DISTINCT r
+            ORDER BY r.id
+            """,
+            new { storageKey = StorageKey(repositoryId, nodeId) }).ConfigureAwait(false);
         var records = await cursor.ToListAsync().ConfigureAwait(false);
 
         return records
@@ -152,12 +224,42 @@ public sealed class Neo4jGraphStore : IGraphStore, IStoreHealthCheck, IAsyncDisp
             await using var session = OpenSession();
             await RunAndConsumeAsync(
                 session,
-                "CREATE CONSTRAINT codemesh_node_id IF NOT EXISTS FOR (n:CodeMeshNode) REQUIRE n.id IS UNIQUE",
+                "DROP CONSTRAINT codemesh_node_id IF EXISTS",
+                new { },
+                cancellationToken).ConfigureAwait(false);
+            await RunAndConsumeAsync(
+                session,
+                "CREATE CONSTRAINT codemesh_node_storage_key IF NOT EXISTS FOR (n:CodeMeshNode) REQUIRE n.storageKey IS UNIQUE",
+                new { },
+                cancellationToken).ConfigureAwait(false);
+            await RunAndConsumeAsync(
+                session,
+                "CREATE INDEX codemesh_node_code_id IF NOT EXISTS FOR (n:CodeMeshNode) ON (n.id)",
                 new { },
                 cancellationToken).ConfigureAwait(false);
             await RunAndConsumeAsync(
                 session,
                 "CREATE INDEX codemesh_relationship_id IF NOT EXISTS FOR ()-[r:CODEMESH_REL]-() ON (r.id)",
+                new { },
+                cancellationToken).ConfigureAwait(false);
+            await RunAndConsumeAsync(
+                session,
+                "CREATE INDEX codemesh_relationship_storage_key IF NOT EXISTS FOR ()-[r:CODEMESH_REL]-() ON (r.storageKey)",
+                new { },
+                cancellationToken).ConfigureAwait(false);
+            await RunAndConsumeAsync(
+                session,
+                "CREATE INDEX codemesh_node_repository_id IF NOT EXISTS FOR (n:CodeMeshNode) ON (n.repositoryId, n.id)",
+                new { },
+                cancellationToken).ConfigureAwait(false);
+            await RunAndConsumeAsync(
+                session,
+                "CREATE INDEX codemesh_node_repository_run IF NOT EXISTS FOR (n:CodeMeshNode) ON (n.repositoryId, n.ingestionRunId)",
+                new { },
+                cancellationToken).ConfigureAwait(false);
+            await RunAndConsumeAsync(
+                session,
+                "CREATE INDEX codemesh_relationship_repository_run IF NOT EXISTS FOR ()-[r:CODEMESH_REL]-() ON (r.repositoryId, r.ingestionRunId)",
                 new { },
                 cancellationToken).ConfigureAwait(false);
 
@@ -203,10 +305,13 @@ public sealed class Neo4jGraphStore : IGraphStore, IStoreHealthCheck, IAsyncDisp
         return metadata;
     }
 
-    private static Dictionary<string, object?> ToNodeProperties(CodeNode node)
+    private static Dictionary<string, object?> ToNodeProperties(CodeNode node, CodeGraphBatch batch)
     {
+        var repositoryId = RepositoryIdFor(node.Metadata, batch);
+
         return new Dictionary<string, object?>
         {
+            ["storageKey"] = StorageKey(repositoryId, node.Id),
             ["id"] = node.Id,
             ["stableKey"] = node.StableKey,
             ["kind"] = node.Kind.ToString(),
@@ -219,19 +324,31 @@ public sealed class Neo4jGraphStore : IGraphStore, IStoreHealthCheck, IAsyncDisp
             ["startColumn"] = node.Span.StartColumn,
             ["endLine"] = node.Span.EndLine,
             ["endColumn"] = node.Span.EndColumn,
+            ["repositoryId"] = repositoryId,
+            ["repositoryRoot"] = MetadataValue(node.Metadata, "repositoryRoot") ?? batch.Repository.RootPath,
+            ["ingestionRunId"] = MetadataValue(node.Metadata, "ingestionRunId") ?? batch.BatchId,
+            ["lastSeenAt"] = MetadataValue(node.Metadata, "lastSeenAt") ?? batch.CreatedAt.ToString("O"),
             ["metadataJson"] = JsonSerializer.Serialize(node.Metadata)
         };
     }
 
-    private static Dictionary<string, object?> ToRelationshipProperties(CodeRelationship relationship)
+    private static Dictionary<string, object?> ToRelationshipProperties(CodeRelationship relationship, CodeGraphBatch batch)
     {
+        var repositoryId = RepositoryIdFor(relationship.Metadata, batch);
+
         return new Dictionary<string, object?>
         {
+            ["storageKey"] = StorageKey(repositoryId, relationship.Id),
             ["id"] = relationship.Id,
+            ["sourceStorageKey"] = StorageKey(repositoryId, relationship.SourceNodeId),
             ["sourceNodeId"] = relationship.SourceNodeId,
+            ["targetStorageKey"] = StorageKey(repositoryId, relationship.TargetNodeId),
             ["targetNodeId"] = relationship.TargetNodeId,
             ["kind"] = relationship.Kind.ToString(),
             ["label"] = relationship.Label,
+            ["repositoryId"] = repositoryId,
+            ["ingestionRunId"] = MetadataValue(relationship.Metadata, "ingestionRunId") ?? batch.BatchId,
+            ["lastSeenAt"] = MetadataValue(relationship.Metadata, "lastSeenAt") ?? batch.CreatedAt.ToString("O"),
             ["metadataJson"] = JsonSerializer.Serialize(relationship.Metadata)
         };
     }
@@ -312,5 +429,20 @@ public sealed class Neo4jGraphStore : IGraphStore, IStoreHealthCheck, IAsyncDisp
 
         return JsonSerializer.Deserialize<Dictionary<string, string>>(json)
             ?? new Dictionary<string, string>();
+    }
+
+    private static string? MetadataValue(IReadOnlyDictionary<string, string> metadata, string key)
+    {
+        return metadata.TryGetValue(key, out var value) ? value : null;
+    }
+
+    private static string RepositoryIdFor(IReadOnlyDictionary<string, string> metadata, CodeGraphBatch batch)
+    {
+        return MetadataValue(metadata, "repositoryId") ?? batch.Repository.Id;
+    }
+
+    private static string StorageKey(string repositoryId, string id)
+    {
+        return $"{repositoryId}:{id}";
     }
 }

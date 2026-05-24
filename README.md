@@ -66,6 +66,8 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
 
 `--skip-embeddings` remains the fastest ingestion mode. Use `--include-embeddings` when you want semantic search data written to Qdrant.
 
+Each successful ingestion run stamps graph, content, and vector records with a repository id and ingestion run id. After all writes succeed, CodeMesh removes stale records from the same repository that were not seen in the current run. If `--skip-embeddings` is used, vector cleanup is skipped so existing embeddings are left untouched.
+
 Start the default local stores and services:
 
 ```powershell
@@ -111,6 +113,7 @@ Invoke-RestMethod http://127.0.0.1:8088/health
 
 $nodeBody = @{
   node_id = 'csharp:type:CodeMesh.Tests.Neo4jSmokeSource'
+  repository_id = 'repo:neo4j-smoke'
   include_content = $false
   include_neighbors = $true
 } | ConvertTo-Json
@@ -130,12 +133,14 @@ Direct CLI examples:
 ```powershell
 cd agent-access
 uv run python -m codemesh_agent_access status
-uv run python -m codemesh_agent_access search "download video with subtitles" --limit 5 --kind Class
-uv run python -m codemesh_agent_access get-node csharp:type:CodeMesh.Tests.Neo4jSmokeSource --no-content
-uv run python -m codemesh_agent_access neighbors csharp:type:CodeMesh.Tests.Neo4jSmokeSource
+uv run python -m codemesh_agent_access search "download video with subtitles" --repository-id repo:youtube-downloader --limit 5 --kind Class
+uv run python -m codemesh_agent_access get-node csharp:type:CodeMesh.Tests.Neo4jSmokeSource --repository-id repo:neo4j-smoke --no-content
+uv run python -m codemesh_agent_access neighbors csharp:type:CodeMesh.Tests.Neo4jSmokeSource --repository-id repo:neo4j-smoke
 ```
 
 Set `CODEMESH_MODEL_PROVIDER=ollama` for Agent Access when you want text queries embedded automatically before Qdrant search. If Ollama or Qdrant vectors are unavailable, Agent Access falls back to lexical Neo4j search.
+
+Pass `repository_id` in REST/MCP context, node, and neighbor queries to constrain lookups to one ingested repository. CLI commands accept the equivalent `--repository-id` option.
 
 ## Development Notes
 

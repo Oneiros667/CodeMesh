@@ -41,6 +41,7 @@ class ContextResponse(BaseModel):
 
 class NodeLookup(BaseModel):
     node_id: str
+    repository_id: str | None = None
     include_content: bool = True
     include_neighbors: bool = True
 
@@ -53,6 +54,7 @@ class NodeResponse(BaseModel):
 
 class NeighborQuery(BaseModel):
     node_id: str
+    repository_id: str | None = None
     depth: int = 1
     relationship_kinds: list[str] = Field(default_factory=list)
 

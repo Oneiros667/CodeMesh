@@ -22,6 +22,8 @@ public sealed class IngestionOrchestrator(
         var repository = new RepositoryRef(
             CodeMeshHash.StableId(repositoryRoot),
             repositoryRoot);
+        var ingestionRunId = CodeMeshHash.StableId(repository.Id, startedAt.ToString("O"));
+        var seenAt = DateTimeOffset.UtcNow;
 
         var parseRequest = new ParseRequest(
             repositoryRoot,
@@ -33,13 +35,15 @@ public sealed class IngestionOrchestrator(
         var parseResult = await parserClient.ParseAsync(parseRequest, cancellationToken)
             .ConfigureAwait(false);
 
+        var nodes = StampNodes(parseResult.Nodes, repository, ingestionRunId, seenAt);
+        var relationships = StampRelationships(parseResult.Relationships, repository, ingestionRunId, seenAt);
         var batch = new CodeGraphBatch(
-            CodeMeshHash.StableId(repository.Id, startedAt.ToUnixTimeMilliseconds().ToString()),
+            ingestionRunId,
             repository,
-            parseResult.Nodes,
-            parseResult.Relationships,
+            nodes,
+            relationships,
             parseResult.Contents,
-            DateTimeOffset.UtcNow);
+            seenAt);
 
         var embeddingCount = 0;
 
@@ -49,7 +53,16 @@ public sealed class IngestionOrchestrator(
 
             foreach (var content in batch.Contents)
             {
-                await contentStore.UpsertContentAsync(content, cancellationToken).ConfigureAwait(false);
+                if (contentStore is IRefreshableContentStore refreshableContentStore)
+                {
+                    await refreshableContentStore
+                        .UpsertContentAsync(content, repository, ingestionRunId, seenAt, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await contentStore.UpsertContentAsync(content, cancellationToken).ConfigureAwait(false);
+                }
             }
 
             if (!request.SkipEmbeddings)
@@ -61,17 +74,39 @@ public sealed class IngestionOrchestrator(
                 var embeddings = await embeddingProvider
                     .EmbedAsync(batch.Nodes, contentByHash, cancellationToken)
                     .ConfigureAwait(false);
+                embeddings = StampEmbeddings(embeddings, repository, ingestionRunId, seenAt);
 
                 await vectorStore.UpsertEmbeddingsAsync(embeddings, cancellationToken)
                     .ConfigureAwait(false);
 
                 embeddingCount = embeddings.Count;
             }
+
+            if (graphStore is IRefreshableGraphStore refreshableGraphStore)
+            {
+                await refreshableGraphStore
+                    .RemoveStaleGraphAsync(repository.Id, ingestionRunId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (contentStore is IRefreshableContentStore cleanupContentStore)
+            {
+                await cleanupContentStore
+                    .RemoveStaleContentAsync(repository.Id, ingestionRunId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (!request.SkipEmbeddings && vectorStore is IRefreshableVectorStore refreshableVectorStore)
+            {
+                await refreshableVectorStore
+                    .RemoveStaleEmbeddingsAsync(repository.Id, ingestionRunId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
         }
 
         return new IngestionResult(
             new IngestionRun(
-                CodeMeshHash.StableId(repository.Id, startedAt.ToString("O")),
+                ingestionRunId,
                 IngestionStage.Completed,
                 startedAt,
                 DateTimeOffset.UtcNow,
@@ -82,5 +117,79 @@ public sealed class IngestionOrchestrator(
             batch.Contents.Count,
             embeddingCount,
             parseResult.Diagnostics);
+    }
+
+    private static IReadOnlyList<CodeNode> StampNodes(
+        IReadOnlyList<CodeNode> nodes,
+        RepositoryRef repository,
+        string ingestionRunId,
+        DateTimeOffset seenAt)
+    {
+        return nodes
+            .Select(node => node with
+            {
+                Metadata = RefreshMetadata(node.Metadata, repository, ingestionRunId, seenAt)
+            })
+            .ToArray();
+    }
+
+    private static IReadOnlyList<CodeRelationship> StampRelationships(
+        IReadOnlyList<CodeRelationship> relationships,
+        RepositoryRef repository,
+        string ingestionRunId,
+        DateTimeOffset seenAt)
+    {
+        return relationships
+            .Select(relationship => relationship with
+            {
+                Metadata = RefreshMetadata(relationship.Metadata, repository, ingestionRunId, seenAt)
+            })
+            .ToArray();
+    }
+
+    private static IReadOnlyList<EmbeddingRecord> StampEmbeddings(
+        IReadOnlyList<EmbeddingRecord> embeddings,
+        RepositoryRef repository,
+        string ingestionRunId,
+        DateTimeOffset seenAt)
+    {
+        return embeddings
+            .Select(embedding => embedding with
+            {
+                Metadata = RefreshMetadata(embedding.Metadata, repository, ingestionRunId, seenAt)
+            })
+            .ToArray();
+    }
+
+    private static IReadOnlyDictionary<string, string> RefreshMetadata(
+        IReadOnlyDictionary<string, string> metadata,
+        RepositoryRef repository,
+        string ingestionRunId,
+        DateTimeOffset seenAt)
+    {
+        var stamped = new Dictionary<string, string>(metadata, StringComparer.Ordinal)
+        {
+            ["repositoryId"] = repository.Id,
+            ["repositoryRoot"] = repository.RootPath,
+            ["ingestionRunId"] = ingestionRunId,
+            ["lastSeenAt"] = seenAt.ToString("O")
+        };
+
+        if (!string.IsNullOrWhiteSpace(repository.RemoteUrl))
+        {
+            stamped["repositoryRemoteUrl"] = repository.RemoteUrl;
+        }
+
+        if (!string.IsNullOrWhiteSpace(repository.Branch))
+        {
+            stamped["repositoryBranch"] = repository.Branch;
+        }
+
+        if (!string.IsNullOrWhiteSpace(repository.Commit))
+        {
+            stamped["repositoryCommit"] = repository.Commit;
+        }
+
+        return stamped;
     }
 }

@@ -14,6 +14,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("sha256 helper is deterministic", TestHash),
     ("ingestion writes parser output", TestIngestionWritesParserOutput),
     ("dry-run ingestion skips stores", TestDryRunSkipsStores),
+    ("repository refresh removes stale records", TestRepositoryRefreshRemovesStaleRecords),
     ("ollama embedding provider maps responses", TestOllamaEmbeddingProviderMapsResponses),
     ("mongodb content store round-trips content", TestMongoContentStoreRoundTripsContent),
     ("neo4j graph store round-trips graph", TestNeo4jGraphStoreRoundTripsGraph),
@@ -114,6 +115,64 @@ static async Task TestDryRunSkipsStores()
     IsNull(content, "Dry run wrote to content store.");
 }
 
+static async Task TestRepositoryRefreshRemovesStaleRecords()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-refresh-test-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+
+    try
+    {
+        var store = new InMemoryCodeMeshStore();
+        var parser = new RefreshParserClient("Alpha");
+        var orchestrator = new IngestionOrchestrator(
+            parser,
+            store,
+            store,
+            store,
+            new DeterministicEmbeddingProvider());
+        var repositoryId = CodeMeshHash.StableId(Path.GetFullPath(root));
+
+        await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            SkipEmbeddings: false));
+
+        var alphaNode = await store.GetNodeAsync(RefreshParserClient.NodeIdFor("Alpha"));
+        NotNull(alphaNode, "Initial refresh ingest did not write Alpha node.");
+        Equal(repositoryId, alphaNode!.Metadata["repositoryId"], "Repository id metadata was not stamped.");
+        NotNull(await store.GetContentAsync(RefreshParserClient.ContentHashFor("Alpha")), "Initial refresh ingest did not write Alpha content.");
+
+        parser.TypeName = "Beta";
+        await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            SkipEmbeddings: false));
+
+        IsNull(await store.GetNodeAsync(RefreshParserClient.NodeIdFor("Alpha")), "Refresh did not remove stale Alpha node.");
+        IsNull(await store.GetContentAsync(RefreshParserClient.ContentHashFor("Alpha")), "Refresh did not remove stale Alpha content.");
+        NotNull(await store.GetNodeAsync(RefreshParserClient.NodeIdFor("Beta")), "Refresh did not keep current Beta node.");
+        NotNull(await store.GetContentAsync(RefreshParserClient.ContentHashFor("Beta")), "Refresh did not keep current Beta content.");
+
+        var matches = await store.SearchAsync(
+            [1.0f, 0.0f],
+            10,
+            new Dictionary<string, string> { ["repositoryId"] = repositoryId });
+        if (matches.Any(match => string.Equals(match.NodeId, RefreshParserClient.NodeIdFor("Alpha"), StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("Refresh did not remove stale Alpha embedding.");
+        }
+
+        if (!matches.Any(match => string.Equals(match.NodeId, RefreshParserClient.NodeIdFor("Beta"), StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("Refresh did not keep current Beta embedding.");
+        }
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
 static async Task TestOllamaEmbeddingProviderMapsResponses()
 {
     var handler = new FakeOllamaEmbeddingHandler();
@@ -189,6 +248,29 @@ static async Task TestMongoContentStoreRoundTripsContent()
     Equal(content.Hash, loaded!.Hash, "MongoDB content hash changed.");
     Equal(content.Text, loaded.Text, "MongoDB content text changed.");
     Equal(content.MediaType, loaded.MediaType, "MongoDB content media type changed.");
+
+    var repository = new RepositoryRef($"repo:mongo-smoke:{Guid.NewGuid():N}", Directory.GetCurrentDirectory());
+    var staleText = "public sealed class MongoStale { }";
+    var currentText = "public sealed class MongoCurrent { }";
+    var staleContent = new CodeContent(
+        CodeMeshHash.Sha256Hex(staleText),
+        staleText,
+        "text/x-csharp-fragment",
+        now,
+        now);
+    var currentContent = new CodeContent(
+        CodeMeshHash.Sha256Hex(currentText),
+        currentText,
+        "text/x-csharp-fragment",
+        now,
+        now);
+
+    await store.UpsertContentAsync(staleContent, repository, "run:mongo-stale", now, timeout.Token);
+    await store.UpsertContentAsync(currentContent, repository, "run:mongo-current", now, timeout.Token);
+    await store.RemoveStaleContentAsync(repository.Id, "run:mongo-current", timeout.Token);
+
+    IsNull(await store.GetContentAsync(staleContent.Hash, timeout.Token), "MongoDB content refresh did not remove stale content.");
+    NotNull(await store.GetContentAsync(currentContent.Hash, timeout.Token), "MongoDB content refresh removed current content.");
 }
 
 static async Task TestNeo4jGraphStoreRoundTripsGraph()
@@ -208,7 +290,8 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
         throw new SkipTestException($"Neo4j is not reachable: {detail}");
     }
 
-    var repository = new RepositoryRef("repo:neo4j-smoke", Directory.GetCurrentDirectory());
+    var unique = Guid.NewGuid().ToString("N");
+    var repository = new RepositoryRef($"repo:neo4j-smoke:{unique}", Directory.GetCurrentDirectory());
     var now = DateTimeOffset.UtcNow;
     var source = new CodeNode(
         "csharp:type:CodeMesh.Tests.Neo4jSmokeSource",
@@ -259,6 +342,118 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
     Equal(relationship.TargetNodeId, loadedRelationship.TargetNodeId, "Neo4j relationship target changed.");
     Equal(relationship.Kind, loadedRelationship.Kind, "Neo4j relationship kind changed.");
     Equal(relationship.Metadata["test"], loadedRelationship.Metadata["test"], "Neo4j relationship metadata changed.");
+
+    var collisionRepositoryA = new RepositoryRef($"repo:neo4j-collision-a:{unique}", Directory.GetCurrentDirectory());
+    var collisionRepositoryB = new RepositoryRef($"repo:neo4j-collision-b:{unique}", Directory.GetCurrentDirectory());
+    var sharedSourceId = $"csharp:type:CodeMesh.Tests.SharedSource{unique}";
+    var sharedTargetId = $"csharp:type:CodeMesh.Tests.SharedTarget{unique}";
+    var sharedRelationshipId = CodeMeshHash.StableId(sharedSourceId, sharedTargetId, CodeRelationshipKind.Contains.ToString());
+    var collisionSourceA = source with
+    {
+        Id = sharedSourceId,
+        StableKey = sharedSourceId,
+        Name = $"SharedSource{unique}",
+        Project = "CollisionProjectA",
+        ContentHash = CodeMeshHash.Sha256Hex($"source-a-{unique}"),
+        Metadata = new Dictionary<string, string> { ["repoMarker"] = "a" }
+    };
+    var collisionSourceB = collisionSourceA with
+    {
+        Project = "CollisionProjectB",
+        ContentHash = CodeMeshHash.Sha256Hex($"source-b-{unique}"),
+        Metadata = new Dictionary<string, string> { ["repoMarker"] = "b" }
+    };
+    var collisionTargetA = target with
+    {
+        Id = sharedTargetId,
+        StableKey = sharedTargetId,
+        Name = $"SharedTarget{unique}",
+        Project = "CollisionProjectA",
+        ContentHash = CodeMeshHash.Sha256Hex($"target-a-{unique}"),
+        Metadata = new Dictionary<string, string> { ["repoMarker"] = "a" }
+    };
+    var collisionTargetB = collisionTargetA with
+    {
+        Project = "CollisionProjectB",
+        ContentHash = CodeMeshHash.Sha256Hex($"target-b-{unique}"),
+        Metadata = new Dictionary<string, string> { ["repoMarker"] = "b" }
+    };
+    var collisionRelationshipA = new CodeRelationship(
+        sharedRelationshipId,
+        sharedSourceId,
+        sharedTargetId,
+        CodeRelationshipKind.Contains,
+        "contains",
+        new Dictionary<string, string> { ["repoMarker"] = "a" });
+    var collisionRelationshipB = collisionRelationshipA with
+    {
+        Metadata = new Dictionary<string, string> { ["repoMarker"] = "b" }
+    };
+
+    await store.UpsertGraphAsync(new CodeGraphBatch(
+        "run:neo4j-collision-a",
+        collisionRepositoryA,
+        [collisionSourceA, collisionTargetA],
+        [collisionRelationshipA],
+        Array.Empty<CodeContent>(),
+        now), timeout.Token);
+    await store.UpsertGraphAsync(new CodeGraphBatch(
+        "run:neo4j-collision-b",
+        collisionRepositoryB,
+        [collisionSourceB, collisionTargetB],
+        [collisionRelationshipB],
+        Array.Empty<CodeContent>(),
+        now), timeout.Token);
+
+    var loadedCollisionA = await store.GetNodeAsync(sharedSourceId, collisionRepositoryA.Id, timeout.Token);
+    var loadedCollisionB = await store.GetNodeAsync(sharedSourceId, collisionRepositoryB.Id, timeout.Token);
+    NotNull(loadedCollisionA, "Neo4j did not return repository A's colliding node.");
+    NotNull(loadedCollisionB, "Neo4j did not return repository B's colliding node.");
+    Equal("CollisionProjectA", loadedCollisionA!.Project, "Neo4j repository A node was overwritten by repository B.");
+    Equal("CollisionProjectB", loadedCollisionB!.Project, "Neo4j repository B node was not stored separately.");
+    Equal("a", loadedCollisionA.Metadata["repoMarker"], "Neo4j repository A node metadata changed.");
+    Equal("b", loadedCollisionB.Metadata["repoMarker"], "Neo4j repository B node metadata changed.");
+
+    var collisionRelationshipsA = await store.GetRelationshipsAsync(sharedSourceId, collisionRepositoryA.Id, cancellationToken: timeout.Token);
+    var collisionRelationshipsB = await store.GetRelationshipsAsync(sharedSourceId, collisionRepositoryB.Id, cancellationToken: timeout.Token);
+    var loadedCollisionRelationshipA = collisionRelationshipsA.SingleOrDefault(item => item.Id == sharedRelationshipId);
+    var loadedCollisionRelationshipB = collisionRelationshipsB.SingleOrDefault(item => item.Id == sharedRelationshipId);
+    NotNull(loadedCollisionRelationshipA, "Neo4j did not return repository A's colliding relationship.");
+    NotNull(loadedCollisionRelationshipB, "Neo4j did not return repository B's colliding relationship.");
+    Equal("a", loadedCollisionRelationshipA!.Metadata["repoMarker"], "Neo4j repository A relationship was overwritten by repository B.");
+    Equal("b", loadedCollisionRelationshipB!.Metadata["repoMarker"], "Neo4j repository B relationship was not stored separately.");
+
+    var stale = source with
+    {
+        Id = $"csharp:type:CodeMesh.Tests.Neo4jStale{unique}",
+        StableKey = $"csharp:type:CodeMesh.Tests.Neo4jStale{unique}",
+        Name = $"Neo4jStale{unique}"
+    };
+    var current = target with
+    {
+        Id = $"csharp:type:CodeMesh.Tests.Neo4jCurrent{unique}",
+        StableKey = $"csharp:type:CodeMesh.Tests.Neo4jCurrent{unique}",
+        Name = $"Neo4jCurrent{unique}"
+    };
+
+    await store.UpsertGraphAsync(new CodeGraphBatch(
+        "run:neo4j-stale",
+        repository,
+        [stale],
+        Array.Empty<CodeRelationship>(),
+        Array.Empty<CodeContent>(),
+        now), timeout.Token);
+    await store.UpsertGraphAsync(new CodeGraphBatch(
+        "run:neo4j-current",
+        repository,
+        [current],
+        Array.Empty<CodeRelationship>(),
+        Array.Empty<CodeContent>(),
+        now), timeout.Token);
+    await store.RemoveStaleGraphAsync(repository.Id, "run:neo4j-current", timeout.Token);
+
+    IsNull(await store.GetNodeAsync(stale.Id, timeout.Token), "Neo4j graph refresh did not remove stale node.");
+    NotNull(await store.GetNodeAsync(current.Id, timeout.Token), "Neo4j graph refresh removed current node.");
 }
 
 static async Task TestQdrantVectorStoreRoundTripsEmbeddings()
@@ -326,6 +521,105 @@ static async Task TestQdrantVectorStoreRoundTripsEmbeddings()
         Equal(first.ContentHash, matches[0].ContentHash, "Qdrant nearest match content hash changed.");
         Equal("alpha vector", matches[0].Preview ?? string.Empty, "Qdrant nearest match preview changed.");
         Equal(unique, matches[0].Metadata["smokeTest"], "Qdrant nearest match metadata changed.");
+
+        var collisionRepositoryA = $"repo:qdrant-collision-a:{unique}";
+        var collisionRepositoryB = $"repo:qdrant-collision-b:{unique}";
+        var sharedEmbeddingId = $"embedding:qdrant:{unique}:shared";
+        var sharedNodeId = $"node:qdrant:{unique}:shared";
+        var collisionA = new EmbeddingRecord(
+            sharedEmbeddingId,
+            sharedNodeId,
+            $"hash:qdrant:{unique}:collision-a",
+            "test",
+            "unit",
+            3,
+            [0.5f, 0.5f, 0.0f],
+            new Dictionary<string, string>
+            {
+                ["repositoryId"] = collisionRepositoryA,
+                ["preview"] = "collision vector a"
+            });
+        var collisionB = new EmbeddingRecord(
+            sharedEmbeddingId,
+            sharedNodeId,
+            $"hash:qdrant:{unique}:collision-b",
+            "test",
+            "unit",
+            3,
+            [0.5f, 0.5f, 0.0f],
+            new Dictionary<string, string>
+            {
+                ["repositoryId"] = collisionRepositoryB,
+                ["preview"] = "collision vector b"
+            });
+
+        await store.UpsertEmbeddingsAsync([collisionA, collisionB], timeout.Token);
+
+        var collisionMatchesA = await store.SearchAsync(
+            [0.5f, 0.5f, 0.0f],
+            1,
+            new Dictionary<string, string> { ["repositoryId"] = collisionRepositoryA },
+            timeout.Token);
+        var collisionMatchesB = await store.SearchAsync(
+            [0.5f, 0.5f, 0.0f],
+            1,
+            new Dictionary<string, string> { ["repositoryId"] = collisionRepositoryB },
+            timeout.Token);
+
+        Equal(1, collisionMatchesA.Count, "Qdrant did not retain repository A's colliding embedding.");
+        Equal(1, collisionMatchesB.Count, "Qdrant did not retain repository B's colliding embedding.");
+        Equal(collisionA.ContentHash, collisionMatchesA[0].ContentHash, "Qdrant repository A embedding was overwritten by repository B.");
+        Equal(collisionB.ContentHash, collisionMatchesB[0].ContentHash, "Qdrant repository B embedding was not stored separately.");
+        Equal("collision vector a", collisionMatchesA[0].Preview ?? string.Empty, "Qdrant repository A preview changed.");
+        Equal("collision vector b", collisionMatchesB[0].Preview ?? string.Empty, "Qdrant repository B preview changed.");
+
+        var repositoryId = $"repo:qdrant:{unique}";
+        var stale = new EmbeddingRecord(
+            $"embedding:qdrant:{unique}:stale",
+            $"node:qdrant:{unique}:stale",
+            $"hash:qdrant:{unique}:stale",
+            "test",
+            "unit",
+            3,
+            [0.0f, 0.0f, 1.0f],
+            new Dictionary<string, string>
+            {
+                ["repositoryId"] = repositoryId,
+                ["ingestionRunId"] = "run:qdrant-stale",
+                ["preview"] = "stale vector"
+            });
+        var current = new EmbeddingRecord(
+            $"embedding:qdrant:{unique}:current",
+            $"node:qdrant:{unique}:current",
+            $"hash:qdrant:{unique}:current",
+            "test",
+            "unit",
+            3,
+            [0.0f, 0.0f, 1.0f],
+            new Dictionary<string, string>
+            {
+                ["repositoryId"] = repositoryId,
+                ["ingestionRunId"] = "run:qdrant-current",
+                ["preview"] = "current vector"
+            });
+
+        await store.UpsertEmbeddingsAsync([stale, current], timeout.Token);
+        await store.RemoveStaleEmbeddingsAsync(repositoryId, "run:qdrant-current", timeout.Token);
+
+        var refreshMatches = await store.SearchAsync(
+            [0.0f, 0.0f, 1.0f],
+            10,
+            new Dictionary<string, string> { ["repositoryId"] = repositoryId },
+            timeout.Token);
+        if (refreshMatches.Any(match => string.Equals(match.NodeId, stale.NodeId, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("Qdrant vector refresh did not remove stale embedding.");
+        }
+
+        if (!refreshMatches.Any(match => string.Equals(match.NodeId, current.NodeId, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("Qdrant vector refresh removed current embedding.");
+        }
     }
     finally
     {
@@ -742,6 +1036,89 @@ sealed class FakeParserClient : IParserClient
             [content],
             Array.Empty<ParserDiagnostic>(),
             now));
+    }
+}
+
+sealed class RefreshParserClient(string typeName) : IParserClient
+{
+    public string TypeName { get; set; } = typeName;
+
+    public static string NodeIdFor(string typeName) => $"csharp:type:Sample.{typeName}";
+
+    public static string ContentHashFor(string typeName) => CodeMeshHash.Sha256Hex(TextFor(typeName));
+
+    public Task<ParserCapability> GetCapabilityAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new ParserCapability(
+            "refresh-parser",
+            "csharp",
+            "test",
+            [".cs"],
+            ["repositoryRoot"]));
+    }
+
+    public Task<ParseResult> ParseAsync(ParseRequest request, CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var text = TextFor(TypeName);
+        var hash = CodeMeshHash.Sha256Hex(text);
+        var node = new CodeNode(
+            NodeIdFor(TypeName),
+            NodeIdFor(TypeName),
+            CodeNodeKind.Class,
+            TypeName,
+            "csharp",
+            "Sample",
+            new SourceSpan($"{TypeName}.cs", 1, 1, 1, text.Length),
+            hash,
+            new Dictionary<string, string>());
+        var content = new CodeContent(
+            hash,
+            text,
+            "text/x-csharp-fragment",
+            now,
+            now);
+
+        return Task.FromResult(new ParseResult(
+            "refresh-parser",
+            "csharp",
+            [node],
+            Array.Empty<CodeRelationship>(),
+            [content],
+            Array.Empty<ParserDiagnostic>(),
+            now));
+    }
+
+    private static string TextFor(string typeName) => $"namespace Sample; public sealed class {typeName} {{ }}";
+}
+
+sealed class DeterministicEmbeddingProvider : IEmbeddingProvider
+{
+    public string Provider => "test";
+
+    public string Model => "deterministic";
+
+    public Task<IReadOnlyList<EmbeddingRecord>> EmbedAsync(
+        IReadOnlyList<CodeNode> nodes,
+        IReadOnlyDictionary<string, CodeContent> contentByHash,
+        CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<EmbeddingRecord> embeddings = nodes
+            .Select(node => new EmbeddingRecord(
+                CodeMeshHash.StableId("embedding", node.Id, node.ContentHash),
+                node.Id,
+                node.ContentHash,
+                Provider,
+                Model,
+                2,
+                [1.0f, 0.0f],
+                new Dictionary<string, string>
+                {
+                    ["preview"] = node.Name
+                }))
+            .ToArray();
+
+        return Task.FromResult(embeddings);
     }
 }
 

@@ -22,6 +22,21 @@ public interface IContentStore
     Task<CodeContent?> GetContentAsync(string contentHash, CancellationToken cancellationToken = default);
 }
 
+public interface IRefreshableContentStore : IContentStore
+{
+    Task UpsertContentAsync(
+        CodeContent content,
+        RepositoryRef repository,
+        string ingestionRunId,
+        DateTimeOffset seenAt,
+        CancellationToken cancellationToken = default);
+
+    Task RemoveStaleContentAsync(
+        string repositoryId,
+        string ingestionRunId,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IVectorStore
 {
     Task UpsertEmbeddingsAsync(
@@ -32,6 +47,22 @@ public interface IVectorStore
         IReadOnlyList<float> vector,
         int limit,
         IReadOnlyDictionary<string, string>? filters = null,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IRefreshableGraphStore : IGraphStore
+{
+    Task RemoveStaleGraphAsync(
+        string repositoryId,
+        string ingestionRunId,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IRefreshableVectorStore : IVectorStore
+{
+    Task RemoveStaleEmbeddingsAsync(
+        string repositoryId,
+        string ingestionRunId,
         CancellationToken cancellationToken = default);
 }
 

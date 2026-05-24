@@ -53,8 +53,8 @@ class CodeMeshReadStore:
         return ContextResponse(query=query, hits=hits[: max(query.limit, 0)])
 
     async def get_node(self, lookup: NodeLookup) -> NodeResponse:
-        node = await self._get_node_properties(lookup.node_id)
-        if node is None:
+        node = await self._get_node_properties(lookup.node_id, lookup.repository_id)
+        if node is None or not _matches_repository(node, lookup.repository_id):
             return NodeResponse()
 
         normalized_node = _normalize_node(node)
@@ -66,12 +66,16 @@ class CodeMeshReadStore:
             content = await self._get_content(content_hash)
 
         if lookup.include_neighbors:
-            relationships = await self._get_relationships(lookup.node_id, depth=1)
+            relationships = await self._get_relationships(lookup.node_id, lookup.repository_id, depth=1)
 
         return NodeResponse(node=normalized_node, content=content, relationships=relationships)
 
     async def get_neighbors(self, query: NeighborQuery) -> NodeResponse:
-        relationships = await self._get_relationships(query.node_id, query.depth, query.relationship_kinds)
+        relationships = await self._get_relationships(
+            query.node_id,
+            query.repository_id,
+            query.depth,
+            query.relationship_kinds)
         return NodeResponse(relationships=relationships)
 
     async def _neo4j_health(self) -> dict[str, Any]:
@@ -180,17 +184,28 @@ class CodeMeshReadStore:
                 "detail": str(exc),
             }
 
-    async def _get_node_properties(self, node_id: str) -> dict[str, Any] | None:
+    async def _get_node_properties(self, node_id: str, repository_id: str | None = None) -> dict[str, Any] | None:
         if AsyncGraphDatabase is None:
             return None
 
         try:
             driver = self._neo4j()
             async with driver.session(database=self._settings.neo4j_database) as session:
-                result = await session.run(
-                    "MATCH (n:CodeMeshNode {id: $node_id}) RETURN properties(n) AS node LIMIT 1",
-                    node_id=node_id,
-                )
+                if repository_id:
+                    result = await session.run(
+                        "MATCH (n:CodeMeshNode {storageKey: $storage_key}) RETURN properties(n) AS node LIMIT 1",
+                        storage_key=_storage_key(repository_id, node_id),
+                    )
+                else:
+                    result = await session.run(
+                        """
+                        MATCH (n:CodeMeshNode {id: $node_id})
+                        RETURN properties(n) AS node
+                        ORDER BY n.lastSeenAt DESC
+                        LIMIT 1
+                        """,
+                        node_id=node_id,
+                    )
                 record = await result.single()
 
             return dict(record["node"]) if record else None
@@ -200,6 +215,7 @@ class CodeMeshReadStore:
     async def _get_relationships(
         self,
         node_id: str,
+        repository_id: str | None = None,
         depth: int = 1,
         relationship_kinds: list[str] | None = None,
     ) -> list[dict[str, Any]]:
@@ -207,17 +223,27 @@ class CodeMeshReadStore:
             return []
 
         clamped_depth = min(max(depth, 1), 4)
-        query = f"""
-        MATCH path = (:CodeMeshNode {{id: $node_id}})-[rels:CODEMESH_REL*1..{clamped_depth}]-()
-        UNWIND rels AS relationship
-        RETURN DISTINCT properties(relationship) AS relationship
-        ORDER BY relationship.id
-        """
+        if repository_id:
+            query = f"""
+            MATCH path = (:CodeMeshNode {{storageKey: $storage_key}})-[rels:CODEMESH_REL*1..{clamped_depth}]-()
+            UNWIND rels AS relationship
+            RETURN DISTINCT properties(relationship) AS relationship
+            ORDER BY relationship.id
+            """
+            parameters = {"storage_key": _storage_key(repository_id, node_id)}
+        else:
+            query = f"""
+            MATCH path = (:CodeMeshNode {{id: $node_id}})-[rels:CODEMESH_REL*1..{clamped_depth}]-()
+            UNWIND rels AS relationship
+            RETURN DISTINCT properties(relationship) AS relationship
+            ORDER BY relationship.id
+            """
+            parameters = {"node_id": node_id}
 
         try:
             driver = self._neo4j()
             async with driver.session(database=self._settings.neo4j_database) as session:
-                result = await session.run(query, node_id=node_id)
+                result = await session.run(query, **parameters)
                 records = await result.data()
         except Exception:
             return []
@@ -252,6 +278,7 @@ class CodeMeshReadStore:
         search_text = query.query.casefold()
         kinds = [kind.casefold() for kind in query.kinds]
         limit = min(max(query.limit * 4, 16), 200)
+        repository_id = query.repository_id
 
         try:
             driver = self._neo4j()
@@ -266,11 +293,13 @@ class CodeMeshReadStore:
                          toLower(coalesce(n.name, "")) CONTAINS $search_text OR
                          toLower(coalesce(n.filePath, "")) CONTAINS $search_text)
                         AND (size($kinds) = 0 OR toLower(coalesce(n.kind, "")) IN $kinds)
+                        AND ($repository_id IS NULL OR n.repositoryId = $repository_id)
                     RETURN properties(n) AS node
                     LIMIT $limit
                     """,
                     search_text=search_text,
                     kinds=kinds,
+                    repository_id=repository_id,
                     limit=limit,
                 )
                 records = await result.data()
@@ -278,7 +307,10 @@ class CodeMeshReadStore:
             return []
 
         nodes = [dict(record["node"]) for record in records]
-        nodes = [node for node in nodes if _matches_filters(node, query.filters)]
+        nodes = [
+            node for node in nodes
+            if _matches_filters(node, query.filters) and _matches_repository(node, query.repository_id)
+        ]
         nodes.sort(key=lambda node: _lexical_score(node, search_text), reverse=True)
 
         hits = []
@@ -289,13 +321,14 @@ class CodeMeshReadStore:
         return hits
 
     async def _search_vector_context(self, query: ContextQuery, vector: list[float]) -> list[ContextHit]:
-        qdrant_hits = await self._search_qdrant(vector, query.limit, query.filters)
+        qdrant_hits = await self._search_qdrant(vector, query.limit, _effective_filters(query))
         hits: list[ContextHit] = []
 
         for item in qdrant_hits:
             node_id = str(item.get("nodeId") or "")
             content_hash = str(item.get("contentHash") or "")
-            node = await self._get_node_properties(node_id)
+            repository_id = query.repository_id or str(item.get("repositoryId") or "") or None
+            node = await self._get_node_properties(node_id, repository_id)
             content = await self._get_content(content_hash)
 
             if node is None:
@@ -350,6 +383,8 @@ class CodeMeshReadStore:
             {
                 "nodeId": hit.get("payload", {}).get("nodeId", ""),
                 "contentHash": hit.get("payload", {}).get("contentHash", ""),
+                "repositoryId": hit.get("payload", {}).get("repositoryId", ""),
+                "storageKey": hit.get("payload", {}).get("storageKey", ""),
                 "preview": hit.get("payload", {}).get("preview"),
                 "score": hit.get("score", 0),
             }
@@ -423,14 +458,21 @@ def _component_ok(component: Any) -> bool:
     return isinstance(component, dict) and component.get("status") in {"healthy", "configured"}
 
 
+def _storage_key(repository_id: str, node_id: str) -> str:
+    return f"{repository_id}:{node_id}"
+
+
 def _normalize_node(node: dict[str, Any]) -> dict[str, Any]:
     return {
+        "storage_key": str(node.get("storageKey") or ""),
         "id": str(node.get("id") or ""),
         "stable_key": str(node.get("stableKey") or ""),
         "kind": str(node.get("kind") or ""),
         "name": str(node.get("name") or ""),
         "language": str(node.get("language") or ""),
         "project": str(node.get("project") or ""),
+        "repository_id": str(node.get("repositoryId") or ""),
+        "ingestion_run_id": str(node.get("ingestionRunId") or ""),
         "span": {
             "file_path": str(node.get("filePath") or ""),
             "start_line": _int(node.get("startLine")),
@@ -445,8 +487,11 @@ def _normalize_node(node: dict[str, Any]) -> dict[str, Any]:
 
 def _normalize_relationship(relationship: dict[str, Any]) -> dict[str, Any]:
     return {
+        "storage_key": str(relationship.get("storageKey") or ""),
         "id": str(relationship.get("id") or ""),
+        "source_storage_key": str(relationship.get("sourceStorageKey") or ""),
         "source_node_id": str(relationship.get("sourceNodeId") or ""),
+        "target_storage_key": str(relationship.get("targetStorageKey") or ""),
         "target_node_id": str(relationship.get("targetNodeId") or ""),
         "kind": str(relationship.get("kind") or ""),
         "label": relationship.get("label"),
@@ -497,6 +542,22 @@ def _matches_filters(node: dict[str, Any], filters: dict[str, str]) -> bool:
             return False
 
     return True
+
+
+def _matches_repository(node: dict[str, Any], repository_id: str | None) -> bool:
+    if not repository_id:
+        return True
+
+    metadata = _metadata(node.get("metadataJson"))
+    actual = node.get("repositoryId") or metadata.get("repositoryId")
+    return str(actual or "") == repository_id
+
+
+def _effective_filters(query: ContextQuery) -> dict[str, str]:
+    filters = dict(query.filters)
+    if query.repository_id:
+        filters["repositoryId"] = query.repository_id
+    return filters
 
 
 def _qdrant_filter(filters: dict[str, str]) -> dict[str, Any] | None:

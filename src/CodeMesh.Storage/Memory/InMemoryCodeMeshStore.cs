@@ -4,12 +4,20 @@ using CodeMesh.Domain.Health;
 
 namespace CodeMesh.Storage.Memory;
 
-public sealed class InMemoryCodeMeshStore : IGraphStore, IContentStore, IVectorStore, IStoreHealthCheck
+public sealed class InMemoryCodeMeshStore :
+    IGraphStore,
+    IRefreshableGraphStore,
+    IContentStore,
+    IRefreshableContentStore,
+    IVectorStore,
+    IRefreshableVectorStore,
+    IStoreHealthCheck
 {
     private readonly ConcurrentDictionary<string, CodeNode> _nodes = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, CodeRelationship> _relationships = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, CodeContent> _contents = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, EmbeddingRecord> _embeddings = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, string>> _contentRunsByRepository = new(StringComparer.Ordinal);
 
     public string Name => "memory";
 
@@ -59,6 +67,23 @@ public sealed class InMemoryCodeMeshStore : IGraphStore, IContentStore, IVectorS
         return Task.CompletedTask;
     }
 
+    public Task UpsertContentAsync(
+        CodeContent content,
+        RepositoryRef repository,
+        string ingestionRunId,
+        DateTimeOffset seenAt,
+        CancellationToken cancellationToken = default)
+    {
+        _contents[content.Hash] = content;
+
+        var runs = _contentRunsByRepository.GetOrAdd(
+            content.Hash,
+            _ => new ConcurrentDictionary<string, string>(StringComparer.Ordinal));
+        runs[repository.Id] = ingestionRunId;
+
+        return Task.CompletedTask;
+    }
+
     public Task<CodeContent?> GetContentAsync(string contentHash, CancellationToken cancellationToken = default)
     {
         _contents.TryGetValue(contentHash, out var content);
@@ -90,6 +115,7 @@ public sealed class InMemoryCodeMeshStore : IGraphStore, IContentStore, IVectorS
 
         var matches = _embeddings.Values
             .Where(embedding => embedding.Vector.Count == vector.Count)
+            .Where(embedding => MatchesFilters(embedding.Metadata, filters))
             .Select(embedding => new VectorSearchMatch(
                 embedding.NodeId,
                 embedding.ContentHash,
@@ -118,6 +144,70 @@ public sealed class InMemoryCodeMeshStore : IGraphStore, IContentStore, IVectorS
             ComponentState.Healthy,
             "In-memory store is available.",
             metadata));
+    }
+
+    public Task RemoveStaleGraphAsync(
+        string repositoryId,
+        string ingestionRunId,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var (relationshipId, relationship) in _relationships)
+        {
+            if (IsStale(relationship.Metadata, repositoryId, ingestionRunId))
+            {
+                _relationships.TryRemove(relationshipId, out _);
+            }
+        }
+
+        foreach (var (nodeId, node) in _nodes)
+        {
+            if (IsStale(node.Metadata, repositoryId, ingestionRunId))
+            {
+                _nodes.TryRemove(nodeId, out _);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task RemoveStaleContentAsync(
+        string repositoryId,
+        string ingestionRunId,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var (hash, runs) in _contentRunsByRepository)
+        {
+            if (!runs.TryGetValue(repositoryId, out var contentRunId) ||
+                string.Equals(contentRunId, ingestionRunId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            runs.TryRemove(repositoryId, out _);
+            if (runs.IsEmpty)
+            {
+                _contentRunsByRepository.TryRemove(hash, out _);
+                _contents.TryRemove(hash, out _);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task RemoveStaleEmbeddingsAsync(
+        string repositoryId,
+        string ingestionRunId,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var (embeddingId, embedding) in _embeddings)
+        {
+            if (IsStale(embedding.Metadata, repositoryId, ingestionRunId))
+            {
+                _embeddings.TryRemove(embeddingId, out _);
+            }
+        }
+
+        return Task.CompletedTask;
     }
 
     private string? PreviewFor(string contentHash)
@@ -150,5 +240,37 @@ public sealed class InMemoryCodeMeshStore : IGraphStore, IContentStore, IVectorS
         }
 
         return dot / (Math.Sqrt(leftNorm) * Math.Sqrt(rightNorm));
+    }
+
+    private static bool IsStale(
+        IReadOnlyDictionary<string, string> metadata,
+        string repositoryId,
+        string ingestionRunId)
+    {
+        return metadata.TryGetValue("repositoryId", out var itemRepositoryId) &&
+            metadata.TryGetValue("ingestionRunId", out var itemRunId) &&
+            string.Equals(itemRepositoryId, repositoryId, StringComparison.Ordinal) &&
+            !string.Equals(itemRunId, ingestionRunId, StringComparison.Ordinal);
+    }
+
+    private static bool MatchesFilters(
+        IReadOnlyDictionary<string, string> metadata,
+        IReadOnlyDictionary<string, string>? filters)
+    {
+        if (filters is null || filters.Count == 0)
+        {
+            return true;
+        }
+
+        foreach (var (key, value) in filters)
+        {
+            if (!metadata.TryGetValue(key, out var actual) ||
+                !string.Equals(actual, value, StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

@@ -34,16 +34,28 @@ def build_server() -> Any:
     @server.tool()
     async def codemesh_get_node(
         node_id: str,
+        repository_id: str | None = None,
         include_content: bool = True,
         include_neighbors: bool = True,
     ) -> dict[str, Any]:
         """Fetch a CodeMesh node with optional content and immediate relationships."""
-        return (await tools.get_node(node_id, include_content, include_neighbors)).model_dump(mode="json")
+        return (
+            await tools.get_node(
+                node_id,
+                repository_id=repository_id,
+                include_content=include_content,
+                include_neighbors=include_neighbors,
+            )
+        ).model_dump(mode="json")
 
     @server.tool()
-    async def codemesh_get_neighbors(node_id: str, depth: int = 1) -> dict[str, Any]:
+    async def codemesh_get_neighbors(
+        node_id: str,
+        repository_id: str | None = None,
+        depth: int = 1,
+    ) -> dict[str, Any]:
         """Fetch relationships around a CodeMesh node."""
-        return (await tools.get_neighbors(node_id, depth)).model_dump(mode="json")
+        return (await tools.get_neighbors(node_id, repository_id=repository_id, depth=depth)).model_dump(mode="json")
 
     return server
 

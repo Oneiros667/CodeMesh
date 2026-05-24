@@ -15,7 +15,7 @@ public sealed record QdrantVectorStoreOptions(
     string Distance = "Cosine",
     TimeSpan? Timeout = null);
 
-public sealed class QdrantVectorStore : IVectorStore, IStoreHealthCheck, IDisposable
+public sealed class QdrantVectorStore : IVectorStore, IRefreshableVectorStore, IStoreHealthCheck, IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -78,7 +78,7 @@ public sealed class QdrantVectorStore : IVectorStore, IStoreHealthCheck, IDispos
 
         var request = new UpsertRequest(
             embeddings.Select(embedding => new PointStruct(
-                PointIdFor(embedding.Id),
+                PointIdFor(PointKeyFor(embedding)),
                 embedding.Vector,
                 ToPayload(embedding))).ToArray());
 
@@ -127,6 +127,26 @@ public sealed class QdrantVectorStore : IVectorStore, IStoreHealthCheck, IDispos
                 PayloadNullableString(match.Payload, "preview"),
                 PayloadMetadata(match.Payload)))
             .ToArray() ?? Array.Empty<VectorSearchMatch>();
+    }
+
+    public async Task RemoveStaleEmbeddingsAsync(
+        string repositoryId,
+        string ingestionRunId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await CollectionExistsAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        var request = new DeleteRequest(new SearchFilter(
+            [new SearchCondition("repositoryId", new MatchValue(repositoryId))],
+            [new SearchCondition("ingestionRunId", new MatchValue(ingestionRunId))]));
+
+        using var response = await _http
+            .PostAsJsonAsync($"collections/{Uri.EscapeDataString(CollectionName)}/points/delete?wait=true", request, JsonOptions, cancellationToken)
+            .ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
     }
 
     public async Task<ComponentHealth> CheckAsync(CancellationToken cancellationToken = default)
@@ -259,8 +279,10 @@ public sealed class QdrantVectorStore : IVectorStore, IStoreHealthCheck, IDispos
 
     private static Dictionary<string, object> ToPayload(EmbeddingRecord embedding)
     {
+        var pointKey = PointKeyFor(embedding);
         var payload = new Dictionary<string, object>(StringComparer.Ordinal)
         {
+            ["storageKey"] = pointKey,
             ["embeddingId"] = embedding.Id,
             ["nodeId"] = embedding.NodeId,
             ["contentHash"] = embedding.ContentHash,
@@ -278,6 +300,18 @@ public sealed class QdrantVectorStore : IVectorStore, IStoreHealthCheck, IDispos
         return payload;
     }
 
+    private static string PointKeyFor(EmbeddingRecord embedding)
+    {
+        return MetadataValue(embedding.Metadata, "repositoryId") is { Length: > 0 } repositoryId
+            ? $"{repositoryId}:{embedding.Id}"
+            : embedding.Id;
+    }
+
+    private static string? MetadataValue(IReadOnlyDictionary<string, string> metadata, string key)
+    {
+        return metadata.TryGetValue(key, out var value) ? value : null;
+    }
+
     private static SearchFilter? BuildFilter(IReadOnlyDictionary<string, string>? filters)
     {
         if (filters is null || filters.Count == 0)
@@ -288,7 +322,8 @@ public sealed class QdrantVectorStore : IVectorStore, IStoreHealthCheck, IDispos
         return new SearchFilter(
             filters.Select(filter => new SearchCondition(
                 filter.Key,
-                new MatchValue(filter.Value))).ToArray());
+                new MatchValue(filter.Value))).ToArray(),
+            null);
     }
 
     private static string PayloadString(IReadOnlyDictionary<string, JsonElement> payload, string key)
@@ -345,7 +380,16 @@ public sealed class QdrantVectorStore : IVectorStore, IStoreHealthCheck, IDispos
         [property: JsonPropertyName("filter")] SearchFilter? Filter);
 
     private sealed record SearchFilter(
-        [property: JsonPropertyName("must")] IReadOnlyList<SearchCondition> Must);
+        [property: JsonPropertyName("must")]
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        IReadOnlyList<SearchCondition>? Must,
+
+        [property: JsonPropertyName("must_not")]
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        IReadOnlyList<SearchCondition>? MustNot);
+
+    private sealed record DeleteRequest(
+        [property: JsonPropertyName("filter")] SearchFilter Filter);
 
     private sealed record SearchCondition(
         [property: JsonPropertyName("key")] string Key,

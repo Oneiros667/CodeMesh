@@ -11,7 +11,7 @@ public sealed record MongoContentStoreOptions(
     string CollectionName = "content",
     TimeSpan? ServerSelectionTimeout = null);
 
-public sealed class MongoContentStore : IContentStore, IStoreHealthCheck
+public sealed class MongoContentStore : IContentStore, IRefreshableContentStore, IStoreHealthCheck
 {
     private readonly IMongoDatabase _database;
     private readonly IMongoCollection<ContentDocument> _contents;
@@ -43,6 +43,29 @@ public sealed class MongoContentStore : IContentStore, IStoreHealthCheck
             .ConfigureAwait(false);
     }
 
+    public async Task UpsertContentAsync(
+        CodeContent content,
+        RepositoryRef repository,
+        string ingestionRunId,
+        DateTimeOffset seenAt,
+        CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<ContentDocument>.Filter.Eq(item => item.Hash, content.Hash);
+        var update = Builders<ContentDocument>.Update
+            .SetOnInsert(item => item.Hash, content.Hash)
+            .SetOnInsert(item => item.CreatedAtUtc, content.CreatedAt.UtcDateTime)
+            .Set(item => item.Text, content.Text)
+            .Set(item => item.MediaType, content.MediaType)
+            .Set(item => item.UpdatedAtUtc, content.UpdatedAt.UtcDateTime)
+            .AddToSet("repositoryIds", repository.Id)
+            .Set($"repositoryRuns.{repository.Id}", ingestionRunId)
+            .Set($"repositoryLastSeenAtUtc.{repository.Id}", seenAt.UtcDateTime);
+        var options = new UpdateOptions { IsUpsert = true };
+
+        await _contents.UpdateOneAsync(filter, update, options, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<CodeContent?> GetContentAsync(
         string contentHash,
         CancellationToken cancellationToken = default)
@@ -54,6 +77,27 @@ public sealed class MongoContentStore : IContentStore, IStoreHealthCheck
             .ConfigureAwait(false);
 
         return document?.ToDomain();
+    }
+
+    public async Task RemoveStaleContentAsync(
+        string repositoryId,
+        string ingestionRunId,
+        CancellationToken cancellationToken = default)
+    {
+        var staleFilter =
+            Builders<ContentDocument>.Filter.Exists($"repositoryRuns.{repositoryId}") &
+            Builders<ContentDocument>.Filter.Ne($"repositoryRuns.{repositoryId}", ingestionRunId);
+        var removeRepository = Builders<ContentDocument>.Update
+            .Pull("repositoryIds", repositoryId)
+            .Unset($"repositoryRuns.{repositoryId}")
+            .Unset($"repositoryLastSeenAtUtc.{repositoryId}");
+
+        await _contents.UpdateManyAsync(staleFilter, removeRepository, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        var unreferencedFilter = Builders<ContentDocument>.Filter.Size("repositoryIds", 0);
+        await _contents.DeleteManyAsync(unreferencedFilter, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public async Task<ComponentHealth> CheckAsync(CancellationToken cancellationToken = default)
@@ -118,7 +162,16 @@ public sealed class MongoContentStore : IContentStore, IStoreHealthCheck
         public required DateTime CreatedAtUtc { get; init; }
 
         [BsonElement("updatedAtUtc")]
-        public required DateTime UpdatedAtUtc { get; init; }
+        public required DateTime UpdatedAtUtc { get; set; }
+
+        [BsonElement("repositoryIds")]
+        public List<string> RepositoryIds { get; set; } = [];
+
+        [BsonElement("repositoryRuns")]
+        public Dictionary<string, string> RepositoryRuns { get; set; } = new(StringComparer.Ordinal);
+
+        [BsonElement("repositoryLastSeenAtUtc")]
+        public Dictionary<string, DateTime> RepositoryLastSeenAtUtc { get; set; } = new(StringComparer.Ordinal);
 
         public static ContentDocument FromDomain(CodeContent content)
         {
@@ -128,7 +181,10 @@ public sealed class MongoContentStore : IContentStore, IStoreHealthCheck
                 Text = content.Text,
                 MediaType = content.MediaType,
                 CreatedAtUtc = content.CreatedAt.UtcDateTime,
-                UpdatedAtUtc = content.UpdatedAt.UtcDateTime
+                UpdatedAtUtc = content.UpdatedAt.UtcDateTime,
+                RepositoryIds = [],
+                RepositoryRuns = new Dictionary<string, string>(StringComparer.Ordinal),
+                RepositoryLastSeenAtUtc = new Dictionary<string, DateTime>(StringComparer.Ordinal)
             };
         }
 

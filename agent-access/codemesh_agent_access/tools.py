@@ -28,10 +28,16 @@ async def search_context(
     return ToolResult(data=result.model_dump(mode="json"))
 
 
-async def get_node(node_id: str, include_content: bool = True, include_neighbors: bool = True) -> ToolResult:
+async def get_node(
+    node_id: str,
+    repository_id: str | None = None,
+    include_content: bool = True,
+    include_neighbors: bool = True,
+) -> ToolResult:
     result = await get_store().get_node(
         NodeLookup(
             node_id=node_id,
+            repository_id=repository_id,
             include_content=include_content,
             include_neighbors=include_neighbors,
         )
@@ -39,6 +45,8 @@ async def get_node(node_id: str, include_content: bool = True, include_neighbors
     return ToolResult(data=result.model_dump(mode="json"))
 
 
-async def get_neighbors(node_id: str, depth: int = 1) -> ToolResult:
-    result = await get_store().get_neighbors(NeighborQuery(node_id=node_id, depth=depth))
+async def get_neighbors(node_id: str, repository_id: str | None = None, depth: int = 1) -> ToolResult:
+    result = await get_store().get_neighbors(
+        NeighborQuery(node_id=node_id, repository_id=repository_id, depth=depth)
+    )
     return ToolResult(data=result.model_dump(mode="json"))
