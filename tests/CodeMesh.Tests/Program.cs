@@ -1,5 +1,10 @@
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using CodeMesh.Control.Diagnostics;
 using CodeMesh.Domain.Contracts;
 using CodeMesh.Domain.Graph;
+using CodeMesh.Domain.Health;
 using CodeMesh.Domain.Utilities;
 using CodeMesh.Ingestion;
 using CodeMesh.Ingestion.Embedding;
@@ -16,6 +21,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("dry-run ingestion skips stores", TestDryRunSkipsStores),
     ("repository refresh removes stale records", TestRepositoryRefreshRemovesStaleRecords),
     ("incremental ingestion skips unchanged records", TestIncrementalIngestionSkipsUnchangedRecords),
+    ("status uses configured ollama endpoint", TestStatusUsesConfiguredOllamaEndpoint),
     ("ollama embedding provider maps responses", TestOllamaEmbeddingProviderMapsResponses),
     ("mongodb content store round-trips content", TestMongoContentStoreRoundTripsContent),
     ("neo4j graph store round-trips graph", TestNeo4jGraphStoreRoundTripsGraph),
@@ -236,6 +242,37 @@ static async Task TestIncrementalIngestionSkipsUnchangedRecords()
     finally
     {
         Directory.Delete(root, recursive: true);
+    }
+}
+
+static async Task TestStatusUsesConfiguredOllamaEndpoint()
+{
+    var previousUrl = Environment.GetEnvironmentVariable("CODEMESH_OLLAMA_URL");
+    var previousProvider = Environment.GetEnvironmentVariable("CODEMESH_MODEL_PROVIDER");
+    var previousModel = Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL");
+
+    await using var server = new SlowHttpServer(TimeSpan.FromMilliseconds(1100));
+
+    try
+    {
+        Environment.SetEnvironmentVariable("CODEMESH_OLLAMA_URL", server.BaseUrl);
+        Environment.SetEnvironmentVariable("CODEMESH_MODEL_PROVIDER", "ollama");
+        Environment.SetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL", "test-embed");
+
+        var report = await new CodeMeshStatusService()
+            .GetStatusAsync(Directory.GetCurrentDirectory());
+        var ollama = report.Components.Single(component => component.Name == "ollama");
+
+        Equal(ComponentState.Healthy, ollama.State, "Status did not use the configured slow Ollama endpoint.");
+        Equal($"{server.BaseUrl}/api/tags", ollama.Metadata["endpoint"], "Status did not probe the configured Ollama URL.");
+        Equal("ollama", ollama.Metadata["provider"], "Status did not report the configured model provider.");
+        Equal("test-embed", ollama.Metadata["model"], "Status did not report the configured embedding model.");
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("CODEMESH_OLLAMA_URL", previousUrl);
+        Environment.SetEnvironmentVariable("CODEMESH_MODEL_PROVIDER", previousProvider);
+        Environment.SetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL", previousModel);
     }
 }
 
@@ -1182,6 +1219,87 @@ static async Task DeleteQdrantCollectionAsync(string url, string collection)
 }
 
 sealed class SkipTestException(string message) : Exception(message);
+
+sealed class SlowHttpServer : IAsyncDisposable
+{
+    private readonly TcpListener _listener;
+    private readonly CancellationTokenSource _cancellation = new();
+    private readonly Task _serverTask;
+    private readonly TimeSpan _delay;
+
+    public SlowHttpServer(TimeSpan delay)
+    {
+        _delay = delay;
+        _listener = new TcpListener(IPAddress.Loopback, 0);
+        _listener.Start();
+
+        var endpoint = (IPEndPoint)_listener.LocalEndpoint;
+        BaseUrl = $"http://127.0.0.1:{endpoint.Port}";
+        _serverTask = Task.Run(ServeAsync);
+    }
+
+    public string BaseUrl { get; }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cancellation.CancelAsync();
+        _listener.Stop();
+
+        try
+        {
+            await _serverTask;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (SocketException)
+        {
+        }
+
+        _cancellation.Dispose();
+    }
+
+    private async Task ServeAsync()
+    {
+        while (!_cancellation.IsCancellationRequested)
+        {
+            using var client = await _listener
+                .AcceptTcpClientAsync(_cancellation.Token)
+                .ConfigureAwait(false);
+
+            await HandleClientAsync(client, _cancellation.Token)
+                .ConfigureAwait(false);
+        }
+    }
+
+    private async Task HandleClientAsync(TcpClient client, CancellationToken cancellationToken)
+    {
+        await using var stream = client.GetStream();
+        var buffer = new byte[1024];
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var bytesRead = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            if (bytesRead == 0)
+            {
+                return;
+            }
+
+            var request = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+            if (request.Contains("\r\n\r\n", StringComparison.Ordinal))
+            {
+                break;
+            }
+        }
+
+        await Task.Delay(_delay, cancellationToken).ConfigureAwait(false);
+
+        const string body = """{"models":[]}""";
+        var response = Encoding.ASCII.GetBytes(
+            $"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n{body}");
+        await stream.WriteAsync(response, cancellationToken).ConfigureAwait(false);
+    }
+}
 
 sealed class FakeParserClient : IParserClient
 {

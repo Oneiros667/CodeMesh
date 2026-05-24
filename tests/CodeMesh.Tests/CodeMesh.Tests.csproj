@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\CodeMesh.Control\CodeMesh.Control.csproj" />
     <ProjectReference Include="..\..\src\CodeMesh.Domain\CodeMesh.Domain.csproj" />
     <ProjectReference Include="..\..\src\CodeMesh.Ingestion\CodeMesh.Ingestion.csproj" />
     <ProjectReference Include="..\..\src\CodeMesh.Parser.CSharp\CodeMesh.Parser.CSharp.csproj" />
