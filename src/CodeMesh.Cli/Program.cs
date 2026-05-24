@@ -278,10 +278,20 @@ static void PrintIngestionResult(IngestionResult result, bool json)
     Console.WriteLine($"Run: {result.Run.RunId}");
     Console.WriteLine($"Repository: {result.Repository.RootPath}");
     Console.WriteLine($"Mode: {mode}");
-    Console.WriteLine($"Nodes: {result.NodeCount}");
-    Console.WriteLine($"Relationships: {result.RelationshipCount}");
-    Console.WriteLine($"Content items: {result.ContentCount}");
-    Console.WriteLine($"Embeddings: {result.EmbeddingCount}");
+    if (result.Stats is null)
+    {
+        Console.WriteLine($"Nodes: {result.NodeCount}");
+        Console.WriteLine($"Relationships: {result.RelationshipCount}");
+        Console.WriteLine($"Content items: {result.ContentCount}");
+        Console.WriteLine($"Embeddings: {result.EmbeddingCount}");
+    }
+    else
+    {
+        Console.WriteLine($"Nodes: {result.Stats.ParsedNodeCount} parsed, {result.Stats.WrittenNodeCount} written, {result.Stats.SkippedNodeCount} skipped");
+        Console.WriteLine($"Relationships: {result.Stats.ParsedRelationshipCount} parsed, {result.Stats.WrittenRelationshipCount} written, {result.Stats.SkippedRelationshipCount} skipped");
+        Console.WriteLine($"Content items: {result.Stats.ParsedContentCount} parsed, {result.Stats.WrittenContentCount} written, {result.Stats.SkippedContentCount} skipped");
+        Console.WriteLine($"Embeddings: {result.Stats.WrittenEmbeddingCount} written, {result.Stats.SkippedEmbeddingCount} skipped");
+    }
 
     if (result.Diagnostics.Count == 0)
     {

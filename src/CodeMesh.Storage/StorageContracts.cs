@@ -37,6 +37,20 @@ public interface IRefreshableContentStore : IContentStore
         CancellationToken cancellationToken = default);
 }
 
+public sealed record StoredContentState(string ContentHash);
+
+public interface IIncrementalContentStore : IContentStore
+{
+    Task<IReadOnlyList<StoredContentState>> GetContentStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default);
+
+    Task RemoveContentExceptAsync(
+        string repositoryId,
+        IReadOnlySet<string> currentContentHashes,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IVectorStore
 {
     Task UpsertEmbeddingsAsync(
@@ -58,11 +72,56 @@ public interface IRefreshableGraphStore : IGraphStore
         CancellationToken cancellationToken = default);
 }
 
+public sealed record StoredNodeState(
+    string NodeId,
+    string ContentHash,
+    string Fingerprint);
+
+public sealed record StoredRelationshipState(
+    string RelationshipId,
+    string Fingerprint);
+
+public interface IIncrementalGraphStore : IGraphStore
+{
+    Task<IReadOnlyList<StoredNodeState>> GetNodeStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<StoredRelationshipState>> GetRelationshipStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default);
+
+    Task RemoveGraphExceptAsync(
+        string repositoryId,
+        IReadOnlySet<string> currentNodeIds,
+        IReadOnlySet<string> currentRelationshipIds,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IRefreshableVectorStore : IVectorStore
 {
     Task RemoveStaleEmbeddingsAsync(
         string repositoryId,
         string ingestionRunId,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record StoredEmbeddingState(
+    string EmbeddingId,
+    string NodeId,
+    string ContentHash,
+    string Provider,
+    string Model);
+
+public interface IIncrementalVectorStore : IVectorStore
+{
+    Task<IReadOnlyList<StoredEmbeddingState>> GetEmbeddingStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default);
+
+    Task RemoveEmbeddingsExceptAsync(
+        string repositoryId,
+        IReadOnlySet<string> currentEmbeddingIds,
         CancellationToken cancellationToken = default);
 }
 

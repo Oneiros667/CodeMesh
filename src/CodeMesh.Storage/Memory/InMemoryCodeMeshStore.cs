@@ -1,16 +1,20 @@
 using System.Collections.Concurrent;
 using CodeMesh.Domain.Graph;
 using CodeMesh.Domain.Health;
+using CodeMesh.Domain.Utilities;
 
 namespace CodeMesh.Storage.Memory;
 
 public sealed class InMemoryCodeMeshStore :
     IGraphStore,
     IRefreshableGraphStore,
+    IIncrementalGraphStore,
     IContentStore,
     IRefreshableContentStore,
+    IIncrementalContentStore,
     IVectorStore,
     IRefreshableVectorStore,
+    IIncrementalVectorStore,
     IStoreHealthCheck
 {
     private readonly ConcurrentDictionary<string, CodeNode> _nodes = new(StringComparer.Ordinal);
@@ -170,6 +174,62 @@ public sealed class InMemoryCodeMeshStore :
         return Task.CompletedTask;
     }
 
+    public Task<IReadOnlyList<StoredNodeState>> GetNodeStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        var states = _nodes.Values
+            .Where(node => IsRepositoryItem(node.Metadata, repositoryId))
+            .Select(node => new StoredNodeState(
+                node.Id,
+                node.ContentHash,
+                CodeMeshFingerprint.ForNode(node)))
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<StoredNodeState>>(states);
+    }
+
+    public Task<IReadOnlyList<StoredRelationshipState>> GetRelationshipStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        var states = _relationships.Values
+            .Where(relationship => IsRepositoryItem(relationship.Metadata, repositoryId))
+            .Select(relationship => new StoredRelationshipState(
+                relationship.Id,
+                CodeMeshFingerprint.ForRelationship(relationship)))
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<StoredRelationshipState>>(states);
+    }
+
+    public Task RemoveGraphExceptAsync(
+        string repositoryId,
+        IReadOnlySet<string> currentNodeIds,
+        IReadOnlySet<string> currentRelationshipIds,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var (relationshipId, relationship) in _relationships)
+        {
+            if (IsRepositoryItem(relationship.Metadata, repositoryId) &&
+                !currentRelationshipIds.Contains(relationship.Id))
+            {
+                _relationships.TryRemove(relationshipId, out _);
+            }
+        }
+
+        foreach (var (nodeId, node) in _nodes)
+        {
+            if (IsRepositoryItem(node.Metadata, repositoryId) &&
+                !currentNodeIds.Contains(node.Id))
+            {
+                _nodes.TryRemove(nodeId, out _);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
     public Task RemoveStaleContentAsync(
         string repositoryId,
         string ingestionRunId,
@@ -194,6 +254,41 @@ public sealed class InMemoryCodeMeshStore :
         return Task.CompletedTask;
     }
 
+    public Task<IReadOnlyList<StoredContentState>> GetContentStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        var states = _contentRunsByRepository
+            .Where(item => item.Value.ContainsKey(repositoryId))
+            .Select(item => new StoredContentState(item.Key))
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<StoredContentState>>(states);
+    }
+
+    public Task RemoveContentExceptAsync(
+        string repositoryId,
+        IReadOnlySet<string> currentContentHashes,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var (hash, runs) in _contentRunsByRepository)
+        {
+            if (!runs.ContainsKey(repositoryId) || currentContentHashes.Contains(hash))
+            {
+                continue;
+            }
+
+            runs.TryRemove(repositoryId, out _);
+            if (runs.IsEmpty)
+            {
+                _contentRunsByRepository.TryRemove(hash, out _);
+                _contents.TryRemove(hash, out _);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
     public Task RemoveStaleEmbeddingsAsync(
         string repositoryId,
         string ingestionRunId,
@@ -202,6 +297,40 @@ public sealed class InMemoryCodeMeshStore :
         foreach (var (embeddingId, embedding) in _embeddings)
         {
             if (IsStale(embedding.Metadata, repositoryId, ingestionRunId))
+            {
+                _embeddings.TryRemove(embeddingId, out _);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<StoredEmbeddingState>> GetEmbeddingStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        var states = _embeddings.Values
+            .Where(embedding => IsRepositoryItem(embedding.Metadata, repositoryId))
+            .Select(embedding => new StoredEmbeddingState(
+                embedding.Id,
+                embedding.NodeId,
+                embedding.ContentHash,
+                embedding.Provider,
+                embedding.Model))
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<StoredEmbeddingState>>(states);
+    }
+
+    public Task RemoveEmbeddingsExceptAsync(
+        string repositoryId,
+        IReadOnlySet<string> currentEmbeddingIds,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var (embeddingId, embedding) in _embeddings)
+        {
+            if (IsRepositoryItem(embedding.Metadata, repositoryId) &&
+                !currentEmbeddingIds.Contains(embedding.Id))
             {
                 _embeddings.TryRemove(embeddingId, out _);
             }
@@ -251,6 +380,14 @@ public sealed class InMemoryCodeMeshStore :
             metadata.TryGetValue("ingestionRunId", out var itemRunId) &&
             string.Equals(itemRepositoryId, repositoryId, StringComparison.Ordinal) &&
             !string.Equals(itemRunId, ingestionRunId, StringComparison.Ordinal);
+    }
+
+    private static bool IsRepositoryItem(
+        IReadOnlyDictionary<string, string> metadata,
+        string repositoryId)
+    {
+        return metadata.TryGetValue("repositoryId", out var itemRepositoryId) &&
+            string.Equals(itemRepositoryId, repositoryId, StringComparison.Ordinal);
     }
 
     private static bool MatchesFilters(

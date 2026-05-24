@@ -35,7 +35,21 @@ public sealed record IngestionResult(
     int RelationshipCount,
     int ContentCount,
     int EmbeddingCount,
-    IReadOnlyList<ParserDiagnostic> Diagnostics);
+    IReadOnlyList<ParserDiagnostic> Diagnostics,
+    IngestionStats? Stats = null);
+
+public sealed record IngestionStats(
+    int ParsedNodeCount,
+    int WrittenNodeCount,
+    int SkippedNodeCount,
+    int ParsedRelationshipCount,
+    int WrittenRelationshipCount,
+    int SkippedRelationshipCount,
+    int ParsedContentCount,
+    int WrittenContentCount,
+    int SkippedContentCount,
+    int WrittenEmbeddingCount,
+    int SkippedEmbeddingCount);
 
 public interface IIngestionOrchestrator
 {

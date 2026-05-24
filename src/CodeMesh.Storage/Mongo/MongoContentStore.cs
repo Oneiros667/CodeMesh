@@ -11,7 +11,11 @@ public sealed record MongoContentStoreOptions(
     string CollectionName = "content",
     TimeSpan? ServerSelectionTimeout = null);
 
-public sealed class MongoContentStore : IContentStore, IRefreshableContentStore, IStoreHealthCheck
+public sealed class MongoContentStore :
+    IContentStore,
+    IRefreshableContentStore,
+    IIncrementalContentStore,
+    IStoreHealthCheck
 {
     private readonly IMongoDatabase _database;
     private readonly IMongoCollection<ContentDocument> _contents;
@@ -87,6 +91,43 @@ public sealed class MongoContentStore : IContentStore, IRefreshableContentStore,
         var staleFilter =
             Builders<ContentDocument>.Filter.Exists($"repositoryRuns.{repositoryId}") &
             Builders<ContentDocument>.Filter.Ne($"repositoryRuns.{repositoryId}", ingestionRunId);
+        var removeRepository = Builders<ContentDocument>.Update
+            .Pull("repositoryIds", repositoryId)
+            .Unset($"repositoryRuns.{repositoryId}")
+            .Unset($"repositoryLastSeenAtUtc.{repositoryId}");
+
+        await _contents.UpdateManyAsync(staleFilter, removeRepository, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        var unreferencedFilter = Builders<ContentDocument>.Filter.Size("repositoryIds", 0);
+        await _contents.DeleteManyAsync(unreferencedFilter, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<StoredContentState>> GetContentStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<ContentDocument>.Filter.AnyEq(item => item.RepositoryIds, repositoryId);
+        var documents = await _contents
+            .Find(filter)
+            .Project(item => item.Hash)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return documents
+            .Select(hash => new StoredContentState(hash))
+            .ToArray();
+    }
+
+    public async Task RemoveContentExceptAsync(
+        string repositoryId,
+        IReadOnlySet<string> currentContentHashes,
+        CancellationToken cancellationToken = default)
+    {
+        var currentHashes = currentContentHashes.ToArray();
+        var staleFilter = Builders<ContentDocument>.Filter.AnyEq(item => item.RepositoryIds, repositoryId) &
+            Builders<ContentDocument>.Filter.Nin(item => item.Hash, currentHashes);
         var removeRepository = Builders<ContentDocument>.Update
             .Pull("repositoryIds", repositoryId)
             .Unset($"repositoryRuns.{repositoryId}")

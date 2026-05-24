@@ -1,6 +1,7 @@
 using System.Text.Json;
 using CodeMesh.Domain.Graph;
 using CodeMesh.Domain.Health;
+using CodeMesh.Domain.Utilities;
 using Neo4j.Driver;
 
 namespace CodeMesh.Storage.Neo4j;
@@ -11,7 +12,12 @@ public sealed record Neo4jGraphStoreOptions(
     string Password,
     string? Database = null);
 
-public sealed class Neo4jGraphStore : IGraphStore, IRefreshableGraphStore, IStoreHealthCheck, IAsyncDisposable
+public sealed class Neo4jGraphStore :
+    IGraphStore,
+    IRefreshableGraphStore,
+    IIncrementalGraphStore,
+    IStoreHealthCheck,
+    IAsyncDisposable
 {
     private readonly IDriver _driver;
     private readonly string _uri;
@@ -83,7 +89,7 @@ public sealed class Neo4jGraphStore : IGraphStore, IRefreshableGraphStore, IStor
         await RunAndConsumeAsync(
             session,
             """
-            MATCH ()-[r:CODEMESH_REL]-()
+            MATCH ()-[r:CODEMESH_REL]->()
             WHERE r.repositoryId = $repositoryId AND r.ingestionRunId <> $ingestionRunId
             DELETE r
             """,
@@ -97,6 +103,92 @@ public sealed class Neo4jGraphStore : IGraphStore, IRefreshableGraphStore, IStor
             DETACH DELETE n
             """,
             new { repositoryId, ingestionRunId },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<StoredNodeState>> GetNodeStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
+
+        await using var session = OpenSession();
+        var cursor = await session.RunAsync(
+            """
+            MATCH (n:CodeMeshNode)
+            WHERE n.repositoryId = $repositoryId
+            RETURN n.id AS nodeId, n.contentHash AS contentHash, coalesce(n.fingerprint, '') AS fingerprint
+            ORDER BY nodeId
+            """,
+            new { repositoryId }).ConfigureAwait(false);
+        var records = await cursor.ToListAsync().ConfigureAwait(false);
+
+        return records
+            .Select(record => new StoredNodeState(
+                record["nodeId"].As<string>(),
+                record["contentHash"].As<string>(),
+                record["fingerprint"].As<string>()))
+            .ToArray();
+    }
+
+    public async Task<IReadOnlyList<StoredRelationshipState>> GetRelationshipStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
+
+        await using var session = OpenSession();
+        var cursor = await session.RunAsync(
+            """
+            MATCH ()-[r:CODEMESH_REL]->()
+            WHERE r.repositoryId = $repositoryId
+            RETURN r.id AS relationshipId, coalesce(r.fingerprint, '') AS fingerprint
+            ORDER BY relationshipId
+            """,
+            new { repositoryId }).ConfigureAwait(false);
+        var records = await cursor.ToListAsync().ConfigureAwait(false);
+
+        return records
+            .Select(record => new StoredRelationshipState(
+                record["relationshipId"].As<string>(),
+                record["fingerprint"].As<string>()))
+            .ToArray();
+    }
+
+    public async Task RemoveGraphExceptAsync(
+        string repositoryId,
+        IReadOnlySet<string> currentNodeIds,
+        IReadOnlySet<string> currentRelationshipIds,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
+
+        await using var session = OpenSession();
+        await RunAndConsumeAsync(
+            session,
+            """
+            MATCH ()-[r:CODEMESH_REL]->()
+            WHERE r.repositoryId = $repositoryId AND NOT r.id IN $currentRelationshipIds
+            DELETE r
+            """,
+            new
+            {
+                repositoryId,
+                currentRelationshipIds = currentRelationshipIds.ToArray()
+            },
+            cancellationToken).ConfigureAwait(false);
+        await RunAndConsumeAsync(
+            session,
+            """
+            MATCH (n:CodeMeshNode)
+            WHERE n.repositoryId = $repositoryId AND NOT n.id IN $currentNodeIds
+            DETACH DELETE n
+            """,
+            new
+            {
+                repositoryId,
+                currentNodeIds = currentNodeIds.ToArray()
+            },
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -319,6 +411,7 @@ public sealed class Neo4jGraphStore : IGraphStore, IRefreshableGraphStore, IStor
             ["language"] = node.Language,
             ["project"] = node.Project,
             ["contentHash"] = node.ContentHash,
+            ["fingerprint"] = CodeMeshFingerprint.ForNode(node),
             ["filePath"] = node.Span.FilePath,
             ["startLine"] = node.Span.StartLine,
             ["startColumn"] = node.Span.StartColumn,
@@ -346,6 +439,7 @@ public sealed class Neo4jGraphStore : IGraphStore, IRefreshableGraphStore, IStor
             ["targetNodeId"] = relationship.TargetNodeId,
             ["kind"] = relationship.Kind.ToString(),
             ["label"] = relationship.Label,
+            ["fingerprint"] = CodeMeshFingerprint.ForRelationship(relationship),
             ["repositoryId"] = repositoryId,
             ["ingestionRunId"] = MetadataValue(relationship.Metadata, "ingestionRunId") ?? batch.BatchId,
             ["lastSeenAt"] = MetadataValue(relationship.Metadata, "lastSeenAt") ?? batch.CreatedAt.ToString("O"),

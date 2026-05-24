@@ -37,15 +37,82 @@ public sealed class IngestionOrchestrator(
 
         var nodes = StampNodes(parseResult.Nodes, repository, ingestionRunId, seenAt);
         var relationships = StampRelationships(parseResult.Relationships, repository, ingestionRunId, seenAt);
+        var currentContents = parseResult.Contents
+            .GroupBy(content => content.Hash, StringComparer.Ordinal)
+            .Select(group => group.First())
+            .ToArray();
+        var currentNodeIds = nodes
+            .Select(node => node.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        var currentRelationshipIds = relationships
+            .Select(relationship => relationship.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        var currentContentHashes = currentContents
+            .Select(content => content.Hash)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var nodesToWrite = nodes;
+        var relationshipsToWrite = relationships;
+        var contentsToWrite = currentContents;
+        var skippedNodeCount = 0;
+        var skippedRelationshipCount = 0;
+        var skippedContentCount = 0;
+
+        if (!request.DryRun)
+        {
+            if (graphStore is IIncrementalGraphStore incrementalGraphStore)
+            {
+                var existingNodes = await incrementalGraphStore
+                    .GetNodeStatesAsync(repository.Id, cancellationToken)
+                    .ConfigureAwait(false);
+                var existingNodeById = existingNodes
+                    .GroupBy(state => state.NodeId, StringComparer.Ordinal)
+                    .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+
+                nodesToWrite = nodes
+                    .Where(node => !IsUnchangedNode(node, existingNodeById))
+                    .ToArray();
+                skippedNodeCount = nodes.Count - nodesToWrite.Count;
+
+                var existingRelationships = await incrementalGraphStore
+                    .GetRelationshipStatesAsync(repository.Id, cancellationToken)
+                    .ConfigureAwait(false);
+                var existingRelationshipById = existingRelationships
+                    .GroupBy(state => state.RelationshipId, StringComparer.Ordinal)
+                    .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+
+                relationshipsToWrite = relationships
+                    .Where(relationship => !IsUnchangedRelationship(relationship, existingRelationshipById))
+                    .ToArray();
+                skippedRelationshipCount = relationships.Count - relationshipsToWrite.Count;
+            }
+
+            if (contentStore is IIncrementalContentStore incrementalContentStore)
+            {
+                var existingContents = await incrementalContentStore
+                    .GetContentStatesAsync(repository.Id, cancellationToken)
+                    .ConfigureAwait(false);
+                var existingContentHashes = existingContents
+                    .Select(state => state.ContentHash)
+                    .ToHashSet(StringComparer.Ordinal);
+
+                contentsToWrite = currentContents
+                    .Where(content => !existingContentHashes.Contains(content.Hash))
+                    .ToArray();
+                skippedContentCount = currentContents.Length - contentsToWrite.Length;
+            }
+        }
+
         var batch = new CodeGraphBatch(
             ingestionRunId,
             repository,
-            nodes,
-            relationships,
-            parseResult.Contents,
+            nodesToWrite,
+            relationshipsToWrite,
+            contentsToWrite,
             seenAt);
 
         var embeddingCount = 0;
+        var skippedEmbeddingCount = 0;
 
         if (!request.DryRun)
         {
@@ -67,36 +134,101 @@ public sealed class IngestionOrchestrator(
 
             if (!request.SkipEmbeddings)
             {
-                var contentByHash = batch.Contents
+                var contentByHash = currentContents
                     .GroupBy(content => content.Hash, StringComparer.Ordinal)
                     .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+                var nodesForEmbedding = nodes;
+                var currentEmbeddingIds = new HashSet<string>(StringComparer.Ordinal);
+
+                if (vectorStore is IIncrementalVectorStore incrementalVectorStore)
+                {
+                    var rewrittenNodeIds = nodesToWrite
+                        .Select(node => node.Id)
+                        .ToHashSet(StringComparer.Ordinal);
+                    var existingEmbeddings = await incrementalVectorStore
+                        .GetEmbeddingStatesAsync(repository.Id, cancellationToken)
+                        .ConfigureAwait(false);
+                    var existingEmbeddingByNodeContent = existingEmbeddings
+                        .Where(embedding =>
+                            string.Equals(embedding.Provider, embeddingProvider.Provider, StringComparison.Ordinal) &&
+                            string.Equals(embedding.Model, embeddingProvider.Model, StringComparison.Ordinal))
+                        .GroupBy(EmbeddingLookupKey, StringComparer.Ordinal)
+                        .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+
+                    nodesForEmbedding = nodes
+                        .Where(node =>
+                            rewrittenNodeIds.Contains(node.Id) ||
+                            !existingEmbeddingByNodeContent.ContainsKey(EmbeddingLookupKey(node.Id, node.ContentHash)))
+                        .ToArray();
+                    var nodesForEmbeddingKeys = nodesForEmbedding
+                        .Select(node => EmbeddingLookupKey(node.Id, node.ContentHash))
+                        .ToHashSet(StringComparer.Ordinal);
+
+                    foreach (var node in nodes.Where(node => !nodesForEmbeddingKeys.Contains(EmbeddingLookupKey(node.Id, node.ContentHash))))
+                    {
+                        if (existingEmbeddingByNodeContent.TryGetValue(
+                            EmbeddingLookupKey(node.Id, node.ContentHash),
+                            out var existingEmbedding))
+                        {
+                            currentEmbeddingIds.Add(existingEmbedding.EmbeddingId);
+                        }
+                    }
+
+                    skippedEmbeddingCount = nodes.Count - nodesForEmbedding.Count;
+                }
 
                 var embeddings = await embeddingProvider
-                    .EmbedAsync(batch.Nodes, contentByHash, cancellationToken)
+                    .EmbedAsync(nodesForEmbedding, contentByHash, cancellationToken)
                     .ConfigureAwait(false);
                 embeddings = StampEmbeddings(embeddings, repository, ingestionRunId, seenAt);
 
                 await vectorStore.UpsertEmbeddingsAsync(embeddings, cancellationToken)
                     .ConfigureAwait(false);
 
+                foreach (var embedding in embeddings)
+                {
+                    currentEmbeddingIds.Add(embedding.Id);
+                }
+
+                if (vectorStore is IIncrementalVectorStore cleanupVectorStore)
+                {
+                    await cleanupVectorStore
+                        .RemoveEmbeddingsExceptAsync(repository.Id, currentEmbeddingIds, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
                 embeddingCount = embeddings.Count;
             }
 
-            if (graphStore is IRefreshableGraphStore refreshableGraphStore)
+            if (graphStore is IIncrementalGraphStore cleanupGraphStore)
+            {
+                await cleanupGraphStore
+                    .RemoveGraphExceptAsync(repository.Id, currentNodeIds, currentRelationshipIds, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else if (graphStore is IRefreshableGraphStore refreshableGraphStore)
             {
                 await refreshableGraphStore
                     .RemoveStaleGraphAsync(repository.Id, ingestionRunId, cancellationToken)
                     .ConfigureAwait(false);
             }
 
-            if (contentStore is IRefreshableContentStore cleanupContentStore)
+            if (contentStore is IIncrementalContentStore cleanupContentStore)
             {
                 await cleanupContentStore
+                    .RemoveContentExceptAsync(repository.Id, currentContentHashes, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else if (contentStore is IRefreshableContentStore refreshableContentStore)
+            {
+                await refreshableContentStore
                     .RemoveStaleContentAsync(repository.Id, ingestionRunId, cancellationToken)
                     .ConfigureAwait(false);
             }
 
-            if (!request.SkipEmbeddings && vectorStore is IRefreshableVectorStore refreshableVectorStore)
+            if (!request.SkipEmbeddings &&
+                vectorStore is not IIncrementalVectorStore &&
+                vectorStore is IRefreshableVectorStore refreshableVectorStore)
             {
                 await refreshableVectorStore
                     .RemoveStaleEmbeddingsAsync(repository.Id, ingestionRunId, cancellationToken)
@@ -112,11 +244,53 @@ public sealed class IngestionOrchestrator(
                 DateTimeOffset.UtcNow,
                 request.DryRun ? "Dry run completed; no stores were written." : "Ingestion completed."),
             repository,
-            batch.Nodes.Count,
-            batch.Relationships.Count,
-            batch.Contents.Count,
+            nodes.Count,
+            relationships.Count,
+            currentContents.Length,
             embeddingCount,
-            parseResult.Diagnostics);
+            parseResult.Diagnostics,
+            new IngestionStats(
+                nodes.Count,
+                nodesToWrite.Count,
+                skippedNodeCount,
+                relationships.Count,
+                relationshipsToWrite.Count,
+                skippedRelationshipCount,
+                currentContents.Length,
+                contentsToWrite.Length,
+                skippedContentCount,
+                embeddingCount,
+                skippedEmbeddingCount));
+    }
+
+    private static bool IsUnchangedNode(
+        CodeNode node,
+        IReadOnlyDictionary<string, StoredNodeState> existingNodeById)
+    {
+        return existingNodeById.TryGetValue(node.Id, out var existingNode) &&
+            string.Equals(existingNode.ContentHash, node.ContentHash, StringComparison.Ordinal) &&
+            string.Equals(existingNode.Fingerprint, CodeMeshFingerprint.ForNode(node), StringComparison.Ordinal);
+    }
+
+    private static bool IsUnchangedRelationship(
+        CodeRelationship relationship,
+        IReadOnlyDictionary<string, StoredRelationshipState> existingRelationshipById)
+    {
+        return existingRelationshipById.TryGetValue(relationship.Id, out var existingRelationship) &&
+            string.Equals(
+                existingRelationship.Fingerprint,
+                CodeMeshFingerprint.ForRelationship(relationship),
+                StringComparison.Ordinal);
+    }
+
+    private static string EmbeddingLookupKey(StoredEmbeddingState embedding)
+    {
+        return EmbeddingLookupKey(embedding.NodeId, embedding.ContentHash);
+    }
+
+    private static string EmbeddingLookupKey(string nodeId, string contentHash)
+    {
+        return $"{nodeId}\u001f{contentHash}";
     }
 
     private static IReadOnlyList<CodeNode> StampNodes(

@@ -15,6 +15,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("ingestion writes parser output", TestIngestionWritesParserOutput),
     ("dry-run ingestion skips stores", TestDryRunSkipsStores),
     ("repository refresh removes stale records", TestRepositoryRefreshRemovesStaleRecords),
+    ("incremental ingestion skips unchanged records", TestIncrementalIngestionSkipsUnchangedRecords),
     ("ollama embedding provider maps responses", TestOllamaEmbeddingProviderMapsResponses),
     ("mongodb content store round-trips content", TestMongoContentStoreRoundTripsContent),
     ("neo4j graph store round-trips graph", TestNeo4jGraphStoreRoundTripsGraph),
@@ -173,6 +174,71 @@ static async Task TestRepositoryRefreshRemovesStaleRecords()
     }
 }
 
+static async Task TestIncrementalIngestionSkipsUnchangedRecords()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-incremental-test-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+
+    try
+    {
+        var store = new InMemoryCodeMeshStore();
+        var parser = new RefreshParserClient("Alpha");
+        var embeddingProvider = new CountingEmbeddingProvider();
+        var orchestrator = new IngestionOrchestrator(
+            parser,
+            store,
+            store,
+            store,
+            embeddingProvider);
+
+        var first = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            SkipEmbeddings: false));
+
+        NotNull(first.Stats, "Initial ingest did not report stats.");
+        Equal(1, first.Stats!.WrittenNodeCount, "Initial ingest did not write the parsed node.");
+        Equal(0, first.Stats.SkippedNodeCount, "Initial ingest incorrectly skipped a node.");
+        Equal(1, first.Stats.WrittenContentCount, "Initial ingest did not write content.");
+        Equal(1, first.Stats.WrittenEmbeddingCount, "Initial ingest did not write an embedding.");
+        Equal(1, embeddingProvider.EmbeddedNodeCount, "Initial ingest did not call embedding provider for the parsed node.");
+
+        var second = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            SkipEmbeddings: false));
+
+        NotNull(second.Stats, "Incremental ingest did not report stats.");
+        Equal(1, second.Stats!.ParsedNodeCount, "Incremental ingest parsed node count changed.");
+        Equal(0, second.Stats.WrittenNodeCount, "Incremental ingest rewrote an unchanged node.");
+        Equal(1, second.Stats.SkippedNodeCount, "Incremental ingest did not skip the unchanged node.");
+        Equal(0, second.Stats.WrittenContentCount, "Incremental ingest rewrote unchanged content.");
+        Equal(1, second.Stats.SkippedContentCount, "Incremental ingest did not skip unchanged content.");
+        Equal(0, second.Stats.WrittenEmbeddingCount, "Incremental ingest regenerated an unchanged embedding.");
+        Equal(1, second.Stats.SkippedEmbeddingCount, "Incremental ingest did not skip the unchanged embedding.");
+        Equal(1, embeddingProvider.EmbeddedNodeCount, "Incremental ingest called embedding provider for an unchanged node.");
+        NotNull(await store.GetNodeAsync(RefreshParserClient.NodeIdFor("Alpha")), "Incremental cleanup removed an unchanged node.");
+        NotNull(await store.GetContentAsync(RefreshParserClient.ContentHashFor("Alpha")), "Incremental cleanup removed unchanged content.");
+
+        parser.TypeName = "Beta";
+        var third = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            SkipEmbeddings: false));
+
+        NotNull(third.Stats, "Changed incremental ingest did not report stats.");
+        Equal(1, third.Stats!.WrittenNodeCount, "Changed incremental ingest did not write the new node.");
+        Equal(0, third.Stats.SkippedNodeCount, "Changed incremental ingest incorrectly skipped the new node.");
+        Equal(2, embeddingProvider.EmbeddedNodeCount, "Changed incremental ingest did not embed the changed node.");
+        IsNull(await store.GetNodeAsync(RefreshParserClient.NodeIdFor("Alpha")), "Incremental cleanup did not remove stale Alpha node.");
+        NotNull(await store.GetNodeAsync(RefreshParserClient.NodeIdFor("Beta")), "Incremental cleanup did not keep current Beta node.");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
 static async Task TestOllamaEmbeddingProviderMapsResponses()
 {
     var handler = new FakeOllamaEmbeddingHandler();
@@ -271,6 +337,36 @@ static async Task TestMongoContentStoreRoundTripsContent()
 
     IsNull(await store.GetContentAsync(staleContent.Hash, timeout.Token), "MongoDB content refresh did not remove stale content.");
     NotNull(await store.GetContentAsync(currentContent.Hash, timeout.Token), "MongoDB content refresh removed current content.");
+
+    var incrementalRepository = new RepositoryRef($"repo:mongo-incremental:{Guid.NewGuid():N}", Directory.GetCurrentDirectory());
+    var incrementalStaleText = "public sealed class MongoIncrementalStale { }";
+    var incrementalCurrentText = "public sealed class MongoIncrementalCurrent { }";
+    var incrementalStale = new CodeContent(
+        CodeMeshHash.Sha256Hex(incrementalStaleText),
+        incrementalStaleText,
+        "text/x-csharp-fragment",
+        now,
+        now);
+    var incrementalCurrent = new CodeContent(
+        CodeMeshHash.Sha256Hex(incrementalCurrentText),
+        incrementalCurrentText,
+        "text/x-csharp-fragment",
+        now,
+        now);
+
+    await store.UpsertContentAsync(incrementalStale, incrementalRepository, "run:mongo-incremental-stale", now, timeout.Token);
+    await store.UpsertContentAsync(incrementalCurrent, incrementalRepository, "run:mongo-incremental-current", now, timeout.Token);
+
+    var contentStates = await store.GetContentStatesAsync(incrementalRepository.Id, timeout.Token);
+    Equal(2, contentStates.Count, "MongoDB incremental content inventory count changed.");
+
+    await store.RemoveContentExceptAsync(
+        incrementalRepository.Id,
+        new HashSet<string>(StringComparer.Ordinal) { incrementalCurrent.Hash },
+        timeout.Token);
+
+    IsNull(await store.GetContentAsync(incrementalStale.Hash, timeout.Token), "MongoDB incremental cleanup did not remove stale content.");
+    NotNull(await store.GetContentAsync(incrementalCurrent.Hash, timeout.Token), "MongoDB incremental cleanup removed current content.");
 }
 
 static async Task TestNeo4jGraphStoreRoundTripsGraph()
@@ -454,6 +550,49 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
 
     IsNull(await store.GetNodeAsync(stale.Id, timeout.Token), "Neo4j graph refresh did not remove stale node.");
     NotNull(await store.GetNodeAsync(current.Id, timeout.Token), "Neo4j graph refresh removed current node.");
+
+    var incrementalRepository = new RepositoryRef($"repo:neo4j-incremental:{unique}", Directory.GetCurrentDirectory());
+    var incrementalStale = source with
+    {
+        Id = $"csharp:type:CodeMesh.Tests.Neo4jIncrementalStale{unique}",
+        StableKey = $"csharp:type:CodeMesh.Tests.Neo4jIncrementalStale{unique}",
+        Name = $"Neo4jIncrementalStale{unique}"
+    };
+    var incrementalCurrent = target with
+    {
+        Id = $"csharp:type:CodeMesh.Tests.Neo4jIncrementalCurrent{unique}",
+        StableKey = $"csharp:type:CodeMesh.Tests.Neo4jIncrementalCurrent{unique}",
+        Name = $"Neo4jIncrementalCurrent{unique}"
+    };
+    var incrementalRelationship = new CodeRelationship(
+        CodeMeshHash.StableId(incrementalStale.Id, incrementalCurrent.Id, CodeRelationshipKind.Contains.ToString()),
+        incrementalStale.Id,
+        incrementalCurrent.Id,
+        CodeRelationshipKind.Contains,
+        "contains",
+        new Dictionary<string, string> { ["test"] = "neo4j-incremental" });
+
+    await store.UpsertGraphAsync(new CodeGraphBatch(
+        "run:neo4j-incremental",
+        incrementalRepository,
+        [incrementalStale, incrementalCurrent],
+        [incrementalRelationship],
+        Array.Empty<CodeContent>(),
+        now), timeout.Token);
+
+    var nodeStates = await store.GetNodeStatesAsync(incrementalRepository.Id, timeout.Token);
+    var relationshipStates = await store.GetRelationshipStatesAsync(incrementalRepository.Id, timeout.Token);
+    Equal(2, nodeStates.Count, "Neo4j incremental node inventory count changed.");
+    Equal(1, relationshipStates.Count, "Neo4j incremental relationship inventory count changed.");
+
+    await store.RemoveGraphExceptAsync(
+        incrementalRepository.Id,
+        new HashSet<string>(StringComparer.Ordinal) { incrementalCurrent.Id },
+        new HashSet<string>(StringComparer.Ordinal),
+        timeout.Token);
+
+    IsNull(await store.GetNodeAsync(incrementalStale.Id, timeout.Token), "Neo4j incremental cleanup did not remove stale node.");
+    NotNull(await store.GetNodeAsync(incrementalCurrent.Id, timeout.Token), "Neo4j incremental cleanup removed current node.");
 }
 
 static async Task TestQdrantVectorStoreRoundTripsEmbeddings()
@@ -619,6 +758,59 @@ static async Task TestQdrantVectorStoreRoundTripsEmbeddings()
         if (!refreshMatches.Any(match => string.Equals(match.NodeId, current.NodeId, StringComparison.Ordinal)))
         {
             throw new InvalidOperationException("Qdrant vector refresh removed current embedding.");
+        }
+
+        var incrementalRepositoryId = $"repo:qdrant-incremental:{unique}";
+        var incrementalStale = new EmbeddingRecord(
+            $"embedding:qdrant:{unique}:incremental-stale",
+            $"node:qdrant:{unique}:incremental-stale",
+            $"hash:qdrant:{unique}:incremental-stale",
+            "test",
+            "unit",
+            3,
+            [0.0f, 0.0f, 1.0f],
+            new Dictionary<string, string>
+            {
+                ["repositoryId"] = incrementalRepositoryId,
+                ["preview"] = "incremental stale vector"
+            });
+        var incrementalCurrent = new EmbeddingRecord(
+            $"embedding:qdrant:{unique}:incremental-current",
+            $"node:qdrant:{unique}:incremental-current",
+            $"hash:qdrant:{unique}:incremental-current",
+            "test",
+            "unit",
+            3,
+            [0.0f, 0.0f, 1.0f],
+            new Dictionary<string, string>
+            {
+                ["repositoryId"] = incrementalRepositoryId,
+                ["preview"] = "incremental current vector"
+            });
+
+        await store.UpsertEmbeddingsAsync([incrementalStale, incrementalCurrent], timeout.Token);
+
+        var embeddingStates = await store.GetEmbeddingStatesAsync(incrementalRepositoryId, timeout.Token);
+        Equal(2, embeddingStates.Count, "Qdrant incremental embedding inventory count changed.");
+
+        await store.RemoveEmbeddingsExceptAsync(
+            incrementalRepositoryId,
+            new HashSet<string>(StringComparer.Ordinal) { incrementalCurrent.Id },
+            timeout.Token);
+
+        var incrementalMatches = await store.SearchAsync(
+            [0.0f, 0.0f, 1.0f],
+            10,
+            new Dictionary<string, string> { ["repositoryId"] = incrementalRepositoryId },
+            timeout.Token);
+        if (incrementalMatches.Any(match => string.Equals(match.NodeId, incrementalStale.NodeId, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("Qdrant incremental cleanup did not remove stale embedding.");
+        }
+
+        if (!incrementalMatches.Any(match => string.Equals(match.NodeId, incrementalCurrent.NodeId, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("Qdrant incremental cleanup removed current embedding.");
         }
     }
     finally
@@ -1106,6 +1298,40 @@ sealed class DeterministicEmbeddingProvider : IEmbeddingProvider
         IReadOnlyList<EmbeddingRecord> embeddings = nodes
             .Select(node => new EmbeddingRecord(
                 CodeMeshHash.StableId("embedding", node.Id, node.ContentHash),
+                node.Id,
+                node.ContentHash,
+                Provider,
+                Model,
+                2,
+                [1.0f, 0.0f],
+                new Dictionary<string, string>
+                {
+                    ["preview"] = node.Name
+                }))
+            .ToArray();
+
+        return Task.FromResult(embeddings);
+    }
+}
+
+sealed class CountingEmbeddingProvider : IEmbeddingProvider
+{
+    public int EmbeddedNodeCount { get; private set; }
+
+    public string Provider => "test";
+
+    public string Model => "counting";
+
+    public Task<IReadOnlyList<EmbeddingRecord>> EmbedAsync(
+        IReadOnlyList<CodeNode> nodes,
+        IReadOnlyDictionary<string, CodeContent> contentByHash,
+        CancellationToken cancellationToken = default)
+    {
+        EmbeddedNodeCount += nodes.Count;
+
+        IReadOnlyList<EmbeddingRecord> embeddings = nodes
+            .Select(node => new EmbeddingRecord(
+                CodeMeshHash.StableId("embedding", Provider, Model, node.Id, node.ContentHash),
                 node.Id,
                 node.ContentHash,
                 Provider,

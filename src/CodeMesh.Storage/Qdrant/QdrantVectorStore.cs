@@ -15,7 +15,12 @@ public sealed record QdrantVectorStoreOptions(
     string Distance = "Cosine",
     TimeSpan? Timeout = null);
 
-public sealed class QdrantVectorStore : IVectorStore, IRefreshableVectorStore, IStoreHealthCheck, IDisposable
+public sealed class QdrantVectorStore :
+    IVectorStore,
+    IRefreshableVectorStore,
+    IIncrementalVectorStore,
+    IStoreHealthCheck,
+    IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -142,6 +147,91 @@ public sealed class QdrantVectorStore : IVectorStore, IRefreshableVectorStore, I
         var request = new DeleteRequest(new SearchFilter(
             [new SearchCondition("repositoryId", new MatchValue(repositoryId))],
             [new SearchCondition("ingestionRunId", new MatchValue(ingestionRunId))]));
+
+        using var response = await _http
+            .PostAsJsonAsync($"collections/{Uri.EscapeDataString(CollectionName)}/points/delete?wait=true", request, JsonOptions, cancellationToken)
+            .ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<IReadOnlyList<StoredEmbeddingState>> GetEmbeddingStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await CollectionExistsAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return Array.Empty<StoredEmbeddingState>();
+        }
+
+        var states = new List<StoredEmbeddingState>();
+        JsonElement? offset = null;
+
+        do
+        {
+            var request = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["filter"] = new SearchFilter(
+                    [new SearchCondition("repositoryId", new MatchValue(repositoryId))],
+                    null),
+                ["limit"] = 256,
+                ["with_payload"] = true,
+                ["with_vector"] = false
+            };
+
+            if (offset is { } nextOffset)
+            {
+                request["offset"] = OffsetValue(nextOffset);
+            }
+
+            using var response = await _http
+                .PostAsJsonAsync($"collections/{Uri.EscapeDataString(CollectionName)}/points/scroll", request, JsonOptions, cancellationToken)
+                .ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content
+                .ReadFromJsonAsync<ScrollResponse>(JsonOptions, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (result?.Result is null)
+            {
+                break;
+            }
+
+            foreach (var point in result.Result.Points)
+            {
+                states.Add(new StoredEmbeddingState(
+                    PayloadString(point.Payload, "embeddingId"),
+                    PayloadString(point.Payload, "nodeId"),
+                    PayloadString(point.Payload, "contentHash"),
+                    PayloadString(point.Payload, "provider"),
+                    PayloadString(point.Payload, "model")));
+            }
+
+            offset = result.Result.NextPageOffset is { ValueKind: not JsonValueKind.Null and not JsonValueKind.Undefined } next
+                ? next
+                : null;
+        }
+        while (offset is not null);
+
+        return states;
+    }
+
+    public async Task RemoveEmbeddingsExceptAsync(
+        string repositoryId,
+        IReadOnlySet<string> currentEmbeddingIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await CollectionExistsAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        var keepConditions = currentEmbeddingIds
+            .Select(embeddingId => new SearchCondition("embeddingId", new MatchValue(embeddingId)))
+            .ToArray();
+        var request = new DeleteRequest(new SearchFilter(
+            [new SearchCondition("repositoryId", new MatchValue(repositoryId))],
+            keepConditions.Length == 0 ? null : keepConditions));
 
         using var response = await _http
             .PostAsJsonAsync($"collections/{Uri.EscapeDataString(CollectionName)}/points/delete?wait=true", request, JsonOptions, cancellationToken)
@@ -343,6 +433,17 @@ public sealed class QdrantVectorStore : IVectorStore, IRefreshableVectorStore, I
             : value.ToString();
     }
 
+    private static object? OffsetValue(JsonElement offset)
+    {
+        return offset.ValueKind switch
+        {
+            JsonValueKind.String => offset.GetString(),
+            JsonValueKind.Number when offset.TryGetInt64(out var number) => number,
+            JsonValueKind.Number => offset.GetDouble(),
+            _ => JsonSerializer.Deserialize<object>(offset.GetRawText(), JsonOptions)
+        };
+    }
+
     private static IReadOnlyDictionary<string, string> PayloadMetadata(IReadOnlyDictionary<string, JsonElement> payload)
     {
         if (payload.TryGetValue("metadataJson", out var metadataJson) &&
@@ -403,5 +504,15 @@ public sealed class QdrantVectorStore : IVectorStore, IRefreshableVectorStore, I
 
     private sealed record SearchResult(
         [property: JsonPropertyName("score")] double Score,
+        [property: JsonPropertyName("payload")] Dictionary<string, JsonElement> Payload);
+
+    private sealed record ScrollResponse(
+        [property: JsonPropertyName("result")] ScrollResult Result);
+
+    private sealed record ScrollResult(
+        [property: JsonPropertyName("points")] IReadOnlyList<ScrolledPoint> Points,
+        [property: JsonPropertyName("next_page_offset")] JsonElement? NextPageOffset);
+
+    private sealed record ScrolledPoint(
         [property: JsonPropertyName("payload")] Dictionary<string, JsonElement> Payload);
 }
