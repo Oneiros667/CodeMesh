@@ -167,6 +167,8 @@ Set `CODEMESH_MODEL_PROVIDER=ollama` for Agent Access when you want text queries
 
 Pass `repository_id` in REST/MCP context, node, and neighbor queries to constrain lookups to one ingested repository. CLI commands accept the equivalent `--repository-id` option.
 
+Context search results are ranked for agent usefulness. Low-level matches such as parameter declarations are expanded to their defining symbol or containing method/type before they are returned, and each hit includes `repository_id`, `content_hash`, `score_components`, and `expanded_context` when expansion occurred.
+
 ## Development Notes
 
 The old HelioGraph repository is reference-only. CodeMesh starts with clean contracts and intentionally thin adapters so the graph, content, vector, parser, and agent-access boundaries can harden independently.

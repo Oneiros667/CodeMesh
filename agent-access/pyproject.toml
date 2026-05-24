@@ -19,3 +19,6 @@ codemesh-agent-access = "codemesh_agent_access.cli:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

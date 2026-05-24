@@ -30,6 +30,10 @@ class ContextHit(BaseModel):
     start_line: int
     end_line: int
     score: float
+    repository_id: str | None = None
+    content_hash: str | None = None
+    score_components: dict[str, float] = Field(default_factory=dict)
+    expanded_context: dict[str, Any] | None = None
     preview: str | None = None
 
 

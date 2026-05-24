@@ -23,6 +23,61 @@ except ImportError:  # pragma: no cover - exercised only when dependencies are m
     PyMongoError = Exception  # type: ignore[assignment]
 
 
+_PREFERRED_CONTEXT_KINDS = {
+    "method",
+    "constructor",
+    "class",
+    "interface",
+    "struct",
+    "enum",
+    "delegate",
+    "property",
+    "field",
+    "event",
+    "file",
+}
+
+_DECLARABLE_SYMBOL_KINDS = {
+    "class",
+    "interface",
+    "struct",
+    "enum",
+    "delegate",
+    "method",
+    "constructor",
+    "property",
+    "field",
+    "event",
+}
+
+_LOW_SIGNAL_KINDS = {
+    "declaration",
+    "parameter",
+    "lambda",
+    "namespace",
+    "unknown",
+}
+
+_KIND_WEIGHTS = {
+    "method": 1.30,
+    "constructor": 1.28,
+    "class": 1.22,
+    "interface": 1.18,
+    "struct": 1.16,
+    "enum": 1.12,
+    "delegate": 1.10,
+    "file": 1.04,
+    "property": 1.02,
+    "field": 0.95,
+    "event": 0.95,
+    "namespace": 0.78,
+    "declaration": 0.58,
+    "parameter": 0.42,
+    "lambda": 0.70,
+    "unknown": 0.40,
+}
+
+
 class CodeMeshReadStore:
     """Read-side facade for graph, content, and vector intelligence."""
 
@@ -50,7 +105,7 @@ class CodeMeshReadStore:
         if not hits:
             hits = await self._search_lexical_context(query)
 
-        return ContextResponse(query=query, hits=hits[: max(query.limit, 0)])
+        return ContextResponse(query=query, hits=_ranked_unique_hits(hits, query.limit))
 
     async def get_node(self, lookup: NodeLookup) -> NodeResponse:
         node = await self._get_node_properties(lookup.node_id, lookup.repository_id)
@@ -255,6 +310,97 @@ class CodeMeshReadStore:
 
         return [item for item in relationships if str(item.get("kind", "")).casefold() in kinds]
 
+    async def _get_context_candidates(
+        self,
+        node_id: str,
+        repository_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        if AsyncGraphDatabase is None:
+            return []
+
+        if repository_id:
+            start_match = "MATCH (start:CodeMeshNode {storageKey: $storage_key})"
+            parameters = {"storage_key": _storage_key(repository_id, node_id)}
+        else:
+            start_match = "MATCH (start:CodeMeshNode {id: $node_id})"
+            parameters = {"node_id": node_id}
+
+        query = f"""
+        {start_match}
+        CALL (start) {{
+          MATCH (start)-[relationship:CODEMESH_REL]->(defined:CodeMeshNode)
+          WHERE relationship.kind = 'Defines'
+          RETURN properties(defined) AS node, 0 AS distance, 'defines' AS reason
+          UNION
+          MATCH path = (ancestor:CodeMeshNode)-[relationships:CODEMESH_REL*1..4]->(start)
+          WHERE all(relationship IN relationships WHERE relationship.kind = 'Contains')
+          RETURN properties(ancestor) AS node, length(path) AS distance, 'ancestor' AS reason
+          UNION
+          MATCH (start)-[defines:CODEMESH_REL]->(defined:CodeMeshNode)
+          WHERE defines.kind = 'Defines'
+          MATCH path = (ancestor:CodeMeshNode)-[relationships:CODEMESH_REL*1..4]->(defined)
+          WHERE all(relationship IN relationships WHERE relationship.kind = 'Contains')
+          RETURN properties(ancestor) AS node, length(path) AS distance, 'defined_ancestor' AS reason
+        }}
+        RETURN node, distance, reason
+        """
+
+        try:
+            driver = self._neo4j()
+            async with driver.session(database=self._settings.neo4j_database) as session:
+                result = await session.run(query, **parameters)
+                records = await result.data()
+        except Exception:
+            return []
+
+        return [
+            {
+                "node": dict(record["node"]),
+                "distance": _int(record.get("distance")),
+                "reason": str(record.get("reason") or "context"),
+            }
+            for record in records
+            if record.get("node")
+        ]
+
+    async def _get_primary_declaration_node(
+        self,
+        node: dict[str, Any],
+        repository_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        if AsyncGraphDatabase is None or _kind(node) not in _DECLARABLE_SYMBOL_KINDS:
+            return None
+
+        node_id = str(node.get("id") or "")
+        if not node_id:
+            return None
+
+        if repository_id:
+            symbol_match = "MATCH (symbol:CodeMeshNode {storageKey: $storage_key})"
+            parameters = {"storage_key": _storage_key(repository_id, node_id)}
+        else:
+            symbol_match = "MATCH (symbol:CodeMeshNode {id: $node_id})"
+            parameters = {"node_id": node_id}
+
+        query = f"""
+        {symbol_match}
+        MATCH (declaration:CodeMeshNode)-[relationship:CODEMESH_REL]->(symbol)
+        WHERE relationship.kind = 'Defines' AND declaration.kind = 'Declaration'
+        RETURN properties(declaration) AS node
+        ORDER BY declaration.startLine
+        LIMIT 1
+        """
+
+        try:
+            driver = self._neo4j()
+            async with driver.session(database=self._settings.neo4j_database) as session:
+                result = await session.run(query, **parameters)
+                record = await result.single()
+        except Exception:
+            return None
+
+        return dict(record["node"]) if record else None
+
     async def _get_content(self, content_hash: str) -> dict[str, Any] | None:
         if not content_hash or MongoClient is None:
             return None
@@ -270,6 +416,72 @@ class CodeMeshReadStore:
             return None
 
         return _normalize_content(document) if document else None
+
+    async def _select_context_node(
+        self,
+        node: dict[str, Any],
+        repository_id: str | None = None,
+    ) -> tuple[dict[str, Any], str]:
+        node_id = str(node.get("id") or "")
+        if not node_id:
+            return node, "self"
+
+        candidates = await self._get_context_candidates(node_id, repository_id)
+        if not _needs_context_expansion(node) and not candidates:
+            return node, "self"
+
+        best = _choose_context_candidate(node, candidates)
+        if best is None:
+            return node, "self"
+
+        return best["node"], str(best.get("reason") or "context")
+
+    async def _build_context_hit(
+        self,
+        node: dict[str, Any],
+        raw_score: float,
+        repository_id: str | None = None,
+        raw_score_name: str = "raw",
+        preview: str | None = None,
+        source_node: dict[str, Any] | None = None,
+    ) -> ContextHit:
+        source = source_node or node
+        selected, expansion_reason = await self._select_context_node(node, repository_id)
+        declaration = await self._get_primary_declaration_node(selected, repository_id)
+
+        content_node = declaration or selected
+        content_hash = str(content_node.get("contentHash") or selected.get("contentHash") or source.get("contentHash") or "")
+        content = await self._get_content(content_hash)
+        selected_id = str(selected.get("id") or "")
+        source_id = str(source.get("id") or "")
+        declaration_id = str(declaration.get("id") or "") if declaration else ""
+        selected_own_preview = preview if selected_id == source_id and not declaration else None
+        kind_weight = _kind_weight(selected)
+        expansion_bonus = _expansion_bonus(source, selected, declaration)
+        adjusted_score = _adjust_score(raw_score, kind_weight, expansion_bonus)
+
+        expanded_context = None
+        if selected_id != source_id or declaration_id:
+            expanded_context = {
+                "reason": expansion_reason,
+                "source": _context_ref(source),
+                "selected": _context_ref(selected),
+                "declaration": _context_ref(declaration) if declaration else None,
+            }
+
+        return _context_hit_for_node(
+            selected,
+            adjusted_score,
+            content,
+            selected_own_preview,
+            span_node=declaration or selected,
+            score_components={
+                raw_score_name: raw_score,
+                "kind_weight": kind_weight,
+                "expansion_bonus": expansion_bonus,
+            },
+            expanded_context=expanded_context,
+        )
 
     async def _search_lexical_context(self, query: ContextQuery) -> list[ContextHit]:
         if AsyncGraphDatabase is None:
@@ -314,14 +526,20 @@ class CodeMeshReadStore:
         nodes.sort(key=lambda node: _lexical_score(node, search_text), reverse=True)
 
         hits = []
-        for node in nodes[: query.limit]:
-            content = await self._get_content(str(node.get("contentHash") or ""))
-            hits.append(_context_hit_for_node(node, _lexical_score(node, search_text), content))
+        for node in nodes[: _candidate_limit(query.limit)]:
+            hits.append(
+                await self._build_context_hit(
+                    node,
+                    _lexical_score(node, search_text),
+                    query.repository_id,
+                    raw_score_name="lexical_score",
+                )
+            )
 
         return hits
 
     async def _search_vector_context(self, query: ContextQuery, vector: list[float]) -> list[ContextHit]:
-        qdrant_hits = await self._search_qdrant(vector, query.limit, _effective_filters(query))
+        qdrant_hits = await self._search_qdrant(vector, _candidate_limit(query.limit), _effective_filters(query))
         hits: list[ContextHit] = []
 
         for item in qdrant_hits:
@@ -329,7 +547,6 @@ class CodeMeshReadStore:
             content_hash = str(item.get("contentHash") or "")
             repository_id = query.repository_id or str(item.get("repositoryId") or "") or None
             node = await self._get_node_properties(node_id, repository_id)
-            content = await self._get_content(content_hash)
 
             if node is None:
                 node = {
@@ -344,7 +561,15 @@ class CodeMeshReadStore:
                 }
 
             preview = str(item.get("preview") or "") or None
-            hits.append(_context_hit_for_node(node, float(item.get("score") or 0), content, preview))
+            hits.append(
+                await self._build_context_hit(
+                    node,
+                    float(item.get("score") or 0),
+                    repository_id,
+                    raw_score_name="vector_score",
+                    preview=preview,
+                )
+            )
 
         return hits
 
@@ -509,24 +734,136 @@ def _normalize_content(document: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _context_ref(node: dict[str, Any] | None) -> dict[str, Any] | None:
+    if node is None:
+        return None
+
+    normalized = _normalize_node(node)
+    return {
+        "node_id": normalized["id"],
+        "kind": normalized["kind"],
+        "name": normalized["name"],
+        "file_path": normalized["span"]["file_path"],
+        "start_line": normalized["span"]["start_line"],
+        "end_line": normalized["span"]["end_line"],
+    }
+
+
 def _context_hit_for_node(
     node: dict[str, Any],
     score: float,
     content: dict[str, Any] | None,
     preview: str | None = None,
+    span_node: dict[str, Any] | None = None,
+    score_components: dict[str, float] | None = None,
+    expanded_context: dict[str, Any] | None = None,
 ) -> ContextHit:
     normalized = _normalize_node(node)
+    span = _normalize_node(span_node or node)
     text = str(content.get("text") or "") if content else ""
     return ContextHit(
         node_id=normalized["id"],
         stable_key=normalized["stable_key"],
         kind=normalized["kind"],
-        file_path=normalized["span"]["file_path"],
-        start_line=normalized["span"]["start_line"],
-        end_line=normalized["span"]["end_line"],
+        file_path=span["span"]["file_path"],
+        start_line=span["span"]["start_line"],
+        end_line=span["span"]["end_line"],
         score=score,
+        repository_id=normalized["repository_id"] or None,
+        content_hash=str(content.get("hash") or normalized["content_hash"] or "") if content else normalized["content_hash"] or None,
+        score_components=score_components or {},
+        expanded_context=expanded_context,
         preview=preview or _preview(text),
     )
+
+
+def _ranked_unique_hits(hits: list[ContextHit], limit: int) -> list[ContextHit]:
+    if limit <= 0:
+        return []
+
+    best_by_node_id: dict[str, ContextHit] = {}
+    for hit in hits:
+        existing = best_by_node_id.get(hit.node_id)
+        if existing is None or hit.score > existing.score:
+            best_by_node_id[hit.node_id] = hit
+
+    return sorted(
+        best_by_node_id.values(),
+        key=lambda hit: (hit.score, _kind_weight_from_name(hit.kind), -hit.start_line),
+        reverse=True,
+    )[:limit]
+
+
+def _candidate_limit(limit: int) -> int:
+    if limit <= 0:
+        return 0
+
+    return min(max(limit * 8, 24), 120)
+
+
+def _kind(node: dict[str, Any]) -> str:
+    return str(node.get("kind") or "").casefold()
+
+
+def _kind_weight(node: dict[str, Any]) -> float:
+    return _kind_weight_from_name(str(node.get("kind") or ""))
+
+
+def _kind_weight_from_name(kind: str) -> float:
+    return _KIND_WEIGHTS.get(kind.casefold(), 0.80)
+
+
+def _needs_context_expansion(node: dict[str, Any]) -> bool:
+    return _kind(node) in _LOW_SIGNAL_KINDS
+
+
+def _choose_context_candidate(
+    source: dict[str, Any],
+    candidates: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    choices = list(candidates)
+    if not _needs_context_expansion(source):
+        choices.append({"node": source, "distance": 0, "reason": "self"})
+
+    preferred = [choice for choice in choices if _kind(choice.get("node") or {}) in _PREFERRED_CONTEXT_KINDS]
+    pool = preferred or choices
+    if not pool:
+        return None
+
+    return max(pool, key=_candidate_score)
+
+
+def _candidate_score(candidate: dict[str, Any]) -> float:
+    node = candidate.get("node") or {}
+    distance = _int(candidate.get("distance"))
+    kind = _kind(node)
+    score = _kind_weight(node) - (distance * 0.08)
+    if kind in {"method", "constructor"}:
+        score += 0.22
+    elif kind in {"class", "interface", "struct"}:
+        score += 0.14
+    elif kind == "file":
+        score -= 0.04
+
+    return score
+
+
+def _expansion_bonus(
+    source: dict[str, Any],
+    selected: dict[str, Any],
+    declaration: dict[str, Any] | None,
+) -> float:
+    bonus = 0.0
+    if str(source.get("id") or "") != str(selected.get("id") or ""):
+        bonus += 0.06
+    if declaration is not None:
+        bonus += 0.03
+
+    return bonus
+
+
+def _adjust_score(raw_score: float, kind_weight: float, expansion_bonus: float) -> float:
+    return max(0.0, min(1.0, (raw_score * kind_weight) + expansion_bonus))
 
 
 def _matches_filters(node: dict[str, Any], filters: dict[str, str]) -> bool:
