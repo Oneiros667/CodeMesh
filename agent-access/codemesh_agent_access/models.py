@@ -67,6 +67,59 @@ class NeighborQuery(BaseModel):
     relationship_kinds: list[str] = Field(default_factory=list)
 
 
+class RepositorySummary(BaseModel):
+    repository_id: str
+    root_path: str
+    remote_url: str | None = None
+    branch: str | None = None
+    commit: str | None = None
+    first_seen_at: datetime | None = None
+    last_seen_at: datetime | None = None
+    last_run_id: str | None = None
+    last_stage: str | None = None
+    last_message: str | None = None
+    node_count: int = 0
+    relationship_count: int = 0
+    content_count: int = 0
+    embedding_count: int | None = None
+    metadata: dict[str, str] = Field(default_factory=dict)
+
+
+class RepositoryListResponse(BaseModel):
+    repositories: list[RepositorySummary] = Field(default_factory=list)
+
+
+class IngestionRunSummary(BaseModel):
+    run_id: str
+    repository_id: str
+    repository_root: str
+    stage: str
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    message: str | None = None
+    language: str
+    parser_name: str
+    solution_path: str | None = None
+    project_path: str | None = None
+    dry_run: bool = False
+    skip_embeddings: bool = True
+    embedding_provider: str
+    embedding_model: str
+    node_count: int = 0
+    relationship_count: int = 0
+    content_count: int = 0
+    embedding_count: int = 0
+    stats: dict[str, Any] | None = None
+    diagnostic_count: int = 0
+    error_diagnostic_count: int = 0
+    warning_diagnostic_count: int = 0
+    metadata: dict[str, str] = Field(default_factory=dict)
+
+
+class IngestionRunListResponse(BaseModel):
+    runs: list[IngestionRunSummary] = Field(default_factory=list)
+
+
 class ToolResult(BaseModel):
     ok: bool = True
     data: dict[str, Any] = Field(default_factory=dict)

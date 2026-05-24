@@ -34,6 +34,12 @@ stores:
     uri: ${CODEMESH_MONGO_URI}
     database: ${CODEMESH_MONGO_DATABASE}
     collection: ${CODEMESH_MONGO_CONTENT_COLLECTION}
+  registry:
+    provider: mongodb
+    uri: ${CODEMESH_MONGO_URI}
+    database: ${CODEMESH_MONGO_DATABASE}
+    repositories_collection: ${CODEMESH_MONGO_REPOSITORIES_COLLECTION}
+    ingestion_runs_collection: ${CODEMESH_MONGO_INGESTION_RUNS_COLLECTION}
   vector:
     provider: qdrant
     url: ${CODEMESH_QDRANT_URL}

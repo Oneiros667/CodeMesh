@@ -51,6 +51,49 @@ public sealed record IngestionStats(
     int WrittenEmbeddingCount,
     int SkippedEmbeddingCount);
 
+public sealed record RepositoryIndexRecord(
+    string RepositoryId,
+    string RootPath,
+    string? RemoteUrl,
+    string? Branch,
+    string? Commit,
+    DateTimeOffset FirstSeenAt,
+    DateTimeOffset LastSeenAt,
+    string? LastRunId,
+    IngestionStage? LastStage,
+    string? LastMessage,
+    int NodeCount,
+    int RelationshipCount,
+    int ContentCount,
+    int? EmbeddingCount,
+    IReadOnlyDictionary<string, string> Metadata);
+
+public sealed record IngestionRunIndexRecord(
+    string RunId,
+    string RepositoryId,
+    string RepositoryRoot,
+    IngestionStage Stage,
+    DateTimeOffset StartedAt,
+    DateTimeOffset? FinishedAt,
+    string? Message,
+    string Language,
+    string ParserName,
+    string? SolutionPath,
+    string? ProjectPath,
+    bool DryRun,
+    bool SkipEmbeddings,
+    string EmbeddingProvider,
+    string EmbeddingModel,
+    int NodeCount,
+    int RelationshipCount,
+    int ContentCount,
+    int EmbeddingCount,
+    IngestionStats? Stats,
+    int DiagnosticCount,
+    int ErrorDiagnosticCount,
+    int WarningDiagnosticCount,
+    IReadOnlyDictionary<string, string> Metadata);
+
 public interface IIngestionOrchestrator
 {
     Task<IngestionResult> IngestAsync(IngestionRequest request, CancellationToken cancellationToken = default);

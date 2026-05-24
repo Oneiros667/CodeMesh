@@ -1,3 +1,4 @@
+using CodeMesh.Domain.Contracts;
 using CodeMesh.Domain.Graph;
 using CodeMesh.Domain.Health;
 
@@ -122,6 +123,30 @@ public interface IIncrementalVectorStore : IVectorStore
     Task RemoveEmbeddingsExceptAsync(
         string repositoryId,
         IReadOnlySet<string> currentEmbeddingIds,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IRegistryStore
+{
+    Task UpsertRepositoryAsync(
+        RepositoryIndexRecord repository,
+        CancellationToken cancellationToken = default);
+
+    Task UpsertRunAsync(
+        IngestionRunIndexRecord run,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RepositoryIndexRecord>> ListRepositoriesAsync(
+        int limit = 50,
+        CancellationToken cancellationToken = default);
+
+    Task<RepositoryIndexRecord?> GetRepositoryAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<IngestionRunIndexRecord>> ListRunsAsync(
+        string? repositoryId = null,
+        int limit = 50,
         CancellationToken cancellationToken = default);
 }
 

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using CodeMesh.Domain.Contracts;
 using CodeMesh.Domain.Graph;
 using CodeMesh.Domain.Health;
 using CodeMesh.Domain.Utilities;
@@ -15,6 +16,7 @@ public sealed class InMemoryCodeMeshStore :
     IVectorStore,
     IRefreshableVectorStore,
     IIncrementalVectorStore,
+    IRegistryStore,
     IStoreHealthCheck
 {
     private readonly ConcurrentDictionary<string, CodeNode> _nodes = new(StringComparer.Ordinal);
@@ -22,6 +24,8 @@ public sealed class InMemoryCodeMeshStore :
     private readonly ConcurrentDictionary<string, CodeContent> _contents = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, EmbeddingRecord> _embeddings = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, string>> _contentRunsByRepository = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, RepositoryIndexRecord> _repositories = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, IngestionRunIndexRecord> _runs = new(StringComparer.Ordinal);
 
     public string Name => "memory";
 
@@ -337,6 +341,67 @@ public sealed class InMemoryCodeMeshStore :
         }
 
         return Task.CompletedTask;
+    }
+
+    public Task UpsertRepositoryAsync(
+        RepositoryIndexRecord repository,
+        CancellationToken cancellationToken = default)
+    {
+        _repositories.AddOrUpdate(
+            repository.RepositoryId,
+            repository,
+            (_, existing) => repository with
+            {
+                FirstSeenAt = existing.FirstSeenAt,
+                EmbeddingCount = repository.EmbeddingCount ?? existing.EmbeddingCount
+            });
+
+        return Task.CompletedTask;
+    }
+
+    public Task UpsertRunAsync(
+        IngestionRunIndexRecord run,
+        CancellationToken cancellationToken = default)
+    {
+        _runs[run.RunId] = run;
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<RepositoryIndexRecord>> ListRepositoriesAsync(
+        int limit = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var clampedLimit = Math.Clamp(limit, 1, 500);
+        var repositories = _repositories.Values
+            .OrderByDescending(repository => repository.LastSeenAt)
+            .Take(clampedLimit)
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<RepositoryIndexRecord>>(repositories);
+    }
+
+    public Task<RepositoryIndexRecord?> GetRepositoryAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        _repositories.TryGetValue(repositoryId, out var repository);
+        return Task.FromResult(repository);
+    }
+
+    public Task<IReadOnlyList<IngestionRunIndexRecord>> ListRunsAsync(
+        string? repositoryId = null,
+        int limit = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var clampedLimit = Math.Clamp(limit, 1, 500);
+        var runs = _runs.Values
+            .Where(run => string.IsNullOrWhiteSpace(repositoryId) ||
+                string.Equals(run.RepositoryId, repositoryId, StringComparison.Ordinal))
+            .OrderByDescending(run => run.StartedAt)
+            .Take(clampedLimit)
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<IngestionRunIndexRecord>>(runs);
     }
 
     private string? PreviewFor(string contentHash)

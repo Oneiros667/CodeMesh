@@ -114,6 +114,8 @@ class FakeReadStore(CodeMeshReadStore):
                 mongo_uri="mongodb://unused",
                 mongo_database="codemesh",
                 mongo_content_collection="content",
+                mongo_repositories_collection="repositories",
+                mongo_ingestion_runs_collection="ingestion_runs",
                 qdrant_url="http://unused",
                 qdrant_collection="codemesh-code",
                 model_provider="none",

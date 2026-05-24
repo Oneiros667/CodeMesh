@@ -6,7 +6,7 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. Code
 
 - `.NET 10` solution with `CodeMesh.Domain`, `CodeMesh.Ingestion`, `CodeMesh.Control`, `CodeMesh.Parser.CSharp`, `CodeMesh.Storage`, and `CodeMesh.Cli`.
 - Shared records for code nodes, relationships, parser results, ingestion runs, agent context, and health checks.
-- Ingestion orchestration skeleton that calls a parser client and writes through graph/content/vector storage interfaces.
+- Ingestion orchestration with incremental graph/content/vector writes and repository/run registry records.
 - C# parser worker API with `/health`, `/capabilities`, and `/parse`.
 - Python Agent Access REST endpoints and MCP tools backed by Neo4j, MongoDB, and Qdrant read paths.
 - Docker Compose for Neo4j, MongoDB, Qdrant, Agent Access, C# parser worker, and optional Ollama.
@@ -17,6 +17,8 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. Code
 dotnet run --project src/CodeMesh.Cli -- doctor
 dotnet run --project src/CodeMesh.Cli -- status
 dotnet run --project src/CodeMesh.Cli -- ingest --root C:\Users\developer\source\repos\YoutubeDownloader --solution C:\Users\developer\source\repos\YoutubeDownloader\YoutubeDownloader.slnx --skip-embeddings
+dotnet run --project src/CodeMesh.Cli -- repos list
+dotnet run --project src/CodeMesh.Cli -- runs list --limit 5
 dotnet run --project tests/CodeMesh.Tests
 ```
 
@@ -67,7 +69,15 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
 `--skip-embeddings` remains the fastest ingestion mode. Use `--include-embeddings` when you want semantic search data written to Qdrant.
 The Ollama embedding input defaults to 1500 characters per node for compatibility with `nomic-embed-text:latest`; use `--embedding-max-chars` to tune this for another embedding model.
 
-Each successful ingestion run stamps graph, content, and vector records with a repository id and ingestion run id. After all writes succeed, CodeMesh removes stale records from the same repository that were not seen in the current run. If `--skip-embeddings` is used, vector cleanup is skipped so existing embeddings are left untouched.
+Each successful ingestion run stamps graph, content, and vector records with a repository id and ingestion run id. CodeMesh also writes repository/run registry records to MongoDB so users and agents can discover indexed repositories and recent ingestion history. Incremental ingestion skips unchanged graph/content/vector writes after parsing, then removes stale records from the same repository that were not seen in the current run. If `--skip-embeddings` is used, vector cleanup is skipped so existing embeddings are left untouched.
+
+Query the registry:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- repos list
+dotnet run --project src/CodeMesh.Cli -- repo show <repository-id>
+dotnet run --project src/CodeMesh.Cli -- runs list --repository-id <repository-id> --limit 10
+```
 
 Start the default local stores and services:
 
@@ -123,6 +133,9 @@ REST endpoints:
 - `POST /context/search`
 - `POST /nodes/get`
 - `POST /graph/neighbors`
+- `GET /repositories`
+- `GET /repositories/{repository_id}`
+- `GET /ingestion-runs`
 
 MCP tools:
 
@@ -130,11 +143,16 @@ MCP tools:
 - `codemesh_search_context`
 - `codemesh_get_node`
 - `codemesh_get_neighbors`
+- `codemesh_list_repositories`
+- `codemesh_get_repository`
+- `codemesh_list_ingestion_runs`
 
 PowerShell examples:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8088/health
+Invoke-RestMethod http://127.0.0.1:8088/repositories
+Invoke-RestMethod 'http://127.0.0.1:8088/ingestion-runs?limit=5'
 
 $nodeBody = @{
   node_id = 'csharp:type:CodeMesh.Tests.Neo4jSmokeSource'
@@ -161,6 +179,8 @@ uv run python -m codemesh_agent_access status
 uv run python -m codemesh_agent_access search "download video with subtitles" --repository-id repo:youtube-downloader --limit 5 --kind Class
 uv run python -m codemesh_agent_access get-node csharp:type:CodeMesh.Tests.Neo4jSmokeSource --repository-id repo:neo4j-smoke --no-content
 uv run python -m codemesh_agent_access neighbors csharp:type:CodeMesh.Tests.Neo4jSmokeSource --repository-id repo:neo4j-smoke
+uv run python -m codemesh_agent_access repos --limit 10
+uv run python -m codemesh_agent_access runs --repository-id <repository-id> --limit 5
 ```
 
 Set `CODEMESH_MODEL_PROVIDER=ollama` for Agent Access when you want text queries embedded automatically before Qdrant search. If Ollama or Qdrant vectors are unavailable, Agent Access falls back to lexical Neo4j search.

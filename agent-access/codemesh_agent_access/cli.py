@@ -37,6 +37,16 @@ def main() -> None:
     neighbors_parser.add_argument("--repository-id")
     neighbors_parser.add_argument("--depth", type=int, default=1)
 
+    repos_parser = subcommands.add_parser("repos", help="List indexed CodeMesh repositories.")
+    repos_parser.add_argument("--limit", type=int, default=50)
+
+    repo_parser = subcommands.add_parser("repo", help="Fetch an indexed CodeMesh repository.")
+    repo_parser.add_argument("repository_id")
+
+    runs_parser = subcommands.add_parser("runs", help="List CodeMesh ingestion runs.")
+    runs_parser.add_argument("--repository-id")
+    runs_parser.add_argument("--limit", type=int, default=50)
+
     args = parser.parse_args()
     settings = Settings.from_env()
 
@@ -83,6 +93,21 @@ def main() -> None:
 
     if args.command == "neighbors":
         result = asyncio.run(tools.get_neighbors(args.node_id, repository_id=args.repository_id, depth=args.depth))
+        print(json.dumps(result.model_dump(mode="json"), indent=2))
+        return
+
+    if args.command == "repos":
+        result = asyncio.run(tools.list_repositories(limit=args.limit))
+        print(json.dumps(result.model_dump(mode="json"), indent=2))
+        return
+
+    if args.command == "repo":
+        result = asyncio.run(tools.get_repository(args.repository_id))
+        print(json.dumps(result.model_dump(mode="json"), indent=2))
+        return
+
+    if args.command == "runs":
+        result = asyncio.run(tools.list_ingestion_runs(repository_id=args.repository_id, limit=args.limit))
         print(json.dumps(result.model_dump(mode="json"), indent=2))
         return
 

@@ -55,6 +55,62 @@ switch (command)
         }
     }
 
+    case "repos":
+    {
+        try
+        {
+            var store = CreateRegistryStore(args);
+            var repositories = await store
+                .ListRepositoriesAsync(ReadIntOption(args, "--limit", 50))
+                .ConfigureAwait(false);
+            PrintRepositoryList(repositories, json);
+            return 0;
+        }
+        catch (Exception exception)
+        {
+            PrintException(exception, json);
+            return 1;
+        }
+    }
+
+    case "repo":
+    {
+        try
+        {
+            var repositoryId = ReadPositional(args, 2)
+                ?? throw new InvalidOperationException("Repository id is required. Usage: codemesh repo show <repository-id>");
+            var store = CreateRegistryStore(args);
+            var repository = await store
+                .GetRepositoryAsync(repositoryId)
+                .ConfigureAwait(false);
+            PrintRepository(repository, json);
+            return repository is null ? 1 : 0;
+        }
+        catch (Exception exception)
+        {
+            PrintException(exception, json);
+            return 1;
+        }
+    }
+
+    case "runs":
+    {
+        try
+        {
+            var store = CreateRegistryStore(args);
+            var runs = await store
+                .ListRunsAsync(ReadAnyOption(args, "--repository-id", "--repo"), ReadIntOption(args, "--limit", 50))
+                .ConfigureAwait(false);
+            PrintRunList(runs, json);
+            return 0;
+        }
+        catch (Exception exception)
+        {
+            PrintException(exception, json);
+            return 1;
+        }
+    }
+
     default:
         Console.Error.WriteLine($"Unknown command: {command}");
         PrintHelp();
@@ -93,6 +149,13 @@ static string? ReadAnyOption(string[] args, params string[] names)
     return null;
 }
 
+static string? ReadPositional(string[] args, int index)
+{
+    return args.Length > index && !args[index].StartsWith("--", StringComparison.Ordinal)
+        ? args[index]
+        : null;
+}
+
 static async Task<IngestionResult> RunIngestAsync(string[] args)
 {
     var repositoryRoot = ReadAnyOption(args, "--root", "--repository-root")
@@ -107,6 +170,7 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
     var parserClient = CreateParserClient(args);
     await using var graphStore = CreateGraphStore(args);
     var contentStore = CreateContentStore(args);
+    var registryStore = CreateRegistryStore(args);
     using var vectorStore = CreateVectorStore(args);
     var (embeddingProvider, skipEmbeddings) = CreateEmbeddingProvider(args);
     using var disposableEmbeddingProvider = embeddingProvider as IDisposable;
@@ -124,7 +188,8 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
         graphStore,
         contentStore,
         vectorStore,
-        embeddingProvider);
+        embeddingProvider,
+        registryStore);
 
     return await orchestrator.IngestAsync(request).ConfigureAwait(false);
 }
@@ -165,6 +230,19 @@ static MongoContentStore CreateContentStore(string[] args)
         ReadOption(args, "--mongo-content-collection")
             ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_CONTENT_COLLECTION")
             ?? "content"));
+}
+
+static MongoRegistryStore CreateRegistryStore(string[] args)
+{
+    return new MongoRegistryStore(new MongoRegistryStoreOptions(
+        ReadOption(args, "--mongo-uri") ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_URI") ?? "mongodb://localhost:27017",
+        ReadOption(args, "--mongo-database") ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_DATABASE") ?? "codemesh",
+        ReadOption(args, "--mongo-repositories-collection")
+            ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_REPOSITORIES_COLLECTION")
+            ?? "repositories",
+        ReadOption(args, "--mongo-ingestion-runs-collection")
+            ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_INGESTION_RUNS_COLLECTION")
+            ?? "ingestion_runs"));
 }
 
 static QdrantVectorStore CreateVectorStore(string[] args)
@@ -311,6 +389,85 @@ static void PrintIngestionResult(IngestionResult result, bool json)
     }
 }
 
+static void PrintRepositoryList(IReadOnlyList<RepositoryIndexRecord> repositories, bool json)
+{
+    if (json)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(repositories, JsonOptions()));
+        return;
+    }
+
+    if (repositories.Count == 0)
+    {
+        Console.WriteLine("No indexed repositories found.");
+        return;
+    }
+
+    foreach (var repository in repositories)
+    {
+        Console.WriteLine($"{repository.RepositoryId}");
+        Console.WriteLine($"  root: {repository.RootPath}");
+        Console.WriteLine($"  last run: {repository.LastRunId ?? "-"} ({repository.LastStage?.ToString() ?? "unknown"})");
+        Console.WriteLine($"  last seen: {repository.LastSeenAt:O}");
+        Console.WriteLine($"  nodes: {repository.NodeCount}, relationships: {repository.RelationshipCount}, content: {repository.ContentCount}, embeddings: {repository.EmbeddingCount?.ToString() ?? "unknown"}");
+    }
+}
+
+static void PrintRepository(RepositoryIndexRecord? repository, bool json)
+{
+    if (json)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(repository, JsonOptions()));
+        return;
+    }
+
+    if (repository is null)
+    {
+        Console.WriteLine("Repository not found.");
+        return;
+    }
+
+    Console.WriteLine($"Repository: {repository.RepositoryId}");
+    Console.WriteLine($"Root: {repository.RootPath}");
+    Console.WriteLine($"First seen: {repository.FirstSeenAt:O}");
+    Console.WriteLine($"Last seen: {repository.LastSeenAt:O}");
+    Console.WriteLine($"Last run: {repository.LastRunId ?? "-"}");
+    Console.WriteLine($"Last stage: {repository.LastStage?.ToString() ?? "unknown"}");
+    Console.WriteLine($"Last message: {repository.LastMessage ?? "-"}");
+    Console.WriteLine($"Nodes: {repository.NodeCount}");
+    Console.WriteLine($"Relationships: {repository.RelationshipCount}");
+    Console.WriteLine($"Content items: {repository.ContentCount}");
+    Console.WriteLine($"Embeddings: {repository.EmbeddingCount?.ToString() ?? "unknown"}");
+}
+
+static void PrintRunList(IReadOnlyList<IngestionRunIndexRecord> runs, bool json)
+{
+    if (json)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(runs, JsonOptions()));
+        return;
+    }
+
+    if (runs.Count == 0)
+    {
+        Console.WriteLine("No ingestion runs found.");
+        return;
+    }
+
+    foreach (var run in runs)
+    {
+        Console.WriteLine($"{run.RunId}");
+        Console.WriteLine($"  repository: {run.RepositoryId}");
+        Console.WriteLine($"  stage: {run.Stage}");
+        Console.WriteLine($"  started: {run.StartedAt:O}");
+        Console.WriteLine($"  finished: {run.FinishedAt:O}");
+        Console.WriteLine($"  parser: {run.ParserName} ({run.Language})");
+        Console.WriteLine($"  embeddings: {run.EmbeddingProvider}/{run.EmbeddingModel}, written: {run.EmbeddingCount}");
+        Console.WriteLine($"  nodes: {run.NodeCount}, relationships: {run.RelationshipCount}, content: {run.ContentCount}");
+        Console.WriteLine($"  diagnostics: {run.DiagnosticCount} ({run.ErrorDiagnosticCount} error, {run.WarningDiagnosticCount} warning)");
+    }
+}
+
 static bool HasErrorDiagnostics(IngestionResult result)
 {
     return result.Diagnostics.Any(diagnostic =>
@@ -386,10 +543,14 @@ static void PrintHelp()
     Console.WriteLine("  codemesh doctor [--root <path>] [--json]");
     Console.WriteLine("  codemesh status [--root <path>] [--json]");
     Console.WriteLine("  codemesh ingest [--root <path>] [--solution <path>] [--project <path>] [--dry-run] [--skip-embeddings] [--json]");
+    Console.WriteLine("  codemesh repos list [--limit <count>] [--json]");
+    Console.WriteLine("  codemesh repo show <repository-id> [--json]");
+    Console.WriteLine("  codemesh runs list [--repository-id <id>] [--limit <count>] [--json]");
     Console.WriteLine();
     Console.WriteLine("Ingestion store options:");
     Console.WriteLine("  --neo4j-uri <uri> --neo4j-user <user> --neo4j-password <password> --neo4j-database <database>");
     Console.WriteLine("  --mongo-uri <uri> --mongo-database <database> --mongo-content-collection <collection>");
+    Console.WriteLine("  --mongo-repositories-collection <collection> --mongo-ingestion-runs-collection <collection>");
     Console.WriteLine("  --qdrant-url <url> --qdrant-collection <collection>");
     Console.WriteLine("  --parser-url <url>");
     Console.WriteLine("  --include-embeddings --embedding-provider <none|ollama> --ollama-url <url> --embedding-model <model>");

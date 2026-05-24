@@ -15,6 +15,8 @@ class Settings:
     mongo_uri: str
     mongo_database: str
     mongo_content_collection: str
+    mongo_repositories_collection: str
+    mongo_ingestion_runs_collection: str
     qdrant_url: str
     qdrant_collection: str
     model_provider: str
@@ -35,6 +37,8 @@ class Settings:
             mongo_uri=os.getenv("CODEMESH_MONGO_URI", "mongodb://localhost:27017"),
             mongo_database=os.getenv("CODEMESH_MONGO_DATABASE", "codemesh"),
             mongo_content_collection=os.getenv("CODEMESH_MONGO_CONTENT_COLLECTION", "content"),
+            mongo_repositories_collection=os.getenv("CODEMESH_MONGO_REPOSITORIES_COLLECTION", "repositories"),
+            mongo_ingestion_runs_collection=os.getenv("CODEMESH_MONGO_INGESTION_RUNS_COLLECTION", "ingestion_runs"),
             qdrant_url=os.getenv("CODEMESH_QDRANT_URL", "http://localhost:6333"),
             qdrant_collection=os.getenv("CODEMESH_QDRANT_COLLECTION", "codemesh-code"),
             model_provider=os.getenv("CODEMESH_MODEL_PROVIDER", "none"),

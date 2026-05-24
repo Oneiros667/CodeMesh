@@ -73,6 +73,24 @@ def build_server() -> Any:
         """Fetch relationships around a CodeMesh node."""
         return (await tools.get_neighbors(node_id, repository_id=repository_id, depth=depth)).model_dump(mode="json")
 
+    @server.tool()
+    async def codemesh_list_repositories(limit: int = 50) -> dict[str, Any]:
+        """List repositories indexed by CodeMesh."""
+        return (await tools.list_repositories(limit=limit)).model_dump(mode="json")
+
+    @server.tool()
+    async def codemesh_get_repository(repository_id: str) -> dict[str, Any]:
+        """Fetch one indexed CodeMesh repository by id."""
+        return (await tools.get_repository(repository_id)).model_dump(mode="json")
+
+    @server.tool()
+    async def codemesh_list_ingestion_runs(
+        repository_id: str | None = None,
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """List CodeMesh ingestion runs, optionally scoped to a repository."""
+        return (await tools.list_ingestion_runs(repository_id=repository_id, limit=limit)).model_dump(mode="json")
+
     return server
 
 
@@ -89,6 +107,9 @@ async def print_tool_manifest() -> None:
             "codemesh_search_context",
             "codemesh_get_node",
             "codemesh_get_neighbors",
+            "codemesh_list_repositories",
+            "codemesh_get_repository",
+            "codemesh_list_ingestion_runs",
         ],
     }
     print(json.dumps(manifest, indent=2))

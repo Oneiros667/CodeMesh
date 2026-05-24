@@ -11,7 +11,8 @@ public sealed class IngestionOrchestrator(
     IGraphStore graphStore,
     IContentStore contentStore,
     IVectorStore vectorStore,
-    IEmbeddingProvider embeddingProvider) : IIngestionOrchestrator
+    IEmbeddingProvider embeddingProvider,
+    IRegistryStore? registryStore = null) : IIngestionOrchestrator
 {
     public async Task<IngestionResult> IngestAsync(
         IngestionRequest request,
@@ -113,6 +114,7 @@ public sealed class IngestionOrchestrator(
 
         var embeddingCount = 0;
         var skippedEmbeddingCount = 0;
+        int? currentEmbeddingCount = request.SkipEmbeddings ? null : 0;
 
         if (!request.DryRun)
         {
@@ -198,6 +200,7 @@ public sealed class IngestionOrchestrator(
                 }
 
                 embeddingCount = embeddings.Count;
+                currentEmbeddingCount = currentEmbeddingIds.Count;
             }
 
             if (graphStore is IIncrementalGraphStore cleanupGraphStore)
@@ -236,7 +239,7 @@ public sealed class IngestionOrchestrator(
             }
         }
 
-        return new IngestionResult(
+        var result = new IngestionResult(
             new IngestionRun(
                 ingestionRunId,
                 IngestionStage.Completed,
@@ -261,6 +264,92 @@ public sealed class IngestionOrchestrator(
                 skippedContentCount,
                 embeddingCount,
                 skippedEmbeddingCount));
+
+        if (!request.DryRun && registryStore is not null)
+        {
+            await WriteRegistryAsync(
+                    request,
+                    result,
+                    parseResult,
+                    currentEmbeddingCount,
+                    startedAt,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        return result;
+    }
+
+    private async Task WriteRegistryAsync(
+        IngestionRequest request,
+        IngestionResult result,
+        ParseResult parseResult,
+        int? currentEmbeddingCount,
+        DateTimeOffset firstSeenAt,
+        CancellationToken cancellationToken)
+    {
+        if (registryStore is null)
+        {
+            return;
+        }
+
+        var finishedAt = result.Run.FinishedAt ?? DateTimeOffset.UtcNow;
+        var diagnostics = result.Diagnostics;
+        var repository = new RepositoryIndexRecord(
+            result.Repository.Id,
+            result.Repository.RootPath,
+            result.Repository.RemoteUrl,
+            result.Repository.Branch,
+            result.Repository.Commit,
+            firstSeenAt,
+            finishedAt,
+            result.Run.RunId,
+            result.Run.Stage,
+            result.Run.Message,
+            result.NodeCount,
+            result.RelationshipCount,
+            result.ContentCount,
+            currentEmbeddingCount,
+            new Dictionary<string, string>
+            {
+                ["language"] = request.Language,
+                ["parserName"] = parseResult.ParserName,
+                ["embeddingProvider"] = embeddingProvider.Provider,
+                ["embeddingModel"] = embeddingProvider.Model
+            });
+        var run = new IngestionRunIndexRecord(
+            result.Run.RunId,
+            result.Repository.Id,
+            result.Repository.RootPath,
+            result.Run.Stage,
+            result.Run.StartedAt,
+            result.Run.FinishedAt,
+            result.Run.Message,
+            parseResult.Language,
+            parseResult.ParserName,
+            request.SolutionPath,
+            request.ProjectPath,
+            request.DryRun,
+            request.SkipEmbeddings,
+            embeddingProvider.Provider,
+            embeddingProvider.Model,
+            result.NodeCount,
+            result.RelationshipCount,
+            result.ContentCount,
+            result.EmbeddingCount,
+            result.Stats,
+            diagnostics.Count,
+            diagnostics.Count(diagnostic => string.Equals(diagnostic.Severity, "error", StringComparison.OrdinalIgnoreCase)),
+            diagnostics.Count(diagnostic => string.Equals(diagnostic.Severity, "warning", StringComparison.OrdinalIgnoreCase)),
+            new Dictionary<string, string>
+            {
+                ["parsedAt"] = parseResult.ParsedAt.ToString("O")
+            });
+
+        await registryStore.UpsertRepositoryAsync(repository, cancellationToken)
+            .ConfigureAwait(false);
+        await registryStore.UpsertRunAsync(run, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private static bool IsUnchangedNode(

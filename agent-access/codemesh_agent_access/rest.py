@@ -2,7 +2,17 @@ from __future__ import annotations
 
 from fastapi import Depends, FastAPI
 
-from .models import ContextQuery, ContextResponse, HealthResponse, NeighborQuery, NodeLookup, NodeResponse
+from .models import (
+    ContextQuery,
+    ContextResponse,
+    HealthResponse,
+    IngestionRunListResponse,
+    NeighborQuery,
+    NodeLookup,
+    NodeResponse,
+    RepositoryListResponse,
+    RepositorySummary,
+)
 from .store import CodeMeshReadStore
 from .dependencies import get_store
 
@@ -45,3 +55,28 @@ async def get_neighbors(
     store: CodeMeshReadStore = Depends(get_store),
 ) -> NodeResponse:
     return await store.get_neighbors(query)
+
+
+@app.get("/repositories", response_model=RepositoryListResponse)
+async def list_repositories(
+    limit: int = 50,
+    store: CodeMeshReadStore = Depends(get_store),
+) -> RepositoryListResponse:
+    return await store.list_repositories(limit=limit)
+
+
+@app.get("/repositories/{repository_id}", response_model=RepositorySummary | None)
+async def get_repository(
+    repository_id: str,
+    store: CodeMeshReadStore = Depends(get_store),
+) -> RepositorySummary | None:
+    return await store.get_repository(repository_id)
+
+
+@app.get("/ingestion-runs", response_model=IngestionRunListResponse)
+async def list_ingestion_runs(
+    repository_id: str | None = None,
+    limit: int = 50,
+    store: CodeMeshReadStore = Depends(get_store),
+) -> IngestionRunListResponse:
+    return await store.list_ingestion_runs(repository_id=repository_id, limit=limit)

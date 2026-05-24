@@ -21,9 +21,11 @@ var tests = new (string Name, Func<Task> Run)[]
     ("dry-run ingestion skips stores", TestDryRunSkipsStores),
     ("repository refresh removes stale records", TestRepositoryRefreshRemovesStaleRecords),
     ("incremental ingestion skips unchanged records", TestIncrementalIngestionSkipsUnchangedRecords),
+    ("ingestion writes repository registry records", TestIngestionWritesRepositoryRegistryRecords),
     ("status uses configured ollama endpoint", TestStatusUsesConfiguredOllamaEndpoint),
     ("ollama embedding provider maps responses", TestOllamaEmbeddingProviderMapsResponses),
     ("mongodb content store round-trips content", TestMongoContentStoreRoundTripsContent),
+    ("mongodb registry store round-trips repositories and runs", TestMongoRegistryStoreRoundTripsRepositoriesAndRuns),
     ("neo4j graph store round-trips graph", TestNeo4jGraphStoreRoundTripsGraph),
     ("qdrant vector store round-trips embeddings", TestQdrantVectorStoreRoundTripsEmbeddings),
     ("csharp parser emits Roslyn symbols", TestCSharpParserEmitsRoslynSymbols),
@@ -245,6 +247,52 @@ static async Task TestIncrementalIngestionSkipsUnchangedRecords()
     }
 }
 
+static async Task TestIngestionWritesRepositoryRegistryRecords()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-registry-test-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+
+    try
+    {
+        var store = new InMemoryCodeMeshStore();
+        var orchestrator = new IngestionOrchestrator(
+            new FakeParserClient(),
+            store,
+            store,
+            store,
+            new NoEmbeddingProvider(),
+            store);
+
+        var result = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            SkipEmbeddings: true));
+
+        var repositories = await store.ListRepositoriesAsync();
+        Equal(1, repositories.Count, "Registry did not record the ingested repository.");
+        Equal(result.Repository.Id, repositories[0].RepositoryId, "Registry repository id changed.");
+        Equal(result.Run.RunId, repositories[0].LastRunId ?? string.Empty, "Registry last run id changed.");
+        Equal(IngestionStage.Completed, repositories[0].LastStage ?? IngestionStage.Failed, "Registry last stage changed.");
+        Equal(1, repositories[0].NodeCount, "Registry node count changed.");
+        Equal(1, repositories[0].ContentCount, "Registry content count changed.");
+
+        var loadedRepository = await store.GetRepositoryAsync(result.Repository.Id);
+        NotNull(loadedRepository, "Registry did not load the repository by id.");
+        Equal(root, loadedRepository!.RootPath, "Registry repository root changed.");
+
+        var runs = await store.ListRunsAsync(result.Repository.Id);
+        Equal(1, runs.Count, "Registry did not record the ingestion run.");
+        Equal(result.Run.RunId, runs[0].RunId, "Registry run id changed.");
+        Equal("fake-parser", runs[0].ParserName, "Registry parser name changed.");
+        Equal("none", runs[0].EmbeddingProvider, "Registry embedding provider changed.");
+        Equal(1, runs[0].Stats?.ParsedNodeCount ?? 0, "Registry stats changed.");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
 static async Task TestStatusUsesConfiguredOllamaEndpoint()
 {
     var previousUrl = Environment.GetEnvironmentVariable("CODEMESH_OLLAMA_URL");
@@ -404,6 +452,94 @@ static async Task TestMongoContentStoreRoundTripsContent()
 
     IsNull(await store.GetContentAsync(incrementalStale.Hash, timeout.Token), "MongoDB incremental cleanup did not remove stale content.");
     NotNull(await store.GetContentAsync(incrementalCurrent.Hash, timeout.Token), "MongoDB incremental cleanup removed current content.");
+}
+
+static async Task TestMongoRegistryStoreRoundTripsRepositoriesAndRuns()
+{
+    var unique = Guid.NewGuid().ToString("N");
+    var store = new MongoRegistryStore(new MongoRegistryStoreOptions(
+        Environment.GetEnvironmentVariable("CODEMESH_MONGO_URI") ?? "mongodb://localhost:27017",
+        Environment.GetEnvironmentVariable("CODEMESH_MONGO_TEST_DATABASE") ?? "codemesh_tests",
+        $"repositories_smoke_{unique}",
+        $"ingestion_runs_smoke_{unique}",
+        TimeSpan.FromSeconds(2)));
+
+    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+    var health = await store.CheckAsync(timeout.Token);
+    if (health.State != CodeMesh.Domain.Health.ComponentState.Healthy)
+    {
+        var detail = health.Metadata.TryGetValue("detail", out var value) ? value : health.Message;
+        throw new SkipTestException($"MongoDB is not reachable: {detail}");
+    }
+
+    var now = DateTimeOffset.UtcNow;
+    var repository = new RepositoryIndexRecord(
+        $"repo:mongo-registry:{unique}",
+        Directory.GetCurrentDirectory(),
+        null,
+        "main",
+        "abcdef",
+        now.AddMinutes(-1),
+        now,
+        $"run:mongo-registry:{unique}",
+        IngestionStage.Completed,
+        "ok",
+        7,
+        11,
+        5,
+        7,
+        new Dictionary<string, string> { ["parserName"] = "registry-test" });
+    var run = new IngestionRunIndexRecord(
+        $"run:mongo-registry:{unique}",
+        repository.RepositoryId,
+        repository.RootPath,
+        IngestionStage.Completed,
+        now.AddSeconds(-10),
+        now,
+        "ok",
+        "csharp",
+        "registry-test-parser",
+        "Sample.sln",
+        null,
+        false,
+        false,
+        "ollama",
+        "nomic-embed-text:latest",
+        7,
+        11,
+        5,
+        2,
+        new IngestionStats(7, 1, 6, 11, 2, 9, 5, 0, 5, 2, 5),
+        1,
+        0,
+        0,
+        new Dictionary<string, string> { ["parsedAt"] = now.ToString("O") });
+
+    await store.UpsertRepositoryAsync(repository, timeout.Token);
+    await store.UpsertRunAsync(run, timeout.Token);
+    await store.UpsertRepositoryAsync(repository with
+    {
+        LastRunId = $"run:mongo-registry-skip-embeddings:{unique}",
+        LastSeenAt = now.AddSeconds(1),
+        EmbeddingCount = null
+    }, timeout.Token);
+
+    var repositories = await store.ListRepositoriesAsync(cancellationToken: timeout.Token);
+    Equal(1, repositories.Count, "MongoDB registry did not list repository.");
+    Equal(repository.RepositoryId, repositories[0].RepositoryId, "MongoDB registry repository id changed.");
+    Equal(repository.Branch ?? string.Empty, repositories[0].Branch ?? string.Empty, "MongoDB registry branch changed.");
+    Equal(repository.EmbeddingCount ?? 0, repositories[0].EmbeddingCount ?? 0, "MongoDB registry embedding count changed.");
+
+    var loaded = await store.GetRepositoryAsync(repository.RepositoryId, timeout.Token);
+    NotNull(loaded, "MongoDB registry did not load repository by id.");
+    Equal($"run:mongo-registry-skip-embeddings:{unique}", loaded!.LastRunId ?? string.Empty, "MongoDB registry last run id changed.");
+    Equal(7, loaded.EmbeddingCount ?? 0, "MongoDB registry skip-embeddings update erased the known embedding count.");
+
+    var runs = await store.ListRunsAsync(repository.RepositoryId, cancellationToken: timeout.Token);
+    Equal(1, runs.Count, "MongoDB registry did not list run.");
+    Equal(run.RunId, runs[0].RunId, "MongoDB registry run id changed.");
+    Equal(run.ParserName, runs[0].ParserName, "MongoDB registry parser name changed.");
+    Equal(run.Stats?.SkippedNodeCount ?? 0, runs[0].Stats?.SkippedNodeCount ?? 0, "MongoDB registry stats changed.");
 }
 
 static async Task TestNeo4jGraphStoreRoundTripsGraph()

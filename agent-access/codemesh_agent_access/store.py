@@ -8,7 +8,19 @@ from typing import Any
 import httpx
 
 from .config import Settings
-from .models import ContextHit, ContextQuery, ContextResponse, HealthResponse, NeighborQuery, NodeLookup, NodeResponse
+from .models import (
+    ContextHit,
+    ContextQuery,
+    ContextResponse,
+    HealthResponse,
+    IngestionRunListResponse,
+    IngestionRunSummary,
+    NeighborQuery,
+    NodeLookup,
+    NodeResponse,
+    RepositoryListResponse,
+    RepositorySummary,
+)
 
 try:
     from neo4j import AsyncGraphDatabase
@@ -132,6 +144,53 @@ class CodeMeshReadStore:
             query.depth,
             query.relationship_kinds)
         return NodeResponse(relationships=relationships)
+
+    async def list_repositories(self, limit: int = 50) -> RepositoryListResponse:
+        if MongoClient is None:
+            return RepositoryListResponse()
+
+        collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_repositories_collection]
+        documents = await asyncio.to_thread(
+            lambda: list(
+                collection.find({})
+                .sort("lastSeenAtUtc", -1)
+                .limit(max(1, min(limit, 500)))
+            )
+        )
+
+        return RepositoryListResponse(
+            repositories=[_normalize_repository(document) for document in documents]
+        )
+
+    async def get_repository(self, repository_id: str) -> RepositorySummary | None:
+        if MongoClient is None:
+            return None
+
+        collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_repositories_collection]
+        document = await asyncio.to_thread(collection.find_one, {"_id": repository_id})
+        return _normalize_repository(document) if document else None
+
+    async def list_ingestion_runs(
+        self,
+        repository_id: str | None = None,
+        limit: int = 50,
+    ) -> IngestionRunListResponse:
+        if MongoClient is None:
+            return IngestionRunListResponse()
+
+        filter_query = {"repositoryId": repository_id} if repository_id else {}
+        collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_ingestion_runs_collection]
+        documents = await asyncio.to_thread(
+            lambda: list(
+                collection.find(filter_query)
+                .sort("startedAtUtc", -1)
+                .limit(max(1, min(limit, 500)))
+            )
+        )
+
+        return IngestionRunListResponse(
+            runs=[_normalize_ingestion_run(document) for document in documents]
+        )
 
     async def _neo4j_health(self) -> dict[str, Any]:
         if AsyncGraphDatabase is None:
@@ -834,6 +893,74 @@ def _normalize_content(document: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _normalize_repository(document: dict[str, Any]) -> RepositorySummary:
+    return RepositorySummary(
+        repository_id=str(document.get("_id") or document.get("repositoryId") or ""),
+        root_path=str(document.get("rootPath") or ""),
+        remote_url=_optional_str(document.get("remoteUrl")),
+        branch=_optional_str(document.get("branch")),
+        commit=_optional_str(document.get("commit")),
+        first_seen_at=_datetime_value(document.get("firstSeenAtUtc")),
+        last_seen_at=_datetime_value(document.get("lastSeenAtUtc")),
+        last_run_id=_optional_str(document.get("lastRunId")),
+        last_stage=_optional_str(document.get("lastStage")),
+        last_message=_optional_str(document.get("lastMessage")),
+        node_count=_int(document.get("nodeCount")),
+        relationship_count=_int(document.get("relationshipCount")),
+        content_count=_int(document.get("contentCount")),
+        embedding_count=_optional_int(document.get("embeddingCount")),
+        metadata=_string_dict(document.get("metadata")),
+    )
+
+
+def _normalize_ingestion_run(document: dict[str, Any]) -> IngestionRunSummary:
+    return IngestionRunSummary(
+        run_id=str(document.get("_id") or document.get("runId") or ""),
+        repository_id=str(document.get("repositoryId") or ""),
+        repository_root=str(document.get("repositoryRoot") or ""),
+        stage=str(document.get("stage") or ""),
+        started_at=_datetime_value(document.get("startedAtUtc")),
+        finished_at=_datetime_value(document.get("finishedAtUtc")),
+        message=_optional_str(document.get("message")),
+        language=str(document.get("language") or ""),
+        parser_name=str(document.get("parserName") or ""),
+        solution_path=_optional_str(document.get("solutionPath")),
+        project_path=_optional_str(document.get("projectPath")),
+        dry_run=bool(document.get("dryRun") or False),
+        skip_embeddings=bool(document.get("skipEmbeddings") if document.get("skipEmbeddings") is not None else True),
+        embedding_provider=str(document.get("embeddingProvider") or ""),
+        embedding_model=str(document.get("embeddingModel") or ""),
+        node_count=_int(document.get("nodeCount")),
+        relationship_count=_int(document.get("relationshipCount")),
+        content_count=_int(document.get("contentCount")),
+        embedding_count=_int(document.get("embeddingCount")),
+        stats=_normalize_stats(document.get("stats")),
+        diagnostic_count=_int(document.get("diagnosticCount")),
+        error_diagnostic_count=_int(document.get("errorDiagnosticCount")),
+        warning_diagnostic_count=_int(document.get("warningDiagnosticCount")),
+        metadata=_string_dict(document.get("metadata")),
+    )
+
+
+def _normalize_stats(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+
+    return {
+        "parsed_node_count": _int(value.get("ParsedNodeCount") or value.get("parsedNodeCount")),
+        "written_node_count": _int(value.get("WrittenNodeCount") or value.get("writtenNodeCount")),
+        "skipped_node_count": _int(value.get("SkippedNodeCount") or value.get("skippedNodeCount")),
+        "parsed_relationship_count": _int(value.get("ParsedRelationshipCount") or value.get("parsedRelationshipCount")),
+        "written_relationship_count": _int(value.get("WrittenRelationshipCount") or value.get("writtenRelationshipCount")),
+        "skipped_relationship_count": _int(value.get("SkippedRelationshipCount") or value.get("skippedRelationshipCount")),
+        "parsed_content_count": _int(value.get("ParsedContentCount") or value.get("parsedContentCount")),
+        "written_content_count": _int(value.get("WrittenContentCount") or value.get("writtenContentCount")),
+        "skipped_content_count": _int(value.get("SkippedContentCount") or value.get("skippedContentCount")),
+        "written_embedding_count": _int(value.get("WrittenEmbeddingCount") or value.get("writtenEmbeddingCount")),
+        "skipped_embedding_count": _int(value.get("SkippedEmbeddingCount") or value.get("skippedEmbeddingCount")),
+    }
+
+
 def _context_ref(node: dict[str, Any] | None) -> dict[str, Any] | None:
     if node is None:
         return None
@@ -1062,6 +1189,28 @@ def _datetime_value(value: Any) -> str | None:
             value = value.replace(tzinfo=timezone.utc)
         return value.isoformat()
     return str(value)
+
+
+def _optional_str(value: Any) -> str | None:
+    if value is None:
+        return None
+
+    text = str(value)
+    return text if text else None
+
+
+def _optional_int(value: Any) -> int | None:
+    if value is None:
+        return None
+
+    return _int(value)
+
+
+def _string_dict(value: Any) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+
+    return {str(key): str(item) for key, item in value.items()}
 
 
 def _int(value: Any) -> int:
