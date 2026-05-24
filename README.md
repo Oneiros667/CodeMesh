@@ -65,6 +65,7 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
 ```
 
 `--skip-embeddings` remains the fastest ingestion mode. Use `--include-embeddings` when you want semantic search data written to Qdrant.
+The Ollama embedding input defaults to 1500 characters per node for compatibility with `nomic-embed-text:latest`; use `--embedding-max-chars` to tune this for another embedding model.
 
 Each successful ingestion run stamps graph, content, and vector records with a repository id and ingestion run id. After all writes succeed, CodeMesh removes stale records from the same repository that were not seen in the current run. If `--skip-embeddings` is used, vector cleanup is skipped so existing embeddings are left untouched.
 

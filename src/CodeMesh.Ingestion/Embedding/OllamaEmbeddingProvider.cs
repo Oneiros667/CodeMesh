@@ -11,7 +11,7 @@ public sealed record OllamaEmbeddingProviderOptions(
     string BaseUrl = "http://localhost:11434",
     string Model = "nomic-embed-text:latest",
     int BatchSize = 16,
-    int MaxInputCharacters = 8000,
+    int MaxInputCharacters = 1500,
     TimeSpan? Timeout = null);
 
 public sealed class OllamaEmbeddingProvider : IEmbeddingProvider, IDisposable
@@ -32,7 +32,7 @@ public sealed class OllamaEmbeddingProvider : IEmbeddingProvider, IDisposable
         HttpClient httpClient,
         string model = "nomic-embed-text:latest",
         int batchSize = 16,
-        int maxInputCharacters = 8000,
+        int maxInputCharacters = 1500,
         bool ownsHttpClient = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(model);

@@ -197,7 +197,7 @@ static (IEmbeddingProvider Provider, bool SkipEmbeddings) CreateEmbeddingProvide
             ReadOption(args, "--ollama-url") ?? Environment.GetEnvironmentVariable("CODEMESH_OLLAMA_URL") ?? "http://localhost:11434",
             ReadOption(args, "--embedding-model") ?? Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL") ?? "nomic-embed-text:latest",
             BatchSize: ReadIntOption(args, "--embedding-batch-size", 16),
-            MaxInputCharacters: ReadIntOption(args, "--embedding-max-chars", 8000))), false),
+            MaxInputCharacters: ReadIntOption(args, "--embedding-max-chars", 1500))), false),
         _ => throw new InvalidOperationException(
             $"Unsupported embedding provider: {provider}. Supported values: none, ollama.")
     };
