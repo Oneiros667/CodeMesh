@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .dependencies import get_store
-from .models import ContextQuery, NeighborQuery, NodeLookup, ToolResult
+from .models import ContextPackageQuery, ContextQuery, NeighborQuery, NodeLookup, ToolResult
 
 
 async def status() -> ToolResult:
@@ -31,6 +31,35 @@ async def search_context(
             context_depth=context_depth,
             include_context_relationships=include_context_relationships,
             context_relationship_limit=context_relationship_limit,
+        )
+    )
+    return ToolResult(data=result.model_dump(mode="json"))
+
+
+async def get_context_package(
+    query: str,
+    repository_id: str | None = None,
+    limit: int = 8,
+    max_characters: int = 12000,
+    kinds: list[str] | None = None,
+    vector: list[float] | None = None,
+    context_depth: int = 4,
+    include_content: bool = True,
+    include_relationships: bool = True,
+    relationship_limit: int = 8,
+) -> ToolResult:
+    result = await get_store().get_context_package(
+        ContextPackageQuery(
+            query=query,
+            repository_id=repository_id,
+            limit=limit,
+            max_characters=max_characters,
+            kinds=kinds or [],
+            vector=vector or [],
+            context_depth=context_depth,
+            include_content=include_content,
+            include_relationships=include_relationships,
+            relationship_limit=relationship_limit,
         )
     )
     return ToolResult(data=result.model_dump(mode="json"))

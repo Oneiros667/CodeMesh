@@ -26,6 +26,17 @@ def main() -> None:
     search_parser.add_argument("--include-context-relationships", action="store_true")
     search_parser.add_argument("--context-relationship-limit", type=int, default=8)
 
+    package_parser = subcommands.add_parser("package", help="Build an agent-ready context package.")
+    package_parser.add_argument("query")
+    package_parser.add_argument("--repository-id")
+    package_parser.add_argument("--limit", type=int, default=8)
+    package_parser.add_argument("--max-characters", type=int, default=12000)
+    package_parser.add_argument("--kind", action="append", default=[])
+    package_parser.add_argument("--context-depth", type=int, default=4)
+    package_parser.add_argument("--no-content", action="store_true")
+    package_parser.add_argument("--no-relationships", action="store_true")
+    package_parser.add_argument("--relationship-limit", type=int, default=8)
+
     node_parser = subcommands.add_parser("get-node", help="Fetch a stored CodeMesh node.")
     node_parser.add_argument("node_id")
     node_parser.add_argument("--repository-id")
@@ -74,6 +85,23 @@ def main() -> None:
                 context_depth=args.context_depth,
                 include_context_relationships=args.include_context_relationships,
                 context_relationship_limit=args.context_relationship_limit,
+            )
+        )
+        print(json.dumps(result.model_dump(mode="json"), indent=2))
+        return
+
+    if args.command == "package":
+        result = asyncio.run(
+            tools.get_context_package(
+                args.query,
+                repository_id=args.repository_id,
+                limit=args.limit,
+                max_characters=args.max_characters,
+                kinds=args.kind,
+                context_depth=args.context_depth,
+                include_content=not args.no_content,
+                include_relationships=not args.no_relationships,
+                relationship_limit=args.relationship_limit,
             )
         )
         print(json.dumps(result.model_dump(mode="json"), indent=2))

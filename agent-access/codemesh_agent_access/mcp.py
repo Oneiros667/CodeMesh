@@ -48,6 +48,33 @@ def build_server() -> Any:
         ).model_dump(mode="json")
 
     @server.tool()
+    async def codemesh_get_context_package(
+        query: str,
+        repository_id: str | None = None,
+        limit: int = 8,
+        max_characters: int = 12000,
+        kinds: list[str] | None = None,
+        context_depth: int = 4,
+        include_content: bool = True,
+        include_relationships: bool = True,
+        relationship_limit: int = 8,
+    ) -> dict[str, Any]:
+        """Build an agent-ready context package with snippets, relationships, and repository metadata."""
+        return (
+            await tools.get_context_package(
+                query,
+                repository_id=repository_id,
+                limit=limit,
+                max_characters=max_characters,
+                kinds=kinds,
+                context_depth=context_depth,
+                include_content=include_content,
+                include_relationships=include_relationships,
+                relationship_limit=relationship_limit,
+            )
+        ).model_dump(mode="json")
+
+    @server.tool()
     async def codemesh_get_node(
         node_id: str,
         repository_id: str | None = None,
@@ -105,6 +132,7 @@ async def print_tool_manifest() -> None:
         "tools": [
             "codemesh_status",
             "codemesh_search_context",
+            "codemesh_get_context_package",
             "codemesh_get_node",
             "codemesh_get_neighbors",
             "codemesh_list_repositories",

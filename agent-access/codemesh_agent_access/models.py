@@ -47,6 +47,39 @@ class ContextResponse(BaseModel):
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class ContextPackageQuery(BaseModel):
+    query: str
+    repository_id: str | None = None
+    limit: int = 8
+    max_characters: int = 12000
+    kinds: list[str] = Field(default_factory=list)
+    filters: dict[str, str] = Field(default_factory=dict)
+    vector: list[float] = Field(default_factory=list)
+    context_depth: int = 4
+    include_content: bool = True
+    include_relationships: bool = True
+    relationship_limit: int = 8
+    include_repository: bool = True
+
+
+class ContextPackageItem(BaseModel):
+    hit: ContextHit
+    node: dict[str, Any] | None = None
+    content: dict[str, Any] | None = None
+    snippet: str | None = None
+    relationships: list[dict[str, Any]] = Field(default_factory=list)
+    rationale: dict[str, Any] = Field(default_factory=dict)
+
+
+class ContextPackageResponse(BaseModel):
+    query: ContextPackageQuery
+    repository: dict[str, Any] | None = None
+    latest_run: dict[str, Any] | None = None
+    items: list[ContextPackageItem] = Field(default_factory=list)
+    total_snippet_characters: int = 0
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class NodeLookup(BaseModel):
     node_id: str
     repository_id: str | None = None

@@ -131,6 +131,7 @@ REST endpoints:
 - `GET /health`
 - `GET /status`
 - `POST /context/search`
+- `POST /context/package`
 - `POST /nodes/get`
 - `POST /graph/neighbors`
 - `GET /repositories`
@@ -141,6 +142,7 @@ MCP tools:
 
 - `codemesh_status`
 - `codemesh_search_context`
+- `codemesh_get_context_package`
 - `codemesh_get_node`
 - `codemesh_get_neighbors`
 - `codemesh_list_repositories`
@@ -169,6 +171,15 @@ $searchBody = @{
   filters = @{}
 } | ConvertTo-Json -Depth 5
 Invoke-RestMethod http://127.0.0.1:8088/context/search -Method Post -ContentType 'application/json' -Body $searchBody
+
+$packageBody = @{
+  query = 'download video with subtitles'
+  repository_id = 'repo:youtube-downloader'
+  limit = 5
+  max_characters = 12000
+  include_relationships = $true
+} | ConvertTo-Json -Depth 5
+Invoke-RestMethod http://127.0.0.1:8088/context/package -Method Post -ContentType 'application/json' -Body $packageBody
 ```
 
 Direct CLI examples:
@@ -177,6 +188,7 @@ Direct CLI examples:
 cd agent-access
 uv run python -m codemesh_agent_access status
 uv run python -m codemesh_agent_access search "download video with subtitles" --repository-id repo:youtube-downloader --limit 5 --kind Class
+uv run python -m codemesh_agent_access package "download video with subtitles" --repository-id repo:youtube-downloader --limit 5 --max-characters 12000
 uv run python -m codemesh_agent_access get-node csharp:type:CodeMesh.Tests.Neo4jSmokeSource --repository-id repo:neo4j-smoke --no-content
 uv run python -m codemesh_agent_access neighbors csharp:type:CodeMesh.Tests.Neo4jSmokeSource --repository-id repo:neo4j-smoke
 uv run python -m codemesh_agent_access repos --limit 10
@@ -188,6 +200,8 @@ Set `CODEMESH_MODEL_PROVIDER=ollama` for Agent Access when you want text queries
 Pass `repository_id` in REST/MCP context, node, and neighbor queries to constrain lookups to one ingested repository. CLI commands accept the equivalent `--repository-id` option.
 
 Context search results are ranked for agent usefulness. Low-level matches such as parameter declarations are expanded to their defining symbol or containing method/type before they are returned, and each hit includes `repository_id`, `content_hash`, `score_components`, and `expanded_context` when expansion occurred. Use `expand_context=false` in REST/MCP or `--no-expand-context` in the CLI for compact raw hits. Use `include_context_relationships=true` or `--include-context-relationships` when each hit should include a small immediate relationship summary.
+
+Context packages build on search results and return an agent-ready bundle with selected hits, normalized node metadata, budgeted source snippets, immediate relationship summaries, repository metadata, and the latest ingestion run. Use `max_characters` / `--max-characters` to keep snippet output within a rough context budget.
 
 ## Development Notes
 

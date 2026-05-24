@@ -5,6 +5,8 @@ from fastapi import Depends, FastAPI
 from .models import (
     ContextQuery,
     ContextResponse,
+    ContextPackageQuery,
+    ContextPackageResponse,
     HealthResponse,
     IngestionRunListResponse,
     NeighborQuery,
@@ -39,6 +41,14 @@ async def search_context(
     store: CodeMeshReadStore = Depends(get_store),
 ) -> ContextResponse:
     return await store.search_context(query)
+
+
+@app.post("/context/package", response_model=ContextPackageResponse)
+async def get_context_package(
+    query: ContextPackageQuery,
+    store: CodeMeshReadStore = Depends(get_store),
+) -> ContextPackageResponse:
+    return await store.get_context_package(query)
 
 
 @app.post("/nodes/get", response_model=NodeResponse)

@@ -3,7 +3,14 @@ from __future__ import annotations
 import asyncio
 
 from codemesh_agent_access.config import Settings
-from codemesh_agent_access.models import ContextHit, ContextQuery
+from codemesh_agent_access.models import (
+    ContextHit,
+    ContextPackageQuery,
+    ContextQuery,
+    IngestionRunListResponse,
+    IngestionRunSummary,
+    RepositorySummary,
+)
 from codemesh_agent_access.store import CodeMeshReadStore, _ranked_unique_hits
 
 
@@ -99,6 +106,46 @@ def test_ranked_unique_hits_keeps_best_expanded_context() -> None:
     )
 
     assert _ranked_unique_hits([lower, higher], 5) == [higher]
+
+
+def test_context_package_includes_snippet_relationships_and_registry_metadata() -> None:
+    store = FakeReadStore()
+
+    package = asyncio.run(
+        store.get_context_package(
+            ContextPackageQuery(
+                query="download video subtitles",
+                repository_id="repo:test",
+                limit=1,
+                max_characters=48,
+                vector=[1.0, 0.0],
+                relationship_limit=1,
+            )
+        )
+    )
+
+    assert package.repository is not None
+    assert package.repository["repository_id"] == "repo:test"
+    assert package.latest_run is not None
+    assert package.latest_run["run_id"] == "run:test"
+    assert package.total_snippet_characters <= 48
+    assert len(package.items) == 1
+
+    item = package.items[0]
+    assert item.hit.node_id == "csharp:method:Sample.Downloader.DownloadAsync(System.String)"
+    assert item.node is not None
+    assert item.node["id"] == item.hit.node_id
+    assert item.content == {
+        "hash": "method-body",
+        "media_type": "text/x-csharp-fragment",
+        "created_at": None,
+        "updated_at": None,
+    }
+    assert item.snippet is not None
+    assert item.snippet.endswith("...<trimmed>")
+    assert item.relationships[0]["kind"] == "Contains"
+    assert item.rationale["rank"] == 1
+    assert item.rationale["expanded"] is True
 
 
 class FakeReadStore(CodeMeshReadStore):
@@ -240,6 +287,44 @@ class FakeReadStore(CodeMeshReadStore):
             }
         }
         return contents.get(content_hash)
+
+    async def get_repository(self, repository_id: str) -> RepositorySummary | None:
+        if repository_id != "repo:test":
+            return None
+
+        return RepositorySummary(
+            repository_id="repo:test",
+            root_path="C:/sample",
+            last_run_id="run:test",
+            last_stage="Completed",
+            node_count=4,
+            relationship_count=1,
+            content_count=1,
+            embedding_count=1,
+        )
+
+    async def list_ingestion_runs(
+        self,
+        repository_id: str | None = None,
+        limit: int = 50,
+    ) -> IngestionRunListResponse:
+        if repository_id != "repo:test":
+            return IngestionRunListResponse()
+
+        return IngestionRunListResponse(
+            runs=[
+                IngestionRunSummary(
+                    run_id="run:test",
+                    repository_id="repo:test",
+                    repository_root="C:/sample",
+                    stage="Completed",
+                    language="csharp",
+                    parser_name="fake",
+                    embedding_provider="test",
+                    embedding_model="test",
+                )
+            ]
+        )
 
 
 def _node(

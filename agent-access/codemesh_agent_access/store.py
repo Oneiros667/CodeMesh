@@ -10,6 +10,9 @@ import httpx
 from .config import Settings
 from .models import (
     ContextHit,
+    ContextPackageItem,
+    ContextPackageQuery,
+    ContextPackageResponse,
     ContextQuery,
     ContextResponse,
     HealthResponse,
@@ -118,6 +121,90 @@ class CodeMeshReadStore:
             hits = await self._search_lexical_context(query)
 
         return ContextResponse(query=query, hits=_ranked_unique_hits(hits, query.limit))
+
+    async def get_context_package(self, query: ContextPackageQuery) -> ContextPackageResponse:
+        search = await self.search_context(
+            ContextQuery(
+                query=query.query,
+                repository_id=query.repository_id,
+                limit=query.limit,
+                kinds=query.kinds,
+                filters=query.filters,
+                vector=query.vector,
+                expand_context=True,
+                context_depth=query.context_depth,
+                include_context_relationships=False,
+            )
+        )
+        repository = None
+        latest_run = None
+        if query.include_repository and query.repository_id:
+            repository_summary = await self.get_repository(query.repository_id)
+            repository = repository_summary.model_dump(mode="json") if repository_summary else None
+            runs = await self.list_ingestion_runs(repository_id=query.repository_id, limit=1)
+            latest_run = runs.runs[0].model_dump(mode="json") if runs.runs else None
+
+        max_characters = max(0, query.max_characters)
+        remaining_characters = max_characters
+        items: list[ContextPackageItem] = []
+        total_snippet_characters = 0
+
+        for index, hit in enumerate(search.hits):
+            repository_id = hit.repository_id or query.repository_id
+            node_response = await self.get_node(
+                NodeLookup(
+                    node_id=hit.node_id,
+                    repository_id=repository_id,
+                    include_content=query.include_content,
+                    include_neighbors=False,
+                )
+            )
+            content = _content_metadata(node_response.content)
+            snippet = None
+            content_document = node_response.content
+            if query.include_content and hit.content_hash:
+                if content_document is None or str(content_document.get("hash") or "") != hit.content_hash:
+                    content_document = await self._get_content(hit.content_hash)
+                content = _content_metadata(content_document)
+
+            if query.include_content and content_document and remaining_characters > 0:
+                remaining_items = max(1, len(search.hits) - index)
+                item_budget = max(0, remaining_characters // remaining_items)
+                snippet = _snippet_for_hit(content_document, hit, item_budget)
+                total_snippet_characters += len(snippet or "")
+                remaining_characters = max(0, remaining_characters - len(snippet or ""))
+
+            relationships = []
+            if query.include_relationships:
+                relationships = await self._get_context_relationship_summaries(
+                    hit.node_id,
+                    repository_id,
+                    query.relationship_limit,
+                )
+
+            items.append(
+                ContextPackageItem(
+                    hit=hit,
+                    node=node_response.node,
+                    content=content,
+                    snippet=snippet,
+                    relationships=relationships,
+                    rationale={
+                        "rank": index + 1,
+                        "score": hit.score,
+                        "score_components": hit.score_components,
+                        "expanded": hit.expanded_context is not None,
+                    },
+                )
+            )
+
+        return ContextPackageResponse(
+            query=query,
+            repository=repository,
+            latest_run=latest_run,
+            items=items,
+            total_snippet_characters=total_snippet_characters,
+        )
 
     async def get_node(self, lookup: NodeLookup) -> NodeResponse:
         node = await self._get_node_properties(lookup.node_id, lookup.repository_id)
@@ -891,6 +978,44 @@ def _normalize_content(document: dict[str, Any]) -> dict[str, Any]:
         "created_at": _datetime_value(document.get("createdAtUtc")),
         "updated_at": _datetime_value(document.get("updatedAtUtc")),
     }
+
+
+def _content_metadata(content: dict[str, Any] | None) -> dict[str, Any] | None:
+    if content is None:
+        return None
+
+    return {
+        "hash": str(content.get("hash") or ""),
+        "media_type": str(content.get("media_type") or ""),
+        "created_at": content.get("created_at"),
+        "updated_at": content.get("updated_at"),
+    }
+
+
+def _snippet_for_hit(content: dict[str, Any], hit: ContextHit, max_characters: int) -> str | None:
+    if max_characters <= 0:
+        return None
+
+    text = str(content.get("text") or "")
+    if not text:
+        return None
+
+    lines = text.splitlines()
+    if lines and 0 < hit.start_line <= hit.end_line <= len(lines):
+        text = "\n".join(lines[hit.start_line - 1 : hit.end_line])
+
+    return _trim_text(text, max_characters)
+
+
+def _trim_text(text: str, max_characters: int) -> str:
+    if len(text) <= max_characters:
+        return text
+
+    suffix = "\n...<trimmed>"
+    if max_characters <= len(suffix):
+        return text[:max_characters]
+
+    return f"{text[: max_characters - len(suffix)].rstrip()}{suffix}"
 
 
 def _normalize_repository(document: dict[str, Any]) -> RepositorySummary:
