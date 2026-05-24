@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CodeMesh.Domain\CodeMesh.Domain.csproj" />
+    <ProjectReference Include="..\..\src\CodeMesh.Ingestion\CodeMesh.Ingestion.csproj" />
+    <ProjectReference Include="..\..\src\CodeMesh.Parser.CSharp\CodeMesh.Parser.CSharp.csproj" />
+    <ProjectReference Include="..\..\src\CodeMesh.Storage\CodeMesh.Storage.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

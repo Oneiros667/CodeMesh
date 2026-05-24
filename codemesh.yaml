@@ -1,0 +1,62 @@
+version: 0.1
+
+workspace:
+  name: CodeMesh
+  root: .
+
+samples:
+  youtube_downloader:
+    language: csharp
+    repository_root: ${CODEMESH_SAMPLE_CSHARP_ROOT}
+    solution_path: ${CODEMESH_SAMPLE_CSHARP_SOLUTION}
+    mode: dry-run
+
+ingestion:
+  default_language: csharp
+  batch_size: 256
+  dry_run: false
+  parser_workers:
+    csharp:
+      image: codemesh-parser-csharp
+      url: http://localhost:8091
+      inputs:
+        - repositoryRoot
+        - solutionPath
+        - projectPath
+
+stores:
+  graph:
+    provider: neo4j
+    uri: ${CODEMESH_NEO4J_URI}
+    database: ${CODEMESH_NEO4J_DATABASE}
+  content:
+    provider: mongodb
+    uri: ${CODEMESH_MONGO_URI}
+    database: ${CODEMESH_MONGO_DATABASE}
+    collection: ${CODEMESH_MONGO_CONTENT_COLLECTION}
+  vector:
+    provider: qdrant
+    url: ${CODEMESH_QDRANT_URL}
+    collection: ${CODEMESH_QDRANT_COLLECTION}
+
+agent_access:
+  rest_url: http://localhost:8088
+  mcp:
+    command: python
+    args:
+      - -m
+      - codemesh_agent_access
+      - mcp
+
+models:
+  provider: none
+  optional_providers:
+    ollama:
+      base_url: ${CODEMESH_OLLAMA_URL}
+    lm_studio:
+      base_url: ${CODEMESH_LM_STUDIO_URL}
+    openai:
+      api_key_env: OPENAI_API_KEY
+    azure_openai:
+      endpoint_env: AZURE_OPENAI_ENDPOINT
+      api_key_env: AZURE_OPENAI_API_KEY

@@ -1,0 +1,80 @@
+services:
+  neo4j:
+    image: neo4j:5-community
+    ports:
+      - "${CODEMESH_NEO4J_HTTP_PORT:-7474}:7474"
+      - "${CODEMESH_NEO4J_BOLT_PORT:-7687}:7687"
+    environment:
+      NEO4J_AUTH: "${CODEMESH_NEO4J_AUTH:-neo4j/codemesh}"
+      NEO4J_dbms_memory_heap_initial__size: "512m"
+      NEO4J_dbms_memory_heap_max__size: "1g"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+
+  mongodb:
+    image: mongo:7
+    ports:
+      - "${CODEMESH_MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "${CODEMESH_QDRANT_HTTP_PORT:-6333}:6333"
+      - "${CODEMESH_QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  csharp-parser:
+    build:
+      context: .
+      dockerfile: src/CodeMesh.Parser.CSharp/Dockerfile
+    environment:
+      ASPNETCORE_URLS: "http://+:8080"
+    ports:
+      - "${CODEMESH_CSHARP_PARSER_PORT:-8091}:8080"
+    volumes:
+      - ./:/workspace:ro
+
+  agent-access:
+    build:
+      context: .
+      dockerfile: agent-access/Dockerfile
+    environment:
+      CODEMESH_AGENT_HOST: "0.0.0.0"
+      CODEMESH_AGENT_PORT: "8080"
+      CODEMESH_NEO4J_URI: "${CODEMESH_NEO4J_URI:-bolt://neo4j:7687}"
+      CODEMESH_NEO4J_AUTH: "${CODEMESH_NEO4J_AUTH:-neo4j/codemesh}"
+      CODEMESH_NEO4J_DATABASE: "${CODEMESH_NEO4J_DATABASE:-neo4j}"
+      CODEMESH_MONGO_URI: "${CODEMESH_MONGO_URI:-mongodb://mongodb:27017}"
+      CODEMESH_MONGO_DATABASE: "${CODEMESH_MONGO_DATABASE:-codemesh}"
+      CODEMESH_MONGO_CONTENT_COLLECTION: "${CODEMESH_MONGO_CONTENT_COLLECTION:-content}"
+      CODEMESH_QDRANT_URL: "${CODEMESH_QDRANT_URL:-http://qdrant:6333}"
+      CODEMESH_QDRANT_COLLECTION: "${CODEMESH_QDRANT_COLLECTION:-codemesh-code}"
+      CODEMESH_MODEL_PROVIDER: "${CODEMESH_MODEL_PROVIDER:-none}"
+      CODEMESH_OLLAMA_URL: "${CODEMESH_OLLAMA_URL:-http://ollama:11434}"
+      CODEMESH_EMBEDDING_MODEL: "${CODEMESH_EMBEDDING_MODEL:-nomic-embed-text:latest}"
+    ports:
+      - "${CODEMESH_AGENT_ACCESS_PORT:-8088}:8080"
+    depends_on:
+      - neo4j
+      - mongodb
+      - qdrant
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles:
+      - ollama
+    ports:
+      - "${CODEMESH_OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - C:/Users/developer/.ollama:/root/.ollama
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  mongodb_data:
+  qdrant_data:
+  ollama_data:
