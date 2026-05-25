@@ -560,25 +560,35 @@ class CodeMeshReadStore:
             return []
 
         clamped_limit = min(max(limit, 1), 50)
+        selection_limit = min(max(clamped_limit * 8, 80), 500)
         if repository_id:
             node_match = "MATCH (node:CodeMeshNode {storageKey: $storage_key})"
-            parameters = {"storage_key": _storage_key(repository_id, node_id), "limit": clamped_limit}
+            parameters = {
+                "storage_key": _storage_key(repository_id, node_id),
+                "node_id": node_id,
+                "limit": selection_limit,
+            }
         else:
             node_match = "MATCH (node:CodeMeshNode {id: $node_id})"
-            parameters = {"node_id": node_id, "limit": clamped_limit}
+            parameters = {"node_id": node_id, "limit": selection_limit}
 
         query = f"""
         {node_match}
         MATCH (node)-[relationship:CODEMESH_REL]-(other:CodeMeshNode)
         RETURN properties(relationship) AS relationship, properties(other) AS other
         ORDER BY
-          CASE relationship.kind
-            WHEN 'Defines' THEN 0
-            WHEN 'Contains' THEN 1
-            WHEN 'Invokes' THEN 2
-            WHEN 'UsesType' THEN 3
-            WHEN 'Returns' THEN 4
-            ELSE 9
+          CASE
+            WHEN relationship.kind = 'Defines' THEN 0
+            WHEN relationship.kind = 'Contains' AND relationship.targetNodeId = $node_id THEN 1
+            WHEN relationship.kind = 'Invokes' AND relationship.targetNodeId = $node_id THEN 2
+            WHEN relationship.kind = 'Invokes' AND relationship.sourceNodeId = $node_id THEN 3
+            WHEN relationship.kind = 'Writes' THEN 4
+            WHEN relationship.kind = 'Reads' THEN 5
+            WHEN relationship.kind = 'UsesType' THEN 6
+            WHEN relationship.kind = 'Returns' THEN 7
+            WHEN relationship.kind IN ['Inherits', 'Implements', 'Overrides'] THEN 8
+            WHEN relationship.kind = 'Contains' THEN 9
+            ELSE 50
           END,
           coalesce(other.name, other.id, '')
         LIMIT $limit
@@ -609,7 +619,7 @@ class CodeMeshReadStore:
                 }
             )
 
-        return summaries
+        return _prioritize_context_relationships(summaries, clamped_limit)
 
     async def _get_content(self, content_hash: str) -> dict[str, Any] | None:
         if not content_hash or MongoClient is None:
@@ -991,6 +1001,61 @@ def _content_metadata(content: dict[str, Any] | None) -> dict[str, Any] | None:
         "created_at": content.get("created_at"),
         "updated_at": content.get("updated_at"),
     }
+
+
+def _prioritize_context_relationships(
+    relationships: list[dict[str, Any]],
+    limit: int,
+) -> list[dict[str, Any]]:
+    if limit <= 0:
+        return []
+
+    return sorted(relationships, key=_context_relationship_sort_key)[:limit]
+
+
+def _context_relationship_sort_key(relationship: dict[str, Any]) -> tuple[int, int, str, str, str]:
+    other = relationship.get("other")
+    if not isinstance(other, dict):
+        other = {}
+
+    start_line = _int(other.get("start_line"))
+    line_sort = start_line if start_line > 0 else 1_000_000
+
+    return (
+        _context_relationship_priority(relationship),
+        line_sort,
+        str(other.get("kind") or "").casefold(),
+        str(other.get("name") or "").casefold(),
+        str(other.get("node_id") or "").casefold(),
+    )
+
+
+def _context_relationship_priority(relationship: dict[str, Any]) -> int:
+    kind = str(relationship.get("kind") or "").casefold()
+    direction = str(relationship.get("direction") or "").casefold()
+
+    if kind == "defines":
+        return 0
+    if kind == "contains" and direction == "in":
+        return 1
+    if kind == "invokes" and direction == "in":
+        return 2
+    if kind == "invokes" and direction == "out":
+        return 3
+    if kind == "writes":
+        return 4
+    if kind == "reads":
+        return 5
+    if kind in {"usestype", "uses_type", "uses-type"}:
+        return 6
+    if kind == "returns":
+        return 7
+    if kind in {"inherits", "implements", "overrides"}:
+        return 8
+    if kind == "contains":
+        return 9
+
+    return 50
 
 
 def _group_relationships(relationships: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:

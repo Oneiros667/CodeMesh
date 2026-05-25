@@ -11,7 +11,7 @@ from codemesh_agent_access.models import (
     IngestionRunSummary,
     RepositorySummary,
 )
-from codemesh_agent_access.store import CodeMeshReadStore, _ranked_unique_hits
+from codemesh_agent_access.store import CodeMeshReadStore, _prioritize_context_relationships, _ranked_unique_hits
 
 
 def test_vector_search_expands_parameter_declaration_to_method_context() -> None:
@@ -47,18 +47,18 @@ def test_vector_search_expands_parameter_declaration_to_method_context() -> None
     assert hit.expanded_context["declaration"]["start_line"] == 10
     assert hit.expanded_context["relationships"] == [
         {
-            "kind": "Contains",
-            "label": "contains",
-            "direction": "out",
-            "source_node_id": "csharp:method:Sample.Downloader.DownloadAsync(System.String)",
-            "target_node_id": "csharp:param:Sample.Downloader.DownloadAsync(System.String):0:url",
+            "kind": "Defines",
+            "label": "defines",
+            "direction": "in",
+            "source_node_id": "csharp:decl:csharp:method:Sample.Downloader.DownloadAsync(System.String):Downloader.cs:10:5",
+            "target_node_id": "csharp:method:Sample.Downloader.DownloadAsync(System.String)",
             "other": {
-                "node_id": "csharp:param:Sample.Downloader.DownloadAsync(System.String):0:url",
-                "kind": "Parameter",
-                "name": "url",
+                "node_id": "csharp:decl:csharp:method:Sample.Downloader.DownloadAsync(System.String):Downloader.cs:10:5",
+                "kind": "Declaration",
+                "name": "DownloadAsync",
                 "file_path": "Downloader.cs",
-                "start_line": 0,
-                "end_line": 0,
+                "start_line": 10,
+                "end_line": 24,
             },
         }
     ]
@@ -109,6 +109,29 @@ def test_ranked_unique_hits_keeps_best_expanded_context() -> None:
     assert _ranked_unique_hits([lower, higher], 5) == [higher]
 
 
+def test_context_relationship_prioritization_prefers_agent_useful_edges() -> None:
+    relationships = [
+        _relationship("Contains", "out", "parameter", start_line=10),
+        _relationship("Reads", "out", "field", start_line=7),
+        _relationship("Invokes", "out", "callee", start_line=30),
+        _relationship("UsesType", "out", "type", start_line=1),
+        _relationship("Writes", "out", "property", start_line=8),
+        _relationship("Invokes", "in", "caller", start_line=20),
+        _relationship("Contains", "in", "owner", start_line=4),
+        _relationship("Defines", "in", "declaration", start_line=10),
+    ]
+
+    ordered = _prioritize_context_relationships(relationships, 5)
+
+    assert [(item["kind"], item["direction"], item["other"]["name"]) for item in ordered] == [
+        ("Defines", "in", "declaration"),
+        ("Contains", "in", "owner"),
+        ("Invokes", "in", "caller"),
+        ("Invokes", "out", "callee"),
+        ("Writes", "out", "property"),
+    ]
+
+
 def test_context_package_includes_snippet_relationships_and_registry_metadata() -> None:
     store = FakeReadStore()
 
@@ -120,7 +143,7 @@ def test_context_package_includes_snippet_relationships_and_registry_metadata() 
                 limit=1,
                 max_characters=48,
                 vector=[1.0, 0.0],
-                relationship_limit=5,
+                relationship_limit=7,
             )
         )
     )
@@ -144,7 +167,13 @@ def test_context_package_includes_snippet_relationships_and_registry_metadata() 
     }
     assert item.snippet is not None
     assert item.snippet.endswith("...<trimmed>")
-    assert item.relationships[0]["kind"] == "Contains"
+    assert [(item["kind"], item["direction"]) for item in item.relationships[:5]] == [
+        ("Defines", "in"),
+        ("Contains", "in"),
+        ("Invokes", "in"),
+        ("Invokes", "out"),
+        ("Writes", "out"),
+    ]
     assert item.relationship_groups["contains"][0]["kind"] == "Contains"
     assert item.relationship_groups["callees"][0]["target_node_id"] == "csharp:method:Sample.Downloader.Normalize(System.String)"
     assert item.relationship_groups["callers"][0]["source_node_id"] == "csharp:method:Sample.Program.Main(System.String[])"
@@ -266,7 +295,37 @@ class FakeReadStore(CodeMeshReadStore):
         if node_id != self.method_symbol["id"]:
             return []
 
-        return [
+        relationships = [
+            {
+                "kind": "Defines",
+                "label": "defines",
+                "direction": "in",
+                "source_node_id": self.method_declaration["id"],
+                "target_node_id": self.method_symbol["id"],
+                "other": {
+                    "node_id": self.method_declaration["id"],
+                    "kind": "Declaration",
+                    "name": "DownloadAsync",
+                    "file_path": "Downloader.cs",
+                    "start_line": 10,
+                    "end_line": 24,
+                },
+            },
+            {
+                "kind": "Contains",
+                "label": "contains",
+                "direction": "in",
+                "source_node_id": "csharp:type:Sample.Downloader",
+                "target_node_id": self.method_symbol["id"],
+                "other": {
+                    "node_id": "csharp:type:Sample.Downloader",
+                    "kind": "Class",
+                    "name": "Downloader",
+                    "file_path": "Downloader.cs",
+                    "start_line": 4,
+                    "end_line": 32,
+                },
+            },
             {
                 "kind": "Contains",
                 "label": "contains",
@@ -342,7 +401,9 @@ class FakeReadStore(CodeMeshReadStore):
                     "end_line": 7,
                 },
             }
-        ][:limit]
+        ]
+
+        return _prioritize_context_relationships(relationships, limit)
 
     async def _get_content(self, content_hash: str) -> dict[str, object] | None:
         contents = {
@@ -417,4 +478,27 @@ def _node(
         "endColumn": 1,
         "contentHash": content_hash,
         "metadataJson": "{}",
+    }
+
+
+def _relationship(
+    kind: str,
+    direction: str,
+    name: str,
+    start_line: int,
+) -> dict[str, object]:
+    return {
+        "kind": kind,
+        "label": kind.casefold(),
+        "direction": direction,
+        "source_node_id": f"source:{name}",
+        "target_node_id": f"target:{name}",
+        "other": {
+            "node_id": f"node:{name}",
+            "kind": "Method",
+            "name": name,
+            "file_path": "Sample.cs",
+            "start_line": start_line,
+            "end_line": start_line + 1,
+        },
     }
