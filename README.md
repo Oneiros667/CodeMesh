@@ -207,4 +207,4 @@ Context packages build on search results and return an agent-ready bundle with s
 
 The old HelioGraph repository is reference-only. CodeMesh starts with clean contracts and intentionally thin adapters so the graph, content, vector, parser, and agent-access boundaries can harden independently.
 
-The C# parser emits file, namespace, declaration, type, member, and relationship nodes using Roslyn. Partial types are represented as one logical symbol node plus separate declaration nodes.
+The C# parser emits file, namespace, declaration, type, member, and relationship nodes using Roslyn. Partial types are represented as one logical symbol node plus separate declaration nodes. Method and member bodies also emit local semantic relationships such as `Invokes`, `Reads`, and `Writes` when the target symbol is part of the indexed code graph.

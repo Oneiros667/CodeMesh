@@ -703,7 +703,163 @@ public sealed class CSharpParseService
             {
                 AddParameterRelationship(parameterSymbol, symbolNodeId, relationships, nodeIdsBySymbolKey, emittedRelationshipIds);
             }
+
+            AddBodyReferenceRelationships(
+                declaration,
+                symbolNodeId,
+                model,
+                relationships,
+                nodeIdsBySymbolKey,
+                emittedRelationshipIds,
+                cancellationToken);
         }
+    }
+
+    private static void AddBodyReferenceRelationships(
+        SyntaxNode declaration,
+        string sourceNodeId,
+        SemanticModel model,
+        List<CodeRelationship> relationships,
+        Dictionary<string, string> nodeIdsBySymbolKey,
+        HashSet<string> emittedRelationshipIds,
+        CancellationToken cancellationToken)
+    {
+        if (declaration is ParameterSyntax ||
+            declaration is BaseNamespaceDeclarationSyntax ||
+            declaration is BaseTypeDeclarationSyntax ||
+            declaration is DelegateDeclarationSyntax)
+        {
+            return;
+        }
+
+        foreach (var invocation in declaration.DescendantNodes().OfType<InvocationExpressionSyntax>())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var symbol = model.GetSymbolInfo(invocation, cancellationToken).Symbol;
+            if (symbol is IMethodSymbol methodSymbol)
+            {
+                AddSymbolRelationship(
+                    sourceNodeId,
+                    methodSymbol.OriginalDefinition,
+                    CodeRelationshipKind.Invokes,
+                    "invokes",
+                    relationships,
+                    nodeIdsBySymbolKey,
+                    emittedRelationshipIds);
+            }
+        }
+
+        foreach (var objectCreation in declaration.DescendantNodes().OfType<ObjectCreationExpressionSyntax>())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var symbol = model.GetSymbolInfo(objectCreation, cancellationToken).Symbol;
+            if (symbol is IMethodSymbol constructorSymbol)
+            {
+                AddSymbolRelationship(
+                    sourceNodeId,
+                    constructorSymbol.OriginalDefinition,
+                    CodeRelationshipKind.Invokes,
+                    "constructs",
+                    relationships,
+                    nodeIdsBySymbolKey,
+                    emittedRelationshipIds);
+            }
+        }
+
+        foreach (var objectCreation in declaration.DescendantNodes().OfType<ImplicitObjectCreationExpressionSyntax>())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var symbol = model.GetSymbolInfo(objectCreation, cancellationToken).Symbol;
+            if (symbol is IMethodSymbol constructorSymbol)
+            {
+                AddSymbolRelationship(
+                    sourceNodeId,
+                    constructorSymbol.OriginalDefinition,
+                    CodeRelationshipKind.Invokes,
+                    "constructs",
+                    relationships,
+                    nodeIdsBySymbolKey,
+                    emittedRelationshipIds);
+            }
+        }
+
+        foreach (var assignment in declaration.DescendantNodes().OfType<AssignmentExpressionSyntax>())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            AddAccessRelationship(
+                sourceNodeId,
+                assignment.Left,
+                model,
+                CodeRelationshipKind.Writes,
+                "writes",
+                relationships,
+                nodeIdsBySymbolKey,
+                emittedRelationshipIds,
+                cancellationToken);
+        }
+
+        foreach (var expression in declaration.DescendantNodes().OfType<ExpressionSyntax>())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!IsReadableReferenceExpression(expression))
+            {
+                continue;
+            }
+
+            AddAccessRelationship(
+                sourceNodeId,
+                expression,
+                model,
+                CodeRelationshipKind.Reads,
+                "reads",
+                relationships,
+                nodeIdsBySymbolKey,
+                emittedRelationshipIds,
+                cancellationToken);
+        }
+    }
+
+    private static bool IsReadableReferenceExpression(ExpressionSyntax expression)
+    {
+        if (expression.Parent is AssignmentExpressionSyntax assignment &&
+            assignment.Left == expression)
+        {
+            return false;
+        }
+
+        return expression is IdentifierNameSyntax or MemberAccessExpressionSyntax;
+    }
+
+    private static void AddAccessRelationship(
+        string sourceNodeId,
+        ExpressionSyntax expression,
+        SemanticModel model,
+        CodeRelationshipKind kind,
+        string label,
+        List<CodeRelationship> relationships,
+        Dictionary<string, string> nodeIdsBySymbolKey,
+        HashSet<string> emittedRelationshipIds,
+        CancellationToken cancellationToken)
+    {
+        var symbol = model.GetSymbolInfo(expression, cancellationToken).Symbol;
+        if (symbol is not (IPropertySymbol or IFieldSymbol or IEventSymbol))
+        {
+            return;
+        }
+
+        AddSymbolRelationship(
+            sourceNodeId,
+            symbol,
+            kind,
+            label,
+            relationships,
+            nodeIdsBySymbolKey,
+            emittedRelationshipIds);
     }
 
     private static IEnumerable<SyntaxNode> EnumerateSymbolDeclarations(SyntaxNode root)

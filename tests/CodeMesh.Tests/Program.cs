@@ -29,6 +29,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("neo4j graph store round-trips graph", TestNeo4jGraphStoreRoundTripsGraph),
     ("qdrant vector store round-trips embeddings", TestQdrantVectorStoreRoundTripsEmbeddings),
     ("csharp parser emits Roslyn symbols", TestCSharpParserEmitsRoslynSymbols),
+    ("csharp parser emits invocation and member access relationships", TestCSharpParserEmitsInvocationAndMemberAccessRelationships),
     ("csharp parser separates partial declarations from symbols", TestCSharpParserSeparatesPartialDeclarations),
     ("csharp parser honors project compile items", TestCSharpParserHonorsProjectCompileItems),
     ("csharp parser parses YoutubeDownloader sample", TestYoutubeDownloaderSampleParser)
@@ -1077,6 +1078,75 @@ static async Task TestCSharpParserEmitsRoslynSymbols()
             "csharp:type:Sample.DemoWorker",
             "csharp:method:Sample.DemoWorker.Create(Sample.Demo,System.Int32)",
             CodeRelationshipKind.Contains);
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+static async Task TestCSharpParserEmitsInvocationAndMemberAccessRelationships()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-parser-calls-test-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+
+    try
+    {
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "Calls.cs"),
+            """
+            namespace Sample;
+
+            public sealed class Worker
+            {
+                private int _count;
+
+                public int Count
+                {
+                    get => _count;
+                    set => _count = value;
+                }
+
+                public void Run()
+                {
+                    Count = Helper();
+                }
+
+                private int Helper()
+                {
+                    return Count;
+                }
+            }
+            """);
+
+        var parser = new CSharpParseService();
+        var result = await parser.ParseAsync(new ParseRequest(
+            root,
+            null,
+            null,
+            "csharp",
+            new Dictionary<string, string>()));
+
+        var errors = result.Diagnostics
+            .Where(diagnostic => string.Equals(diagnostic.Severity, "error", StringComparison.OrdinalIgnoreCase))
+            .Select(diagnostic => diagnostic.Message)
+            .ToArray();
+
+        if (errors.Length > 0)
+        {
+            throw new InvalidOperationException($"Parser returned errors: {string.Join("; ", errors)}");
+        }
+
+        const string run = "csharp:method:Sample.Worker.Run()";
+        const string helper = "csharp:method:Sample.Worker.Helper()";
+        const string count = "csharp:property:Sample.Worker.Count";
+        const string field = "csharp:field:Sample.Worker._count";
+
+        HasRelationshipBetween(result, run, helper, CodeRelationshipKind.Invokes);
+        HasRelationshipBetween(result, run, count, CodeRelationshipKind.Writes);
+        HasRelationshipBetween(result, helper, count, CodeRelationshipKind.Reads);
+        HasRelationshipBetween(result, count, field, CodeRelationshipKind.Reads);
+        HasRelationshipBetween(result, count, field, CodeRelationshipKind.Writes);
     }
     finally
     {
