@@ -216,7 +216,7 @@ static Neo4jGraphStore CreateGraphStore(string[] args)
     var (user, password) = ReadNeo4jCredentials(args);
 
     return new Neo4jGraphStore(new Neo4jGraphStoreOptions(
-        ReadOption(args, "--neo4j-uri") ?? Environment.GetEnvironmentVariable("CODEMESH_NEO4J_URI") ?? "bolt://localhost:7687",
+        ReadOption(args, "--neo4j-uri") ?? Environment.GetEnvironmentVariable("CODEMESH_NEO4J_URI") ?? "bolt://127.0.0.1:7687",
         user,
         password,
         ReadOption(args, "--neo4j-database") ?? Environment.GetEnvironmentVariable("CODEMESH_NEO4J_DATABASE") ?? "neo4j"));
@@ -225,7 +225,7 @@ static Neo4jGraphStore CreateGraphStore(string[] args)
 static MongoContentStore CreateContentStore(string[] args)
 {
     return new MongoContentStore(new MongoContentStoreOptions(
-        ReadOption(args, "--mongo-uri") ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_URI") ?? "mongodb://localhost:27017",
+        ReadOption(args, "--mongo-uri") ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_URI") ?? "mongodb://127.0.0.1:27017",
         ReadOption(args, "--mongo-database") ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_DATABASE") ?? "codemesh",
         ReadOption(args, "--mongo-content-collection")
             ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_CONTENT_COLLECTION")
@@ -235,7 +235,7 @@ static MongoContentStore CreateContentStore(string[] args)
 static MongoRegistryStore CreateRegistryStore(string[] args)
 {
     return new MongoRegistryStore(new MongoRegistryStoreOptions(
-        ReadOption(args, "--mongo-uri") ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_URI") ?? "mongodb://localhost:27017",
+        ReadOption(args, "--mongo-uri") ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_URI") ?? "mongodb://127.0.0.1:27017",
         ReadOption(args, "--mongo-database") ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_DATABASE") ?? "codemesh",
         ReadOption(args, "--mongo-repositories-collection")
             ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_REPOSITORIES_COLLECTION")
@@ -248,7 +248,7 @@ static MongoRegistryStore CreateRegistryStore(string[] args)
 static QdrantVectorStore CreateVectorStore(string[] args)
 {
     return new QdrantVectorStore(new QdrantVectorStoreOptions(
-        ReadOption(args, "--qdrant-url") ?? Environment.GetEnvironmentVariable("CODEMESH_QDRANT_URL") ?? "http://localhost:6333",
+        ReadOption(args, "--qdrant-url") ?? Environment.GetEnvironmentVariable("CODEMESH_QDRANT_URL") ?? "http://127.0.0.1:6333",
         ReadOption(args, "--qdrant-collection") ?? Environment.GetEnvironmentVariable("CODEMESH_QDRANT_COLLECTION") ?? "codemesh-code"));
 }
 

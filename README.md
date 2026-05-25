@@ -121,8 +121,8 @@ The Ollama container mounts `${CODEMESH_OLLAMA_HOME}` to `/root/.ollama`; set it
 - Agent Access REST: `http://localhost:8088`
 - C# parser worker: `http://localhost:8091`
 - Neo4j browser: `http://localhost:7474`
-- Qdrant HTTP: `http://localhost:6333`
-- MongoDB: `mongodb://localhost:27017`
+- Qdrant HTTP: `http://127.0.0.1:6333`
+- MongoDB: `mongodb://127.0.0.1:27017`
 
 ## Agent Access
 

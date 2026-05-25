@@ -404,7 +404,7 @@ static async Task TestOllamaEmbeddingProviderMapsResponses()
 static async Task TestMongoContentStoreRoundTripsContent()
 {
     var store = new MongoContentStore(new MongoContentStoreOptions(
-        Environment.GetEnvironmentVariable("CODEMESH_MONGO_URI") ?? "mongodb://localhost:27017",
+        Environment.GetEnvironmentVariable("CODEMESH_MONGO_URI") ?? "mongodb://127.0.0.1:27017",
         Environment.GetEnvironmentVariable("CODEMESH_MONGO_TEST_DATABASE") ?? "codemesh_tests",
         Environment.GetEnvironmentVariable("CODEMESH_MONGO_TEST_CONTENT_COLLECTION") ?? "content_smoke",
         TimeSpan.FromSeconds(2)));
@@ -492,7 +492,7 @@ static async Task TestMongoRegistryStoreRoundTripsRepositoriesAndRuns()
 {
     var unique = Guid.NewGuid().ToString("N");
     var store = new MongoRegistryStore(new MongoRegistryStoreOptions(
-        Environment.GetEnvironmentVariable("CODEMESH_MONGO_URI") ?? "mongodb://localhost:27017",
+        Environment.GetEnvironmentVariable("CODEMESH_MONGO_URI") ?? "mongodb://127.0.0.1:27017",
         Environment.GetEnvironmentVariable("CODEMESH_MONGO_TEST_DATABASE") ?? "codemesh_tests",
         $"repositories_smoke_{unique}",
         $"ingestion_runs_smoke_{unique}",
@@ -578,7 +578,7 @@ static async Task TestMongoRegistryStoreRoundTripsRepositoriesAndRuns()
 
 static async Task TestNeo4jGraphStoreRoundTripsGraph()
 {
-    var uri = Environment.GetEnvironmentVariable("CODEMESH_NEO4J_URI") ?? "bolt://localhost:7687";
+    var uri = Environment.GetEnvironmentVariable("CODEMESH_NEO4J_URI") ?? "bolt://127.0.0.1:7687";
     var user = Environment.GetEnvironmentVariable("CODEMESH_NEO4J_USER") ?? "neo4j";
     var password = Environment.GetEnvironmentVariable("CODEMESH_NEO4J_PASSWORD") ?? "codemesh";
     var database = Environment.GetEnvironmentVariable("CODEMESH_NEO4J_DATABASE") ?? "neo4j";
@@ -804,7 +804,7 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
 
 static async Task TestQdrantVectorStoreRoundTripsEmbeddings()
 {
-    var url = Environment.GetEnvironmentVariable("CODEMESH_QDRANT_URL") ?? "http://localhost:6333";
+    var url = Environment.GetEnvironmentVariable("CODEMESH_QDRANT_URL") ?? "http://127.0.0.1:6333";
     var configuredCollection = Environment.GetEnvironmentVariable("CODEMESH_QDRANT_TEST_COLLECTION");
     var collection = string.IsNullOrWhiteSpace(configuredCollection)
         ? $"codemesh_tests_vectors_{Guid.NewGuid():N}"

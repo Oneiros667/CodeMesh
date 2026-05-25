@@ -11,6 +11,7 @@ public sealed class CodeMeshStatusService
     private const string DefaultOllamaUrl = "http://127.0.0.1:11434";
 
     private static readonly TimeSpan TcpProbeTimeout = TimeSpan.FromMilliseconds(750);
+    private static readonly TimeSpan RequiredProbeRetryDelay = TimeSpan.FromMilliseconds(150);
     private static readonly TimeSpan HttpProbeTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan OllamaProbeTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan OllamaRetryDelay = TimeSpan.FromMilliseconds(250);
@@ -28,9 +29,29 @@ public sealed class CodeMeshStatusService
             CheckDirectory("agent-access", workspace.AgentAccessPath, "Python Agent Access service")
         };
 
-        components.Add(await CheckTcpAsync("neo4j", "localhost", 7687, cancellationToken).ConfigureAwait(false));
-        components.Add(await CheckTcpAsync("mongodb", "localhost", 27017, cancellationToken).ConfigureAwait(false));
-        components.Add(await CheckHttpAsync("qdrant", "http://localhost:6333/", false, HttpProbeTimeout, null, cancellationToken).ConfigureAwait(false));
+        components.Add(await CheckTcpAsync(
+            "neo4j",
+            "127.0.0.1",
+            7687,
+            cancellationToken,
+            attempts: 2,
+            retryDelay: RequiredProbeRetryDelay).ConfigureAwait(false));
+        components.Add(await CheckTcpAsync(
+            "mongodb",
+            "127.0.0.1",
+            27017,
+            cancellationToken,
+            attempts: 2,
+            retryDelay: RequiredProbeRetryDelay).ConfigureAwait(false));
+        components.Add(await CheckHttpAsync(
+            "qdrant",
+            "http://127.0.0.1:6333/",
+            false,
+            HttpProbeTimeout,
+            null,
+            cancellationToken,
+            attempts: 2,
+            retryDelay: RequiredProbeRetryDelay).ConfigureAwait(false));
         components.Add(await CheckOllamaAsync(cancellationToken).ConfigureAwait(false));
 
         return new HealthReport(
@@ -80,30 +101,56 @@ public sealed class CodeMeshStatusService
         string name,
         string host,
         int port,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int attempts = 1,
+        TimeSpan? retryDelay = null)
     {
-        try
+        var endpoint = $"{host}:{port}";
+        var maxAttempts = Math.Max(1, attempts);
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(TcpProbeTimeout);
+            try
+            {
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeout.CancelAfter(TcpProbeTimeout);
 
-            using var client = new TcpClient();
-            await client.ConnectAsync(host, port, timeout.Token).ConfigureAwait(false);
+                using var client = new TcpClient();
+                await client.ConnectAsync(host, port, timeout.Token).ConfigureAwait(false);
 
-            return new ComponentHealth(
-                name,
-                ComponentState.Healthy,
-                $"Connected to {host}:{port}.",
-                new Dictionary<string, string> { ["endpoint"] = $"{host}:{port}" });
+                return new ComponentHealth(
+                    name,
+                    ComponentState.Healthy,
+                    $"Connected to {endpoint}.",
+                    new Dictionary<string, string> { ["endpoint"] = endpoint });
+            }
+            catch (OperationCanceledException)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+
+                if (attempt < maxAttempts)
+                {
+                    await DelayBeforeRetryAsync(retryDelay, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                return StoreOffline(name, endpoint, "Connection timed out.");
+            }
+            catch (SocketException exception)
+            {
+                if (attempt < maxAttempts)
+                {
+                    await DelayBeforeRetryAsync(retryDelay, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                return StoreOffline(name, endpoint, exception.Message);
+            }
         }
-        catch (OperationCanceledException)
-        {
-            return StoreOffline(name, $"{host}:{port}", "Connection timed out.");
-        }
-        catch (SocketException exception)
-        {
-            return StoreOffline(name, $"{host}:{port}", exception.Message);
-        }
+
+        return StoreOffline(name, endpoint, "Connection failed.");
     }
 
     private static async Task<ComponentHealth> CheckHttpAsync(

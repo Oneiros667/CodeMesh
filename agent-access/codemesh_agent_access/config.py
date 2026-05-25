@@ -30,19 +30,19 @@ class Settings:
         return cls(
             host=os.getenv("CODEMESH_AGENT_HOST", "0.0.0.0"),
             port=int(os.getenv("CODEMESH_AGENT_PORT", "8080")),
-            neo4j_uri=os.getenv("CODEMESH_NEO4J_URI", "bolt://localhost:7687"),
+            neo4j_uri=os.getenv("CODEMESH_NEO4J_URI", "bolt://127.0.0.1:7687"),
             neo4j_user=neo4j_user,
             neo4j_password=neo4j_password,
             neo4j_database=os.getenv("CODEMESH_NEO4J_DATABASE", "neo4j"),
-            mongo_uri=os.getenv("CODEMESH_MONGO_URI", "mongodb://localhost:27017"),
+            mongo_uri=os.getenv("CODEMESH_MONGO_URI", "mongodb://127.0.0.1:27017"),
             mongo_database=os.getenv("CODEMESH_MONGO_DATABASE", "codemesh"),
             mongo_content_collection=os.getenv("CODEMESH_MONGO_CONTENT_COLLECTION", "content"),
             mongo_repositories_collection=os.getenv("CODEMESH_MONGO_REPOSITORIES_COLLECTION", "repositories"),
             mongo_ingestion_runs_collection=os.getenv("CODEMESH_MONGO_INGESTION_RUNS_COLLECTION", "ingestion_runs"),
-            qdrant_url=os.getenv("CODEMESH_QDRANT_URL", "http://localhost:6333"),
+            qdrant_url=os.getenv("CODEMESH_QDRANT_URL", "http://127.0.0.1:6333"),
             qdrant_collection=os.getenv("CODEMESH_QDRANT_COLLECTION", "codemesh-code"),
             model_provider=os.getenv("CODEMESH_MODEL_PROVIDER", "none"),
-            ollama_url=os.getenv("CODEMESH_OLLAMA_URL", "http://localhost:11434"),
+            ollama_url=os.getenv("CODEMESH_OLLAMA_URL", "http://127.0.0.1:11434"),
             embedding_model=os.getenv("CODEMESH_EMBEDDING_MODEL", "nomic-embed-text:latest"),
         )
 
