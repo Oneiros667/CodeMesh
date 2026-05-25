@@ -142,7 +142,8 @@ public sealed class IngestionOrchestrator(
                 var nodesForEmbedding = nodes;
                 var currentEmbeddingIds = new HashSet<string>(StringComparer.Ordinal);
 
-                if (vectorStore is IIncrementalVectorStore incrementalVectorStore)
+                if (!request.ForceEmbeddings &&
+                    vectorStore is IIncrementalVectorStore incrementalVectorStore)
                 {
                     var rewrittenNodeIds = nodesToWrite
                         .Select(node => node.Id)

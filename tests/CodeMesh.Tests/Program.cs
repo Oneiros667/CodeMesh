@@ -21,6 +21,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("dry-run ingestion skips stores", TestDryRunSkipsStores),
     ("repository refresh removes stale records", TestRepositoryRefreshRemovesStaleRecords),
     ("incremental ingestion skips unchanged records", TestIncrementalIngestionSkipsUnchangedRecords),
+    ("forced embedding ingestion rebuilds unchanged embeddings", TestForcedEmbeddingIngestionRebuildsUnchangedEmbeddings),
+    ("embedding verifier reports missing and stale vectors", TestEmbeddingVerifierReportsMissingAndStaleVectors),
     ("ingestion writes repository registry records", TestIngestionWritesRepositoryRegistryRecords),
     ("status uses configured ollama endpoint", TestStatusUsesConfiguredOllamaEndpoint),
     ("status retries transient ollama failures", TestStatusRetriesTransientOllamaFailures),
@@ -242,6 +244,119 @@ static async Task TestIncrementalIngestionSkipsUnchangedRecords()
         Equal(2, embeddingProvider.EmbeddedNodeCount, "Changed incremental ingest did not embed the changed node.");
         IsNull(await store.GetNodeAsync(RefreshParserClient.NodeIdFor("Alpha")), "Incremental cleanup did not remove stale Alpha node.");
         NotNull(await store.GetNodeAsync(RefreshParserClient.NodeIdFor("Beta")), "Incremental cleanup did not keep current Beta node.");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+static async Task TestForcedEmbeddingIngestionRebuildsUnchangedEmbeddings()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-force-embeddings-test-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+
+    try
+    {
+        var store = new InMemoryCodeMeshStore();
+        var parser = new RefreshParserClient("Alpha");
+        var embeddingProvider = new CountingEmbeddingProvider();
+        var orchestrator = new IngestionOrchestrator(
+            parser,
+            store,
+            store,
+            store,
+            embeddingProvider);
+
+        await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            SkipEmbeddings: false));
+        var second = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            SkipEmbeddings: false));
+        Equal(0, second.Stats?.WrittenEmbeddingCount ?? -1, "Unchanged ingestion should not rewrite embeddings before force mode.");
+        Equal(1, second.Stats?.SkippedEmbeddingCount ?? -1, "Unchanged ingestion should skip the existing embedding before force mode.");
+        Equal(1, embeddingProvider.EmbeddedNodeCount, "Unchanged ingestion called the embedding provider before force mode.");
+
+        var forced = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            SkipEmbeddings: false,
+            ForceEmbeddings: true));
+
+        Equal(1, forced.Stats?.WrittenEmbeddingCount ?? -1, "Forced ingestion did not rewrite the unchanged embedding.");
+        Equal(0, forced.Stats?.SkippedEmbeddingCount ?? -1, "Forced ingestion incorrectly skipped an unchanged embedding.");
+        Equal(2, embeddingProvider.EmbeddedNodeCount, "Forced ingestion did not call the embedding provider again.");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+static async Task TestEmbeddingVerifierReportsMissingAndStaleVectors()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-verify-embeddings-test-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+
+    try
+    {
+        var store = new InMemoryCodeMeshStore();
+        var parser = new RefreshParserClient("Alpha");
+        var embeddingProvider = new CountingEmbeddingProvider();
+        var orchestrator = new IngestionOrchestrator(
+            parser,
+            store,
+            store,
+            store,
+            embeddingProvider);
+        var result = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            SkipEmbeddings: false));
+        var verifier = new EmbeddingVerifier(store, store);
+
+        var complete = await verifier.VerifyAsync(new EmbeddingVerificationRequest(
+            result.Repository.Id,
+            embeddingProvider.Provider,
+            embeddingProvider.Model));
+        Equal(true, complete.IsComplete, "Verifier did not report complete embeddings after ingestion.");
+        Equal(1, complete.ExpectedCount, "Verifier expected node count changed.");
+        Equal(1, complete.CurrentEmbeddingCount, "Verifier current embedding count changed.");
+
+        await store.RemoveEmbeddingsExceptAsync(result.Repository.Id, new HashSet<string>(StringComparer.Ordinal));
+        await store.UpsertEmbeddingsAsync([
+            new EmbeddingRecord(
+                "embedding:stale",
+                "csharp:type:Sample.Stale",
+                "stale-content",
+                embeddingProvider.Provider,
+                embeddingProvider.Model,
+                2,
+                [1.0f, 0.0f],
+                new Dictionary<string, string>
+                {
+                    ["repositoryId"] = result.Repository.Id,
+                    ["preview"] = "stale"
+                })
+        ]);
+
+        var incomplete = await verifier.VerifyAsync(new EmbeddingVerificationRequest(
+            result.Repository.Id,
+            embeddingProvider.Provider,
+            embeddingProvider.Model));
+        Equal(false, incomplete.IsComplete, "Verifier did not report incomplete embeddings.");
+        Equal(1, incomplete.MissingCount, "Verifier did not report the missing current embedding.");
+        Equal(1, incomplete.StaleCount, "Verifier did not report the stale embedding.");
+
+        var missingRepository = await verifier.VerifyAsync(new EmbeddingVerificationRequest(
+            "missing-repository",
+            embeddingProvider.Provider,
+            embeddingProvider.Model));
+        Equal(false, missingRepository.IsComplete, "Verifier incorrectly reported a missing repository as complete.");
+        Equal("empty_graph", missingRepository.Issues[0].Kind, "Verifier did not report an empty graph inventory.");
     }
     finally
     {

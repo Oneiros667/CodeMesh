@@ -55,6 +55,27 @@ switch (command)
         }
     }
 
+    case "embeddings":
+    {
+        try
+        {
+            var subcommand = ReadPositional(args, 1)?.ToLowerInvariant();
+            if (subcommand is not "verify")
+            {
+                throw new InvalidOperationException("Usage: codemesh embeddings verify <repository-id> [--embedding-provider <provider>] [--embedding-model <model>]");
+            }
+
+            var result = await RunEmbeddingVerificationAsync(args).ConfigureAwait(false);
+            PrintEmbeddingVerification(result, json);
+            return result.IsComplete ? 0 : 1;
+        }
+        catch (Exception exception)
+        {
+            PrintException(exception, json);
+            return 1;
+        }
+    }
+
     case "repos":
     {
         try
@@ -161,6 +182,7 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
     var repositoryRoot = ReadAnyOption(args, "--root", "--repository-root")
         ?? Directory.GetCurrentDirectory();
     var language = ReadOption(args, "--language") ?? "csharp";
+    var forceEmbeddings = HasFlag(args, "--force-embeddings");
 
     if (!string.Equals(language, "csharp", StringComparison.OrdinalIgnoreCase))
     {
@@ -181,7 +203,8 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
         ReadAnyOption(args, "--project", "--project-path"),
         language,
         DryRun: HasFlag(args, "--dry-run"),
-        SkipEmbeddings: skipEmbeddings);
+        SkipEmbeddings: skipEmbeddings,
+        ForceEmbeddings: forceEmbeddings);
 
     var orchestrator = new IngestionOrchestrator(
         parserClient,
@@ -192,6 +215,22 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
         registryStore);
 
     return await orchestrator.IngestAsync(request).ConfigureAwait(false);
+}
+
+static async Task<EmbeddingVerificationResult> RunEmbeddingVerificationAsync(string[] args)
+{
+    var repositoryId = ReadAnyOption(args, "--repository-id", "--repo")
+        ?? ReadPositional(args, 2)
+        ?? throw new InvalidOperationException("Repository id is required. Usage: codemesh embeddings verify <repository-id>");
+    var (provider, model) = ResolveEmbeddingTarget(args);
+
+    await using var graphStore = CreateGraphStore(args);
+    using var vectorStore = CreateVectorStore(args);
+    var verifier = new EmbeddingVerifier(graphStore, vectorStore);
+
+    return await verifier
+        .VerifyAsync(new EmbeddingVerificationRequest(repositoryId, provider, model))
+        .ConfigureAwait(false);
 }
 
 static IParserClient CreateParserClient(string[] args)
@@ -255,12 +294,39 @@ static QdrantVectorStore CreateVectorStore(string[] args)
 static (IEmbeddingProvider Provider, bool SkipEmbeddings) CreateEmbeddingProvider(string[] args)
 {
     var explicitSkip = HasFlag(args, "--skip-embeddings");
-    var includeEmbeddings = HasFlag(args, "--include-embeddings");
+    var forceEmbeddings = HasFlag(args, "--force-embeddings");
+    var includeEmbeddings = HasFlag(args, "--include-embeddings") || forceEmbeddings;
+    if (explicitSkip && forceEmbeddings)
+    {
+        throw new InvalidOperationException("--skip-embeddings cannot be combined with --force-embeddings.");
+    }
+
     if (explicitSkip || !includeEmbeddings)
     {
         return (new NoEmbeddingProvider(), true);
     }
 
+    var (provider, model) = ResolveEmbeddingTarget(args);
+    if (string.Equals(provider, "none", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException(
+            "Embedding provider 'none' cannot be used when embeddings are included. Supported values: ollama.");
+    }
+
+    return provider.ToLowerInvariant() switch
+    {
+        "ollama" => (new OllamaEmbeddingProvider(new OllamaEmbeddingProviderOptions(
+            ReadOption(args, "--ollama-url") ?? Environment.GetEnvironmentVariable("CODEMESH_OLLAMA_URL") ?? "http://127.0.0.1:11434",
+            model,
+            BatchSize: ReadIntOption(args, "--embedding-batch-size", 16),
+            MaxInputCharacters: ReadIntOption(args, "--embedding-max-chars", 1500))), false),
+        _ => throw new InvalidOperationException(
+            $"Unsupported embedding provider: {provider}. Supported values: none, ollama.")
+    };
+}
+
+static (string Provider, string Model) ResolveEmbeddingTarget(string[] args)
+{
     var provider = ReadOption(args, "--embedding-provider")
         ?? Environment.GetEnvironmentVariable("CODEMESH_MODEL_PROVIDER");
     if (string.IsNullOrWhiteSpace(provider) ||
@@ -269,16 +335,11 @@ static (IEmbeddingProvider Provider, bool SkipEmbeddings) CreateEmbeddingProvide
         provider = "ollama";
     }
 
-    return provider.ToLowerInvariant() switch
-    {
-        "ollama" => (new OllamaEmbeddingProvider(new OllamaEmbeddingProviderOptions(
-            ReadOption(args, "--ollama-url") ?? Environment.GetEnvironmentVariable("CODEMESH_OLLAMA_URL") ?? "http://127.0.0.1:11434",
-            ReadOption(args, "--embedding-model") ?? Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL") ?? "nomic-embed-text:latest",
-            BatchSize: ReadIntOption(args, "--embedding-batch-size", 16),
-            MaxInputCharacters: ReadIntOption(args, "--embedding-max-chars", 1500))), false),
-        _ => throw new InvalidOperationException(
-            $"Unsupported embedding provider: {provider}. Supported values: none, ollama.")
-    };
+    var model = ReadOption(args, "--embedding-model")
+        ?? Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL")
+        ?? "nomic-embed-text:latest";
+
+    return (provider, model);
 }
 
 static int ReadIntOption(string[] args, string name, int defaultValue)
@@ -440,6 +501,54 @@ static void PrintRepository(RepositoryIndexRecord? repository, bool json)
     Console.WriteLine($"Embeddings: {repository.EmbeddingCount?.ToString() ?? "unknown"}");
 }
 
+static void PrintEmbeddingVerification(EmbeddingVerificationResult result, bool json)
+{
+    if (json)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions()));
+        return;
+    }
+
+    Console.WriteLine($"CodeMesh embeddings: {(result.IsComplete ? "Complete" : "Incomplete")}");
+    Console.WriteLine($"Repository: {result.RepositoryId}");
+    Console.WriteLine($"Provider/model: {result.Provider}/{result.Model}");
+    Console.WriteLine($"Expected nodes: {result.ExpectedCount}");
+    Console.WriteLine($"Embeddings: {result.CurrentEmbeddingCount} current, {result.MatchingEmbeddingCount} matching provider/model, {result.TotalRepositoryEmbeddingCount} total");
+    Console.WriteLine($"Other provider/model embeddings: {result.OtherProviderEmbeddingCount}");
+    Console.WriteLine($"Issues: {result.MissingCount} missing, {result.OutdatedCount} outdated, {result.StaleCount} stale, {result.DuplicateCount} duplicate");
+    var otherIssueCount = result.Issues.Count - result.MissingCount - result.OutdatedCount - result.StaleCount - result.DuplicateCount;
+    if (otherIssueCount > 0)
+    {
+        Console.WriteLine($"Other issues: {otherIssueCount}");
+    }
+
+    foreach (var issue in result.Issues.Take(25))
+    {
+        Console.WriteLine($"[{issue.Kind}] {issue.NodeId}");
+        if (!string.IsNullOrWhiteSpace(issue.ExpectedContentHash))
+        {
+            Console.WriteLine($"  expected: {issue.ExpectedContentHash}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(issue.ActualContentHash))
+        {
+            Console.WriteLine($"  actual: {issue.ActualContentHash}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(issue.EmbeddingId))
+        {
+            Console.WriteLine($"  embedding: {issue.EmbeddingId}");
+        }
+
+        Console.WriteLine($"  {issue.Message}");
+    }
+
+    if (result.Issues.Count > 25)
+    {
+        Console.WriteLine($"... {result.Issues.Count - 25} more issue(s)");
+    }
+}
+
 static void PrintRunList(IReadOnlyList<IngestionRunIndexRecord> runs, bool json)
 {
     if (json)
@@ -542,7 +651,8 @@ static void PrintHelp()
     Console.WriteLine("Usage:");
     Console.WriteLine("  codemesh doctor [--root <path>] [--json]");
     Console.WriteLine("  codemesh status [--root <path>] [--json]");
-    Console.WriteLine("  codemesh ingest [--root <path>] [--solution <path>] [--project <path>] [--dry-run] [--skip-embeddings] [--json]");
+    Console.WriteLine("  codemesh ingest [--root <path>] [--solution <path>] [--project <path>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--json]");
+    Console.WriteLine("  codemesh embeddings verify <repository-id> [--embedding-provider <provider>] [--embedding-model <model>] [--json]");
     Console.WriteLine("  codemesh repos list [--limit <count>] [--json]");
     Console.WriteLine("  codemesh repo show <repository-id> [--json]");
     Console.WriteLine("  codemesh runs list [--repository-id <id>] [--limit <count>] [--json]");

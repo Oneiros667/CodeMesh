@@ -67,6 +67,7 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
 ```
 
 `--skip-embeddings` remains the fastest ingestion mode. Use `--include-embeddings` when you want semantic search data written to Qdrant.
+Use `--force-embeddings` when graph/content are unchanged but Qdrant vectors should be regenerated for the selected provider and model.
 The Ollama embedding input defaults to 1500 characters per node for compatibility with `nomic-embed-text:latest`; use `--embedding-max-chars` to tune this for another embedding model.
 
 Each successful ingestion run stamps graph, content, and vector records with a repository id and ingestion run id. CodeMesh also writes repository/run registry records to MongoDB so users and agents can discover indexed repositories and recent ingestion history. Incremental ingestion skips unchanged graph/content/vector writes after parsing, then removes stale records from the same repository that were not seen in the current run. If `--skip-embeddings` is used, vector cleanup is skipped so existing embeddings are left untouched.
@@ -77,6 +78,7 @@ Query the registry:
 dotnet run --project src/CodeMesh.Cli -- repos list
 dotnet run --project src/CodeMesh.Cli -- repo show <repository-id>
 dotnet run --project src/CodeMesh.Cli -- runs list --repository-id <repository-id> --limit 10
+dotnet run --project src/CodeMesh.Cli -- embeddings verify <repository-id> --embedding-provider ollama --embedding-model nomic-embed-text:latest
 ```
 
 Start the default local stores and services:

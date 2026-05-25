@@ -19,6 +19,7 @@ public sealed record IngestionRequest(
     string Language = "csharp",
     bool DryRun = false,
     bool SkipEmbeddings = true,
+    bool ForceEmbeddings = false,
     IReadOnlyDictionary<string, string>? Options = null);
 
 public sealed record IngestionRun(
