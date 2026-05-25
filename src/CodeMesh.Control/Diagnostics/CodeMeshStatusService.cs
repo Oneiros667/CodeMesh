@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using CodeMesh.Control.Configuration;
@@ -7,9 +8,12 @@ namespace CodeMesh.Control.Diagnostics;
 
 public sealed class CodeMeshStatusService
 {
+    private const string DefaultOllamaUrl = "http://127.0.0.1:11434";
+
     private static readonly TimeSpan TcpProbeTimeout = TimeSpan.FromMilliseconds(750);
     private static readonly TimeSpan HttpProbeTimeout = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan OllamaProbeTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan OllamaProbeTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan OllamaRetryDelay = TimeSpan.FromMilliseconds(250);
 
     public async Task<HealthReport> GetStatusAsync(
         string? rootPath = null,
@@ -108,60 +112,142 @@ public sealed class CodeMeshStatusService
         bool optional,
         TimeSpan timeoutAfter,
         IReadOnlyDictionary<string, string>? metadata,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int attempts = 1,
+        TimeSpan? retryDelay = null)
     {
-        try
+        var maxAttempts = Math.Max(1, attempts);
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(timeoutAfter);
-
-            using var http = new HttpClient { Timeout = timeoutAfter };
-            using var response = await http.GetAsync(url, timeout.Token).ConfigureAwait(false);
-
-            var responseMetadata = MetadataWithEndpoint(url, metadata);
-            var state = response.IsSuccessStatusCode ? ComponentState.Healthy : ComponentState.Degraded;
-            return new ComponentHealth(
-                name,
-                state,
-                $"HTTP {(int)response.StatusCode} from {url}.",
-                responseMetadata);
-        }
-        catch (OperationCanceledException)
-        {
-            if (cancellationToken.IsCancellationRequested)
+            try
             {
-                throw;
-            }
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeout.CancelAfter(timeoutAfter);
 
-            return optional
-                ? OptionalOffline(name, url, "Request timed out.", metadata)
-                : StoreOffline(name, url, "Request timed out.");
+                using var http = new HttpClient { Timeout = timeoutAfter };
+                using var response = await http.GetAsync(url, timeout.Token).ConfigureAwait(false);
+
+                if (!response.IsSuccessStatusCode && attempt < maxAttempts && IsRetryableStatus(response.StatusCode))
+                {
+                    await DelayBeforeRetryAsync(retryDelay, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                var responseMetadata = MetadataWithEndpoint(url, metadata);
+                var state = response.IsSuccessStatusCode ? ComponentState.Healthy : ComponentState.Degraded;
+                return new ComponentHealth(
+                    name,
+                    state,
+                    $"HTTP {(int)response.StatusCode} from {url}.",
+                    responseMetadata);
+            }
+            catch (OperationCanceledException)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+
+                if (attempt < maxAttempts)
+                {
+                    await DelayBeforeRetryAsync(retryDelay, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                return optional
+                    ? OptionalOffline(name, url, "Request timed out.", metadata)
+                    : StoreOffline(name, url, "Request timed out.");
+            }
+            catch (HttpRequestException exception)
+            {
+                if (attempt < maxAttempts)
+                {
+                    await DelayBeforeRetryAsync(retryDelay, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                return optional
+                    ? OptionalOffline(name, url, exception.Message, metadata)
+                    : StoreOffline(name, url, exception.Message);
+            }
         }
-        catch (HttpRequestException exception)
-        {
-            return optional
-                ? OptionalOffline(name, url, exception.Message, metadata)
-                : StoreOffline(name, url, exception.Message);
-        }
+
+        return optional
+            ? OptionalOffline(name, url, "Request failed.", metadata)
+            : StoreOffline(name, url, "Request failed.");
     }
 
-    private static Task<ComponentHealth> CheckOllamaAsync(CancellationToken cancellationToken)
+    private static async Task<ComponentHealth> CheckOllamaAsync(CancellationToken cancellationToken)
     {
-        var baseUrl = Environment.GetEnvironmentVariable("CODEMESH_OLLAMA_URL") ?? "http://localhost:11434";
-        var endpoint = OllamaTagsEndpoint(baseUrl);
+        var baseUrl = Environment.GetEnvironmentVariable("CODEMESH_OLLAMA_URL") ?? DefaultOllamaUrl;
+        var endpoints = OllamaTagsEndpoints(baseUrl);
         var metadata = new Dictionary<string, string>
         {
             ["provider"] = Environment.GetEnvironmentVariable("CODEMESH_MODEL_PROVIDER") ?? "none",
             ["model"] = Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL") ?? "nomic-embed-text:latest"
         };
 
-        return CheckHttpAsync("ollama", endpoint, true, OllamaProbeTimeout, metadata, cancellationToken);
+        ComponentHealth? last = null;
+        for (var index = 0; index < endpoints.Count; index++)
+        {
+            var attempts = endpoints.Count > 1 && index == 0 ? 1 : 3;
+            var health = await CheckHttpAsync(
+                "ollama",
+                endpoints[index],
+                true,
+                OllamaProbeTimeout,
+                metadata,
+                cancellationToken,
+                attempts,
+                OllamaRetryDelay).ConfigureAwait(false);
+
+            if (health.State == ComponentState.Healthy)
+            {
+                return health;
+            }
+
+            last = health;
+        }
+
+        return last ?? OptionalOffline("ollama", endpoints[0], "Request failed.", metadata);
+    }
+
+    private static bool IsRetryableStatus(HttpStatusCode statusCode)
+    {
+        var code = (int)statusCode;
+        return statusCode == HttpStatusCode.RequestTimeout || code >= 500;
+    }
+
+    private static async Task DelayBeforeRetryAsync(TimeSpan? retryDelay, CancellationToken cancellationToken)
+    {
+        var delay = retryDelay ?? TimeSpan.Zero;
+        if (delay <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static IReadOnlyList<string> OllamaTagsEndpoints(string baseUrl)
+    {
+        var endpoint = OllamaTagsEndpoint(baseUrl);
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ||
+            !string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            return [endpoint];
+        }
+
+        var fallback = new UriBuilder(uri) { Host = "127.0.0.1" }.Uri.ToString();
+        return string.Equals(endpoint, fallback, StringComparison.OrdinalIgnoreCase)
+            ? [endpoint]
+            : [endpoint, fallback];
     }
 
     private static string OllamaTagsEndpoint(string baseUrl)
     {
         var trimmed = string.IsNullOrWhiteSpace(baseUrl)
-            ? "http://localhost:11434"
+            ? DefaultOllamaUrl
             : baseUrl.Trim();
 
         if (trimmed.EndsWith("/api/tags", StringComparison.OrdinalIgnoreCase))

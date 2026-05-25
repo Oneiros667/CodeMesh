@@ -23,6 +23,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("incremental ingestion skips unchanged records", TestIncrementalIngestionSkipsUnchangedRecords),
     ("ingestion writes repository registry records", TestIngestionWritesRepositoryRegistryRecords),
     ("status uses configured ollama endpoint", TestStatusUsesConfiguredOllamaEndpoint),
+    ("status retries transient ollama failures", TestStatusRetriesTransientOllamaFailures),
     ("ollama embedding provider maps responses", TestOllamaEmbeddingProviderMapsResponses),
     ("mongodb content store round-trips content", TestMongoContentStoreRoundTripsContent),
     ("mongodb registry store round-trips repositories and runs", TestMongoRegistryStoreRoundTripsRepositoriesAndRuns),
@@ -316,6 +317,38 @@ static async Task TestStatusUsesConfiguredOllamaEndpoint()
         Equal($"{server.BaseUrl}/api/tags", ollama.Metadata["endpoint"], "Status did not probe the configured Ollama URL.");
         Equal("ollama", ollama.Metadata["provider"], "Status did not report the configured model provider.");
         Equal("test-embed", ollama.Metadata["model"], "Status did not report the configured embedding model.");
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("CODEMESH_OLLAMA_URL", previousUrl);
+        Environment.SetEnvironmentVariable("CODEMESH_MODEL_PROVIDER", previousProvider);
+        Environment.SetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL", previousModel);
+    }
+}
+
+static async Task TestStatusRetriesTransientOllamaFailures()
+{
+    var previousUrl = Environment.GetEnvironmentVariable("CODEMESH_OLLAMA_URL");
+    var previousProvider = Environment.GetEnvironmentVariable("CODEMESH_MODEL_PROVIDER");
+    var previousModel = Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL");
+
+    await using var server = new SlowHttpServer(TimeSpan.Zero, failuresBeforeSuccess: 1);
+
+    try
+    {
+        Environment.SetEnvironmentVariable("CODEMESH_OLLAMA_URL", server.BaseUrl);
+        Environment.SetEnvironmentVariable("CODEMESH_MODEL_PROVIDER", "ollama");
+        Environment.SetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL", "test-embed");
+
+        var report = await new CodeMeshStatusService()
+            .GetStatusAsync(Directory.GetCurrentDirectory());
+        var ollama = report.Components.Single(component => component.Name == "ollama");
+
+        Equal(ComponentState.Healthy, ollama.State, "Status did not retry a transient Ollama probe failure.");
+        if (server.RequestCount < 2)
+        {
+            throw new InvalidOperationException("Status did not issue a retry after the transient Ollama failure.");
+        }
     }
     finally
     {
@@ -1432,10 +1465,13 @@ sealed class SlowHttpServer : IAsyncDisposable
     private readonly CancellationTokenSource _cancellation = new();
     private readonly Task _serverTask;
     private readonly TimeSpan _delay;
+    private int _failuresBeforeSuccess;
+    private int _requestCount;
 
-    public SlowHttpServer(TimeSpan delay)
+    public SlowHttpServer(TimeSpan delay, int failuresBeforeSuccess = 0)
     {
         _delay = delay;
+        _failuresBeforeSuccess = failuresBeforeSuccess;
         _listener = new TcpListener(IPAddress.Loopback, 0);
         _listener.Start();
 
@@ -1445,6 +1481,7 @@ sealed class SlowHttpServer : IAsyncDisposable
     }
 
     public string BaseUrl { get; }
+    public int RequestCount => Volatile.Read(ref _requestCount);
 
     public async ValueTask DisposeAsync()
     {
@@ -1496,6 +1533,13 @@ sealed class SlowHttpServer : IAsyncDisposable
             {
                 break;
             }
+        }
+
+        Interlocked.Increment(ref _requestCount);
+        if (Interlocked.CompareExchange(ref _failuresBeforeSuccess, 0, 0) > 0)
+        {
+            Interlocked.Decrement(ref _failuresBeforeSuccess);
+            return;
         }
 
         await Task.Delay(_delay, cancellationToken).ConfigureAwait(false);

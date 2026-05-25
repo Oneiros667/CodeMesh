@@ -272,7 +272,7 @@ static (IEmbeddingProvider Provider, bool SkipEmbeddings) CreateEmbeddingProvide
     return provider.ToLowerInvariant() switch
     {
         "ollama" => (new OllamaEmbeddingProvider(new OllamaEmbeddingProviderOptions(
-            ReadOption(args, "--ollama-url") ?? Environment.GetEnvironmentVariable("CODEMESH_OLLAMA_URL") ?? "http://localhost:11434",
+            ReadOption(args, "--ollama-url") ?? Environment.GetEnvironmentVariable("CODEMESH_OLLAMA_URL") ?? "http://127.0.0.1:11434",
             ReadOption(args, "--embedding-model") ?? Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL") ?? "nomic-embed-text:latest",
             BatchSize: ReadIntOption(args, "--embedding-batch-size", 16),
             MaxInputCharacters: ReadIntOption(args, "--embedding-max-chars", 1500))), false),

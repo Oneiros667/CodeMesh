@@ -88,13 +88,13 @@ docker compose up -d neo4j mongodb qdrant csharp-parser agent-access
 
 ### Ollama Modes
 
-Native Windows Ollama is the recommended mode when you want GPU acceleration on Windows. It serves the host CLI at `http://localhost:11434`, while Dockerized Agent Access reaches it through `http://host.docker.internal:11434`.
+Native Windows Ollama is the recommended mode when you want GPU acceleration on Windows. Use `http://127.0.0.1:11434` for the host .NET CLI to avoid intermittent Windows `localhost` IPv6 probe timeouts; Dockerized Agent Access reaches the same Windows Ollama service through `http://host.docker.internal:11434`.
 
 In `.env`, use:
 
 ```text
 CODEMESH_MODEL_PROVIDER=ollama
-CODEMESH_OLLAMA_URL=http://localhost:11434
+CODEMESH_OLLAMA_URL=http://127.0.0.1:11434
 CODEMESH_AGENT_OLLAMA_URL=http://host.docker.internal:11434
 CODEMESH_EMBEDDING_MODEL=nomic-embed-text:latest
 ```

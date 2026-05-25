@@ -8,7 +8,7 @@ using CodeMesh.Domain.Utilities;
 namespace CodeMesh.Ingestion.Embedding;
 
 public sealed record OllamaEmbeddingProviderOptions(
-    string BaseUrl = "http://localhost:11434",
+    string BaseUrl = "http://127.0.0.1:11434",
     string Model = "nomic-embed-text:latest",
     int BatchSize = 16,
     int MaxInputCharacters = 1500,
