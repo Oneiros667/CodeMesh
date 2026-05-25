@@ -25,6 +25,7 @@ def test_vector_search_expands_parameter_declaration_to_method_context() -> None
                 limit=1,
                 vector=[1.0, 0.0],
                 include_context_relationships=True,
+                context_relationship_limit=1,
             )
         )
     )
@@ -119,7 +120,7 @@ def test_context_package_includes_snippet_relationships_and_registry_metadata() 
                 limit=1,
                 max_characters=48,
                 vector=[1.0, 0.0],
-                relationship_limit=1,
+                relationship_limit=5,
             )
         )
     )
@@ -144,6 +145,11 @@ def test_context_package_includes_snippet_relationships_and_registry_metadata() 
     assert item.snippet is not None
     assert item.snippet.endswith("...<trimmed>")
     assert item.relationships[0]["kind"] == "Contains"
+    assert item.relationship_groups["contains"][0]["kind"] == "Contains"
+    assert item.relationship_groups["callees"][0]["target_node_id"] == "csharp:method:Sample.Downloader.Normalize(System.String)"
+    assert item.relationship_groups["callers"][0]["source_node_id"] == "csharp:method:Sample.Program.Main(System.String[])"
+    assert item.relationship_groups["reads"][0]["target_node_id"] == "csharp:field:Sample.Downloader._client"
+    assert item.relationship_groups["writes"][0]["target_node_id"] == "csharp:property:Sample.Downloader.LastUrl"
     assert item.rationale["rank"] == 1
     assert item.rationale["expanded"] is True
 
@@ -274,6 +280,66 @@ class FakeReadStore(CodeMeshReadStore):
                     "file_path": "Downloader.cs",
                     "start_line": 0,
                     "end_line": 0,
+                },
+            },
+            {
+                "kind": "Invokes",
+                "label": "calls",
+                "direction": "out",
+                "source_node_id": self.method_symbol["id"],
+                "target_node_id": "csharp:method:Sample.Downloader.Normalize(System.String)",
+                "other": {
+                    "node_id": "csharp:method:Sample.Downloader.Normalize(System.String)",
+                    "kind": "Method",
+                    "name": "Normalize",
+                    "file_path": "Downloader.cs",
+                    "start_line": 26,
+                    "end_line": 28,
+                },
+            },
+            {
+                "kind": "Invokes",
+                "label": "calls",
+                "direction": "in",
+                "source_node_id": "csharp:method:Sample.Program.Main(System.String[])",
+                "target_node_id": self.method_symbol["id"],
+                "other": {
+                    "node_id": "csharp:method:Sample.Program.Main(System.String[])",
+                    "kind": "Method",
+                    "name": "Main",
+                    "file_path": "Program.cs",
+                    "start_line": 8,
+                    "end_line": 16,
+                },
+            },
+            {
+                "kind": "Reads",
+                "label": "reads",
+                "direction": "out",
+                "source_node_id": self.method_symbol["id"],
+                "target_node_id": "csharp:field:Sample.Downloader._client",
+                "other": {
+                    "node_id": "csharp:field:Sample.Downloader._client",
+                    "kind": "Field",
+                    "name": "_client",
+                    "file_path": "Downloader.cs",
+                    "start_line": 6,
+                    "end_line": 6,
+                },
+            },
+            {
+                "kind": "Writes",
+                "label": "writes",
+                "direction": "out",
+                "source_node_id": self.method_symbol["id"],
+                "target_node_id": "csharp:property:Sample.Downloader.LastUrl",
+                "other": {
+                    "node_id": "csharp:property:Sample.Downloader.LastUrl",
+                    "kind": "Property",
+                    "name": "LastUrl",
+                    "file_path": "Downloader.cs",
+                    "start_line": 7,
+                    "end_line": 7,
                 },
             }
         ][:limit]

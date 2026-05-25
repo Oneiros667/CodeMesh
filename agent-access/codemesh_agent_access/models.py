@@ -68,6 +68,7 @@ class ContextPackageItem(BaseModel):
     content: dict[str, Any] | None = None
     snippet: str | None = None
     relationships: list[dict[str, Any]] = Field(default_factory=list)
+    relationship_groups: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
     rationale: dict[str, Any] = Field(default_factory=dict)
 
 

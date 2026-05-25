@@ -189,6 +189,7 @@ class CodeMeshReadStore:
                     content=content,
                     snippet=snippet,
                     relationships=relationships,
+                    relationship_groups=_group_relationships(relationships),
                     rationale={
                         "rank": index + 1,
                         "score": hit.score,
@@ -990,6 +991,37 @@ def _content_metadata(content: dict[str, Any] | None) -> dict[str, Any] | None:
         "created_at": content.get("created_at"),
         "updated_at": content.get("updated_at"),
     }
+
+
+def _group_relationships(relationships: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    groups: dict[str, list[dict[str, Any]]] = {
+        "callers": [],
+        "callees": [],
+        "reads": [],
+        "writes": [],
+        "contains": [],
+        "defines": [],
+        "uses_types": [],
+    }
+
+    for relationship in relationships:
+        kind = str(relationship.get("kind") or "").casefold()
+        direction = str(relationship.get("direction") or "").casefold()
+
+        if kind == "invokes":
+            groups["callees" if direction == "out" else "callers"].append(relationship)
+        elif kind == "reads":
+            groups["reads"].append(relationship)
+        elif kind == "writes":
+            groups["writes"].append(relationship)
+        elif kind == "contains":
+            groups["contains"].append(relationship)
+        elif kind == "defines":
+            groups["defines"].append(relationship)
+        elif kind in {"usestype", "uses_type", "uses-type"}:
+            groups["uses_types"].append(relationship)
+
+    return groups
 
 
 def _snippet_for_hit(content: dict[str, Any], hit: ContextHit, max_characters: int) -> str | None:
