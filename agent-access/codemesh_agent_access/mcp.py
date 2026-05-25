@@ -58,6 +58,13 @@ def build_server() -> Any:
         include_content: bool = True,
         include_relationships: bool = True,
         relationship_limit: int = 8,
+        caller_limit: int | None = None,
+        callee_limit: int | None = None,
+        read_limit: int | None = None,
+        write_limit: int | None = None,
+        contains_limit: int | None = None,
+        definition_limit: int | None = None,
+        uses_type_limit: int | None = None,
     ) -> dict[str, Any]:
         """Build an agent-ready context package with snippets, relationships, and repository metadata."""
         return (
@@ -71,6 +78,13 @@ def build_server() -> Any:
                 include_content=include_content,
                 include_relationships=include_relationships,
                 relationship_limit=relationship_limit,
+                caller_limit=caller_limit,
+                callee_limit=callee_limit,
+                read_limit=read_limit,
+                write_limit=write_limit,
+                contains_limit=contains_limit,
+                definition_limit=definition_limit,
+                uses_type_limit=uses_type_limit,
             )
         ).model_dump(mode="json")
 

@@ -59,6 +59,13 @@ class ContextPackageQuery(BaseModel):
     include_content: bool = True
     include_relationships: bool = True
     relationship_limit: int = 8
+    caller_limit: int | None = None
+    callee_limit: int | None = None
+    read_limit: int | None = None
+    write_limit: int | None = None
+    contains_limit: int | None = None
+    definition_limit: int | None = None
+    uses_type_limit: int | None = None
     include_repository: bool = True
 
 

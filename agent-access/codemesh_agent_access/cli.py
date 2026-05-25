@@ -36,6 +36,13 @@ def main() -> None:
     package_parser.add_argument("--no-content", action="store_true")
     package_parser.add_argument("--no-relationships", action="store_true")
     package_parser.add_argument("--relationship-limit", type=int, default=8)
+    package_parser.add_argument("--caller-limit", type=int)
+    package_parser.add_argument("--callee-limit", type=int)
+    package_parser.add_argument("--read-limit", type=int)
+    package_parser.add_argument("--write-limit", type=int)
+    package_parser.add_argument("--contains-limit", type=int)
+    package_parser.add_argument("--definition-limit", type=int)
+    package_parser.add_argument("--uses-type-limit", type=int)
 
     node_parser = subcommands.add_parser("get-node", help="Fetch a stored CodeMesh node.")
     node_parser.add_argument("node_id")
@@ -102,6 +109,13 @@ def main() -> None:
                 include_content=not args.no_content,
                 include_relationships=not args.no_relationships,
                 relationship_limit=args.relationship_limit,
+                caller_limit=args.caller_limit,
+                callee_limit=args.callee_limit,
+                read_limit=args.read_limit,
+                write_limit=args.write_limit,
+                contains_limit=args.contains_limit,
+                definition_limit=args.definition_limit,
+                uses_type_limit=args.uses_type_limit,
             )
         )
         print(json.dumps(result.model_dump(mode="json"), indent=2))

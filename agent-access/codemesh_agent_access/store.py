@@ -180,6 +180,7 @@ class CodeMeshReadStore:
                     hit.node_id,
                     repository_id,
                     query.relationship_limit,
+                    _relationship_group_limits(query),
                 )
 
             items.append(
@@ -555,6 +556,7 @@ class CodeMeshReadStore:
         node_id: str,
         repository_id: str | None = None,
         limit: int = 8,
+        group_limits: dict[str, int] | None = None,
     ) -> list[dict[str, Any]]:
         if AsyncGraphDatabase is None or limit <= 0:
             return []
@@ -619,7 +621,7 @@ class CodeMeshReadStore:
                 }
             )
 
-        return _prioritize_context_relationships(summaries, clamped_limit)
+        return _prioritize_context_relationships(summaries, clamped_limit, group_limits)
 
     async def _get_content(self, content_hash: str) -> dict[str, Any] | None:
         if not content_hash or MongoClient is None:
@@ -1003,14 +1005,48 @@ def _content_metadata(content: dict[str, Any] | None) -> dict[str, Any] | None:
     }
 
 
+def _relationship_group_limits(query: ContextPackageQuery) -> dict[str, int]:
+    values = {
+        "callers": query.caller_limit,
+        "callees": query.callee_limit,
+        "reads": query.read_limit,
+        "writes": query.write_limit,
+        "contains": query.contains_limit,
+        "defines": query.definition_limit,
+        "uses_types": query.uses_type_limit,
+    }
+
+    return {
+        name: max(0, min(int(value), 50))
+        for name, value in values.items()
+        if value is not None
+    }
+
+
 def _prioritize_context_relationships(
     relationships: list[dict[str, Any]],
     limit: int,
+    group_limits: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
     if limit <= 0:
         return []
 
-    return sorted(relationships, key=_context_relationship_sort_key)[:limit]
+    limits = group_limits or {}
+    counts: dict[str, int] = {}
+    selected: list[dict[str, Any]] = []
+    for relationship in sorted(relationships, key=_context_relationship_sort_key):
+        group = _relationship_group_name(relationship)
+        if group in limits:
+            count = counts.get(group, 0)
+            if count >= limits[group]:
+                continue
+            counts[group] = count + 1
+
+        selected.append(relationship)
+        if len(selected) >= limit:
+            break
+
+    return selected
 
 
 def _context_relationship_sort_key(relationship: dict[str, Any]) -> tuple[int, int, str, str, str]:
@@ -1058,6 +1094,26 @@ def _context_relationship_priority(relationship: dict[str, Any]) -> int:
     return 50
 
 
+def _relationship_group_name(relationship: dict[str, Any]) -> str | None:
+    kind = str(relationship.get("kind") or "").casefold()
+    direction = str(relationship.get("direction") or "").casefold()
+
+    if kind == "invokes":
+        return "callees" if direction == "out" else "callers"
+    if kind == "reads":
+        return "reads"
+    if kind == "writes":
+        return "writes"
+    if kind == "contains":
+        return "contains"
+    if kind == "defines":
+        return "defines"
+    if kind in {"usestype", "uses_type", "uses-type"}:
+        return "uses_types"
+
+    return None
+
+
 def _group_relationships(relationships: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     groups: dict[str, list[dict[str, Any]]] = {
         "callers": [],
@@ -1070,21 +1126,9 @@ def _group_relationships(relationships: list[dict[str, Any]]) -> dict[str, list[
     }
 
     for relationship in relationships:
-        kind = str(relationship.get("kind") or "").casefold()
-        direction = str(relationship.get("direction") or "").casefold()
-
-        if kind == "invokes":
-            groups["callees" if direction == "out" else "callers"].append(relationship)
-        elif kind == "reads":
-            groups["reads"].append(relationship)
-        elif kind == "writes":
-            groups["writes"].append(relationship)
-        elif kind == "contains":
-            groups["contains"].append(relationship)
-        elif kind == "defines":
-            groups["defines"].append(relationship)
-        elif kind in {"usestype", "uses_type", "uses-type"}:
-            groups["uses_types"].append(relationship)
+        group = _relationship_group_name(relationship)
+        if group in groups:
+            groups[group].append(relationship)
 
     return groups
 

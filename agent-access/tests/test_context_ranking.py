@@ -132,6 +132,33 @@ def test_context_relationship_prioritization_prefers_agent_useful_edges() -> Non
     ]
 
 
+def test_context_relationship_prioritization_applies_group_limits() -> None:
+    relationships = [
+        _relationship("Defines", "in", "declaration", start_line=10),
+        _relationship("Contains", "in", "owner", start_line=4),
+        _relationship("Invokes", "in", "caller-a", start_line=20),
+        _relationship("Invokes", "in", "caller-b", start_line=30),
+        _relationship("Invokes", "out", "callee", start_line=40),
+        _relationship("Writes", "out", "property", start_line=8),
+        _relationship("Reads", "out", "field-a", start_line=7),
+        _relationship("Reads", "out", "field-b", start_line=9),
+    ]
+
+    ordered = _prioritize_context_relationships(
+        relationships,
+        8,
+        {"callers": 1, "reads": 1, "writes": 0},
+    )
+
+    assert [(item["kind"], item["direction"], item["other"]["name"]) for item in ordered] == [
+        ("Defines", "in", "declaration"),
+        ("Contains", "in", "owner"),
+        ("Invokes", "in", "caller-a"),
+        ("Invokes", "out", "callee"),
+        ("Reads", "out", "field-a"),
+    ]
+
+
 def test_context_package_includes_snippet_relationships_and_registry_metadata() -> None:
     store = FakeReadStore()
 
@@ -144,6 +171,8 @@ def test_context_package_includes_snippet_relationships_and_registry_metadata() 
                 max_characters=48,
                 vector=[1.0, 0.0],
                 relationship_limit=7,
+                read_limit=0,
+                contains_limit=1,
             )
         )
     )
@@ -175,9 +204,10 @@ def test_context_package_includes_snippet_relationships_and_registry_metadata() 
         ("Writes", "out"),
     ]
     assert item.relationship_groups["contains"][0]["kind"] == "Contains"
+    assert len(item.relationship_groups["contains"]) == 1
     assert item.relationship_groups["callees"][0]["target_node_id"] == "csharp:method:Sample.Downloader.Normalize(System.String)"
     assert item.relationship_groups["callers"][0]["source_node_id"] == "csharp:method:Sample.Program.Main(System.String[])"
-    assert item.relationship_groups["reads"][0]["target_node_id"] == "csharp:field:Sample.Downloader._client"
+    assert item.relationship_groups["reads"] == []
     assert item.relationship_groups["writes"][0]["target_node_id"] == "csharp:property:Sample.Downloader.LastUrl"
     assert item.rationale["rank"] == 1
     assert item.rationale["expanded"] is True
@@ -291,6 +321,7 @@ class FakeReadStore(CodeMeshReadStore):
         node_id: str,
         repository_id: str | None = None,
         limit: int = 8,
+        group_limits: dict[str, int] | None = None,
     ) -> list[dict[str, object]]:
         if node_id != self.method_symbol["id"]:
             return []
@@ -403,7 +434,7 @@ class FakeReadStore(CodeMeshReadStore):
             }
         ]
 
-        return _prioritize_context_relationships(relationships, limit)
+        return _prioritize_context_relationships(relationships, limit, group_limits)
 
     async def _get_content(self, content_hash: str) -> dict[str, object] | None:
         contents = {
