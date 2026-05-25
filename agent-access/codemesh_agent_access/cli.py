@@ -8,6 +8,7 @@ import uvicorn
 
 from .config import Settings
 from . import mcp, tools
+from .formatting import format_context_package_for_agent
 
 
 def main() -> None:
@@ -43,6 +44,7 @@ def main() -> None:
     package_parser.add_argument("--contains-limit", type=int)
     package_parser.add_argument("--definition-limit", type=int)
     package_parser.add_argument("--uses-type-limit", type=int)
+    package_parser.add_argument("--output", choices=["json", "agent"], default="json")
 
     node_parser = subcommands.add_parser("get-node", help="Fetch a stored CodeMesh node.")
     node_parser.add_argument("node_id")
@@ -118,6 +120,9 @@ def main() -> None:
                 uses_type_limit=args.uses_type_limit,
             )
         )
+        if args.output == "agent":
+            print(format_context_package_for_agent(result.data))
+            return
         print(json.dumps(result.model_dump(mode="json"), indent=2))
         return
 
