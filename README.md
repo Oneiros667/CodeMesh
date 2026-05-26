@@ -70,15 +70,15 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
 Use `--force-embeddings` when graph/content are unchanged but Qdrant vectors should be regenerated for the selected provider and model.
 The Ollama embedding input defaults to 1500 characters per node for compatibility with `nomic-embed-text:latest`; use `--embedding-max-chars` to tune this for another embedding model.
 
-Each successful ingestion run stamps graph, content, and vector records with a repository id and ingestion run id. CodeMesh also writes repository/run registry records to MongoDB so users and agents can discover indexed repositories and recent ingestion history. Incremental ingestion skips unchanged graph/content/vector writes after parsing, then removes stale records from the same repository that were not seen in the current run. If `--skip-embeddings` is used, vector cleanup is skipped so existing embeddings are left untouched.
+Each successful ingestion run stamps graph, content, and vector records with a repository id and ingestion run id. CodeMesh also writes repository/run registry records to MongoDB so users and agents can discover indexed repositories and recent ingestion history. Repository registry records include a generated alias, for example `YoutubeDownloader` becomes `youtube_downloader`, and read commands accept either the hash id or alias. Incremental ingestion skips unchanged graph/content/vector writes after parsing, then removes stale records from the same repository that were not seen in the current run. If `--skip-embeddings` is used, vector cleanup is skipped so existing embeddings are left untouched.
 
 Query the registry:
 
 ```powershell
 dotnet run --project src/CodeMesh.Cli -- repos list
-dotnet run --project src/CodeMesh.Cli -- repo show <repository-id>
-dotnet run --project src/CodeMesh.Cli -- runs list --repository-id <repository-id> --limit 10
-dotnet run --project src/CodeMesh.Cli -- embeddings verify <repository-id> --embedding-provider ollama --embedding-model nomic-embed-text:latest
+dotnet run --project src/CodeMesh.Cli -- repo show <repository-id-or-alias>
+dotnet run --project src/CodeMesh.Cli -- runs list --repository-id <repository-id-or-alias> --limit 10
+dotnet run --project src/CodeMesh.Cli -- embeddings verify <repository-id-or-alias> --embedding-provider ollama --embedding-model nomic-embed-text:latest
 ```
 
 Start the default local stores and services:
@@ -205,7 +205,7 @@ uv run python -m codemesh_agent_access runs --repository-id <repository-id> --li
 
 Set `CODEMESH_MODEL_PROVIDER=ollama` for Agent Access when you want text queries embedded automatically before Qdrant search. If Ollama or Qdrant vectors are unavailable, Agent Access falls back to lexical Neo4j search.
 
-Pass `repository_id` in REST/MCP context, node, and neighbor queries to constrain lookups to one ingested repository. CLI commands accept the equivalent `--repository-id` option.
+Pass `repository_id` in REST/MCP context, node, and neighbor queries to constrain lookups to one ingested repository. The value can be the repository hash id or its generated alias. CLI commands accept the equivalent `--repository-id` option.
 
 Context search results are ranked for agent usefulness. Low-level matches such as parameter declarations are expanded to their defining symbol or containing method/type before they are returned, and each hit includes `repository_id`, `content_hash`, `score_components`, and `expanded_context` when expansion occurred. Use `expand_context=false` in REST/MCP or `--no-expand-context` in the CLI for compact raw hits. Use `include_context_relationships=true` or `--include-context-relationships` when each hit should include a small immediate relationship summary.
 

@@ -67,7 +67,8 @@ public sealed record RepositoryIndexRecord(
     int RelationshipCount,
     int ContentCount,
     int? EmbeddingCount,
-    IReadOnlyDictionary<string, string> Metadata);
+    IReadOnlyDictionary<string, string> Metadata,
+    string? Alias = null);
 
 public sealed record IngestionRunIndexRecord(
     string RunId,

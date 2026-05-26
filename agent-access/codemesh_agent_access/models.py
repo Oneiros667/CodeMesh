@@ -110,6 +110,7 @@ class NeighborQuery(BaseModel):
 
 class RepositorySummary(BaseModel):
     repository_id: str
+    alias: str | None = None
     root_path: str
     remote_url: str | None = None
     branch: str | None = None

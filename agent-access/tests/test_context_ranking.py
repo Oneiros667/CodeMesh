@@ -213,6 +213,28 @@ def test_context_package_includes_snippet_relationships_and_registry_metadata() 
     assert item.rationale["expanded"] is True
 
 
+def test_context_package_accepts_repository_alias() -> None:
+    store = FakeReadStore()
+
+    package = asyncio.run(
+        store.get_context_package(
+            ContextPackageQuery(
+                query="download video subtitles",
+                repository_id="sample_repo",
+                limit=1,
+                vector=[1.0, 0.0],
+            )
+        )
+    )
+
+    assert package.query.repository_id == "repo:test"
+    assert package.repository is not None
+    assert package.repository["alias"] == "sample_repo"
+    assert package.latest_run is not None
+    assert package.latest_run["repository_id"] == "repo:test"
+    assert package.items[0].hit.repository_id == "repo:test"
+
+
 class FakeReadStore(CodeMeshReadStore):
     def __init__(self) -> None:
         super().__init__(
@@ -447,11 +469,12 @@ class FakeReadStore(CodeMeshReadStore):
         return contents.get(content_hash)
 
     async def get_repository(self, repository_id: str) -> RepositorySummary | None:
-        if repository_id != "repo:test":
+        if repository_id not in {"repo:test", "sample_repo"}:
             return None
 
         return RepositorySummary(
             repository_id="repo:test",
+            alias="sample_repo",
             root_path="C:/sample",
             last_run_id="run:test",
             last_stage="Completed",

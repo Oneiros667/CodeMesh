@@ -296,6 +296,7 @@ public sealed class IngestionOrchestrator(
 
         var finishedAt = result.Run.FinishedAt ?? DateTimeOffset.UtcNow;
         var diagnostics = result.Diagnostics;
+        var repositoryAlias = RepositoryAlias.FromPath(result.Repository.RootPath);
         var repository = new RepositoryIndexRecord(
             result.Repository.Id,
             result.Repository.RootPath,
@@ -313,11 +314,13 @@ public sealed class IngestionOrchestrator(
             currentEmbeddingCount,
             new Dictionary<string, string>
             {
+                ["alias"] = repositoryAlias,
                 ["language"] = request.Language,
                 ["parserName"] = parseResult.ParserName,
                 ["embeddingProvider"] = embeddingProvider.Provider,
                 ["embeddingModel"] = embeddingProvider.Model
-            });
+            },
+            repositoryAlias);
         var run = new IngestionRunIndexRecord(
             result.Run.RunId,
             result.Repository.Id,

@@ -347,13 +347,16 @@ public sealed class InMemoryCodeMeshStore :
         RepositoryIndexRecord repository,
         CancellationToken cancellationToken = default)
     {
+        var storedRepository = repository.Alias is not null || !repository.Metadata.TryGetValue("alias", out var metadataAlias)
+            ? repository
+            : repository with { Alias = metadataAlias };
         _repositories.AddOrUpdate(
-            repository.RepositoryId,
-            repository,
-            (_, existing) => repository with
+            storedRepository.RepositoryId,
+            storedRepository,
+            (_, existing) => storedRepository with
             {
                 FirstSeenAt = existing.FirstSeenAt,
-                EmbeddingCount = repository.EmbeddingCount ?? existing.EmbeddingCount
+                EmbeddingCount = storedRepository.EmbeddingCount ?? existing.EmbeddingCount
             });
 
         return Task.CompletedTask;
@@ -384,8 +387,22 @@ public sealed class InMemoryCodeMeshStore :
         string repositoryId,
         CancellationToken cancellationToken = default)
     {
-        _repositories.TryGetValue(repositoryId, out var repository);
-        return Task.FromResult(repository);
+        if (_repositories.TryGetValue(repositoryId, out var repository))
+        {
+            return Task.FromResult<RepositoryIndexRecord?>(repository);
+        }
+
+        var normalizedAlias = RepositoryAlias.Normalize(repositoryId);
+        var matches = _repositories.Values
+            .Where(repository => MatchesRepositoryAlias(repository, repositoryId, normalizedAlias))
+            .Take(2)
+            .ToArray();
+        if (matches.Length > 1)
+        {
+            throw new InvalidOperationException($"Repository alias '{repositoryId}' matches multiple repositories.");
+        }
+
+        return Task.FromResult(matches.FirstOrDefault());
     }
 
     public Task<IReadOnlyList<IngestionRunIndexRecord>> ListRunsAsync(
@@ -474,5 +491,17 @@ public sealed class InMemoryCodeMeshStore :
         }
 
         return true;
+    }
+
+    private static bool MatchesRepositoryAlias(
+        RepositoryIndexRecord repository,
+        string alias,
+        string normalizedAlias)
+    {
+        return string.Equals(repository.Alias, alias, StringComparison.Ordinal) ||
+            string.Equals(repository.Alias, normalizedAlias, StringComparison.Ordinal) ||
+            (repository.Metadata.TryGetValue("alias", out var metadataAlias) &&
+                (string.Equals(metadataAlias, alias, StringComparison.Ordinal) ||
+                    string.Equals(metadataAlias, normalizedAlias, StringComparison.Ordinal)));
     }
 }

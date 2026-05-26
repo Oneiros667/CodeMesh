@@ -1,5 +1,6 @@
 using CodeMesh.Domain.Contracts;
 using CodeMesh.Domain.Health;
+using CodeMesh.Domain.Utilities;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
@@ -46,10 +47,12 @@ public sealed class MongoRegistryStore : IRegistryStore, IStoreHealthCheck
         CancellationToken cancellationToken = default)
     {
         var filter = Builders<RepositoryDocument>.Filter.Eq(item => item.RepositoryId, repository.RepositoryId);
+        var alias = repository.Alias ?? MetadataAlias(repository.Metadata);
         var update = Builders<RepositoryDocument>.Update
             .SetOnInsert(item => item.RepositoryId, repository.RepositoryId)
             .SetOnInsert(item => item.FirstSeenAtUtc, repository.FirstSeenAt.UtcDateTime)
             .Set(item => item.RootPath, repository.RootPath)
+            .Set(item => item.Alias, alias)
             .Set(item => item.RemoteUrl, repository.RemoteUrl)
             .Set(item => item.Branch, repository.Branch)
             .Set(item => item.Commit, repository.Commit)
@@ -108,12 +111,36 @@ public sealed class MongoRegistryStore : IRegistryStore, IStoreHealthCheck
         string repositoryId,
         CancellationToken cancellationToken = default)
     {
-        var document = await _repositories
-            .Find(item => item.RepositoryId == repositoryId)
-            .FirstOrDefaultAsync(cancellationToken)
+        var normalizedAlias = RepositoryAlias.Normalize(repositoryId);
+        var filter = Builders<RepositoryDocument>.Filter.Or(
+            Builders<RepositoryDocument>.Filter.Eq(item => item.RepositoryId, repositoryId),
+            Builders<RepositoryDocument>.Filter.Eq(item => item.Alias, repositoryId),
+            Builders<RepositoryDocument>.Filter.Eq(item => item.Alias, normalizedAlias),
+            Builders<RepositoryDocument>.Filter.Eq("metadata.alias", repositoryId),
+            Builders<RepositoryDocument>.Filter.Eq("metadata.alias", normalizedAlias));
+        var documents = await _repositories
+            .Find(filter)
+            .Limit(3)
+            .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return document?.ToDomain();
+        var exact = documents.FirstOrDefault(document =>
+            string.Equals(document.RepositoryId, repositoryId, StringComparison.Ordinal));
+        if (exact is not null)
+        {
+            return exact.ToDomain();
+        }
+
+        var distinct = documents
+            .GroupBy(document => document.RepositoryId, StringComparer.Ordinal)
+            .Select(group => group.First())
+            .ToArray();
+        if (distinct.Length > 1)
+        {
+            throw new InvalidOperationException($"Repository alias '{repositoryId}' matches multiple repositories.");
+        }
+
+        return distinct.FirstOrDefault()?.ToDomain();
     }
 
     public async Task<IReadOnlyList<IngestionRunIndexRecord>> ListRunsAsync(
@@ -189,6 +216,9 @@ public sealed class MongoRegistryStore : IRegistryStore, IStoreHealthCheck
         [BsonElement("rootPath")]
         public required string RootPath { get; set; }
 
+        [BsonElement("alias")]
+        public string? Alias { get; set; }
+
         [BsonElement("remoteUrl")]
         public string? RemoteUrl { get; set; }
 
@@ -245,7 +275,8 @@ public sealed class MongoRegistryStore : IRegistryStore, IStoreHealthCheck
                 RelationshipCount,
                 ContentCount,
                 EmbeddingCount,
-                Metadata);
+                Metadata,
+                Alias ?? MetadataAlias(Metadata));
         }
     }
 
@@ -441,5 +472,10 @@ public sealed class MongoRegistryStore : IRegistryStore, IStoreHealthCheck
     private static DateTimeOffset DateTimeOffsetFromUtc(DateTime value)
     {
         return new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc));
+    }
+
+    private static string? MetadataAlias(IReadOnlyDictionary<string, string> metadata)
+    {
+        return metadata.TryGetValue("alias", out var alias) ? alias : null;
     }
 }

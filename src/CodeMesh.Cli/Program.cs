@@ -62,7 +62,7 @@ switch (command)
             var subcommand = ReadPositional(args, 1)?.ToLowerInvariant();
             if (subcommand is not "verify")
             {
-                throw new InvalidOperationException("Usage: codemesh embeddings verify <repository-id> [--embedding-provider <provider>] [--embedding-model <model>]");
+                throw new InvalidOperationException("Usage: codemesh embeddings verify <repository-id-or-alias> [--embedding-provider <provider>] [--embedding-model <model>]");
             }
 
             var result = await RunEmbeddingVerificationAsync(args).ConfigureAwait(false);
@@ -99,7 +99,7 @@ switch (command)
         try
         {
             var repositoryId = ReadPositional(args, 2)
-                ?? throw new InvalidOperationException("Repository id is required. Usage: codemesh repo show <repository-id>");
+                ?? throw new InvalidOperationException("Repository id or alias is required. Usage: codemesh repo show <repository-id-or-alias>");
             var store = CreateRegistryStore(args);
             var repository = await store
                 .GetRepositoryAsync(repositoryId)
@@ -119,8 +119,10 @@ switch (command)
         try
         {
             var store = CreateRegistryStore(args);
+            var repositoryRef = ReadAnyOption(args, "--repository-id", "--repo");
+            var repositoryId = await ResolveRepositoryIdAsync(store, repositoryRef).ConfigureAwait(false);
             var runs = await store
-                .ListRunsAsync(ReadAnyOption(args, "--repository-id", "--repo"), ReadIntOption(args, "--limit", 50))
+                .ListRunsAsync(repositoryId, ReadIntOption(args, "--limit", 50))
                 .ConfigureAwait(false);
             PrintRunList(runs, json);
             return 0;
@@ -221,16 +223,43 @@ static async Task<EmbeddingVerificationResult> RunEmbeddingVerificationAsync(str
 {
     var repositoryId = ReadAnyOption(args, "--repository-id", "--repo")
         ?? ReadPositional(args, 2)
-        ?? throw new InvalidOperationException("Repository id is required. Usage: codemesh embeddings verify <repository-id>");
+        ?? throw new InvalidOperationException("Repository id or alias is required. Usage: codemesh embeddings verify <repository-id-or-alias>");
     var (provider, model) = ResolveEmbeddingTarget(args);
+    var registryStore = CreateRegistryStore(args);
+    var resolvedRepositoryId = await ResolveRepositoryIdAsync(registryStore, repositoryId, ignoreResolutionErrors: true).ConfigureAwait(false)
+        ?? repositoryId;
 
     await using var graphStore = CreateGraphStore(args);
     using var vectorStore = CreateVectorStore(args);
     var verifier = new EmbeddingVerifier(graphStore, vectorStore);
 
     return await verifier
-        .VerifyAsync(new EmbeddingVerificationRequest(repositoryId, provider, model))
+        .VerifyAsync(new EmbeddingVerificationRequest(resolvedRepositoryId, provider, model))
         .ConfigureAwait(false);
+}
+
+static async Task<string?> ResolveRepositoryIdAsync(
+    IRegistryStore store,
+    string? repositoryRef,
+    bool ignoreResolutionErrors = false)
+{
+    if (string.IsNullOrWhiteSpace(repositoryRef))
+    {
+        return null;
+    }
+
+    try
+    {
+        var repository = await store
+            .GetRepositoryAsync(repositoryRef)
+            .ConfigureAwait(false);
+
+        return repository?.RepositoryId ?? repositoryRef;
+    }
+    catch when (ignoreResolutionErrors)
+    {
+        return repositoryRef;
+    }
 }
 
 static IParserClient CreateParserClient(string[] args)
@@ -467,6 +496,11 @@ static void PrintRepositoryList(IReadOnlyList<RepositoryIndexRecord> repositorie
     foreach (var repository in repositories)
     {
         Console.WriteLine($"{repository.RepositoryId}");
+        if (!string.IsNullOrWhiteSpace(repository.Alias))
+        {
+            Console.WriteLine($"  alias: {repository.Alias}");
+        }
+
         Console.WriteLine($"  root: {repository.RootPath}");
         Console.WriteLine($"  last run: {repository.LastRunId ?? "-"} ({repository.LastStage?.ToString() ?? "unknown"})");
         Console.WriteLine($"  last seen: {repository.LastSeenAt:O}");
@@ -489,6 +523,11 @@ static void PrintRepository(RepositoryIndexRecord? repository, bool json)
     }
 
     Console.WriteLine($"Repository: {repository.RepositoryId}");
+    if (!string.IsNullOrWhiteSpace(repository.Alias))
+    {
+        Console.WriteLine($"Alias: {repository.Alias}");
+    }
+
     Console.WriteLine($"Root: {repository.RootPath}");
     Console.WriteLine($"First seen: {repository.FirstSeenAt:O}");
     Console.WriteLine($"Last seen: {repository.LastSeenAt:O}");
@@ -652,10 +691,10 @@ static void PrintHelp()
     Console.WriteLine("  codemesh doctor [--root <path>] [--json]");
     Console.WriteLine("  codemesh status [--root <path>] [--json]");
     Console.WriteLine("  codemesh ingest [--root <path>] [--solution <path>] [--project <path>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--json]");
-    Console.WriteLine("  codemesh embeddings verify <repository-id> [--embedding-provider <provider>] [--embedding-model <model>] [--json]");
+    Console.WriteLine("  codemesh embeddings verify <repository-id-or-alias> [--embedding-provider <provider>] [--embedding-model <model>] [--json]");
     Console.WriteLine("  codemesh repos list [--limit <count>] [--json]");
-    Console.WriteLine("  codemesh repo show <repository-id> [--json]");
-    Console.WriteLine("  codemesh runs list [--repository-id <id>] [--limit <count>] [--json]");
+    Console.WriteLine("  codemesh repo show <repository-id-or-alias> [--json]");
+    Console.WriteLine("  codemesh runs list [--repository-id <id-or-alias>] [--limit <count>] [--json]");
     Console.WriteLine();
     Console.WriteLine("Ingestion store options:");
     Console.WriteLine("  --neo4j-uri <uri> --neo4j-user <user> --neo4j-password <password> --neo4j-database <database>");

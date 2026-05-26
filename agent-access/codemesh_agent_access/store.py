@@ -112,6 +112,7 @@ class CodeMeshReadStore:
         return HealthResponse(status=status, components=components)
 
     async def search_context(self, query: ContextQuery) -> ContextResponse:
+        query = await self._resolve_context_query_repository(query)
         vector = query.vector
         if not vector and self._settings.model_provider.casefold() == "ollama" and query.query.strip():
             vector = await self._embed_query(query.query)
@@ -123,6 +124,7 @@ class CodeMeshReadStore:
         return ContextResponse(query=query, hits=_ranked_unique_hits(hits, query.limit))
 
     async def get_context_package(self, query: ContextPackageQuery) -> ContextPackageResponse:
+        query = await self._resolve_package_query_repository(query)
         search = await self.search_context(
             ContextQuery(
                 query=query.query,
@@ -209,6 +211,7 @@ class CodeMeshReadStore:
         )
 
     async def get_node(self, lookup: NodeLookup) -> NodeResponse:
+        lookup = await self._resolve_node_lookup_repository(lookup)
         node = await self._get_node_properties(lookup.node_id, lookup.repository_id)
         if node is None or not _matches_repository(node, lookup.repository_id):
             return NodeResponse()
@@ -227,6 +230,7 @@ class CodeMeshReadStore:
         return NodeResponse(node=normalized_node, content=content, relationships=relationships)
 
     async def get_neighbors(self, query: NeighborQuery) -> NodeResponse:
+        query = await self._resolve_neighbor_query_repository(query)
         relationships = await self._get_relationships(
             query.node_id,
             query.repository_id,
@@ -256,7 +260,7 @@ class CodeMeshReadStore:
             return None
 
         collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_repositories_collection]
-        document = await asyncio.to_thread(collection.find_one, {"_id": repository_id})
+        document = await asyncio.to_thread(self._find_repository_document, collection, repository_id)
         return _normalize_repository(document) if document else None
 
     async def list_ingestion_runs(
@@ -267,6 +271,7 @@ class CodeMeshReadStore:
         if MongoClient is None:
             return IngestionRunListResponse()
 
+        repository_id = await self._resolve_repository_id(repository_id)
         filter_query = {"repositoryId": repository_id} if repository_id else {}
         collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_ingestion_runs_collection]
         documents = await asyncio.to_thread(
@@ -280,6 +285,58 @@ class CodeMeshReadStore:
         return IngestionRunListResponse(
             runs=[_normalize_ingestion_run(document) for document in documents]
         )
+
+    async def _resolve_context_query_repository(self, query: ContextQuery) -> ContextQuery:
+        repository_id = await self._resolve_repository_id(query.repository_id)
+        return query if repository_id == query.repository_id else query.model_copy(update={"repository_id": repository_id})
+
+    async def _resolve_package_query_repository(self, query: ContextPackageQuery) -> ContextPackageQuery:
+        repository_id = await self._resolve_repository_id(query.repository_id)
+        return query if repository_id == query.repository_id else query.model_copy(update={"repository_id": repository_id})
+
+    async def _resolve_node_lookup_repository(self, lookup: NodeLookup) -> NodeLookup:
+        repository_id = await self._resolve_repository_id(lookup.repository_id)
+        return lookup if repository_id == lookup.repository_id else lookup.model_copy(update={"repository_id": repository_id})
+
+    async def _resolve_neighbor_query_repository(self, query: NeighborQuery) -> NeighborQuery:
+        repository_id = await self._resolve_repository_id(query.repository_id)
+        return query if repository_id == query.repository_id else query.model_copy(update={"repository_id": repository_id})
+
+    async def _resolve_repository_id(self, repository_id: str | None) -> str | None:
+        if not repository_id:
+            return None
+
+        try:
+            repository = await self.get_repository(repository_id)
+        except PyMongoError:
+            return repository_id
+
+        return repository.repository_id if repository else repository_id
+
+    def _find_repository_document(self, collection: Any, repository_id: str) -> dict[str, Any] | None:
+        exact = collection.find_one({"_id": repository_id})
+        if exact is not None:
+            return exact
+
+        aliases = sorted({repository_id, _repository_alias(repository_id)})
+        documents = list(
+            collection.find(
+                {
+                    "$or": [
+                        {"alias": {"$in": aliases}},
+                        {"metadata.alias": {"$in": aliases}},
+                    ]
+                }
+            ).limit(3)
+        )
+        by_repository_id = {
+            str(document.get("_id") or document.get("repositoryId") or ""): document
+            for document in documents
+        }
+        if len(by_repository_id) > 1:
+            raise RuntimeError(f"Repository alias '{repository_id}' matches multiple repositories.")
+
+        return next(iter(by_repository_id.values()), None)
 
     async def _neo4j_health(self) -> dict[str, Any]:
         if AsyncGraphDatabase is None:
@@ -1160,8 +1217,10 @@ def _trim_text(text: str, max_characters: int) -> str:
 
 
 def _normalize_repository(document: dict[str, Any]) -> RepositorySummary:
+    metadata = _string_dict(document.get("metadata"))
     return RepositorySummary(
         repository_id=str(document.get("_id") or document.get("repositoryId") or ""),
+        alias=_optional_str(document.get("alias")) or metadata.get("alias"),
         root_path=str(document.get("rootPath") or ""),
         remote_url=_optional_str(document.get("remoteUrl")),
         branch=_optional_str(document.get("branch")),
@@ -1175,7 +1234,7 @@ def _normalize_repository(document: dict[str, Any]) -> RepositorySummary:
         relationship_count=_int(document.get("relationshipCount")),
         content_count=_int(document.get("contentCount")),
         embedding_count=_optional_int(document.get("embeddingCount")),
-        metadata=_string_dict(document.get("metadata")),
+        metadata=metadata,
     )
 
 
@@ -1470,6 +1529,45 @@ def _optional_int(value: Any) -> int | None:
         return None
 
     return _int(value)
+
+
+def _repository_alias(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return "repository"
+
+    parts: list[str] = []
+    previous_was_separator = True
+    for index, character in enumerate(text):
+        if not character.isalnum():
+            if not previous_was_separator and parts:
+                parts.append("_")
+            previous_was_separator = True
+            continue
+
+        if _should_split_alias_word(text, index) and not previous_was_separator:
+            parts.append("_")
+
+        parts.append(character.lower())
+        previous_was_separator = False
+
+    alias = "".join(parts).strip("_")
+    return alias or "repository"
+
+
+def _should_split_alias_word(value: str, index: int) -> bool:
+    character = value[index]
+    if not character.isupper() or index == 0:
+        return False
+
+    previous = value[index - 1]
+    next_character = value[index + 1] if index + 1 < len(value) else ""
+
+    return (
+        previous.islower()
+        or previous.isdigit()
+        or (previous.isupper() and bool(next_character) and next_character.islower())
+    )
 
 
 def _string_dict(value: Any) -> dict[str, str]:

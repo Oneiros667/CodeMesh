@@ -23,6 +23,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("incremental ingestion skips unchanged records", TestIncrementalIngestionSkipsUnchangedRecords),
     ("forced embedding ingestion rebuilds unchanged embeddings", TestForcedEmbeddingIngestionRebuildsUnchangedEmbeddings),
     ("embedding verifier reports missing and stale vectors", TestEmbeddingVerifierReportsMissingAndStaleVectors),
+    ("repository aliases are generated and resolved", TestRepositoryAliasesAreGeneratedAndResolved),
     ("ingestion writes repository registry records", TestIngestionWritesRepositoryRegistryRecords),
     ("status uses configured ollama endpoint", TestStatusUsesConfiguredOllamaEndpoint),
     ("status retries transient ollama failures", TestStatusRetriesTransientOllamaFailures),
@@ -364,6 +365,45 @@ static async Task TestEmbeddingVerifierReportsMissingAndStaleVectors()
     }
 }
 
+static async Task TestRepositoryAliasesAreGeneratedAndResolved()
+{
+    Equal("youtube_downloader", RepositoryAlias.Normalize("YoutubeDownloader"), "Repository alias PascalCase normalization changed.");
+    Equal("youtube_downloader", RepositoryAlias.Normalize("youtube-downloader"), "Repository alias separator normalization changed.");
+
+    var root = Path.Combine(Path.GetTempPath(), "YoutubeDownloader");
+    Directory.CreateDirectory(root);
+
+    try
+    {
+        var store = new InMemoryCodeMeshStore();
+        var orchestrator = new IngestionOrchestrator(
+            new FakeParserClient(),
+            store,
+            store,
+            store,
+            new NoEmbeddingProvider(),
+            store);
+
+        var result = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            SkipEmbeddings: true));
+
+        var loadedById = await store.GetRepositoryAsync(result.Repository.Id);
+        NotNull(loadedById, "Registry did not load repository by id.");
+        Equal("youtube_downloader", loadedById!.Alias ?? string.Empty, "Registry alias changed.");
+        Equal("youtube_downloader", loadedById.Metadata["alias"], "Registry alias metadata changed.");
+
+        var loadedByAlias = await store.GetRepositoryAsync("youtube_downloader");
+        NotNull(loadedByAlias, "Registry did not load repository by alias.");
+        Equal(result.Repository.Id, loadedByAlias!.RepositoryId, "Registry alias resolved to the wrong repository id.");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
 static async Task TestIngestionWritesRepositoryRegistryRecords()
 {
     var root = Path.Combine(Path.GetTempPath(), $"codemesh-registry-test-{Guid.NewGuid():N}");
@@ -637,7 +677,12 @@ static async Task TestMongoRegistryStoreRoundTripsRepositoriesAndRuns()
         11,
         5,
         7,
-        new Dictionary<string, string> { ["parserName"] = "registry-test" });
+        new Dictionary<string, string>
+        {
+            ["alias"] = $"mongo_registry_{unique}",
+            ["parserName"] = "registry-test"
+        },
+        $"mongo_registry_{unique}");
     var run = new IngestionRunIndexRecord(
         $"run:mongo-registry:{unique}",
         repository.RepositoryId,
@@ -676,6 +721,7 @@ static async Task TestMongoRegistryStoreRoundTripsRepositoriesAndRuns()
     var repositories = await store.ListRepositoriesAsync(cancellationToken: timeout.Token);
     Equal(1, repositories.Count, "MongoDB registry did not list repository.");
     Equal(repository.RepositoryId, repositories[0].RepositoryId, "MongoDB registry repository id changed.");
+    Equal(repository.Alias ?? string.Empty, repositories[0].Alias ?? string.Empty, "MongoDB registry alias changed.");
     Equal(repository.Branch ?? string.Empty, repositories[0].Branch ?? string.Empty, "MongoDB registry branch changed.");
     Equal(repository.EmbeddingCount ?? 0, repositories[0].EmbeddingCount ?? 0, "MongoDB registry embedding count changed.");
 
@@ -683,6 +729,10 @@ static async Task TestMongoRegistryStoreRoundTripsRepositoriesAndRuns()
     NotNull(loaded, "MongoDB registry did not load repository by id.");
     Equal($"run:mongo-registry-skip-embeddings:{unique}", loaded!.LastRunId ?? string.Empty, "MongoDB registry last run id changed.");
     Equal(7, loaded.EmbeddingCount ?? 0, "MongoDB registry skip-embeddings update erased the known embedding count.");
+
+    var loadedByAlias = await store.GetRepositoryAsync(repository.Alias!, timeout.Token);
+    NotNull(loadedByAlias, "MongoDB registry did not load repository by alias.");
+    Equal(repository.RepositoryId, loadedByAlias!.RepositoryId, "MongoDB registry alias resolved to the wrong repository.");
 
     var runs = await store.ListRunsAsync(repository.RepositoryId, cancellationToken: timeout.Token);
     Equal(1, runs.Count, "MongoDB registry did not list run.");
