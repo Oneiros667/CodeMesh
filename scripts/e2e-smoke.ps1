@@ -9,6 +9,7 @@ param(
     [string]$OllamaUrl = $env:CODEMESH_OLLAMA_URL,
     [string]$LmStudioUrl = $env:CODEMESH_LM_STUDIO_URL,
     [switch]$SkipCompose,
+    [switch]$UseConfiguredSample,
     [switch]$KeepFixture
 )
 
@@ -108,13 +109,36 @@ function Invoke-JsonCommand {
     return ($output | Out-String | ConvertFrom-Json)
 }
 
-if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
+if ($UseConfiguredSample) {
+    if (![string]::IsNullOrWhiteSpace($RepositoryRoot) -or ![string]::IsNullOrWhiteSpace($SolutionPath)) {
+        throw "Use either -UseConfiguredSample or explicit -RepositoryRoot/-SolutionPath, not both."
+    }
+
+    $RepositoryRoot = $env:CODEMESH_SAMPLE_CSHARP_ROOT
+    $SolutionPath = $env:CODEMESH_SAMPLE_CSHARP_SOLUTION
+    if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
+        throw "CODEMESH_SAMPLE_CSHARP_ROOT is required when -UseConfiguredSample is set."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($SolutionPath)) {
+        $SolutionPath = $RepositoryRoot
+    }
+}
+elseif ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     New-SmokeFixture
     $RepositoryRoot = $fixtureRoot
     $SolutionPath = $projectPath
 }
 elseif ([string]::IsNullOrWhiteSpace($SolutionPath)) {
     $SolutionPath = $RepositoryRoot
+}
+
+if (!(Test-Path -LiteralPath $RepositoryRoot)) {
+    throw "Repository root not found: $RepositoryRoot"
+}
+
+if (!(Test-Path -LiteralPath $SolutionPath)) {
+    throw "Solution/project path not found: $SolutionPath"
 }
 
 if ([string]::IsNullOrWhiteSpace($EmbeddingProvider) -or $EmbeddingProvider -eq "none") {

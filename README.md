@@ -113,6 +113,12 @@ By default the script creates a tiny C# fixture repository under `.codemesh-smok
 .\scripts\e2e-smoke.ps1 -IncludeEmbeddings -EmbeddingProvider ollama -EmbeddingModel nomic-embed-text:latest
 ```
 
+To run the same smoke checks against the configured sample repository from `CODEMESH_SAMPLE_CSHARP_ROOT` and `CODEMESH_SAMPLE_CSHARP_SOLUTION`, use:
+
+```powershell
+.\scripts\e2e-smoke.ps1 -UseConfiguredSample
+```
+
 For LM Studio embeddings, start the LM Studio local server, load an embedding model, and run:
 
 ```powershell
