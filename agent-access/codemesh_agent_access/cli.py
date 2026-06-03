@@ -22,6 +22,7 @@ def main() -> None:
     search_parser.add_argument("--repository-id")
     search_parser.add_argument("--limit", type=int, default=8)
     search_parser.add_argument("--kind", action="append", default=[])
+    search_parser.add_argument("--filter", action="append", default=[], metavar="KEY=VALUE")
     search_parser.add_argument("--no-expand-context", action="store_true")
     search_parser.add_argument("--context-depth", type=int, default=4)
     search_parser.add_argument("--include-context-relationships", action="store_true")
@@ -33,9 +34,11 @@ def main() -> None:
     package_parser.add_argument("--limit", type=int, default=8)
     package_parser.add_argument("--max-characters", type=int, default=12000)
     package_parser.add_argument("--kind", action="append", default=[])
+    package_parser.add_argument("--filter", action="append", default=[], metavar="KEY=VALUE")
     package_parser.add_argument("--context-depth", type=int, default=4)
     package_parser.add_argument("--no-content", action="store_true")
     package_parser.add_argument("--no-relationships", action="store_true")
+    package_parser.add_argument("--no-repository", action="store_true")
     package_parser.add_argument("--relationship-limit", type=int, default=8)
     package_parser.add_argument("--caller-limit", type=int)
     package_parser.add_argument("--callee-limit", type=int)
@@ -51,6 +54,7 @@ def main() -> None:
     symbols_parser.add_argument("--repository-id")
     symbols_parser.add_argument("--limit", type=int, default=20)
     symbols_parser.add_argument("--kind", action="append", default=[])
+    symbols_parser.add_argument("--filter", action="append", default=[], metavar="KEY=VALUE")
     symbols_parser.add_argument("--no-declarations", action="store_true")
 
     node_parser = subcommands.add_parser("get-node", help="Fetch a stored CodeMesh node.")
@@ -63,6 +67,7 @@ def main() -> None:
     neighbors_parser.add_argument("node_id")
     neighbors_parser.add_argument("--repository-id")
     neighbors_parser.add_argument("--depth", type=int, default=1)
+    neighbors_parser.add_argument("--relationship-kind", action="append", default=[])
 
     repos_parser = subcommands.add_parser("repos", help="List indexed CodeMesh repositories.")
     repos_parser.add_argument("--limit", type=int, default=50)
@@ -97,6 +102,7 @@ def main() -> None:
                 repository_id=args.repository_id,
                 limit=args.limit,
                 kinds=args.kind,
+                filters=_parse_filters(args.filter),
                 expand_context=not args.no_expand_context,
                 context_depth=args.context_depth,
                 include_context_relationships=args.include_context_relationships,
@@ -114,6 +120,7 @@ def main() -> None:
                 limit=args.limit,
                 max_characters=args.max_characters,
                 kinds=args.kind,
+                filters=_parse_filters(args.filter),
                 context_depth=args.context_depth,
                 include_content=not args.no_content,
                 include_relationships=not args.no_relationships,
@@ -125,6 +132,7 @@ def main() -> None:
                 contains_limit=args.contains_limit,
                 definition_limit=args.definition_limit,
                 uses_type_limit=args.uses_type_limit,
+                include_repository=not args.no_repository,
             )
         )
         if args.output == "agent":
@@ -140,6 +148,7 @@ def main() -> None:
                 repository_id=args.repository_id,
                 limit=args.limit,
                 kinds=args.kind,
+                filters=_parse_filters(args.filter),
                 include_declarations=not args.no_declarations,
             )
         )
@@ -159,7 +168,14 @@ def main() -> None:
         return
 
     if args.command == "neighbors":
-        result = asyncio.run(tools.get_neighbors(args.node_id, repository_id=args.repository_id, depth=args.depth))
+        result = asyncio.run(
+            tools.get_neighbors(
+                args.node_id,
+                repository_id=args.repository_id,
+                depth=args.depth,
+                relationship_kinds=args.relationship_kind,
+            )
+        )
         print(json.dumps(result.model_dump(mode="json"), indent=2))
         return
 
@@ -179,3 +195,15 @@ def main() -> None:
         return
 
     parser.print_help()
+
+
+def _parse_filters(values: list[str]) -> dict[str, str]:
+    filters: dict[str, str] = {}
+    for value in values:
+        key, separator, item = value.partition("=")
+        if not separator or not key:
+            raise SystemExit(f"Invalid --filter value '{value}'. Expected KEY=VALUE.")
+
+        filters[key] = item
+
+    return filters

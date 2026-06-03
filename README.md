@@ -268,11 +268,13 @@ Direct CLI examples:
 cd agent-access
 uv run python -m codemesh_agent_access status
 uv run python -m codemesh_agent_access search "download video with subtitles" --repository-id youtube_downloader --limit 5 --kind Class
+uv run python -m codemesh_agent_access search "download video with subtitles" --repository-id youtube_downloader --filter project=YoutubeDownloader --include-context-relationships
 uv run python -m codemesh_agent_access symbols DownloadAsync --repository-id youtube_downloader --limit 10 --kind Method
 uv run python -m codemesh_agent_access package "download video with subtitles" --repository-id youtube_downloader --limit 5 --max-characters 12000 --caller-limit 3 --callee-limit 3 --read-limit 2 --write-limit 2
+uv run python -m codemesh_agent_access package "download video with subtitles" --repository-id youtube_downloader --filter filePath=YoutubeDownloader/Program.cs --no-repository
 uv run python -m codemesh_agent_access package "download video with subtitles" --repository-id youtube_downloader --limit 3 --max-characters 6000 --caller-limit 2 --callee-limit 2 --read-limit 1 --write-limit 1 --output agent
 uv run python -m codemesh_agent_access get-node csharp:type:CodeMesh.Tests.Neo4jSmokeSource --repository-id repo:neo4j-smoke --no-content
-uv run python -m codemesh_agent_access neighbors csharp:type:CodeMesh.Tests.Neo4jSmokeSource --repository-id repo:neo4j-smoke
+uv run python -m codemesh_agent_access neighbors csharp:type:CodeMesh.Tests.Neo4jSmokeSource --repository-id repo:neo4j-smoke --relationship-kind Contains
 uv run python -m codemesh_agent_access repos --limit 10
 uv run python -m codemesh_agent_access runs --repository-id <repository-id-or-alias> --limit 5
 ```

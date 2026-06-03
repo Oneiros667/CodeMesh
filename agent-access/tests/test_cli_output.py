@@ -51,15 +51,33 @@ def test_package_cli_agent_output_mode(monkeypatch: Any, capsys: Any) -> None:
 
 
 def test_search_cli_still_outputs_json(monkeypatch: Any, capsys: Any) -> None:
+    captured: dict[str, Any] = {}
+
     async def fake_search_context(query: str, **kwargs: Any) -> ToolResult:
+        captured["query"] = query
+        captured.update(kwargs)
         return ToolResult(data={"query": query, "hits": []})
 
     monkeypatch.setattr(cli.tools, "search_context", fake_search_context)
-    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "search", "download"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "codemesh-agent-access",
+            "search",
+            "download",
+            "--filter",
+            "project=Sample",
+            "--filter",
+            "kind=Method",
+        ],
+    )
 
     cli.main()
 
     payload = json.loads(capsys.readouterr().out)
+    assert captured["query"] == "download"
+    assert captured["filters"] == {"project": "Sample", "kind": "Method"}
     assert payload["data"] == {"query": "download", "hits": []}
 
 
@@ -83,6 +101,8 @@ def test_symbols_cli_outputs_json(monkeypatch: Any, capsys: Any) -> None:
             "sample_repo",
             "--kind",
             "Method",
+            "--filter",
+            "project=Sample",
             "--no-declarations",
         ],
     )
@@ -93,5 +113,79 @@ def test_symbols_cli_outputs_json(monkeypatch: Any, capsys: Any) -> None:
     assert captured["query"] == "DownloadAsync"
     assert captured["repository_id"] == "sample_repo"
     assert captured["kinds"] == ["Method"]
+    assert captured["filters"] == {"project": "Sample"}
     assert captured["include_declarations"] is False
     assert payload["data"] == {"query": {"query": "DownloadAsync"}, "symbols": []}
+
+
+def test_package_cli_forwards_filters_and_repository_toggle(monkeypatch: Any, capsys: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    async def fake_get_context_package(query: str, **kwargs: Any) -> ToolResult:
+        captured["query"] = query
+        captured.update(kwargs)
+        return ToolResult(data={"query": {"query": query}, "items": []})
+
+    monkeypatch.setattr(cli.tools, "get_context_package", fake_get_context_package)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "codemesh-agent-access",
+            "package",
+            "download",
+            "--filter",
+            "filePath=Downloader.cs",
+            "--no-repository",
+        ],
+    )
+
+    cli.main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert captured["query"] == "download"
+    assert captured["filters"] == {"filePath": "Downloader.cs"}
+    assert captured["include_repository"] is False
+    assert payload["data"] == {"query": {"query": "download"}, "items": []}
+
+
+def test_neighbors_cli_forwards_relationship_kinds(monkeypatch: Any, capsys: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    async def fake_get_neighbors(node_id: str, **kwargs: Any) -> ToolResult:
+        captured["node_id"] = node_id
+        captured.update(kwargs)
+        return ToolResult(data={"relationships": []})
+
+    monkeypatch.setattr(cli.tools, "get_neighbors", fake_get_neighbors)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "codemesh-agent-access",
+            "neighbors",
+            "node:download",
+            "--relationship-kind",
+            "Invokes",
+            "--relationship-kind",
+            "Reads",
+        ],
+    )
+
+    cli.main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert captured["node_id"] == "node:download"
+    assert captured["relationship_kinds"] == ["Invokes", "Reads"]
+    assert payload["data"] == {"relationships": []}
+
+
+def test_cli_filter_requires_key_value_pair(monkeypatch: Any) -> None:
+    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "search", "download", "--filter", "broken"])
+
+    try:
+        cli.main()
+    except SystemExit as exc:
+        assert str(exc) == "Invalid --filter value 'broken'. Expected KEY=VALUE."
+    else:
+        raise AssertionError("Expected invalid filter to exit.")
