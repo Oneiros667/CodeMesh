@@ -79,7 +79,7 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
   --include-embeddings `
   --embedding-provider lmstudio `
   --lm-studio-url http://127.0.0.1:1234/v1 `
-  --embedding-model text-embedding-nomic-embed-text-v1.5
+  --embedding-model text-embedding-nomic-embed-text-v2-moe
 ```
 
 Each successful ingestion run stamps graph, content, and vector records with a repository id and ingestion run id. CodeMesh also writes repository/run registry records to MongoDB so users and agents can discover indexed repositories and recent ingestion history. Repository registry records include a generated alias, for example `YoutubeDownloader` becomes `youtube_downloader`, and read commands accept either the hash id or alias. Incremental ingestion skips unchanged graph/content/vector writes after parsing, then removes stale records from the same repository that were not seen in the current run. If `--skip-embeddings` is used, vector cleanup is skipped so existing embeddings are left untouched.
@@ -91,7 +91,7 @@ dotnet run --project src/CodeMesh.Cli -- repos list
 dotnet run --project src/CodeMesh.Cli -- repo show <repository-id-or-alias>
 dotnet run --project src/CodeMesh.Cli -- runs list --repository-id <repository-id-or-alias> --limit 10
 dotnet run --project src/CodeMesh.Cli -- embeddings verify <repository-id-or-alias> --embedding-provider ollama --embedding-model nomic-embed-text:latest
-dotnet run --project src/CodeMesh.Cli -- embeddings verify <repository-id-or-alias> --embedding-provider lmstudio --embedding-model text-embedding-nomic-embed-text-v1.5
+dotnet run --project src/CodeMesh.Cli -- embeddings verify <repository-id-or-alias> --embedding-provider lmstudio --embedding-model text-embedding-nomic-embed-text-v2-moe
 ```
 
 Start the default local stores and services:
@@ -111,6 +111,16 @@ By default the script creates a tiny C# fixture repository under `.codemesh-smok
 
 ```powershell
 .\scripts\e2e-smoke.ps1 -IncludeEmbeddings -EmbeddingProvider ollama -EmbeddingModel nomic-embed-text:latest
+```
+
+For LM Studio embeddings, start the LM Studio local server, load an embedding model, and run:
+
+```powershell
+.\scripts\e2e-smoke.ps1 `
+  -IncludeEmbeddings `
+  -EmbeddingProvider lmstudio `
+  -EmbeddingModel text-embedding-nomic-embed-text-v2-moe `
+  -LmStudioUrl http://127.0.0.1:1234/v1
 ```
 
 ### Ollama Modes
@@ -145,14 +155,22 @@ The Ollama container mounts `${CODEMESH_OLLAMA_HOME}` to `/root/.ollama`; set it
 
 ### LM Studio Mode
 
-LM Studio uses the OpenAI-compatible local server. Start LM Studio's local server, load an embedding model, and use:
+LM Studio uses the OpenAI-compatible local server. Start LM Studio's local server, load an embedding model such as `text-embedding-nomic-embed-text-v2-moe`, and confirm the model is listed:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:1234/v1/models
+```
+
+In `.env`, use:
 
 ```text
 CODEMESH_MODEL_PROVIDER=lmstudio
 CODEMESH_LM_STUDIO_URL=http://127.0.0.1:1234/v1
 CODEMESH_AGENT_LM_STUDIO_URL=http://host.docker.internal:1234/v1
-CODEMESH_EMBEDDING_MODEL=text-embedding-nomic-embed-text-v1.5
+CODEMESH_EMBEDDING_MODEL=text-embedding-nomic-embed-text-v2-moe
 ```
+
+`CODEMESH_LM_STUDIO_URL` is used by the host .NET CLI. `CODEMESH_AGENT_LM_STUDIO_URL` is used by Dockerized Agent Access, where `host.docker.internal` points back to the Windows host running LM Studio. `text-embedding-nomic-embed-text-v1.5` is also valid if that is the embedding model loaded in LM Studio.
 
 ## Service Endpoints
 
