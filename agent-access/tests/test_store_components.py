@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import asyncio
+
 from codemesh_agent_access.content_store import (
+    MongoContentStore,
     normalize_ingestion_run,
     normalize_repository,
     repository_alias,
 )
 from codemesh_agent_access.embeddings import model_provider
-from codemesh_agent_access.graph_store import storage_key
+from codemesh_agent_access.graph_store import Neo4jGraphStore, storage_key
+from codemesh_agent_access.store import CodeMeshReadStore
 from codemesh_agent_access.vector_store import qdrant_filter_for
 
 
@@ -84,3 +88,62 @@ def test_content_store_normalizers_preserve_registry_fields() -> None:
 
 def test_graph_storage_key_uses_repository_prefix() -> None:
     assert storage_key("repo:test", "node:one") == "repo:test:node:one"
+
+
+def test_content_store_close_closes_cached_mongo_client() -> None:
+    store = MongoContentStore.__new__(MongoContentStore)
+    client = FakeMongoClient()
+    store._mongo_client = client
+
+    asyncio.run(store.close())
+
+    assert client.closed is True
+    assert store._mongo_client is None
+
+
+def test_graph_store_close_closes_cached_driver() -> None:
+    store = Neo4jGraphStore.__new__(Neo4jGraphStore)
+    driver = FakeNeo4jDriver()
+    store._neo4j_driver = driver
+
+    asyncio.run(store.close())
+
+    assert driver.closed is True
+    assert store._neo4j_driver is None
+
+
+def test_read_store_close_delegates_to_owned_stores() -> None:
+    store = CodeMeshReadStore.__new__(CodeMeshReadStore)
+    graph = FakeClosable()
+    content = FakeClosable()
+    store._graph = graph
+    store._content = content
+
+    asyncio.run(store.close())
+
+    assert graph.closed is True
+    assert content.closed is True
+
+
+class FakeMongoClient:
+    def __init__(self) -> None:
+        self.closed = False
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class FakeNeo4jDriver:
+    def __init__(self) -> None:
+        self.closed = False
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+class FakeClosable:
+    def __init__(self) -> None:
+        self.closed = False
+
+    async def close(self) -> None:
+        self.closed = True

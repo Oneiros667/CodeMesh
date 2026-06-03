@@ -15,6 +15,12 @@ class Neo4jGraphStore:
         self._settings = settings
         self._neo4j_driver: Any | None = None
 
+    async def close(self) -> None:
+        driver = self._neo4j_driver
+        self._neo4j_driver = None
+        if driver is not None:
+            await driver.close()
+
     async def health(self) -> dict[str, Any]:
         if AsyncGraphDatabase is None:
             return {

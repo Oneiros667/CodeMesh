@@ -99,6 +99,10 @@ class CodeMeshReadStore:
         self._graph = Neo4jGraphStore(settings)
         self._vectors = QdrantSearchClient(settings)
 
+    async def close(self) -> None:
+        await self._graph.close()
+        await self._content.close()
+
     async def health(self) -> HealthResponse:
         components = {
             "neo4j": await self._graph.health(),

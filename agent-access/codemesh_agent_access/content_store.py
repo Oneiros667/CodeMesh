@@ -25,6 +25,12 @@ class MongoContentStore:
         self._settings = settings
         self._mongo_client: Any | None = None
 
+    async def close(self) -> None:
+        client = self._mongo_client
+        self._mongo_client = None
+        if client is not None:
+            await asyncio.to_thread(client.close)
+
     async def health(self) -> dict[str, Any]:
         if MongoClient is None:
             return {

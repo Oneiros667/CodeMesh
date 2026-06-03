@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
 from fastapi import Depends, FastAPI
 
 from .models import (
@@ -18,12 +21,22 @@ from .models import (
     SymbolSearchResponse,
 )
 from .store import CodeMeshReadStore
-from .dependencies import get_store
+from .dependencies import close_store, get_store
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    try:
+        yield
+    finally:
+        await close_store()
+
 
 app = FastAPI(
     title="CodeMesh Agent Access",
     version="0.1.0",
     description="REST API for AI agents to read CodeMesh graph, content, and vector intelligence.",
+    lifespan=lifespan,
 )
 
 

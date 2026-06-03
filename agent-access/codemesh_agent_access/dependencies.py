@@ -14,3 +14,12 @@ def get_settings() -> Settings:
 @lru_cache(maxsize=1)
 def get_store() -> CodeMeshReadStore:
     return CodeMeshReadStore(get_settings())
+
+
+async def close_store() -> None:
+    if get_store.cache_info().currsize == 0:
+        return
+
+    store = get_store()
+    get_store.cache_clear()
+    await store.close()
