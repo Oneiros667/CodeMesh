@@ -23,6 +23,9 @@ from .models import (
     NodeResponse,
     RepositoryListResponse,
     RepositorySummary,
+    SymbolQuery,
+    SymbolSearchHit,
+    SymbolSearchResponse,
 )
 
 try:
@@ -63,6 +66,12 @@ _DECLARABLE_SYMBOL_KINDS = {
     "property",
     "field",
     "event",
+}
+
+_SYMBOL_KINDS = _DECLARABLE_SYMBOL_KINDS | {
+    "namespace",
+    "parameter",
+    "lambda",
 }
 
 _LOW_SIGNAL_KINDS = {
@@ -114,7 +123,7 @@ class CodeMeshReadStore:
     async def search_context(self, query: ContextQuery) -> ContextResponse:
         query = await self._resolve_context_query_repository(query)
         vector = query.vector
-        if not vector and self._settings.model_provider.casefold() == "ollama" and query.query.strip():
+        if not vector and _model_provider(self._settings.model_provider) in {"ollama", "lmstudio"} and query.query.strip():
             vector = await self._embed_query(query.query)
 
         hits = await self._search_vector_context(query, vector) if vector else []
@@ -210,6 +219,46 @@ class CodeMeshReadStore:
             total_snippet_characters=total_snippet_characters,
         )
 
+    async def search_symbols(self, query: SymbolQuery) -> SymbolSearchResponse:
+        query = await self._resolve_symbol_query_repository(query)
+        nodes = await self._search_symbol_nodes(query)
+        search_text = query.query.casefold()
+
+        filtered_nodes = [
+            node for node in nodes
+            if _matches_filters(node, query.filters) and _matches_repository(node, query.repository_id)
+        ]
+        scored_nodes = sorted(
+            (
+                (
+                    node,
+                    _symbol_score(node, search_text),
+                    _symbol_score_components(node, search_text),
+                )
+                for node in filtered_nodes
+            ),
+            key=lambda item: (item[1], _kind_weight(item[0]), -_int(item[0].get("startLine"))),
+            reverse=True,
+        )
+
+        symbols: list[SymbolSearchHit] = []
+        for node, score, score_components in scored_nodes[: max(0, query.limit)]:
+            declaration = None
+            if query.include_declarations:
+                declaration_node = await self._get_primary_declaration_node(node, query.repository_id)
+                declaration = _normalize_node(declaration_node) if declaration_node else None
+
+            symbols.append(
+                SymbolSearchHit(
+                    node=_normalize_node(node),
+                    declaration=declaration,
+                    score=score,
+                    score_components=score_components,
+                )
+            )
+
+        return SymbolSearchResponse(query=query, symbols=symbols)
+
     async def get_node(self, lookup: NodeLookup) -> NodeResponse:
         lookup = await self._resolve_node_lookup_repository(lookup)
         node = await self._get_node_properties(lookup.node_id, lookup.repository_id)
@@ -291,6 +340,10 @@ class CodeMeshReadStore:
         return query if repository_id == query.repository_id else query.model_copy(update={"repository_id": repository_id})
 
     async def _resolve_package_query_repository(self, query: ContextPackageQuery) -> ContextPackageQuery:
+        repository_id = await self._resolve_repository_id(query.repository_id)
+        return query if repository_id == query.repository_id else query.model_copy(update={"repository_id": repository_id})
+
+    async def _resolve_symbol_query_repository(self, query: SymbolQuery) -> SymbolQuery:
         repository_id = await self._resolve_repository_id(query.repository_id)
         return query if repository_id == query.repository_id else query.model_copy(update={"repository_id": repository_id})
 
@@ -413,11 +466,11 @@ class CodeMeshReadStore:
             }
 
     async def _model_provider_health(self) -> dict[str, Any]:
-        provider = self._settings.model_provider.casefold()
+        provider = _model_provider(self._settings.model_provider)
         if provider == "none":
             return {"provider": "none", "status": "configured"}
 
-        if provider != "ollama":
+        if provider not in {"ollama", "lmstudio"}:
             return {
                 "provider": self._settings.model_provider,
                 "status": "degraded",
@@ -426,19 +479,19 @@ class CodeMeshReadStore:
 
         try:
             async with httpx.AsyncClient(timeout=2.0) as client:
-                response = await client.get(f"{self._ollama_url()}/api/tags")
+                response = await client.get(self._model_provider_health_url(provider))
                 response.raise_for_status()
 
             return {
-                "provider": "ollama",
-                "url": self._settings.ollama_url,
+                "provider": provider,
+                "url": self._model_provider_base_url(provider),
                 "embedding_model": self._settings.embedding_model,
                 "status": "healthy",
             }
         except httpx.HTTPError as exc:  # pragma: no cover - depends on local model service state
             return {
-                "provider": "ollama",
-                "url": self._settings.ollama_url,
+                "provider": provider,
+                "url": self._model_provider_base_url(provider),
                 "embedding_model": self._settings.embedding_model,
                 "status": "degraded",
                 "detail": str(exc),
@@ -471,6 +524,45 @@ class CodeMeshReadStore:
             return dict(record["node"]) if record else None
         except Exception:
             return None
+
+    async def _search_symbol_nodes(self, query: SymbolQuery) -> list[dict[str, Any]]:
+        if AsyncGraphDatabase is None:
+            return []
+
+        search_text = query.query.casefold()
+        kinds = _symbol_kind_filter(query.kinds)
+        if not kinds:
+            return []
+
+        limit = min(max(query.limit * 4, 24), 300)
+        try:
+            driver = self._neo4j()
+            async with driver.session(database=self._settings.neo4j_database) as session:
+                result = await session.run(
+                    """
+                    MATCH (n:CodeMeshNode)
+                    WHERE
+                        toLower(coalesce(n.kind, "")) IN $kinds
+                        AND ($repository_id IS NULL OR n.repositoryId = $repository_id)
+                        AND ($search_text = "" OR
+                             toLower(coalesce(n.id, "")) CONTAINS $search_text OR
+                             toLower(coalesce(n.stableKey, "")) CONTAINS $search_text OR
+                             toLower(coalesce(n.name, "")) CONTAINS $search_text OR
+                             toLower(coalesce(n.filePath, "")) CONTAINS $search_text OR
+                             toLower(coalesce(n.metadataJson, "")) CONTAINS $search_text)
+                    RETURN properties(n) AS node
+                    LIMIT $limit
+                    """,
+                    search_text=search_text,
+                    kinds=kinds,
+                    repository_id=query.repository_id,
+                    limit=limit,
+                )
+                records = await result.data()
+        except Exception:
+            return []
+
+        return [dict(record["node"]) for record in records]
 
     async def _get_relationships(
         self,
@@ -933,6 +1025,10 @@ class CodeMeshReadStore:
         ]
 
     async def _embed_query(self, query: str) -> list[float]:
+        provider = _model_provider(self._settings.model_provider)
+        if provider == "lmstudio":
+            return await self._embed_query_lmstudio(query)
+
         body = {
             "model": self._settings.embedding_model,
             "input": [query],
@@ -953,6 +1049,27 @@ class CodeMeshReadStore:
             return []
 
         return [float(value) for value in embeddings[0]]
+
+    async def _embed_query_lmstudio(self, query: str) -> list[float]:
+        body = {
+            "model": self._settings.embedding_model,
+            "input": [query],
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(f"{self._lm_studio_url()}/embeddings", json=body)
+                response.raise_for_status()
+                payload = response.json()
+        except httpx.HTTPError:
+            return []
+
+        data = payload.get("data") or []
+        if not data:
+            return []
+
+        first = min(data, key=lambda item: int(item.get("index") or 0))
+        return [float(value) for value in first.get("embedding") or []]
 
     async def _embed_query_legacy(self, query: str, client: httpx.AsyncClient) -> list[float]:
         try:
@@ -994,9 +1111,29 @@ class CodeMeshReadStore:
     def _ollama_url(self) -> str:
         return self._settings.ollama_url.rstrip("/")
 
+    def _lm_studio_url(self) -> str:
+        return self._settings.lm_studio_url.rstrip("/")
+
+    def _model_provider_base_url(self, provider: str) -> str:
+        return self._lm_studio_url() if provider == "lmstudio" else self._ollama_url()
+
+    def _model_provider_health_url(self, provider: str) -> str:
+        if provider == "lmstudio":
+            return f"{self._lm_studio_url()}/models"
+
+        return f"{self._ollama_url()}/api/tags"
+
 
 def _component_ok(component: Any) -> bool:
     return isinstance(component, dict) and component.get("status") in {"healthy", "configured"}
+
+
+def _model_provider(provider: str) -> str:
+    value = provider.casefold().strip()
+    if value in {"lm-studio", "lm_studio"}:
+        return "lmstudio"
+
+    return value
 
 
 def _storage_key(repository_id: str, node_id: str) -> str:
@@ -1357,6 +1494,19 @@ def _kind(node: dict[str, Any]) -> str:
     return str(node.get("kind") or "").casefold()
 
 
+def _symbol_kind_filter(kinds: list[str]) -> list[str]:
+    if not kinds:
+        return sorted(_SYMBOL_KINDS)
+
+    return sorted(
+        {
+            kind.casefold()
+            for kind in kinds
+            if kind and kind.casefold() in _SYMBOL_KINDS
+        }
+    )
+
+
 def _kind_weight(node: dict[str, Any]) -> float:
     return _kind_weight_from_name(str(node.get("kind") or ""))
 
@@ -1483,6 +1633,51 @@ def _lexical_score(node: dict[str, Any], search_text: str) -> float:
         return 0.65
 
     return 0.25
+
+
+def _symbol_score(node: dict[str, Any], search_text: str) -> float:
+    lexical_score = _symbol_lexical_score(node, search_text)
+    return max(0.0, min(1.0, lexical_score * _kind_weight(node)))
+
+
+def _symbol_score_components(node: dict[str, Any], search_text: str) -> dict[str, float]:
+    return {
+        "lexical_score": _symbol_lexical_score(node, search_text),
+        "kind_weight": _kind_weight(node),
+    }
+
+
+def _symbol_lexical_score(node: dict[str, Any], search_text: str) -> float:
+    if not search_text:
+        return 0.5
+
+    metadata = _metadata(node.get("metadataJson"))
+    exact_fields = [
+        str(node.get("name") or "").casefold(),
+        str(metadata.get("display") or "").casefold(),
+    ]
+    fields = [
+        str(node.get("id") or "").casefold(),
+        str(node.get("stableKey") or "").casefold(),
+        str(node.get("name") or "").casefold(),
+        str(node.get("filePath") or "").casefold(),
+        str(metadata.get("display") or "").casefold(),
+        str(metadata.get("namespace") or "").casefold(),
+        str(metadata.get("containingType") or "").casefold(),
+    ]
+
+    if any(field == search_text for field in exact_fields):
+        return 1.0
+    if any(field == search_text for field in fields):
+        return 0.95
+    if any(field.endswith(f".{search_text}") for field in fields):
+        return 0.90
+    if any(field.startswith(search_text) for field in fields):
+        return 0.82
+    if any(search_text in field for field in fields):
+        return 0.62
+
+    return 0.20
 
 
 def _metadata(value: Any) -> dict[str, Any]:

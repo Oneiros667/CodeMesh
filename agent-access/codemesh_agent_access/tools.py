@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .dependencies import get_store
-from .models import ContextPackageQuery, ContextQuery, NeighborQuery, NodeLookup, ToolResult
+from .models import ContextPackageQuery, ContextQuery, NeighborQuery, NodeLookup, SymbolQuery, ToolResult
 
 
 async def status() -> ToolResult:
@@ -14,6 +14,7 @@ async def search_context(
     repository_id: str | None = None,
     limit: int = 8,
     kinds: list[str] | None = None,
+    filters: dict[str, str] | None = None,
     vector: list[float] | None = None,
     expand_context: bool = True,
     context_depth: int = 4,
@@ -26,6 +27,7 @@ async def search_context(
             repository_id=repository_id,
             limit=limit,
             kinds=kinds or [],
+            filters=filters or {},
             vector=vector or [],
             expand_context=expand_context,
             context_depth=context_depth,
@@ -42,6 +44,7 @@ async def get_context_package(
     limit: int = 8,
     max_characters: int = 12000,
     kinds: list[str] | None = None,
+    filters: dict[str, str] | None = None,
     vector: list[float] | None = None,
     context_depth: int = 4,
     include_content: bool = True,
@@ -54,6 +57,7 @@ async def get_context_package(
     contains_limit: int | None = None,
     definition_limit: int | None = None,
     uses_type_limit: int | None = None,
+    include_repository: bool = True,
 ) -> ToolResult:
     result = await get_store().get_context_package(
         ContextPackageQuery(
@@ -62,6 +66,7 @@ async def get_context_package(
             limit=limit,
             max_characters=max_characters,
             kinds=kinds or [],
+            filters=filters or {},
             vector=vector or [],
             context_depth=context_depth,
             include_content=include_content,
@@ -74,6 +79,28 @@ async def get_context_package(
             contains_limit=contains_limit,
             definition_limit=definition_limit,
             uses_type_limit=uses_type_limit,
+            include_repository=include_repository,
+        )
+    )
+    return ToolResult(data=result.model_dump(mode="json"))
+
+
+async def search_symbols(
+    query: str,
+    repository_id: str | None = None,
+    limit: int = 20,
+    kinds: list[str] | None = None,
+    filters: dict[str, str] | None = None,
+    include_declarations: bool = True,
+) -> ToolResult:
+    result = await get_store().search_symbols(
+        SymbolQuery(
+            query=query,
+            repository_id=repository_id,
+            limit=limit,
+            kinds=kinds or [],
+            filters=filters or {},
+            include_declarations=include_declarations,
         )
     )
     return ToolResult(data=result.model_dump(mode="json"))
@@ -96,9 +123,19 @@ async def get_node(
     return ToolResult(data=result.model_dump(mode="json"))
 
 
-async def get_neighbors(node_id: str, repository_id: str | None = None, depth: int = 1) -> ToolResult:
+async def get_neighbors(
+    node_id: str,
+    repository_id: str | None = None,
+    depth: int = 1,
+    relationship_kinds: list[str] | None = None,
+) -> ToolResult:
     result = await get_store().get_neighbors(
-        NeighborQuery(node_id=node_id, repository_id=repository_id, depth=depth)
+        NeighborQuery(
+            node_id=node_id,
+            repository_id=repository_id,
+            depth=depth,
+            relationship_kinds=relationship_kinds or [],
+        )
     )
     return ToolResult(data=result.model_dump(mode="json"))
 

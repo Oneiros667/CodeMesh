@@ -61,3 +61,37 @@ def test_search_cli_still_outputs_json(monkeypatch: Any, capsys: Any) -> None:
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["data"] == {"query": "download", "hits": []}
+
+
+def test_symbols_cli_outputs_json(monkeypatch: Any, capsys: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    async def fake_search_symbols(query: str, **kwargs: Any) -> ToolResult:
+        captured["query"] = query
+        captured.update(kwargs)
+        return ToolResult(data={"query": {"query": query}, "symbols": []})
+
+    monkeypatch.setattr(cli.tools, "search_symbols", fake_search_symbols)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "codemesh-agent-access",
+            "symbols",
+            "DownloadAsync",
+            "--repository-id",
+            "sample_repo",
+            "--kind",
+            "Method",
+            "--no-declarations",
+        ],
+    )
+
+    cli.main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert captured["query"] == "DownloadAsync"
+    assert captured["repository_id"] == "sample_repo"
+    assert captured["kinds"] == ["Method"]
+    assert captured["include_declarations"] is False
+    assert payload["data"] == {"query": {"query": "DownloadAsync"}, "symbols": []}

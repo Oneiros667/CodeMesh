@@ -9,6 +9,7 @@ namespace CodeMesh.Control.Diagnostics;
 public sealed class CodeMeshStatusService
 {
     private const string DefaultOllamaUrl = "http://127.0.0.1:11434";
+    private const string DefaultLmStudioUrl = "http://127.0.0.1:1234/v1";
 
     private static readonly TimeSpan TcpProbeTimeout = TimeSpan.FromMilliseconds(750);
     private static readonly TimeSpan RequiredProbeRetryDelay = TimeSpan.FromMilliseconds(150);
@@ -52,7 +53,7 @@ public sealed class CodeMeshStatusService
             cancellationToken,
             attempts: 2,
             retryDelay: RequiredProbeRetryDelay).ConfigureAwait(false));
-        components.Add(await CheckOllamaAsync(cancellationToken).ConfigureAwait(false));
+        components.Add(await CheckModelProviderAsync(cancellationToken).ConfigureAwait(false));
 
         return new HealthReport(
             "codemesh",
@@ -224,15 +225,26 @@ public sealed class CodeMeshStatusService
             : StoreOffline(name, url, "Request failed.");
     }
 
+    private static Task<ComponentHealth> CheckModelProviderAsync(CancellationToken cancellationToken)
+    {
+        var provider = NormalizeModelProvider(Environment.GetEnvironmentVariable("CODEMESH_MODEL_PROVIDER") ?? "none");
+        return provider switch
+        {
+            "lmstudio" => CheckLmStudioAsync(cancellationToken),
+            "none" or "ollama" => CheckOllamaAsync(cancellationToken),
+            _ => Task.FromResult(OptionalOffline(
+                "model-provider",
+                provider,
+                "Unsupported local model provider.",
+                ModelProviderMetadata(provider)))
+        };
+    }
+
     private static async Task<ComponentHealth> CheckOllamaAsync(CancellationToken cancellationToken)
     {
         var baseUrl = Environment.GetEnvironmentVariable("CODEMESH_OLLAMA_URL") ?? DefaultOllamaUrl;
         var endpoints = OllamaTagsEndpoints(baseUrl);
-        var metadata = new Dictionary<string, string>
-        {
-            ["provider"] = Environment.GetEnvironmentVariable("CODEMESH_MODEL_PROVIDER") ?? "none",
-            ["model"] = Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL") ?? "nomic-embed-text:latest"
-        };
+        var metadata = ModelProviderMetadata(Environment.GetEnvironmentVariable("CODEMESH_MODEL_PROVIDER") ?? "none");
 
         ComponentHealth? last = null;
         for (var index = 0; index < endpoints.Count; index++)
@@ -257,6 +269,23 @@ public sealed class CodeMeshStatusService
         }
 
         return last ?? OptionalOffline("ollama", endpoints[0], "Request failed.", metadata);
+    }
+
+    private static async Task<ComponentHealth> CheckLmStudioAsync(CancellationToken cancellationToken)
+    {
+        var baseUrl = Environment.GetEnvironmentVariable("CODEMESH_LM_STUDIO_URL") ?? DefaultLmStudioUrl;
+        var endpoint = LmStudioModelsEndpoint(baseUrl);
+        var metadata = ModelProviderMetadata("lmstudio");
+
+        return await CheckHttpAsync(
+            "lmstudio",
+            endpoint,
+            true,
+            OllamaProbeTimeout,
+            metadata,
+            cancellationToken,
+            attempts: 3,
+            retryDelay: OllamaRetryDelay).ConfigureAwait(false);
     }
 
     private static bool IsRetryableStatus(HttpStatusCode statusCode)
@@ -308,6 +337,47 @@ public sealed class CodeMeshStatusService
         }
 
         return $"{trimmed.TrimEnd('/')}/api/tags";
+    }
+
+    private static string LmStudioModelsEndpoint(string baseUrl)
+    {
+        var trimmed = string.IsNullOrWhiteSpace(baseUrl)
+            ? DefaultLmStudioUrl
+            : baseUrl.Trim();
+
+        if (trimmed.EndsWith("/models", StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed;
+        }
+
+        return $"{trimmed.TrimEnd('/')}/models";
+    }
+
+    private static IReadOnlyDictionary<string, string> ModelProviderMetadata(string provider)
+    {
+        var normalizedProvider = NormalizeModelProvider(provider);
+        return new Dictionary<string, string>
+        {
+            ["provider"] = normalizedProvider,
+            ["model"] = Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL")
+                ?? DefaultEmbeddingModel(normalizedProvider)
+        };
+    }
+
+    private static string NormalizeModelProvider(string provider)
+    {
+        return provider.Trim().ToLowerInvariant() switch
+        {
+            "lm-studio" or "lm_studio" => "lmstudio",
+            var value => value
+        };
+    }
+
+    private static string DefaultEmbeddingModel(string provider)
+    {
+        return NormalizeModelProvider(provider) == "lmstudio"
+            ? "text-embedding-nomic-embed-text-v1.5"
+            : "nomic-embed-text:latest";
     }
 
     private static ComponentHealth StoreOffline(string name, string endpoint, string detail)

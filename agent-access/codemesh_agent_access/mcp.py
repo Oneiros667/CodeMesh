@@ -3,15 +3,17 @@ from __future__ import annotations
 import asyncio
 from copy import deepcopy
 import json
-from typing import Any
+from typing import Any, Literal
 
 from . import tools
+from .formatting import format_context_package_for_agent
 
 
 _TOOL_NAMES = [
     "codemesh_status",
     "codemesh_search_context",
     "codemesh_get_context_package",
+    "codemesh_search_symbols",
     "codemesh_get_node",
     "codemesh_get_neighbors",
     "codemesh_list_repositories",
@@ -19,12 +21,27 @@ _TOOL_NAMES = [
     "codemesh_list_ingestion_runs",
 ]
 
+_SEARCH_CONTEXT_ARGUMENTS: dict[str, dict[str, Any]] = {
+    "query": {"type": "string", "required": True},
+    "repository_id": {"type": "string|null", "default": None, "description": "Repository hash id or alias."},
+    "limit": {"type": "integer", "default": 8},
+    "kinds": {"type": "string[]|null", "default": None},
+    "filters": {"type": "object|null", "default": None},
+    "vector": {"type": "number[]|null", "default": None},
+    "expand_context": {"type": "boolean", "default": True},
+    "context_depth": {"type": "integer", "default": 4},
+    "include_context_relationships": {"type": "boolean", "default": False},
+    "context_relationship_limit": {"type": "integer", "default": 8},
+}
+
 _CONTEXT_PACKAGE_ARGUMENTS: dict[str, dict[str, Any]] = {
     "query": {"type": "string", "required": True},
-    "repository_id": {"type": "string|null", "default": None},
+    "repository_id": {"type": "string|null", "default": None, "description": "Repository hash id or alias."},
     "limit": {"type": "integer", "default": 8},
     "max_characters": {"type": "integer", "default": 12000},
     "kinds": {"type": "string[]|null", "default": None},
+    "filters": {"type": "object|null", "default": None},
+    "vector": {"type": "number[]|null", "default": None},
     "context_depth": {"type": "integer", "default": 4},
     "include_content": {"type": "boolean", "default": True},
     "include_relationships": {"type": "boolean", "default": True},
@@ -36,6 +53,44 @@ _CONTEXT_PACKAGE_ARGUMENTS: dict[str, dict[str, Any]] = {
     "contains_limit": {"type": "integer|null", "default": None},
     "definition_limit": {"type": "integer|null", "default": None},
     "uses_type_limit": {"type": "integer|null", "default": None},
+    "include_repository": {"type": "boolean", "default": True},
+    "output_format": {"type": "string", "default": "json", "values": ["json", "agent"]},
+}
+
+_SYMBOL_SEARCH_ARGUMENTS: dict[str, dict[str, Any]] = {
+    "query": {"type": "string", "required": True},
+    "repository_id": {"type": "string|null", "default": None, "description": "Repository hash id or alias."},
+    "limit": {"type": "integer", "default": 20},
+    "kinds": {"type": "string[]|null", "default": None},
+    "filters": {"type": "object|null", "default": None},
+    "include_declarations": {"type": "boolean", "default": True},
+}
+
+_NODE_ARGUMENTS: dict[str, dict[str, Any]] = {
+    "node_id": {"type": "string", "required": True},
+    "repository_id": {"type": "string|null", "default": None, "description": "Repository hash id or alias."},
+    "include_content": {"type": "boolean", "default": True},
+    "include_neighbors": {"type": "boolean", "default": True},
+}
+
+_NEIGHBOR_ARGUMENTS: dict[str, dict[str, Any]] = {
+    "node_id": {"type": "string", "required": True},
+    "repository_id": {"type": "string|null", "default": None, "description": "Repository hash id or alias."},
+    "depth": {"type": "integer", "default": 1},
+    "relationship_kinds": {"type": "string[]|null", "default": None},
+}
+
+_LIST_REPOSITORIES_ARGUMENTS: dict[str, dict[str, Any]] = {
+    "limit": {"type": "integer", "default": 50},
+}
+
+_GET_REPOSITORY_ARGUMENTS: dict[str, dict[str, Any]] = {
+    "repository_id": {"type": "string", "required": True, "description": "Repository hash id or alias."},
+}
+
+_LIST_RUNS_ARGUMENTS: dict[str, dict[str, Any]] = {
+    "repository_id": {"type": "string|null", "default": None, "description": "Repository hash id or alias."},
+    "limit": {"type": "integer", "default": 50},
 }
 
 _RELATIONSHIP_GROUPS = [
@@ -48,6 +103,49 @@ _RELATIONSHIP_GROUPS = [
     "uses_types",
 ]
 
+_TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
+    "codemesh_status": {
+        "description": "Return CodeMesh Agent Access health and configured read endpoints.",
+        "arguments": {},
+    },
+    "codemesh_search_context": {
+        "description": "Search CodeMesh context for code relevant to an agent task.",
+        "arguments": _SEARCH_CONTEXT_ARGUMENTS,
+    },
+    "codemesh_get_context_package": {
+        "description": "Build an agent-ready context package with snippets, relationships, and repository metadata.",
+        "arguments": _CONTEXT_PACKAGE_ARGUMENTS,
+        "response": {
+            "relationship_groups": list(_RELATIONSHIP_GROUPS),
+            "output_formats": ["json", "agent"],
+        },
+    },
+    "codemesh_search_symbols": {
+        "description": "Search indexed CodeMesh symbols by name, id, display signature, namespace, or file path.",
+        "arguments": _SYMBOL_SEARCH_ARGUMENTS,
+    },
+    "codemesh_get_node": {
+        "description": "Fetch a CodeMesh node with optional content and immediate relationships.",
+        "arguments": _NODE_ARGUMENTS,
+    },
+    "codemesh_get_neighbors": {
+        "description": "Fetch relationships around a CodeMesh node.",
+        "arguments": _NEIGHBOR_ARGUMENTS,
+    },
+    "codemesh_list_repositories": {
+        "description": "List repositories indexed by CodeMesh.",
+        "arguments": _LIST_REPOSITORIES_ARGUMENTS,
+    },
+    "codemesh_get_repository": {
+        "description": "Fetch one indexed CodeMesh repository by id or alias.",
+        "arguments": _GET_REPOSITORY_ARGUMENTS,
+    },
+    "codemesh_list_ingestion_runs": {
+        "description": "List CodeMesh ingestion runs, optionally scoped to a repository id or alias.",
+        "arguments": _LIST_RUNS_ARGUMENTS,
+    },
+}
+
 
 def tool_manifest() -> dict[str, Any]:
     """Return the stable MCP tool contract used by tests and fallback output."""
@@ -55,15 +153,7 @@ def tool_manifest() -> dict[str, Any]:
         "service": "codemesh-agent-access",
         "protocol": "mcp",
         "tools": [{"name": name} for name in _TOOL_NAMES],
-        "contracts": {
-            "codemesh_get_context_package": {
-                "description": "Build an agent-ready context package with snippets, relationships, and repository metadata.",
-                "arguments": deepcopy(_CONTEXT_PACKAGE_ARGUMENTS),
-                "response": {
-                    "relationship_groups": list(_RELATIONSHIP_GROUPS),
-                },
-            },
-        },
+        "contracts": deepcopy(_TOOL_CONTRACTS),
     }
 
 
@@ -86,6 +176,7 @@ def build_server() -> Any:
         repository_id: str | None = None,
         limit: int = 8,
         kinds: list[str] | None = None,
+        filters: dict[str, str] | None = None,
         vector: list[float] | None = None,
         expand_context: bool = True,
         context_depth: int = 4,
@@ -99,6 +190,7 @@ def build_server() -> Any:
                 repository_id=repository_id,
                 limit=limit,
                 kinds=kinds,
+                filters=filters,
                 vector=vector,
                 expand_context=expand_context,
                 context_depth=context_depth,
@@ -114,6 +206,8 @@ def build_server() -> Any:
         limit: int = 8,
         max_characters: int = 12000,
         kinds: list[str] | None = None,
+        filters: dict[str, str] | None = None,
+        vector: list[float] | None = None,
         context_depth: int = 4,
         include_content: bool = True,
         include_relationships: bool = True,
@@ -125,26 +219,54 @@ def build_server() -> Any:
         contains_limit: int | None = None,
         definition_limit: int | None = None,
         uses_type_limit: int | None = None,
+        include_repository: bool = True,
+        output_format: Literal["json", "agent"] = "json",
     ) -> dict[str, Any]:
         """Build an agent-ready context package with snippets, relationships, and repository metadata."""
+        result = await tools.get_context_package(
+            query,
+            repository_id=repository_id,
+            limit=limit,
+            max_characters=max_characters,
+            kinds=kinds,
+            filters=filters,
+            vector=vector,
+            context_depth=context_depth,
+            include_content=include_content,
+            include_relationships=include_relationships,
+            relationship_limit=relationship_limit,
+            caller_limit=caller_limit,
+            callee_limit=callee_limit,
+            read_limit=read_limit,
+            write_limit=write_limit,
+            contains_limit=contains_limit,
+            definition_limit=definition_limit,
+            uses_type_limit=uses_type_limit,
+            include_repository=include_repository,
+        )
+        payload = result.model_dump(mode="json")
+        if output_format == "agent":
+            payload["agent_text"] = format_context_package_for_agent(result.data)
+        return payload
+
+    @server.tool()
+    async def codemesh_search_symbols(
+        query: str,
+        repository_id: str | None = None,
+        limit: int = 20,
+        kinds: list[str] | None = None,
+        filters: dict[str, str] | None = None,
+        include_declarations: bool = True,
+    ) -> dict[str, Any]:
+        """Search indexed CodeMesh symbols by name, id, display signature, namespace, or file path."""
         return (
-            await tools.get_context_package(
+            await tools.search_symbols(
                 query,
                 repository_id=repository_id,
                 limit=limit,
-                max_characters=max_characters,
                 kinds=kinds,
-                context_depth=context_depth,
-                include_content=include_content,
-                include_relationships=include_relationships,
-                relationship_limit=relationship_limit,
-                caller_limit=caller_limit,
-                callee_limit=callee_limit,
-                read_limit=read_limit,
-                write_limit=write_limit,
-                contains_limit=contains_limit,
-                definition_limit=definition_limit,
-                uses_type_limit=uses_type_limit,
+                filters=filters,
+                include_declarations=include_declarations,
             )
         ).model_dump(mode="json")
 
@@ -170,9 +292,17 @@ def build_server() -> Any:
         node_id: str,
         repository_id: str | None = None,
         depth: int = 1,
+        relationship_kinds: list[str] | None = None,
     ) -> dict[str, Any]:
         """Fetch relationships around a CodeMesh node."""
-        return (await tools.get_neighbors(node_id, repository_id=repository_id, depth=depth)).model_dump(mode="json")
+        return (
+            await tools.get_neighbors(
+                node_id,
+                repository_id=repository_id,
+                depth=depth,
+                relationship_kinds=relationship_kinds,
+            )
+        ).model_dump(mode="json")
 
     @server.tool()
     async def codemesh_list_repositories(limit: int = 50) -> dict[str, Any]:

@@ -21,11 +21,13 @@ class Settings:
     qdrant_collection: str
     model_provider: str
     ollama_url: str
+    lm_studio_url: str
     embedding_model: str
 
     @classmethod
     def from_env(cls) -> "Settings":
         neo4j_user, neo4j_password = _neo4j_credentials()
+        model_provider = os.getenv("CODEMESH_MODEL_PROVIDER", "none")
 
         return cls(
             host=os.getenv("CODEMESH_AGENT_HOST", "0.0.0.0"),
@@ -41,9 +43,10 @@ class Settings:
             mongo_ingestion_runs_collection=os.getenv("CODEMESH_MONGO_INGESTION_RUNS_COLLECTION", "ingestion_runs"),
             qdrant_url=os.getenv("CODEMESH_QDRANT_URL", "http://127.0.0.1:6333"),
             qdrant_collection=os.getenv("CODEMESH_QDRANT_COLLECTION", "codemesh-code"),
-            model_provider=os.getenv("CODEMESH_MODEL_PROVIDER", "none"),
+            model_provider=model_provider,
             ollama_url=os.getenv("CODEMESH_OLLAMA_URL", "http://127.0.0.1:11434"),
-            embedding_model=os.getenv("CODEMESH_EMBEDDING_MODEL", "nomic-embed-text:latest"),
+            lm_studio_url=os.getenv("CODEMESH_LM_STUDIO_URL", "http://127.0.0.1:1234/v1"),
+            embedding_model=os.getenv("CODEMESH_EMBEDDING_MODEL", _default_embedding_model(model_provider)),
         )
 
 
@@ -59,3 +62,10 @@ def _neo4j_credentials() -> tuple[str, str]:
         return user or auth_user, password or auth_password
 
     return user or "neo4j", password or "codemesh"
+
+
+def _default_embedding_model(provider: str) -> str:
+    if provider.casefold().strip() in {"lmstudio", "lm-studio", "lm_studio"}:
+        return "text-embedding-nomic-embed-text-v1.5"
+
+    return "nomic-embed-text:latest"

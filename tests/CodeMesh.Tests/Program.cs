@@ -28,6 +28,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("status uses configured ollama endpoint", TestStatusUsesConfiguredOllamaEndpoint),
     ("status retries transient ollama failures", TestStatusRetriesTransientOllamaFailures),
     ("ollama embedding provider maps responses", TestOllamaEmbeddingProviderMapsResponses),
+    ("lm studio embedding provider maps responses", TestLmStudioEmbeddingProviderMapsResponses),
     ("mongodb content store round-trips content", TestMongoContentStoreRoundTripsContent),
     ("mongodb registry store round-trips repositories and runs", TestMongoRegistryStoreRoundTripsRepositoriesAndRuns),
     ("neo4j graph store round-trips graph", TestNeo4jGraphStoreRoundTripsGraph),
@@ -554,6 +555,49 @@ static async Task TestOllamaEmbeddingProviderMapsResponses()
     Equal(3, embeddings[0].Dimensions, "Ollama embedding dimensions changed.");
     Equal("Class", embeddings[0].Metadata["kind"], "Ollama embedding kind metadata changed.");
     Equal("EmbeddedSmoke.cs", embeddings[0].Metadata["filePath"], "Ollama embedding file path metadata changed.");
+}
+
+static async Task TestLmStudioEmbeddingProviderMapsResponses()
+{
+    var handler = new FakeLmStudioEmbeddingHandler();
+    using var http = new HttpClient(handler)
+    {
+        BaseAddress = new Uri("http://lmstudio.test/v1/")
+    };
+    using var provider = new LmStudioEmbeddingProvider(http, "test-embed", batchSize: 2);
+
+    var text = "public sealed class EmbeddedSmoke { }";
+    var hash = CodeMeshHash.Sha256Hex(text);
+    var node = new CodeNode(
+        "csharp:type:CodeMesh.Tests.EmbeddedSmoke",
+        "csharp:type:CodeMesh.Tests.EmbeddedSmoke",
+        CodeNodeKind.Class,
+        "EmbeddedSmoke",
+        "csharp",
+        "CodeMesh.Tests",
+        new SourceSpan("EmbeddedSmoke.cs", 1, 1, 1, 37),
+        hash,
+        new Dictionary<string, string>());
+    var content = new CodeContent(
+        hash,
+        text,
+        "text/x-csharp-fragment",
+        DateTimeOffset.UtcNow,
+        DateTimeOffset.UtcNow);
+
+    var embeddings = await provider.EmbedAsync(
+        [node],
+        new Dictionary<string, CodeContent> { [hash] = content });
+
+    Equal(1, handler.RequestCount, "Expected one LM Studio embedding request.");
+    Equal(1, embeddings.Count, "Expected one embedding record.");
+    Equal("lmstudio", embeddings[0].Provider, "LM Studio provider name changed.");
+    Equal("test-embed", embeddings[0].Model, "LM Studio embedding model changed.");
+    Equal(node.Id, embeddings[0].NodeId, "LM Studio embedding node id changed.");
+    Equal(hash, embeddings[0].ContentHash, "LM Studio embedding content hash changed.");
+    Equal(3, embeddings[0].Dimensions, "LM Studio embedding dimensions changed.");
+    Equal("Class", embeddings[0].Metadata["kind"], "LM Studio embedding kind metadata changed.");
+    Equal("EmbeddedSmoke.cs", embeddings[0].Metadata["filePath"], "LM Studio embedding file path metadata changed.");
 }
 
 static async Task TestMongoContentStoreRoundTripsContent()
@@ -1903,6 +1947,45 @@ sealed class FakeOllamaEmbeddingHandler : HttpMessageHandler
                 {
                   "model": "test-embed",
                   "embeddings": [[0.25, 0.5, 0.75]]
+                }
+                """,
+                System.Text.Encoding.UTF8,
+                "application/json")
+        };
+
+        return Task.FromResult(response);
+    }
+}
+
+sealed class FakeLmStudioEmbeddingHandler : HttpMessageHandler
+{
+    public int RequestCount { get; private set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        RequestCount++;
+
+        if (request.RequestUri?.AbsolutePath != "/v1/embeddings")
+        {
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.NotFound));
+        }
+
+        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """
+                {
+                  "object": "list",
+                  "model": "test-embed",
+                  "data": [
+                    {
+                      "object": "embedding",
+                      "index": 0,
+                      "embedding": [0.125, 0.25, 0.5]
+                    }
+                  ]
                 }
                 """,
                 System.Text.Encoding.UTF8,

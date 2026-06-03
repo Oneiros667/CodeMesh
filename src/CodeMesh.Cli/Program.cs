@@ -339,18 +339,25 @@ static (IEmbeddingProvider Provider, bool SkipEmbeddings) CreateEmbeddingProvide
     if (string.Equals(provider, "none", StringComparison.OrdinalIgnoreCase))
     {
         throw new InvalidOperationException(
-            "Embedding provider 'none' cannot be used when embeddings are included. Supported values: ollama.");
+            "Embedding provider 'none' cannot be used when embeddings are included. Supported values: ollama, lmstudio.");
     }
 
-    return provider.ToLowerInvariant() switch
+    return NormalizeEmbeddingProvider(provider) switch
     {
         "ollama" => (new OllamaEmbeddingProvider(new OllamaEmbeddingProviderOptions(
             ReadOption(args, "--ollama-url") ?? Environment.GetEnvironmentVariable("CODEMESH_OLLAMA_URL") ?? "http://127.0.0.1:11434",
             model,
             BatchSize: ReadIntOption(args, "--embedding-batch-size", 16),
             MaxInputCharacters: ReadIntOption(args, "--embedding-max-chars", 1500))), false),
+        "lmstudio" => (new LmStudioEmbeddingProvider(new LmStudioEmbeddingProviderOptions(
+            ReadAnyOption(args, "--lm-studio-url", "--lmstudio-url")
+                ?? Environment.GetEnvironmentVariable("CODEMESH_LM_STUDIO_URL")
+                ?? "http://127.0.0.1:1234/v1",
+            model,
+            BatchSize: ReadIntOption(args, "--embedding-batch-size", 16),
+            MaxInputCharacters: ReadIntOption(args, "--embedding-max-chars", 1500))), false),
         _ => throw new InvalidOperationException(
-            $"Unsupported embedding provider: {provider}. Supported values: none, ollama.")
+            $"Unsupported embedding provider: {provider}. Supported values: none, ollama, lmstudio.")
     };
 }
 
@@ -363,12 +370,29 @@ static (string Provider, string Model) ResolveEmbeddingTarget(string[] args)
     {
         provider = "ollama";
     }
+    provider = NormalizeEmbeddingProvider(provider);
 
     var model = ReadOption(args, "--embedding-model")
         ?? Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL")
-        ?? "nomic-embed-text:latest";
+        ?? DefaultEmbeddingModel(provider);
 
     return (provider, model);
+}
+
+static string NormalizeEmbeddingProvider(string provider)
+{
+    return provider.Trim().ToLowerInvariant() switch
+    {
+        "lm-studio" or "lm_studio" => "lmstudio",
+        var value => value
+    };
+}
+
+static string DefaultEmbeddingModel(string provider)
+{
+    return NormalizeEmbeddingProvider(provider) == "lmstudio"
+        ? "text-embedding-nomic-embed-text-v1.5"
+        : "nomic-embed-text:latest";
 }
 
 static int ReadIntOption(string[] args, string name, int defaultValue)
@@ -702,7 +726,7 @@ static void PrintHelp()
     Console.WriteLine("  --mongo-repositories-collection <collection> --mongo-ingestion-runs-collection <collection>");
     Console.WriteLine("  --qdrant-url <url> --qdrant-collection <collection>");
     Console.WriteLine("  --parser-url <url>");
-    Console.WriteLine("  --include-embeddings --embedding-provider <none|ollama> --ollama-url <url> --embedding-model <model>");
+    Console.WriteLine("  --include-embeddings --embedding-provider <none|ollama|lmstudio> --ollama-url <url> --lm-studio-url <url> --embedding-model <model>");
     Console.WriteLine("  --embedding-batch-size <count> --embedding-max-chars <count>");
 }
 

@@ -10,6 +10,7 @@ from codemesh_agent_access.models import (
     IngestionRunListResponse,
     IngestionRunSummary,
     RepositorySummary,
+    SymbolQuery,
 )
 from codemesh_agent_access.store import CodeMeshReadStore, _prioritize_context_relationships, _ranked_unique_hits
 
@@ -235,6 +236,30 @@ def test_context_package_accepts_repository_alias() -> None:
     assert package.items[0].hit.repository_id == "repo:test"
 
 
+def test_symbol_search_resolves_alias_and_returns_declaration() -> None:
+    store = FakeReadStore()
+
+    response = asyncio.run(
+        store.search_symbols(
+            SymbolQuery(
+                query="DownloadAsync",
+                repository_id="sample_repo",
+                limit=5,
+                kinds=["Method"],
+            )
+        )
+    )
+
+    assert response.query.repository_id == "repo:test"
+    assert len(response.symbols) == 1
+    symbol = response.symbols[0]
+    assert symbol.node["id"] == "csharp:method:Sample.Downloader.DownloadAsync(System.String)"
+    assert symbol.node["metadata"]["display"] == "Sample.Downloader.DownloadAsync(string)"
+    assert symbol.declaration is not None
+    assert symbol.declaration["kind"] == "Declaration"
+    assert symbol.score > 0
+
+
 class FakeReadStore(CodeMeshReadStore):
     def __init__(self) -> None:
         super().__init__(
@@ -254,6 +279,7 @@ class FakeReadStore(CodeMeshReadStore):
                 qdrant_collection="codemesh-code",
                 model_provider="none",
                 ollama_url="http://unused",
+                lm_studio_url="http://unused/v1",
                 embedding_model="nomic-embed-text:latest",
             )
         )
@@ -276,6 +302,10 @@ class FakeReadStore(CodeMeshReadStore):
             "Method",
             "DownloadAsync",
             "method-symbol",
+        )
+        self.method_symbol["metadataJson"] = (
+            '{"nodeRole":"symbol","display":"Sample.Downloader.DownloadAsync(string)",'
+            '"namespace":"Sample","containingType":"Sample.Downloader"}'
         )
         self.method_declaration = _node(
             "csharp:decl:csharp:method:Sample.Downloader.DownloadAsync(System.String):Downloader.cs:10:5",
@@ -301,6 +331,13 @@ class FakeReadStore(CodeMeshReadStore):
                 "preview": "string url",
             }
         ]
+
+    async def _search_symbol_nodes(self, query: SymbolQuery) -> list[dict[str, object]]:
+        nodes = [self.method_symbol, self.parameter_symbol]
+        kinds = {kind.casefold() for kind in query.kinds}
+        if kinds:
+            nodes = [node for node in nodes if str(node["kind"]).casefold() in kinds]
+        return nodes
 
     async def _get_node_properties(
         self,

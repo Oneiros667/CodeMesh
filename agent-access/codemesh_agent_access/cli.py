@@ -46,6 +46,13 @@ def main() -> None:
     package_parser.add_argument("--uses-type-limit", type=int)
     package_parser.add_argument("--output", choices=["json", "agent"], default="json")
 
+    symbols_parser = subcommands.add_parser("symbols", help="Search indexed CodeMesh symbols.")
+    symbols_parser.add_argument("query")
+    symbols_parser.add_argument("--repository-id")
+    symbols_parser.add_argument("--limit", type=int, default=20)
+    symbols_parser.add_argument("--kind", action="append", default=[])
+    symbols_parser.add_argument("--no-declarations", action="store_true")
+
     node_parser = subcommands.add_parser("get-node", help="Fetch a stored CodeMesh node.")
     node_parser.add_argument("node_id")
     node_parser.add_argument("--repository-id")
@@ -123,6 +130,19 @@ def main() -> None:
         if args.output == "agent":
             print(format_context_package_for_agent(result.data))
             return
+        print(json.dumps(result.model_dump(mode="json"), indent=2))
+        return
+
+    if args.command == "symbols":
+        result = asyncio.run(
+            tools.search_symbols(
+                args.query,
+                repository_id=args.repository_id,
+                limit=args.limit,
+                kinds=args.kind,
+                include_declarations=not args.no_declarations,
+            )
+        )
         print(json.dumps(result.model_dump(mode="json"), indent=2))
         return
 

@@ -14,6 +14,8 @@ from .models import (
     NodeResponse,
     RepositoryListResponse,
     RepositorySummary,
+    SymbolQuery,
+    SymbolSearchResponse,
 )
 from .store import CodeMeshReadStore
 from .dependencies import get_store
@@ -49,6 +51,14 @@ async def get_context_package(
     store: CodeMeshReadStore = Depends(get_store),
 ) -> ContextPackageResponse:
     return await store.get_context_package(query)
+
+
+@app.post("/symbols/search", response_model=SymbolSearchResponse)
+async def search_symbols(
+    query: SymbolQuery,
+    store: CodeMeshReadStore = Depends(get_store),
+) -> SymbolSearchResponse:
+    return await store.search_symbols(query)
 
 
 @app.post("/nodes/get", response_model=NodeResponse)

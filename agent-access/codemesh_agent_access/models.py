@@ -88,6 +88,28 @@ class ContextPackageResponse(BaseModel):
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class SymbolQuery(BaseModel):
+    query: str
+    repository_id: str | None = None
+    limit: int = 20
+    kinds: list[str] = Field(default_factory=list)
+    filters: dict[str, str] = Field(default_factory=dict)
+    include_declarations: bool = True
+
+
+class SymbolSearchHit(BaseModel):
+    node: dict[str, Any]
+    declaration: dict[str, Any] | None = None
+    score: float
+    score_components: dict[str, float] = Field(default_factory=dict)
+
+
+class SymbolSearchResponse(BaseModel):
+    query: SymbolQuery
+    symbols: list[SymbolSearchHit] = Field(default_factory=list)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class NodeLookup(BaseModel):
     node_id: str
     repository_id: str | None = None
