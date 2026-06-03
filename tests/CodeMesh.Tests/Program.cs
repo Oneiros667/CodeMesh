@@ -1532,7 +1532,7 @@ static async Task TestCSharpParserHonorsProjectCompileItems()
 static async Task TestYoutubeDownloaderSampleParser()
 {
     var sampleRoot = Environment.GetEnvironmentVariable("CODEMESH_SAMPLE_CSHARP_ROOT")
-        ?? @"C:\Users\developer\source\repos\YoutubeDownloader";
+        ?? @"D:\source\repos\YoutubeDownloader";
     var solutionPath = Environment.GetEnvironmentVariable("CODEMESH_SAMPLE_CSHARP_SOLUTION")
         ?? Path.Combine(sampleRoot, "YoutubeDownloader.slnx");
 

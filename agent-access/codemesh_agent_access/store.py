@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import asyncio
 import json
-from datetime import datetime, timezone
 from typing import Any
 
-import httpx
-
 from .config import Settings
+from .content_store import MongoContentStore, PyMongoError
+from .embeddings import QueryEmbeddingProvider
+from .graph_store import Neo4jGraphStore
 from .models import (
     ContextHit,
     ContextPackageItem,
@@ -17,7 +16,6 @@ from .models import (
     ContextResponse,
     HealthResponse,
     IngestionRunListResponse,
-    IngestionRunSummary,
     NeighborQuery,
     NodeLookup,
     NodeResponse,
@@ -27,18 +25,7 @@ from .models import (
     SymbolSearchHit,
     SymbolSearchResponse,
 )
-
-try:
-    from neo4j import AsyncGraphDatabase
-except ImportError:  # pragma: no cover - exercised only when dependencies are missing
-    AsyncGraphDatabase = None  # type: ignore[assignment]
-
-try:
-    from pymongo import MongoClient
-    from pymongo.errors import PyMongoError
-except ImportError:  # pragma: no cover - exercised only when dependencies are missing
-    MongoClient = None  # type: ignore[assignment]
-    PyMongoError = Exception  # type: ignore[assignment]
+from .vector_store import QdrantSearchClient
 
 
 _PREFERRED_CONTEXT_KINDS = {
@@ -107,15 +94,17 @@ class CodeMeshReadStore:
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._neo4j_driver: Any | None = None
-        self._mongo_client: Any | None = None
+        self._content = MongoContentStore(settings)
+        self._embeddings = QueryEmbeddingProvider(settings)
+        self._graph = Neo4jGraphStore(settings)
+        self._vectors = QdrantSearchClient(settings)
 
     async def health(self) -> HealthResponse:
         components = {
-            "neo4j": await self._neo4j_health(),
-            "mongodb": await self._mongo_health(),
-            "qdrant": await self._qdrant_health(),
-            "model_provider": await self._model_provider_health(),
+            "neo4j": await self._graph.health(),
+            "mongodb": await self._content.health(),
+            "qdrant": await self._vectors.health(),
+            "model_provider": await self._embeddings.health(),
         }
         status = "healthy" if all(_component_ok(value) for value in components.values()) else "degraded"
         return HealthResponse(status=status, components=components)
@@ -123,8 +112,8 @@ class CodeMeshReadStore:
     async def search_context(self, query: ContextQuery) -> ContextResponse:
         query = await self._resolve_context_query_repository(query)
         vector = query.vector
-        if not vector and _model_provider(self._settings.model_provider) in {"ollama", "lmstudio"} and query.query.strip():
-            vector = await self._embed_query(query.query)
+        if not vector and self._embeddings.is_enabled and query.query.strip():
+            vector = await self._embeddings.embed_query(query.query)
 
         hits = await self._search_vector_context(query, vector) if vector else []
         if not hits:
@@ -288,52 +277,17 @@ class CodeMeshReadStore:
         return NodeResponse(relationships=relationships)
 
     async def list_repositories(self, limit: int = 50) -> RepositoryListResponse:
-        if MongoClient is None:
-            return RepositoryListResponse()
-
-        collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_repositories_collection]
-        documents = await asyncio.to_thread(
-            lambda: list(
-                collection.find({})
-                .sort("lastSeenAtUtc", -1)
-                .limit(max(1, min(limit, 500)))
-            )
-        )
-
-        return RepositoryListResponse(
-            repositories=[_normalize_repository(document) for document in documents]
-        )
+        return await self._content.list_repositories(limit)
 
     async def get_repository(self, repository_id: str) -> RepositorySummary | None:
-        if MongoClient is None:
-            return None
-
-        collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_repositories_collection]
-        document = await asyncio.to_thread(self._find_repository_document, collection, repository_id)
-        return _normalize_repository(document) if document else None
+        return await self._content.get_repository(repository_id)
 
     async def list_ingestion_runs(
         self,
         repository_id: str | None = None,
         limit: int = 50,
     ) -> IngestionRunListResponse:
-        if MongoClient is None:
-            return IngestionRunListResponse()
-
-        repository_id = await self._resolve_repository_id(repository_id)
-        filter_query = {"repositoryId": repository_id} if repository_id else {}
-        collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_ingestion_runs_collection]
-        documents = await asyncio.to_thread(
-            lambda: list(
-                collection.find(filter_query)
-                .sort("startedAtUtc", -1)
-                .limit(max(1, min(limit, 500)))
-            )
-        )
-
-        return IngestionRunListResponse(
-            runs=[_normalize_ingestion_run(document) for document in documents]
-        )
+        return await self._content.list_ingestion_runs(repository_id, limit)
 
     async def _resolve_context_query_repository(self, query: ContextQuery) -> ContextQuery:
         repository_id = await self._resolve_repository_id(query.repository_id)
@@ -366,203 +320,17 @@ class CodeMeshReadStore:
 
         return repository.repository_id if repository else repository_id
 
-    def _find_repository_document(self, collection: Any, repository_id: str) -> dict[str, Any] | None:
-        exact = collection.find_one({"_id": repository_id})
-        if exact is not None:
-            return exact
-
-        aliases = sorted({repository_id, _repository_alias(repository_id)})
-        documents = list(
-            collection.find(
-                {
-                    "$or": [
-                        {"alias": {"$in": aliases}},
-                        {"metadata.alias": {"$in": aliases}},
-                    ]
-                }
-            ).limit(3)
-        )
-        by_repository_id = {
-            str(document.get("_id") or document.get("repositoryId") or ""): document
-            for document in documents
-        }
-        if len(by_repository_id) > 1:
-            raise RuntimeError(f"Repository alias '{repository_id}' matches multiple repositories.")
-
-        return next(iter(by_repository_id.values()), None)
-
-    async def _neo4j_health(self) -> dict[str, Any]:
-        if AsyncGraphDatabase is None:
-            return {
-                "uri": self._settings.neo4j_uri,
-                "database": self._settings.neo4j_database,
-                "status": "degraded",
-                "detail": "The neo4j Python package is not installed.",
-            }
-
-        try:
-            driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
-                result = await session.run("RETURN 1 AS ok")
-                await result.consume()
-
-            return {
-                "uri": self._settings.neo4j_uri,
-                "database": self._settings.neo4j_database,
-                "status": "healthy",
-            }
-        except Exception as exc:  # pragma: no cover - depends on local store state
-            return {
-                "uri": self._settings.neo4j_uri,
-                "database": self._settings.neo4j_database,
-                "status": "degraded",
-                "detail": str(exc),
-            }
-
-    async def _mongo_health(self) -> dict[str, Any]:
-        if MongoClient is None:
-            return {
-                "uri": self._settings.mongo_uri,
-                "database": self._settings.mongo_database,
-                "collection": self._settings.mongo_content_collection,
-                "status": "degraded",
-                "detail": "The pymongo package is not installed.",
-            }
-
-        try:
-            await asyncio.to_thread(self._mongo().admin.command, "ping")
-            return {
-                "uri": self._settings.mongo_uri,
-                "database": self._settings.mongo_database,
-                "collection": self._settings.mongo_content_collection,
-                "status": "healthy",
-            }
-        except PyMongoError as exc:  # pragma: no cover - depends on local store state
-            return {
-                "uri": self._settings.mongo_uri,
-                "database": self._settings.mongo_database,
-                "collection": self._settings.mongo_content_collection,
-                "status": "degraded",
-                "detail": str(exc),
-            }
-
-    async def _qdrant_health(self) -> dict[str, Any]:
-        try:
-            async with httpx.AsyncClient(timeout=2.0) as client:
-                response = await client.get(f"{self._qdrant_url()}/collections")
-                response.raise_for_status()
-
-            return {
-                "url": self._settings.qdrant_url,
-                "collection": self._settings.qdrant_collection,
-                "status": "healthy",
-            }
-        except httpx.HTTPError as exc:  # pragma: no cover - depends on local store state
-            return {
-                "url": self._settings.qdrant_url,
-                "collection": self._settings.qdrant_collection,
-                "status": "degraded",
-                "detail": str(exc),
-            }
-
-    async def _model_provider_health(self) -> dict[str, Any]:
-        provider = _model_provider(self._settings.model_provider)
-        if provider == "none":
-            return {"provider": "none", "status": "configured"}
-
-        if provider not in {"ollama", "lmstudio"}:
-            return {
-                "provider": self._settings.model_provider,
-                "status": "degraded",
-                "detail": "Unsupported model provider for Agent Access embeddings.",
-            }
-
-        try:
-            async with httpx.AsyncClient(timeout=2.0) as client:
-                response = await client.get(self._model_provider_health_url(provider))
-                response.raise_for_status()
-
-            return {
-                "provider": provider,
-                "url": self._model_provider_base_url(provider),
-                "embedding_model": self._settings.embedding_model,
-                "status": "healthy",
-            }
-        except httpx.HTTPError as exc:  # pragma: no cover - depends on local model service state
-            return {
-                "provider": provider,
-                "url": self._model_provider_base_url(provider),
-                "embedding_model": self._settings.embedding_model,
-                "status": "degraded",
-                "detail": str(exc),
-            }
-
     async def _get_node_properties(self, node_id: str, repository_id: str | None = None) -> dict[str, Any] | None:
-        if AsyncGraphDatabase is None:
-            return None
-
-        try:
-            driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
-                if repository_id:
-                    result = await session.run(
-                        "MATCH (n:CodeMeshNode {storageKey: $storage_key}) RETURN properties(n) AS node LIMIT 1",
-                        storage_key=_storage_key(repository_id, node_id),
-                    )
-                else:
-                    result = await session.run(
-                        """
-                        MATCH (n:CodeMeshNode {id: $node_id})
-                        RETURN properties(n) AS node
-                        ORDER BY n.lastSeenAt DESC
-                        LIMIT 1
-                        """,
-                        node_id=node_id,
-                    )
-                record = await result.single()
-
-            return dict(record["node"]) if record else None
-        except Exception:
-            return None
+        return await self._graph.get_node_properties(node_id, repository_id)
 
     async def _search_symbol_nodes(self, query: SymbolQuery) -> list[dict[str, Any]]:
-        if AsyncGraphDatabase is None:
-            return []
-
         search_text = query.query.casefold()
         kinds = _symbol_kind_filter(query.kinds)
         if not kinds:
             return []
 
         limit = min(max(query.limit * 4, 24), 300)
-        try:
-            driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
-                result = await session.run(
-                    """
-                    MATCH (n:CodeMeshNode)
-                    WHERE
-                        toLower(coalesce(n.kind, "")) IN $kinds
-                        AND ($repository_id IS NULL OR n.repositoryId = $repository_id)
-                        AND ($search_text = "" OR
-                             toLower(coalesce(n.id, "")) CONTAINS $search_text OR
-                             toLower(coalesce(n.stableKey, "")) CONTAINS $search_text OR
-                             toLower(coalesce(n.name, "")) CONTAINS $search_text OR
-                             toLower(coalesce(n.filePath, "")) CONTAINS $search_text OR
-                             toLower(coalesce(n.metadataJson, "")) CONTAINS $search_text)
-                    RETURN properties(n) AS node
-                    LIMIT $limit
-                    """,
-                    search_text=search_text,
-                    kinds=kinds,
-                    repository_id=query.repository_id,
-                    limit=limit,
-                )
-                records = await result.data()
-        except Exception:
-            return []
-
-        return [dict(record["node"]) for record in records]
+        return await self._graph.search_symbol_nodes(search_text, kinds, query.repository_id, limit)
 
     async def _get_relationships(
         self,
@@ -571,37 +339,9 @@ class CodeMeshReadStore:
         depth: int = 1,
         relationship_kinds: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        if AsyncGraphDatabase is None:
-            return []
-
-        clamped_depth = min(max(depth, 1), 4)
-        if repository_id:
-            query = f"""
-            MATCH path = (:CodeMeshNode {{storageKey: $storage_key}})-[rels:CODEMESH_REL*1..{clamped_depth}]-()
-            UNWIND rels AS relationship
-            RETURN DISTINCT properties(relationship) AS relationship
-            ORDER BY relationship.id
-            """
-            parameters = {"storage_key": _storage_key(repository_id, node_id)}
-        else:
-            query = f"""
-            MATCH path = (:CodeMeshNode {{id: $node_id}})-[rels:CODEMESH_REL*1..{clamped_depth}]-()
-            UNWIND rels AS relationship
-            RETURN DISTINCT properties(relationship) AS relationship
-            ORDER BY relationship.id
-            """
-            parameters = {"node_id": node_id}
-
-        try:
-            driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
-                result = await session.run(query, **parameters)
-                records = await result.data()
-        except Exception:
-            return []
-
         kinds = {kind.casefold() for kind in relationship_kinds or []}
-        relationships = [_normalize_relationship(dict(record["relationship"])) for record in records]
+        records = await self._graph.get_relationship_properties(node_id, repository_id, depth)
+        relationships = [_normalize_relationship(record) for record in records]
         if not kinds:
             return relationships
 
@@ -613,92 +353,21 @@ class CodeMeshReadStore:
         repository_id: str | None = None,
         depth: int = 4,
     ) -> list[dict[str, Any]]:
-        if AsyncGraphDatabase is None:
-            return []
-
-        clamped_depth = min(max(depth, 1), 6)
-        if repository_id:
-            start_match = "MATCH (start:CodeMeshNode {storageKey: $storage_key})"
-            parameters = {"storage_key": _storage_key(repository_id, node_id)}
-        else:
-            start_match = "MATCH (start:CodeMeshNode {id: $node_id})"
-            parameters = {"node_id": node_id}
-
-        query = f"""
-        {start_match}
-        CALL (start) {{
-          MATCH (start)-[relationship:CODEMESH_REL]->(defined:CodeMeshNode)
-          WHERE relationship.kind = 'Defines'
-          RETURN properties(defined) AS node, 0 AS distance, 'defines' AS reason
-          UNION
-          MATCH path = (ancestor:CodeMeshNode)-[relationships:CODEMESH_REL*1..{clamped_depth}]->(start)
-          WHERE all(relationship IN relationships WHERE relationship.kind = 'Contains')
-          RETURN properties(ancestor) AS node, length(path) AS distance, 'ancestor' AS reason
-          UNION
-          MATCH (start)-[defines:CODEMESH_REL]->(defined:CodeMeshNode)
-          WHERE defines.kind = 'Defines'
-          MATCH path = (ancestor:CodeMeshNode)-[relationships:CODEMESH_REL*1..{clamped_depth}]->(defined)
-          WHERE all(relationship IN relationships WHERE relationship.kind = 'Contains')
-          RETURN properties(ancestor) AS node, length(path) AS distance, 'defined_ancestor' AS reason
-        }}
-        RETURN node, distance, reason
-        """
-
-        try:
-            driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
-                result = await session.run(query, **parameters)
-                records = await result.data()
-        except Exception:
-            return []
-
-        return [
-            {
-                "node": dict(record["node"]),
-                "distance": _int(record.get("distance")),
-                "reason": str(record.get("reason") or "context"),
-            }
-            for record in records
-            if record.get("node")
-        ]
+        return await self._graph.get_context_candidates(node_id, repository_id, depth)
 
     async def _get_primary_declaration_node(
         self,
         node: dict[str, Any],
         repository_id: str | None = None,
     ) -> dict[str, Any] | None:
-        if AsyncGraphDatabase is None or _kind(node) not in _DECLARABLE_SYMBOL_KINDS:
+        if _kind(node) not in _DECLARABLE_SYMBOL_KINDS:
             return None
 
         node_id = str(node.get("id") or "")
         if not node_id:
             return None
 
-        if repository_id:
-            symbol_match = "MATCH (symbol:CodeMeshNode {storageKey: $storage_key})"
-            parameters = {"storage_key": _storage_key(repository_id, node_id)}
-        else:
-            symbol_match = "MATCH (symbol:CodeMeshNode {id: $node_id})"
-            parameters = {"node_id": node_id}
-
-        query = f"""
-        {symbol_match}
-        MATCH (declaration:CodeMeshNode)-[relationship:CODEMESH_REL]->(symbol)
-        WHERE relationship.kind = 'Defines' AND declaration.kind = 'Declaration'
-        RETURN properties(declaration) AS node
-        ORDER BY declaration.startLine
-        LIMIT 1
-        """
-
-        try:
-            driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
-                result = await session.run(query, **parameters)
-                record = await result.single()
-        except Exception:
-            return None
-
-        return dict(record["node"]) if record else None
+        return await self._graph.get_primary_declaration_node(node_id, repository_id)
 
     async def _get_context_relationship_summaries(
         self,
@@ -707,51 +376,12 @@ class CodeMeshReadStore:
         limit: int = 8,
         group_limits: dict[str, int] | None = None,
     ) -> list[dict[str, Any]]:
-        if AsyncGraphDatabase is None or limit <= 0:
+        if limit <= 0:
             return []
 
         clamped_limit = min(max(limit, 1), 50)
         selection_limit = min(max(clamped_limit * 8, 80), 500)
-        if repository_id:
-            node_match = "MATCH (node:CodeMeshNode {storageKey: $storage_key})"
-            parameters = {
-                "storage_key": _storage_key(repository_id, node_id),
-                "node_id": node_id,
-                "limit": selection_limit,
-            }
-        else:
-            node_match = "MATCH (node:CodeMeshNode {id: $node_id})"
-            parameters = {"node_id": node_id, "limit": selection_limit}
-
-        query = f"""
-        {node_match}
-        MATCH (node)-[relationship:CODEMESH_REL]-(other:CodeMeshNode)
-        RETURN properties(relationship) AS relationship, properties(other) AS other
-        ORDER BY
-          CASE
-            WHEN relationship.kind = 'Defines' THEN 0
-            WHEN relationship.kind = 'Contains' AND relationship.targetNodeId = $node_id THEN 1
-            WHEN relationship.kind = 'Invokes' AND relationship.targetNodeId = $node_id THEN 2
-            WHEN relationship.kind = 'Invokes' AND relationship.sourceNodeId = $node_id THEN 3
-            WHEN relationship.kind = 'Writes' THEN 4
-            WHEN relationship.kind = 'Reads' THEN 5
-            WHEN relationship.kind = 'UsesType' THEN 6
-            WHEN relationship.kind = 'Returns' THEN 7
-            WHEN relationship.kind IN ['Inherits', 'Implements', 'Overrides'] THEN 8
-            WHEN relationship.kind = 'Contains' THEN 9
-            ELSE 50
-          END,
-          coalesce(other.name, other.id, '')
-        LIMIT $limit
-        """
-
-        try:
-            driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
-                result = await session.run(query, **parameters)
-                records = await result.data()
-        except Exception:
-            return []
+        records = await self._graph.get_context_relationship_records(node_id, repository_id, selection_limit)
 
         summaries = []
         for record in records:
@@ -773,20 +403,7 @@ class CodeMeshReadStore:
         return _prioritize_context_relationships(summaries, clamped_limit, group_limits)
 
     async def _get_content(self, content_hash: str) -> dict[str, Any] | None:
-        if not content_hash or MongoClient is None:
-            return None
-
-        def find_one() -> dict[str, Any] | None:
-            collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_content_collection]
-            document = collection.find_one({"_id": content_hash})
-            return dict(document) if document else None
-
-        try:
-            document = await asyncio.to_thread(find_one)
-        except PyMongoError:
-            return None
-
-        return _normalize_content(document) if document else None
+        return await self._content.get_content(content_hash)
 
     async def _select_context_node(
         self,
@@ -884,41 +501,12 @@ class CodeMeshReadStore:
         )
 
     async def _search_lexical_context(self, query: ContextQuery) -> list[ContextHit]:
-        if AsyncGraphDatabase is None:
-            return []
-
         search_text = query.query.casefold()
         kinds = [kind.casefold() for kind in query.kinds]
         limit = min(max(query.limit * 4, 16), 200)
         repository_id = query.repository_id
 
-        try:
-            driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
-                result = await session.run(
-                    """
-                    MATCH (n:CodeMeshNode)
-                    WHERE
-                        ($search_text = "" OR
-                         toLower(coalesce(n.id, "")) CONTAINS $search_text OR
-                         toLower(coalesce(n.stableKey, "")) CONTAINS $search_text OR
-                         toLower(coalesce(n.name, "")) CONTAINS $search_text OR
-                         toLower(coalesce(n.filePath, "")) CONTAINS $search_text)
-                        AND (size($kinds) = 0 OR toLower(coalesce(n.kind, "")) IN $kinds)
-                        AND ($repository_id IS NULL OR n.repositoryId = $repository_id)
-                    RETURN properties(n) AS node
-                    LIMIT $limit
-                    """,
-                    search_text=search_text,
-                    kinds=kinds,
-                    repository_id=repository_id,
-                    limit=limit,
-                )
-                records = await result.data()
-        except Exception:
-            return []
-
-        nodes = [dict(record["node"]) for record in records]
+        nodes = await self._graph.search_context_nodes(search_text, kinds, repository_id, limit)
         nodes = [
             node for node in nodes
             if _matches_filters(node, query.filters) and _matches_repository(node, query.repository_id)
@@ -943,7 +531,7 @@ class CodeMeshReadStore:
         return hits
 
     async def _search_vector_context(self, query: ContextQuery, vector: list[float]) -> list[ContextHit]:
-        qdrant_hits = await self._search_qdrant(vector, _candidate_limit(query.limit), _effective_filters(query))
+        qdrant_hits = await self._vectors.search(vector, _candidate_limit(query.limit), _effective_filters(query))
         hits: list[ContextHit] = []
 
         for item in qdrant_hits:
@@ -981,163 +569,9 @@ class CodeMeshReadStore:
 
         return hits
 
-    async def _search_qdrant(
-        self,
-        vector: list[float],
-        limit: int,
-        filters: dict[str, str],
-    ) -> list[dict[str, Any]]:
-        if not vector or limit <= 0:
-            return []
-
-        body: dict[str, Any] = {
-            "vector": vector,
-            "limit": limit,
-            "with_payload": True,
-        }
-        qdrant_filter = _qdrant_filter(filters)
-        if qdrant_filter:
-            body["filter"] = qdrant_filter
-
-        try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.post(
-                    f"{self._qdrant_url()}/collections/{self._settings.qdrant_collection}/points/search",
-                    json=body,
-                )
-                if response.status_code == 404:
-                    return []
-                response.raise_for_status()
-                payload = response.json()
-        except httpx.HTTPError:
-            return []
-
-        return [
-            {
-                "nodeId": hit.get("payload", {}).get("nodeId", ""),
-                "contentHash": hit.get("payload", {}).get("contentHash", ""),
-                "repositoryId": hit.get("payload", {}).get("repositoryId", ""),
-                "storageKey": hit.get("payload", {}).get("storageKey", ""),
-                "preview": hit.get("payload", {}).get("preview"),
-                "score": hit.get("score", 0),
-            }
-            for hit in payload.get("result", [])
-        ]
-
-    async def _embed_query(self, query: str) -> list[float]:
-        provider = _model_provider(self._settings.model_provider)
-        if provider == "lmstudio":
-            return await self._embed_query_lmstudio(query)
-
-        body = {
-            "model": self._settings.embedding_model,
-            "input": [query],
-        }
-
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(f"{self._ollama_url()}/api/embed", json=body)
-                if response.status_code in {404, 405}:
-                    return await self._embed_query_legacy(query, client)
-                response.raise_for_status()
-                payload = response.json()
-        except httpx.HTTPError:
-            return []
-
-        embeddings = payload.get("embeddings") or []
-        if not embeddings:
-            return []
-
-        return [float(value) for value in embeddings[0]]
-
-    async def _embed_query_lmstudio(self, query: str) -> list[float]:
-        body = {
-            "model": self._settings.embedding_model,
-            "input": [query],
-        }
-
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(f"{self._lm_studio_url()}/embeddings", json=body)
-                response.raise_for_status()
-                payload = response.json()
-        except httpx.HTTPError:
-            return []
-
-        data = payload.get("data") or []
-        if not data:
-            return []
-
-        first = min(data, key=lambda item: int(item.get("index") or 0))
-        return [float(value) for value in first.get("embedding") or []]
-
-    async def _embed_query_legacy(self, query: str, client: httpx.AsyncClient) -> list[float]:
-        try:
-            response = await client.post(
-                f"{self._ollama_url()}/api/embeddings",
-                json={"model": self._settings.embedding_model, "prompt": query},
-            )
-            response.raise_for_status()
-            payload = response.json()
-        except httpx.HTTPError:
-            return []
-
-        return [float(value) for value in payload.get("embedding") or []]
-
-    def _neo4j(self) -> Any:
-        if AsyncGraphDatabase is None:
-            raise RuntimeError("The neo4j Python package is not installed.")
-
-        if self._neo4j_driver is None:
-            self._neo4j_driver = AsyncGraphDatabase.driver(
-                self._settings.neo4j_uri,
-                auth=(self._settings.neo4j_user, self._settings.neo4j_password),
-            )
-
-        return self._neo4j_driver
-
-    def _mongo(self) -> Any:
-        if MongoClient is None:
-            raise RuntimeError("The pymongo package is not installed.")
-
-        if self._mongo_client is None:
-            self._mongo_client = MongoClient(self._settings.mongo_uri, serverSelectionTimeoutMS=2000)
-
-        return self._mongo_client
-
-    def _qdrant_url(self) -> str:
-        return self._settings.qdrant_url.rstrip("/")
-
-    def _ollama_url(self) -> str:
-        return self._settings.ollama_url.rstrip("/")
-
-    def _lm_studio_url(self) -> str:
-        return self._settings.lm_studio_url.rstrip("/")
-
-    def _model_provider_base_url(self, provider: str) -> str:
-        return self._lm_studio_url() if provider == "lmstudio" else self._ollama_url()
-
-    def _model_provider_health_url(self, provider: str) -> str:
-        if provider == "lmstudio":
-            return f"{self._lm_studio_url()}/models"
-
-        return f"{self._ollama_url()}/api/tags"
-
 
 def _component_ok(component: Any) -> bool:
     return isinstance(component, dict) and component.get("status") in {"healthy", "configured"}
-
-
-def _model_provider(provider: str) -> str:
-    value = provider.casefold().strip()
-    if value in {"lm-studio", "lm_studio"}:
-        return "lmstudio"
-
-    return value
-
-
-def _storage_key(repository_id: str, node_id: str) -> str:
-    return f"{repository_id}:{node_id}"
 
 
 def _normalize_node(node: dict[str, Any]) -> dict[str, Any]:
@@ -1174,16 +608,6 @@ def _normalize_relationship(relationship: dict[str, Any]) -> dict[str, Any]:
         "kind": str(relationship.get("kind") or ""),
         "label": relationship.get("label"),
         "metadata": _metadata(relationship.get("metadataJson")),
-    }
-
-
-def _normalize_content(document: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "hash": str(document.get("_id") or document.get("hash") or ""),
-        "text": str(document.get("text") or ""),
-        "media_type": str(document.get("mediaType") or ""),
-        "created_at": _datetime_value(document.get("createdAtUtc")),
-        "updated_at": _datetime_value(document.get("updatedAtUtc")),
     }
 
 
@@ -1351,76 +775,6 @@ def _trim_text(text: str, max_characters: int) -> str:
         return text[:max_characters]
 
     return f"{text[: max_characters - len(suffix)].rstrip()}{suffix}"
-
-
-def _normalize_repository(document: dict[str, Any]) -> RepositorySummary:
-    metadata = _string_dict(document.get("metadata"))
-    return RepositorySummary(
-        repository_id=str(document.get("_id") or document.get("repositoryId") or ""),
-        alias=_optional_str(document.get("alias")) or metadata.get("alias"),
-        root_path=str(document.get("rootPath") or ""),
-        remote_url=_optional_str(document.get("remoteUrl")),
-        branch=_optional_str(document.get("branch")),
-        commit=_optional_str(document.get("commit")),
-        first_seen_at=_datetime_value(document.get("firstSeenAtUtc")),
-        last_seen_at=_datetime_value(document.get("lastSeenAtUtc")),
-        last_run_id=_optional_str(document.get("lastRunId")),
-        last_stage=_optional_str(document.get("lastStage")),
-        last_message=_optional_str(document.get("lastMessage")),
-        node_count=_int(document.get("nodeCount")),
-        relationship_count=_int(document.get("relationshipCount")),
-        content_count=_int(document.get("contentCount")),
-        embedding_count=_optional_int(document.get("embeddingCount")),
-        metadata=metadata,
-    )
-
-
-def _normalize_ingestion_run(document: dict[str, Any]) -> IngestionRunSummary:
-    return IngestionRunSummary(
-        run_id=str(document.get("_id") or document.get("runId") or ""),
-        repository_id=str(document.get("repositoryId") or ""),
-        repository_root=str(document.get("repositoryRoot") or ""),
-        stage=str(document.get("stage") or ""),
-        started_at=_datetime_value(document.get("startedAtUtc")),
-        finished_at=_datetime_value(document.get("finishedAtUtc")),
-        message=_optional_str(document.get("message")),
-        language=str(document.get("language") or ""),
-        parser_name=str(document.get("parserName") or ""),
-        solution_path=_optional_str(document.get("solutionPath")),
-        project_path=_optional_str(document.get("projectPath")),
-        dry_run=bool(document.get("dryRun") or False),
-        skip_embeddings=bool(document.get("skipEmbeddings") if document.get("skipEmbeddings") is not None else True),
-        embedding_provider=str(document.get("embeddingProvider") or ""),
-        embedding_model=str(document.get("embeddingModel") or ""),
-        node_count=_int(document.get("nodeCount")),
-        relationship_count=_int(document.get("relationshipCount")),
-        content_count=_int(document.get("contentCount")),
-        embedding_count=_int(document.get("embeddingCount")),
-        stats=_normalize_stats(document.get("stats")),
-        diagnostic_count=_int(document.get("diagnosticCount")),
-        error_diagnostic_count=_int(document.get("errorDiagnosticCount")),
-        warning_diagnostic_count=_int(document.get("warningDiagnosticCount")),
-        metadata=_string_dict(document.get("metadata")),
-    )
-
-
-def _normalize_stats(value: Any) -> dict[str, Any] | None:
-    if not isinstance(value, dict):
-        return None
-
-    return {
-        "parsed_node_count": _int(value.get("ParsedNodeCount") or value.get("parsedNodeCount")),
-        "written_node_count": _int(value.get("WrittenNodeCount") or value.get("writtenNodeCount")),
-        "skipped_node_count": _int(value.get("SkippedNodeCount") or value.get("skippedNodeCount")),
-        "parsed_relationship_count": _int(value.get("ParsedRelationshipCount") or value.get("parsedRelationshipCount")),
-        "written_relationship_count": _int(value.get("WrittenRelationshipCount") or value.get("writtenRelationshipCount")),
-        "skipped_relationship_count": _int(value.get("SkippedRelationshipCount") or value.get("skippedRelationshipCount")),
-        "parsed_content_count": _int(value.get("ParsedContentCount") or value.get("parsedContentCount")),
-        "written_content_count": _int(value.get("WrittenContentCount") or value.get("writtenContentCount")),
-        "skipped_content_count": _int(value.get("SkippedContentCount") or value.get("skippedContentCount")),
-        "written_embedding_count": _int(value.get("WrittenEmbeddingCount") or value.get("writtenEmbeddingCount")),
-        "skipped_embedding_count": _int(value.get("SkippedEmbeddingCount") or value.get("skippedEmbeddingCount")),
-    }
 
 
 def _context_ref(node: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -1599,21 +953,6 @@ def _effective_filters(query: ContextQuery) -> dict[str, str]:
     return filters
 
 
-def _qdrant_filter(filters: dict[str, str]) -> dict[str, Any] | None:
-    if not filters:
-        return None
-
-    return {
-        "must": [
-            {
-                "key": key,
-                "match": {"value": value},
-            }
-            for key, value in filters.items()
-        ]
-    }
-
-
 def _lexical_score(node: dict[str, Any], search_text: str) -> float:
     if not search_text:
         return 0.5
@@ -1699,77 +1038,6 @@ def _preview(text: str, limit: int = 180) -> str | None:
     if not compact:
         return None
     return compact[:limit]
-
-
-def _datetime_value(value: Any) -> str | None:
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        return value.isoformat()
-    return str(value)
-
-
-def _optional_str(value: Any) -> str | None:
-    if value is None:
-        return None
-
-    text = str(value)
-    return text if text else None
-
-
-def _optional_int(value: Any) -> int | None:
-    if value is None:
-        return None
-
-    return _int(value)
-
-
-def _repository_alias(value: str) -> str:
-    text = str(value or "").strip()
-    if not text:
-        return "repository"
-
-    parts: list[str] = []
-    previous_was_separator = True
-    for index, character in enumerate(text):
-        if not character.isalnum():
-            if not previous_was_separator and parts:
-                parts.append("_")
-            previous_was_separator = True
-            continue
-
-        if _should_split_alias_word(text, index) and not previous_was_separator:
-            parts.append("_")
-
-        parts.append(character.lower())
-        previous_was_separator = False
-
-    alias = "".join(parts).strip("_")
-    return alias or "repository"
-
-
-def _should_split_alias_word(value: str, index: int) -> bool:
-    character = value[index]
-    if not character.isupper() or index == 0:
-        return False
-
-    previous = value[index - 1]
-    next_character = value[index + 1] if index + 1 < len(value) else ""
-
-    return (
-        previous.islower()
-        or previous.isdigit()
-        or (previous.isupper() and bool(next_character) and next_character.islower())
-    )
-
-
-def _string_dict(value: Any) -> dict[str, str]:
-    if not isinstance(value, dict):
-        return {}
-
-    return {str(key): str(item) for key, item in value.items()}
 
 
 def _int(value: Any) -> int:

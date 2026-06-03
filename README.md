@@ -101,6 +101,18 @@ copy .env.example .env
 docker compose up -d neo4j mongodb qdrant csharp-parser agent-access
 ```
 
+Run the end-to-end smoke script against live stores and Agent Access:
+
+```powershell
+.\scripts\e2e-smoke.ps1
+```
+
+By default the script creates a tiny C# fixture repository under `.codemesh-smoke`, starts Neo4j, MongoDB, Qdrant, and Agent Access, ingests the fixture without embeddings, then verifies `/repositories`, `/context/search`, `/symbols/search`, and `/context/package`. To include embeddings, start your local model provider first and run, for example:
+
+```powershell
+.\scripts\e2e-smoke.ps1 -IncludeEmbeddings -EmbeddingProvider ollama -EmbeddingModel nomic-embed-text:latest
+```
+
 ### Ollama Modes
 
 Native Windows Ollama is the recommended mode when you want GPU acceleration on Windows. Use `http://127.0.0.1:11434` for the host .NET CLI to avoid intermittent Windows `localhost` IPv6 probe timeouts; Dockerized Agent Access reaches the same Windows Ollama service through `http://host.docker.internal:11434`.

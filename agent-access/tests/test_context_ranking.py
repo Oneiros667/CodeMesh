@@ -283,6 +283,7 @@ class FakeReadStore(CodeMeshReadStore):
                 embedding_model="nomic-embed-text:latest",
             )
         )
+        self._vectors = FakeVectorClient(self)
         self.parameter_declaration = _node(
             "csharp:decl:csharp:param:Sample.Downloader.DownloadAsync(System.String):0:url:Downloader.cs:10:34",
             "Declaration",
@@ -315,22 +316,6 @@ class FakeReadStore(CodeMeshReadStore):
             start_line=10,
             end_line=24,
         )
-
-    async def _search_qdrant(
-        self,
-        vector: list[float],
-        limit: int,
-        filters: dict[str, str],
-    ) -> list[dict[str, object]]:
-        return [
-            {
-                "nodeId": self.parameter_declaration["id"],
-                "contentHash": self.parameter_declaration["contentHash"],
-                "repositoryId": "repo:test",
-                "score": 0.6,
-                "preview": "string url",
-            }
-        ]
 
     async def _search_symbol_nodes(self, query: SymbolQuery) -> list[dict[str, object]]:
         nodes = [self.method_symbol, self.parameter_symbol]
@@ -543,6 +528,30 @@ class FakeReadStore(CodeMeshReadStore):
                 )
             ]
         )
+
+
+class FakeVectorClient:
+    def __init__(self, store: FakeReadStore) -> None:
+        self._store = store
+
+    async def health(self) -> dict[str, object]:
+        return {"status": "healthy"}
+
+    async def search(
+        self,
+        vector: list[float],
+        limit: int,
+        filters: dict[str, str],
+    ) -> list[dict[str, object]]:
+        return [
+            {
+                "nodeId": self._store.parameter_declaration["id"],
+                "contentHash": self._store.parameter_declaration["contentHash"],
+                "repositoryId": "repo:test",
+                "score": 0.6,
+                "preview": "string url",
+            }
+        ]
 
 
 def _node(
