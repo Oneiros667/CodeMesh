@@ -109,6 +109,17 @@ function Invoke-JsonCommand {
     return ($output | Out-String | ConvertFrom-Json)
 }
 
+function Normalize-Provider {
+    param([string]$Provider)
+
+    $value = "$Provider".Trim().ToLowerInvariant()
+    if ($value -in @("lm-studio", "lm_studio")) {
+        return "lmstudio"
+    }
+
+    return $value
+}
+
 if ($UseConfiguredSample) {
     if (![string]::IsNullOrWhiteSpace($RepositoryRoot) -or ![string]::IsNullOrWhiteSpace($SolutionPath)) {
         throw "Use either -UseConfiguredSample or explicit -RepositoryRoot/-SolutionPath, not both."
@@ -256,7 +267,50 @@ $search = Invoke-RestMethod -Uri "$AgentAccessUrl/context/search" -Method Post -
 if (@($search.hits).Count -eq 0) {
     throw "Context search returned no hits."
 }
+if ($null -eq $search.diagnostics) {
+    throw "Context search response did not include diagnostics metadata."
+}
+
+$searchHitCount = @($search.hits).Count
+$searchDiagnostics = $search.diagnostics
+if ($searchDiagnostics.mode -notin @("vector", "lexical")) {
+    throw "Context search diagnostics returned unexpected mode: $($searchDiagnostics.mode)"
+}
+if ([int]$searchDiagnostics.hit_count -ne $searchHitCount) {
+    throw "Context search diagnostics hit_count $($searchDiagnostics.hit_count) did not match returned hit count $searchHitCount."
+}
+if ([int]$searchDiagnostics.vector_hit_count -lt 0) {
+    throw "Context search diagnostics vector_hit_count cannot be negative: $($searchDiagnostics.vector_hit_count)"
+}
+if ($searchDiagnostics.mode -eq "vector" -and !$searchDiagnostics.vector_available) {
+    throw "Context search diagnostics reported vector mode without vector_available=true."
+}
+if ($searchDiagnostics.mode -eq "vector" -and $searchDiagnostics.lexical_fallback) {
+    throw "Context search diagnostics reported vector mode with lexical_fallback=true."
+}
+if ($searchDiagnostics.lexical_fallback -and $searchDiagnostics.vector_available -and [int]$searchDiagnostics.vector_hit_count -ne 0) {
+    throw "Context search diagnostics reported lexical fallback with vector hits."
+}
+
+$agentProvider = Normalize-Provider $searchDiagnostics.model_provider
+$expectedProvider = Normalize-Provider $EmbeddingProvider
+if ($IncludeEmbeddings -and $agentProvider -eq $expectedProvider -and $agentProvider -in @("ollama", "lmstudio")) {
+    if (!$searchDiagnostics.embedding_attempted) {
+        throw "Context search diagnostics did not report an embedding attempt for configured Agent Access provider '$agentProvider'."
+    }
+    if (!$searchDiagnostics.vector_available) {
+        throw "Context search diagnostics did not report a query vector for configured Agent Access provider '$agentProvider'."
+    }
+    if ([int]$searchDiagnostics.vector_hit_count -eq 0) {
+        throw "Context search diagnostics did not report vector hits for embedding provider '$agentProvider'."
+    }
+    if ($searchDiagnostics.mode -ne "vector") {
+        throw "Context search diagnostics reported mode '$($searchDiagnostics.mode)' for embedding provider '$agentProvider'."
+    }
+}
+
 Write-Host "Context hits: $(@($search.hits).Count)"
+Write-Host "Search diagnostics: mode=$($searchDiagnostics.mode), provider=$($searchDiagnostics.model_provider), vector_hits=$($searchDiagnostics.vector_hit_count), fallback=$($searchDiagnostics.lexical_fallback)"
 
 Write-Step "Running symbol search"
 $symbolBody = @{

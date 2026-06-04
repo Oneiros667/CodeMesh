@@ -107,7 +107,7 @@ Run the end-to-end smoke script against live stores and Agent Access:
 .\scripts\e2e-smoke.ps1
 ```
 
-By default the script creates a tiny C# fixture repository under `.codemesh-smoke`, starts Neo4j, MongoDB, Qdrant, and Agent Access, ingests the fixture without embeddings, then verifies `/repositories`, `/context/search`, `/symbols/search`, and `/context/package`. To include embeddings, start your local model provider first and run, for example:
+By default the script creates a tiny C# fixture repository under `.codemesh-smoke`, starts Neo4j, MongoDB, Qdrant, and Agent Access, ingests the fixture without embeddings, then verifies `/repositories`, `/context/search`, `/symbols/search`, and `/context/package`. The context search check also validates response diagnostics, including search mode, vector hit count, and fallback status. To include embeddings, start your local model provider first and run, for example:
 
 ```powershell
 .\scripts\e2e-smoke.ps1 -IncludeEmbeddings -EmbeddingProvider ollama -EmbeddingModel nomic-embed-text:latest
