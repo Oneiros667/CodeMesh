@@ -28,6 +28,18 @@ def test_mcp_manifest_matches_registered_tools() -> None:
             if not argument.get("required", False):
                 assert properties[name]["default"] == argument["default"]
 
+    search_contract = manifest["contracts"]["codemesh_search_context"]
+    assert search_contract["response"]["diagnostics"] == [
+        "mode",
+        "embedding_attempted",
+        "embedding_source",
+        "model_provider",
+        "vector_available",
+        "vector_hit_count",
+        "lexical_fallback",
+        "hit_count",
+    ]
+
     package_contract = manifest["contracts"]["codemesh_get_context_package"]
     assert package_contract["response"]["relationship_groups"] == [
         "callers",

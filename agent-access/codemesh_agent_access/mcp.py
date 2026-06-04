@@ -111,6 +111,18 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
     "codemesh_search_context": {
         "description": "Search CodeMesh context for code relevant to an agent task.",
         "arguments": _SEARCH_CONTEXT_ARGUMENTS,
+        "response": {
+            "diagnostics": [
+                "mode",
+                "embedding_attempted",
+                "embedding_source",
+                "model_provider",
+                "vector_available",
+                "vector_hit_count",
+                "lexical_fallback",
+                "hit_count",
+            ],
+        },
     },
     "codemesh_get_context_package": {
         "description": "Build an agent-ready context package with snippets, relationships, and repository metadata.",
