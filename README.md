@@ -279,7 +279,7 @@ uv run python -m codemesh_agent_access repos --limit 10
 uv run python -m codemesh_agent_access runs --repository-id <repository-id-or-alias> --limit 5
 ```
 
-Set `CODEMESH_MODEL_PROVIDER=ollama` or `CODEMESH_MODEL_PROVIDER=lmstudio` for Agent Access when you want text queries embedded automatically before Qdrant search. If the configured model provider or Qdrant vectors are unavailable, Agent Access falls back to lexical Neo4j search.
+Set `CODEMESH_MODEL_PROVIDER=ollama` or `CODEMESH_MODEL_PROVIDER=lmstudio` for Agent Access when you want text queries embedded automatically before Qdrant search. If the configured model provider or Qdrant vectors are unavailable, Agent Access falls back to lexical Neo4j search. `/context/search` responses include `diagnostics` metadata with the selected mode, vector hit count, embedding source, and lexical fallback status.
 
 Pass `repository_id` in REST/MCP context, node, and neighbor queries to constrain lookups to one ingested repository. The value can be the repository hash id or its generated alias. CLI commands accept the equivalent `--repository-id` option.
 

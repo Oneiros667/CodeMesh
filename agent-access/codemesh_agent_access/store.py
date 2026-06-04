@@ -116,14 +116,32 @@ class CodeMeshReadStore:
     async def search_context(self, query: ContextQuery) -> ContextResponse:
         query = await self._resolve_context_query_repository(query)
         vector = query.vector
+        embedding_attempted = False
+        embedding_source = "provided" if vector else "none"
         if not vector and self._embeddings.is_enabled and query.query.strip():
+            embedding_attempted = True
             vector = await self._embeddings.embed_query(query.query)
+            if vector:
+                embedding_source = "model_provider"
 
-        hits = await self._search_vector_context(query, vector) if vector else []
+        vector_hits = await self._search_vector_context(query, vector) if vector else []
+        hits = vector_hits
         if not hits:
             hits = await self._search_lexical_context(query)
 
-        return ContextResponse(query=query, hits=_ranked_unique_hits(hits, query.limit))
+        ranked_hits = _ranked_unique_hits(hits, query.limit)
+        diagnostics = {
+            "mode": "vector" if vector_hits else "lexical",
+            "embedding_attempted": embedding_attempted,
+            "embedding_source": embedding_source,
+            "model_provider": self._embeddings.provider,
+            "vector_available": bool(vector),
+            "vector_hit_count": len(vector_hits),
+            "lexical_fallback": bool(vector) and not vector_hits,
+            "hit_count": len(ranked_hits),
+        }
+
+        return ContextResponse(query=query, hits=ranked_hits, diagnostics=diagnostics)
 
     async def get_context_package(self, query: ContextPackageQuery) -> ContextPackageResponse:
         query = await self._resolve_package_query_repository(query)

@@ -65,6 +65,11 @@ def test_rest_context_search_preserves_query_controls() -> None:
     assert payload["query"]["repository_id"] == "sample_repo"
     assert payload["query"]["filters"] == {"project": "Sample"}
     assert payload["query"]["expand_context"] is False
+    assert payload["diagnostics"] == {
+        "mode": "vector",
+        "embedding_source": "provided",
+        "hit_count": 1,
+    }
     assert payload["hits"][0]["node_id"] == "node:download"
     assert store.context_query is not None
     assert store.context_query.context_relationship_limit == 4
@@ -220,6 +225,11 @@ class FakeRestStore:
                     content_hash="content:download",
                 )
             ],
+            diagnostics={
+                "mode": "vector",
+                "embedding_source": "provided",
+                "hit_count": 1,
+            },
         )
 
     async def get_context_package(self, query: Any) -> ContextPackageResponse:

@@ -32,6 +32,16 @@ def test_vector_search_expands_parameter_declaration_to_method_context() -> None
     )
 
     assert len(response.hits) == 1
+    assert response.diagnostics == {
+        "mode": "vector",
+        "embedding_attempted": False,
+        "embedding_source": "provided",
+        "model_provider": "none",
+        "vector_available": True,
+        "vector_hit_count": 1,
+        "lexical_fallback": False,
+        "hit_count": 1,
+    }
     hit = response.hits[0]
     assert hit.node_id == "csharp:method:Sample.Downloader.DownloadAsync(System.String)"
     assert hit.kind == "Method"
@@ -85,6 +95,34 @@ def test_vector_search_can_disable_context_expansion() -> None:
     assert hit.node_id == store.parameter_declaration["id"]
     assert hit.kind == "Declaration"
     assert hit.expanded_context is None
+
+
+def test_vector_search_reports_lexical_fallback_when_vector_has_no_hits() -> None:
+    store = FakeReadStore()
+
+    response = asyncio.run(
+        store.search_context(
+            ContextQuery(
+                query="download video subtitles",
+                repository_id="repo:test",
+                limit=1,
+                vector=[0.0, 0.0],
+            )
+        )
+    )
+
+    assert len(response.hits) == 1
+    assert response.hits[0].node_id == "csharp:method:Sample.Downloader.DownloadAsync(System.String)"
+    assert response.diagnostics == {
+        "mode": "lexical",
+        "embedding_attempted": False,
+        "embedding_source": "provided",
+        "model_provider": "none",
+        "vector_available": True,
+        "vector_hit_count": 0,
+        "lexical_fallback": True,
+        "hit_count": 1,
+    }
 
 
 def test_ranked_unique_hits_keeps_best_expanded_context() -> None:
@@ -480,6 +518,20 @@ class FakeReadStore(CodeMeshReadStore):
 
         return _prioritize_context_relationships(relationships, limit, group_limits)
 
+    async def _search_lexical_context(self, query: ContextQuery) -> list[ContextHit]:
+        return [
+            await self._build_context_hit(
+                self.method_symbol,
+                0.5,
+                query.repository_id,
+                raw_score_name="lexical_score",
+                expand_context=query.expand_context,
+                context_depth=query.context_depth,
+                include_context_relationships=query.include_context_relationships,
+                context_relationship_limit=query.context_relationship_limit,
+            )
+        ]
+
     async def _get_content(self, content_hash: str) -> dict[str, object] | None:
         contents = {
             "method-body": {
@@ -543,6 +595,9 @@ class FakeVectorClient:
         limit: int,
         filters: dict[str, str],
     ) -> list[dict[str, object]]:
+        if not any(vector):
+            return []
+
         return [
             {
                 "nodeId": self._store.parameter_declaration["id"],

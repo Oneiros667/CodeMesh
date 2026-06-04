@@ -44,6 +44,7 @@ class ContextHit(BaseModel):
 class ContextResponse(BaseModel):
     query: ContextQuery
     hits: list[ContextHit] = Field(default_factory=list)
+    diagnostics: dict[str, Any] = Field(default_factory=dict)
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
