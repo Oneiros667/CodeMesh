@@ -262,6 +262,8 @@ $packageBody = @{
 Invoke-RestMethod http://127.0.0.1:8088/context/package -Method Post -ContentType 'application/json' -Body $packageBody
 ```
 
+For .NET callers, `CodeMesh.Control.AgentAccess.AgentAccessClient` provides typed methods for context search, context packages, symbol search, node lookup, and neighbor lookup using the contracts in `CodeMesh.Domain.Contracts`.
+
 Direct CLI examples:
 
 ```powershell

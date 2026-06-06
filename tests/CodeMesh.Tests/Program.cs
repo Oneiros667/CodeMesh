@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using CodeMesh.Control.AgentAccess;
 using CodeMesh.Control.Diagnostics;
 using CodeMesh.Domain.Contracts;
 using CodeMesh.Domain.Graph;
@@ -19,6 +20,7 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("sha256 helper is deterministic", TestHash),
     ("agent access contracts map REST JSON", TestAgentAccessContractsMapRestJson),
+    ("agent access client calls REST endpoints", TestAgentAccessClientCallsRestEndpoints),
     ("ingestion writes parser output", TestIngestionWritesParserOutput),
     ("dry-run ingestion skips stores", TestDryRunSkipsStores),
     ("repository refresh removes stale records", TestRepositoryRefreshRemovesStaleRecords),
@@ -240,6 +242,88 @@ static Task TestAgentAccessContractsMapRestJson()
     Equal(1, package.Items[0].Rationale!["rank"].GetInt32(), "Agent context package rationale did not deserialize.");
 
     return Task.CompletedTask;
+}
+
+static async Task TestAgentAccessClientCallsRestEndpoints()
+{
+    var handler = new FakeAgentAccessHandler();
+    using var http = new HttpClient(handler)
+    {
+        BaseAddress = new Uri("http://agent.test/")
+    };
+    var client = new AgentAccessClient(http);
+
+    var context = await client.SearchContextAsync(new AgentContextQuery(
+        "DownloadAsync",
+        RepositoryId: "repo:test",
+        Kinds: ["Method"],
+        Filters: new Dictionary<string, string> { ["project"] = "Sample" },
+        Vector: [0.1f, 0.2f],
+        IncludeContextRelationships: true));
+
+    Equal("context/search", handler.Requests[0].Path, "Agent Access context search path changed.");
+    if (!handler.Requests[0].Body.Contains("\"repository_id\":\"repo:test\"", StringComparison.Ordinal) ||
+        !handler.Requests[0].Body.Contains("\"include_context_relationships\":true", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("Agent Access context request did not use REST JSON field names.");
+    }
+
+    Equal("vector", context.Diagnostics!.Mode, "Agent Access context response diagnostics changed.");
+    Equal("node:download", context.Hits[0].NodeId, "Agent Access context hit did not deserialize.");
+
+    var package = await client.GetContextPackageAsync(new AgentContextPackageQuery(
+        "DownloadAsync",
+        RepositoryId: "repo:test",
+        MaxCharacters: 4000,
+        CallerLimit: 2));
+
+    Equal("context/package", handler.Requests[1].Path, "Agent Access context package path changed.");
+    if (!handler.Requests[1].Body.Contains("\"max_characters\":4000", StringComparison.Ordinal) ||
+        !handler.Requests[1].Body.Contains("\"caller_limit\":2", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("Agent Access package request did not use REST JSON field names.");
+    }
+
+    Equal("return Task.CompletedTask;", package.Items[0].Snippet ?? string.Empty, "Agent Access package response did not deserialize.");
+
+    var symbols = await client.SearchSymbolsAsync(new AgentSymbolQuery(
+        "DownloadAsync",
+        RepositoryId: "repo:test",
+        Kinds: ["Method"],
+        IncludeDeclarations: false));
+
+    Equal("symbols/search", handler.Requests[2].Path, "Agent Access symbol search path changed.");
+    Equal("DownloadAsync", symbols.Symbols[0].Node["name"].GetString() ?? string.Empty, "Agent Access symbol result did not deserialize.");
+
+    var node = await client.GetNodeAsync(new AgentNodeLookup(
+        "node:download",
+        RepositoryId: "repo:test",
+        IncludeContent: false));
+
+    Equal("nodes/get", handler.Requests[3].Path, "Agent Access node path changed.");
+    Equal("node:download", node.Node!["id"].GetString() ?? string.Empty, "Agent Access node result did not deserialize.");
+
+    var neighbors = await client.GetNeighborsAsync(new AgentNeighborQuery(
+        "node:download",
+        RepositoryId: "repo:test",
+        RelationshipKinds: ["Invokes"]));
+
+    Equal("graph/neighbors", handler.Requests[4].Path, "Agent Access neighbors path changed.");
+    Equal("Invokes", neighbors.Relationships[0]["kind"].GetString() ?? string.Empty, "Agent Access neighbor result did not deserialize.");
+
+    handler.FailNextRequest = true;
+    try
+    {
+        await client.SearchContextAsync(new AgentContextQuery("DownloadAsync"));
+    }
+    catch (InvalidOperationException exception) when (
+        exception.Message.Contains("context/search", StringComparison.Ordinal) &&
+        exception.Message.Contains("HTTP 503", StringComparison.Ordinal))
+    {
+        return;
+    }
+
+    throw new InvalidOperationException("Agent Access client did not surface REST error details.");
 }
 
 static async Task TestIngestionWritesParserOutput()
@@ -2155,4 +2239,130 @@ sealed class FakeLmStudioEmbeddingHandler : HttpMessageHandler
 
         return Task.FromResult(response);
     }
+}
+
+sealed class FakeAgentAccessHandler : HttpMessageHandler
+{
+    public List<(string Path, string Body)> Requests { get; } = [];
+
+    public bool FailNextRequest { get; set; }
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        var path = request.RequestUri?.PathAndQuery.TrimStart('/') ?? string.Empty;
+        var body = request.Content is null
+            ? string.Empty
+            : await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        Requests.Add((path, body));
+
+        if (FailNextRequest)
+        {
+            FailNextRequest = false;
+            return JsonResponse(HttpStatusCode.ServiceUnavailable, """{"detail":"offline"}""");
+        }
+
+        var payload = path switch
+        {
+            "context/search" =>
+                """
+                {
+                  "query": {"query": "DownloadAsync", "repository_id": "repo:test"},
+                  "hits": [
+                    {
+                      "node_id": "node:download",
+                      "stable_key": "stable:download",
+                      "kind": "Method",
+                      "file_path": "Downloader.cs",
+                      "start_line": 10,
+                      "end_line": 20,
+                      "score": 0.91
+                    }
+                  ],
+                  "diagnostics": {
+                    "mode": "vector",
+                    "embedding_attempted": true,
+                    "embedding_source": "model_provider",
+                    "model_provider": "lmstudio",
+                    "vector_available": true,
+                    "vector_hit_count": 1,
+                    "lexical_fallback": false,
+                    "hit_count": 1
+                  },
+                  "generated_at": "2026-06-06T10:00:00Z"
+                }
+                """,
+            "context/package" =>
+                """
+                {
+                  "query": {"query": "DownloadAsync", "repository_id": "repo:test"},
+                  "repository": {"repository_id": "repo:test"},
+                  "latest_run": {"run_id": "run:test"},
+                  "items": [
+                    {
+                      "hit": {
+                        "node_id": "node:download",
+                        "stable_key": "stable:download",
+                        "kind": "Method",
+                        "file_path": "Downloader.cs",
+                        "start_line": 10,
+                        "end_line": 20,
+                        "score": 0.91
+                      },
+                      "snippet": "return Task.CompletedTask;",
+                      "relationships": [],
+                      "relationship_groups": {},
+                      "rationale": {"rank": 1}
+                    }
+                  ],
+                  "total_snippet_characters": 26,
+                  "generated_at": "2026-06-06T10:00:00Z"
+                }
+                """,
+            "symbols/search" =>
+                """
+                {
+                  "query": {"query": "DownloadAsync", "repository_id": "repo:test"},
+                  "symbols": [
+                    {
+                      "node": {"id": "node:download", "name": "DownloadAsync"},
+                      "declaration": null,
+                      "score": 0.8,
+                      "score_components": {"lexical_score": 0.8}
+                    }
+                  ],
+                  "generated_at": "2026-06-06T10:00:00Z"
+                }
+                """,
+            "nodes/get" =>
+                """
+                {
+                  "node": {"id": "node:download", "kind": "Method"},
+                  "content": null,
+                  "relationships": []
+                }
+                """,
+            "graph/neighbors" =>
+                """
+                {
+                  "relationships": [
+                    {"kind": "Invokes", "target_node_id": "node:callee"}
+                  ]
+                }
+                """,
+            _ => string.Empty
+        };
+
+        return string.IsNullOrEmpty(payload)
+            ? JsonResponse(HttpStatusCode.NotFound, """{"detail":"not found"}""")
+            : JsonResponse(HttpStatusCode.OK, payload);
+    }
+
+    private static HttpResponseMessage JsonResponse(HttpStatusCode statusCode, string payload)
+        => new(statusCode)
+        {
+            Content = new StringContent(payload, Encoding.UTF8, "application/json")
+        };
 }

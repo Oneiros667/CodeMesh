@@ -85,3 +85,42 @@ public sealed record AgentContextPackageResult(
     [property: JsonPropertyName("items")] IReadOnlyList<AgentContextPackageItem> Items,
     [property: JsonPropertyName("total_snippet_characters")] int TotalSnippetCharacters,
     [property: JsonPropertyName("generated_at")] DateTimeOffset GeneratedAt);
+
+public sealed record AgentSymbolQuery(
+    [property: JsonPropertyName("query")] string Query,
+    [property: JsonPropertyName("repository_id")] string? RepositoryId = null,
+    [property: JsonPropertyName("limit")] int Limit = 20,
+    [property: JsonPropertyName("kinds")] IReadOnlyList<string>? Kinds = null,
+    [property: JsonPropertyName("filters")] IReadOnlyDictionary<string, string>? Filters = null,
+    [property: JsonPropertyName("include_declarations")] bool IncludeDeclarations = true);
+
+public sealed record AgentSymbolSearchHit(
+    [property: JsonPropertyName("node")] IReadOnlyDictionary<string, JsonElement> Node,
+    [property: JsonPropertyName("declaration")] IReadOnlyDictionary<string, JsonElement>? Declaration,
+    [property: JsonPropertyName("score")] double Score,
+    [property: JsonPropertyName("score_components")] IReadOnlyDictionary<string, double>? ScoreComponents = null);
+
+public sealed record AgentSymbolSearchResult(
+    [property: JsonPropertyName("query")] AgentSymbolQuery Query,
+    [property: JsonPropertyName("symbols")] IReadOnlyList<AgentSymbolSearchHit> Symbols,
+    [property: JsonPropertyName("generated_at")] DateTimeOffset GeneratedAt);
+
+public sealed record AgentNodeLookup(
+    [property: JsonPropertyName("node_id")] string NodeId,
+    [property: JsonPropertyName("repository_id")] string? RepositoryId = null,
+    [property: JsonPropertyName("include_content")] bool IncludeContent = true,
+    [property: JsonPropertyName("include_neighbors")] bool IncludeNeighbors = true);
+
+public sealed record AgentNodeResult(
+    [property: JsonPropertyName("node")] IReadOnlyDictionary<string, JsonElement>? Node,
+    [property: JsonPropertyName("content")] IReadOnlyDictionary<string, JsonElement>? Content,
+    [property: JsonPropertyName("relationships")] IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> Relationships);
+
+public sealed record AgentNeighborQuery(
+    [property: JsonPropertyName("node_id")] string NodeId,
+    [property: JsonPropertyName("repository_id")] string? RepositoryId = null,
+    [property: JsonPropertyName("depth")] int Depth = 1,
+    [property: JsonPropertyName("relationship_kinds")] IReadOnlyList<string>? RelationshipKinds = null);
+
+public sealed record AgentNeighborResult(
+    [property: JsonPropertyName("relationships")] IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> Relationships);
