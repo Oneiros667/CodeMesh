@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using CodeMesh.Control.Diagnostics;
 using CodeMesh.Domain.Contracts;
 using CodeMesh.Domain.Graph;
@@ -17,6 +18,7 @@ using CodeMesh.Storage.Qdrant;
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("sha256 helper is deterministic", TestHash),
+    ("agent access contracts map REST JSON", TestAgentAccessContractsMapRestJson),
     ("ingestion writes parser output", TestIngestionWritesParserOutput),
     ("dry-run ingestion skips stores", TestDryRunSkipsStores),
     ("repository refresh removes stale records", TestRepositoryRefreshRemovesStaleRecords),
@@ -77,6 +79,165 @@ static Task TestHash()
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
         CodeMeshHash.Sha256Hex("abc"),
         "SHA-256 output changed.");
+
+    return Task.CompletedTask;
+}
+
+static Task TestAgentAccessContractsMapRestJson()
+{
+    var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+    var serializedQuery = JsonSerializer.Serialize(
+        new AgentContextQuery(
+            "DownloadAsync",
+            RepositoryId: "repo:test",
+            Kinds: ["Method"],
+            Filters: new Dictionary<string, string> { ["project"] = "Sample" },
+            Vector: [0.1f, 0.2f],
+            ExpandContext: false,
+            ContextRelationshipLimit: 4),
+        options);
+
+    if (!serializedQuery.Contains("\"repository_id\":\"repo:test\"", StringComparison.Ordinal) ||
+        !serializedQuery.Contains("\"context_relationship_limit\":4", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("Agent context query did not serialize using Agent Access snake_case fields.");
+    }
+
+    var serializedPackageQuery = JsonSerializer.Serialize(
+        new AgentContextPackageQuery(
+            "DownloadAsync",
+            RepositoryId: "repo:test",
+            MaxCharacters: 4000,
+            CallerLimit: 2,
+            UsesTypeLimit: 0),
+        options);
+
+    if (!serializedPackageQuery.Contains("\"max_characters\":4000", StringComparison.Ordinal) ||
+        !serializedPackageQuery.Contains("\"uses_type_limit\":0", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("Agent context package query did not serialize using Agent Access snake_case fields.");
+    }
+
+    var context = JsonSerializer.Deserialize<AgentContextResult>(
+        """
+        {
+          "query": {
+            "query": "DownloadAsync",
+            "repository_id": "repo:test",
+            "limit": 5,
+            "kinds": ["Method"],
+            "filters": {"project": "Sample"},
+            "vector": [0.1, 0.2],
+            "expand_context": false,
+            "context_depth": 2,
+            "include_context_relationships": true,
+            "context_relationship_limit": 4
+          },
+          "hits": [
+            {
+              "node_id": "node:download",
+              "stable_key": "stable:download",
+              "kind": "Method",
+              "file_path": "Downloader.cs",
+              "start_line": 10,
+              "end_line": 20,
+              "score": 0.91,
+              "repository_id": "repo:test",
+              "content_hash": "content:download",
+              "score_components": {"vector_score": 0.6},
+              "expanded_context": {"reason": "defined_ancestor"},
+              "preview": "Task DownloadAsync"
+            }
+          ],
+          "diagnostics": {
+            "mode": "vector",
+            "embedding_attempted": true,
+            "embedding_source": "model_provider",
+            "model_provider": "lmstudio",
+            "vector_available": true,
+            "vector_hit_count": 7,
+            "lexical_fallback": false,
+            "hit_count": 1
+          },
+          "generated_at": "2026-06-06T10:00:00Z"
+        }
+        """,
+        options);
+
+    NotNull(context, "Agent context result did not deserialize.");
+    Equal("repo:test", context!.Query.RepositoryId ?? string.Empty, "Agent context query repository id did not map from snake_case.");
+    Equal(false, context.Query.ExpandContext, "Agent context query expansion flag changed.");
+    Equal(4, context.Query.ContextRelationshipLimit, "Agent context relationship limit did not deserialize.");
+    Equal(CodeNodeKind.Method, context.Hits[0].Kind, "Agent context hit kind did not deserialize.");
+    Equal("content:download", context.Hits[0].ContentHash ?? string.Empty, "Agent context hit content hash did not deserialize.");
+    Equal(0.6, context.Hits[0].ScoreComponents!["vector_score"], "Agent context score components did not deserialize.");
+    Equal("defined_ancestor", context.Hits[0].ExpandedContext!["reason"].GetString() ?? string.Empty, "Agent context expanded context did not deserialize.");
+    Equal("vector", context.Diagnostics!.Mode, "Agent context diagnostics mode did not deserialize.");
+    Equal("lmstudio", context.Diagnostics.ModelProvider, "Agent context diagnostics provider did not deserialize.");
+    Equal(7, context.Diagnostics.VectorHitCount, "Agent context diagnostics vector hit count did not deserialize.");
+
+    var package = JsonSerializer.Deserialize<AgentContextPackageResult>(
+        """
+        {
+          "query": {
+            "query": "DownloadAsync",
+            "repository_id": "repo:test",
+            "limit": 3,
+            "max_characters": 4000,
+            "kinds": ["Method"],
+            "filters": {"project": "Sample"},
+            "vector": [0.1, 0.2],
+            "context_depth": 3,
+            "include_content": true,
+            "include_relationships": true,
+            "relationship_limit": 8,
+            "caller_limit": 2,
+            "callee_limit": 2,
+            "read_limit": 1,
+            "write_limit": 1,
+            "contains_limit": 1,
+            "definition_limit": 1,
+            "uses_type_limit": 0,
+            "include_repository": true
+          },
+          "repository": {"repository_id": "repo:test", "alias": "sample_repo"},
+          "latest_run": {"run_id": "run:test", "embedding_provider": "lmstudio"},
+          "items": [
+            {
+              "hit": {
+                "node_id": "node:download",
+                "stable_key": "stable:download",
+                "kind": "Method",
+                "file_path": "Downloader.cs",
+                "start_line": 10,
+                "end_line": 20,
+                "score": 0.91
+              },
+              "node": {"id": "node:download", "kind": "Method"},
+              "content": {"hash": "content:download"},
+              "snippet": "return Task.CompletedTask;",
+              "relationships": [{"kind": "Invokes", "target_node_id": "node:callee"}],
+              "relationship_groups": {
+                "callees": [{"kind": "Invokes", "target_node_id": "node:callee"}],
+                "callers": []
+              },
+              "rationale": {"rank": 1, "expanded": true}
+            }
+          ],
+          "total_snippet_characters": 26,
+          "generated_at": "2026-06-06T10:00:00Z"
+        }
+        """,
+        options);
+
+    NotNull(package, "Agent context package did not deserialize.");
+    Equal(4000, package!.Query.MaxCharacters, "Agent context package max characters did not deserialize.");
+    Equal(0, package.Query.UsesTypeLimit ?? -1, "Agent context package uses type limit did not deserialize.");
+    Equal("sample_repo", package.Repository!["alias"].GetString() ?? string.Empty, "Agent context package repository metadata did not deserialize.");
+    Equal("lmstudio", package.LatestRun!["embedding_provider"].GetString() ?? string.Empty, "Agent context package latest run did not deserialize.");
+    Equal("return Task.CompletedTask;", package.Items[0].Snippet ?? string.Empty, "Agent context package snippet did not deserialize.");
+    Equal("node:callee", package.Items[0].RelationshipGroups!["callees"][0]["target_node_id"].GetString() ?? string.Empty, "Agent context package relationship groups did not deserialize.");
+    Equal(1, package.Items[0].Rationale!["rank"].GetInt32(), "Agent context package rationale did not deserialize.");
 
     return Task.CompletedTask;
 }
