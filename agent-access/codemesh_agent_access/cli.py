@@ -16,6 +16,7 @@ def main() -> None:
     subcommands = parser.add_subparsers(dest="command", required=True)
     subcommands.add_parser("rest", help="Run the REST API.")
     subcommands.add_parser("mcp", help="Run the MCP server over stdio.")
+    subcommands.add_parser("mcp-manifest", help="Print the MCP tool contract manifest JSON.")
     subcommands.add_parser("status", help="Print Agent Access status JSON.")
     search_parser = subcommands.add_parser("search", help="Search stored CodeMesh context.")
     search_parser.add_argument("query")
@@ -88,6 +89,10 @@ def main() -> None:
 
     if args.command == "mcp":
         mcp.run()
+        return
+
+    if args.command == "mcp-manifest":
+        print(json.dumps(mcp.tool_manifest(), indent=2))
         return
 
     if args.command == "status":

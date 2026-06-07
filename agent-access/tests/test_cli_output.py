@@ -180,6 +180,27 @@ def test_neighbors_cli_forwards_relationship_kinds(monkeypatch: Any, capsys: Any
     assert payload["data"] == {"relationships": []}
 
 
+def test_cli_prints_mcp_manifest(monkeypatch: Any, capsys: Any) -> None:
+    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "mcp-manifest"])
+
+    cli.main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["service"] == "codemesh-agent-access"
+    assert "codemesh_search_context" in {tool["name"] for tool in payload["tools"]}
+    assert payload["contracts"]["codemesh_search_context"]["response"]["diagnostics"] == [
+        "mode",
+        "embedding_attempted",
+        "embedding_source",
+        "model_provider",
+        "vector_available",
+        "vector_hit_count",
+        "lexical_hit_count",
+        "lexical_fallback",
+        "hit_count",
+    ]
+
+
 def test_cli_filter_requires_key_value_pair(monkeypatch: Any) -> None:
     monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "search", "download", "--filter", "broken"])
 
