@@ -313,6 +313,20 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
     Equal("graph/neighbors", handler.Requests[4].Path, "Agent Access neighbors path changed.");
     Equal("Invokes", neighbors.Relationships[0]["kind"].GetString() ?? string.Empty, "Agent Access neighbor result did not deserialize.");
 
+    var repositories = await client.ListRepositoriesAsync(limit: 3);
+    Equal("repositories?limit=3", handler.Requests[5].Path, "Agent Access repositories path changed.");
+    Equal("sample_repo", repositories.Repositories[0].Alias ?? string.Empty, "Agent Access repository list did not deserialize.");
+    Equal(17, repositories.Repositories[0].NodeCount, "Agent Access repository node count did not deserialize.");
+
+    var repository = await client.GetRepositoryAsync("sample repo/id");
+    Equal("repositories/sample%20repo%2Fid", handler.Requests[6].Path, "Agent Access repository lookup path did not escape id.");
+    Equal("repo:test", repository!.RepositoryId, "Agent Access repository lookup did not deserialize.");
+
+    var runs = await client.ListIngestionRunsAsync(repositoryId: "sample repo/id", limit: 2);
+    Equal("ingestion-runs?limit=2&repository_id=sample%20repo%2Fid", handler.Requests[7].Path, "Agent Access runs path changed.");
+    Equal("run:test", runs.Runs[0].RunId, "Agent Access ingestion run did not deserialize.");
+    Equal("lmstudio", runs.Runs[0].EmbeddingProvider, "Agent Access run embedding provider did not deserialize.");
+
     handler.FailNextRequest = true;
     try
     {
@@ -2352,6 +2366,85 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                 {
                   "relationships": [
                     {"kind": "Invokes", "target_node_id": "node:callee"}
+                  ]
+                }
+                """,
+            "repositories?limit=3" =>
+                """
+                {
+                  "repositories": [
+                    {
+                      "repository_id": "repo:test",
+                      "alias": "sample_repo",
+                      "root_path": "C:/sample",
+                      "remote_url": null,
+                      "branch": "main",
+                      "commit": "abc123",
+                      "first_seen_at": "2026-06-06T09:00:00Z",
+                      "last_seen_at": "2026-06-06T10:00:00Z",
+                      "last_run_id": "run:test",
+                      "last_stage": "Completed",
+                      "last_message": null,
+                      "node_count": 17,
+                      "relationship_count": 28,
+                      "content_count": 13,
+                      "embedding_count": 17,
+                      "metadata": {"alias": "sample_repo"}
+                    }
+                  ]
+                }
+                """,
+            "repositories/sample%20repo%2Fid" =>
+                """
+                {
+                  "repository_id": "repo:test",
+                  "alias": "sample_repo",
+                  "root_path": "C:/sample",
+                  "remote_url": null,
+                  "branch": "main",
+                  "commit": "abc123",
+                  "first_seen_at": "2026-06-06T09:00:00Z",
+                  "last_seen_at": "2026-06-06T10:00:00Z",
+                  "last_run_id": "run:test",
+                  "last_stage": "Completed",
+                  "last_message": null,
+                  "node_count": 17,
+                  "relationship_count": 28,
+                  "content_count": 13,
+                  "embedding_count": 17,
+                  "metadata": {"alias": "sample_repo"}
+                }
+                """,
+            "ingestion-runs?limit=2&repository_id=sample%20repo%2Fid" =>
+                """
+                {
+                  "runs": [
+                    {
+                      "run_id": "run:test",
+                      "repository_id": "repo:test",
+                      "repository_root": "C:/sample",
+                      "stage": "Completed",
+                      "started_at": "2026-06-06T09:00:00Z",
+                      "finished_at": "2026-06-06T10:00:00Z",
+                      "message": null,
+                      "language": "csharp",
+                      "parser_name": "CodeMesh.Parser.CSharp",
+                      "solution_path": "C:/sample/Sample.sln",
+                      "project_path": null,
+                      "dry_run": false,
+                      "skip_embeddings": false,
+                      "embedding_provider": "lmstudio",
+                      "embedding_model": "text-embedding-nomic-embed-text-v2-moe",
+                      "node_count": 17,
+                      "relationship_count": 28,
+                      "content_count": 13,
+                      "embedding_count": 17,
+                      "stats": {"parsed_node_count": 17},
+                      "diagnostic_count": 0,
+                      "error_diagnostic_count": 0,
+                      "warning_diagnostic_count": 0,
+                      "metadata": {"alias": "sample_repo"}
+                    }
                   ]
                 }
                 """,

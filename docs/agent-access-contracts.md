@@ -26,9 +26,9 @@ Filters are exact-match string filters. They can match top-level node fields or 
 | `POST` | `/symbols/search` | `SymbolQuery` | `SymbolSearchResponse` | `SearchSymbolsAsync` |
 | `POST` | `/nodes/get` | `NodeLookup` | `NodeResponse` | `GetNodeAsync` |
 | `POST` | `/graph/neighbors` | `NeighborQuery` | `NodeResponse` with `relationships` populated | `GetNeighborsAsync` |
-| `GET` | `/repositories?limit=50` | query string | `RepositoryListResponse` | none |
-| `GET` | `/repositories/{repository_id}` | route value | `RepositorySummary` or `null` | none |
-| `GET` | `/ingestion-runs?repository_id=&limit=50` | query string | `IngestionRunListResponse` | none |
+| `GET` | `/repositories?limit=50` | query string | `RepositoryListResponse` | `ListRepositoriesAsync` |
+| `GET` | `/repositories/{repository_id}` | route value | `RepositorySummary` or `null` | `GetRepositoryAsync` |
+| `GET` | `/ingestion-runs?repository_id=&limit=50` | query string | `IngestionRunListResponse` | `ListIngestionRunsAsync` |
 
 ## Context Search
 
@@ -168,4 +168,4 @@ var result = await client.SearchContextAsync(new AgentContextQuery(
     IncludeContextRelationships: true));
 ```
 
-The client currently wraps context search, context package, symbol search, node lookup, and neighbor lookup. Registry endpoints are still consumed directly through REST or CLI.
+The client wraps context search, context package, symbol search, node lookup, neighbor lookup, repository listing, repository lookup, and ingestion-run listing.

@@ -19,6 +19,15 @@ public interface IAgentAccessClient
     Task<AgentNodeResult> GetNodeAsync(AgentNodeLookup lookup, CancellationToken cancellationToken = default);
 
     Task<AgentNeighborResult> GetNeighborsAsync(AgentNeighborQuery query, CancellationToken cancellationToken = default);
+
+    Task<AgentRepositoryListResult> ListRepositoriesAsync(int limit = 50, CancellationToken cancellationToken = default);
+
+    Task<AgentRepositorySummary?> GetRepositoryAsync(string repositoryId, CancellationToken cancellationToken = default);
+
+    Task<AgentIngestionRunListResult> ListIngestionRunsAsync(
+        string? repositoryId = null,
+        int limit = 50,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class AgentAccessClient : IAgentAccessClient, IDisposable
@@ -64,6 +73,30 @@ public sealed class AgentAccessClient : IAgentAccessClient, IDisposable
         CancellationToken cancellationToken = default)
         => PostAsync<AgentNeighborQuery, AgentNeighborResult>("graph/neighbors", query, cancellationToken);
 
+    public Task<AgentRepositoryListResult> ListRepositoriesAsync(
+        int limit = 50,
+        CancellationToken cancellationToken = default)
+        => GetAsync<AgentRepositoryListResult>($"repositories?limit={limit}", cancellationToken);
+
+    public Task<AgentRepositorySummary?> GetRepositoryAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+        => GetAsync<AgentRepositorySummary?>($"repositories/{Uri.EscapeDataString(repositoryId)}", cancellationToken);
+
+    public Task<AgentIngestionRunListResult> ListIngestionRunsAsync(
+        string? repositoryId = null,
+        int limit = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var path = $"ingestion-runs?limit={limit}";
+        if (!string.IsNullOrWhiteSpace(repositoryId))
+        {
+            path += $"&repository_id={Uri.EscapeDataString(repositoryId)}";
+        }
+
+        return GetAsync<AgentIngestionRunListResult>(path, cancellationToken);
+    }
+
     public void Dispose()
     {
         if (_ownsHttpClient)
@@ -80,6 +113,27 @@ public sealed class AgentAccessClient : IAgentAccessClient, IDisposable
         using var response = await _http
             .PostAsJsonAsync(path, request, JsonOptions, cancellationToken)
             .ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            throw new InvalidOperationException(
+                $"Agent Access request to '{path}' failed with HTTP {(int)response.StatusCode}: {body}");
+        }
+
+        var result = await response.Content
+            .ReadFromJsonAsync<TResponse>(JsonOptions, cancellationToken)
+            .ConfigureAwait(false);
+
+        return result ?? throw new InvalidOperationException(
+            $"Agent Access request to '{path}' returned an empty response.");
+    }
+
+    private async Task<TResponse> GetAsync<TResponse>(
+        string path,
+        CancellationToken cancellationToken)
+    {
+        using var response = await _http.GetAsync(path, cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {

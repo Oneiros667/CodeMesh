@@ -125,3 +125,53 @@ public sealed record AgentNeighborQuery(
 
 public sealed record AgentNeighborResult(
     [property: JsonPropertyName("relationships")] IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> Relationships);
+
+public sealed record AgentRepositorySummary(
+    [property: JsonPropertyName("repository_id")] string RepositoryId,
+    [property: JsonPropertyName("alias")] string? Alias,
+    [property: JsonPropertyName("root_path")] string RootPath,
+    [property: JsonPropertyName("remote_url")] string? RemoteUrl,
+    [property: JsonPropertyName("branch")] string? Branch,
+    [property: JsonPropertyName("commit")] string? Commit,
+    [property: JsonPropertyName("first_seen_at")] DateTimeOffset? FirstSeenAt,
+    [property: JsonPropertyName("last_seen_at")] DateTimeOffset? LastSeenAt,
+    [property: JsonPropertyName("last_run_id")] string? LastRunId,
+    [property: JsonPropertyName("last_stage")] string? LastStage,
+    [property: JsonPropertyName("last_message")] string? LastMessage,
+    [property: JsonPropertyName("node_count")] int NodeCount,
+    [property: JsonPropertyName("relationship_count")] int RelationshipCount,
+    [property: JsonPropertyName("content_count")] int ContentCount,
+    [property: JsonPropertyName("embedding_count")] int? EmbeddingCount,
+    [property: JsonPropertyName("metadata")] IReadOnlyDictionary<string, string>? Metadata);
+
+public sealed record AgentRepositoryListResult(
+    [property: JsonPropertyName("repositories")] IReadOnlyList<AgentRepositorySummary> Repositories);
+
+public sealed record AgentIngestionRunSummary(
+    [property: JsonPropertyName("run_id")] string RunId,
+    [property: JsonPropertyName("repository_id")] string RepositoryId,
+    [property: JsonPropertyName("repository_root")] string RepositoryRoot,
+    [property: JsonPropertyName("stage")] string Stage,
+    [property: JsonPropertyName("started_at")] DateTimeOffset? StartedAt,
+    [property: JsonPropertyName("finished_at")] DateTimeOffset? FinishedAt,
+    [property: JsonPropertyName("message")] string? Message,
+    [property: JsonPropertyName("language")] string Language,
+    [property: JsonPropertyName("parser_name")] string ParserName,
+    [property: JsonPropertyName("solution_path")] string? SolutionPath,
+    [property: JsonPropertyName("project_path")] string? ProjectPath,
+    [property: JsonPropertyName("dry_run")] bool DryRun,
+    [property: JsonPropertyName("skip_embeddings")] bool SkipEmbeddings,
+    [property: JsonPropertyName("embedding_provider")] string EmbeddingProvider,
+    [property: JsonPropertyName("embedding_model")] string EmbeddingModel,
+    [property: JsonPropertyName("node_count")] int NodeCount,
+    [property: JsonPropertyName("relationship_count")] int RelationshipCount,
+    [property: JsonPropertyName("content_count")] int ContentCount,
+    [property: JsonPropertyName("embedding_count")] int EmbeddingCount,
+    [property: JsonPropertyName("stats")] IReadOnlyDictionary<string, JsonElement>? Stats,
+    [property: JsonPropertyName("diagnostic_count")] int DiagnosticCount,
+    [property: JsonPropertyName("error_diagnostic_count")] int ErrorDiagnosticCount,
+    [property: JsonPropertyName("warning_diagnostic_count")] int WarningDiagnosticCount,
+    [property: JsonPropertyName("metadata")] IReadOnlyDictionary<string, string>? Metadata);
+
+public sealed record AgentIngestionRunListResult(
+    [property: JsonPropertyName("runs")] IReadOnlyList<AgentIngestionRunSummary> Runs);
