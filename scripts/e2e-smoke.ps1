@@ -273,7 +273,7 @@ if ($null -eq $search.diagnostics) {
 
 $searchHitCount = @($search.hits).Count
 $searchDiagnostics = $search.diagnostics
-if ($searchDiagnostics.mode -notin @("vector", "lexical")) {
+if ($searchDiagnostics.mode -notin @("vector", "lexical", "hybrid")) {
     throw "Context search diagnostics returned unexpected mode: $($searchDiagnostics.mode)"
 }
 if ([int]$searchDiagnostics.hit_count -ne $searchHitCount) {
@@ -282,11 +282,14 @@ if ([int]$searchDiagnostics.hit_count -ne $searchHitCount) {
 if ([int]$searchDiagnostics.vector_hit_count -lt 0) {
     throw "Context search diagnostics vector_hit_count cannot be negative: $($searchDiagnostics.vector_hit_count)"
 }
-if ($searchDiagnostics.mode -eq "vector" -and !$searchDiagnostics.vector_available) {
-    throw "Context search diagnostics reported vector mode without vector_available=true."
+if ([int]$searchDiagnostics.lexical_hit_count -lt 0) {
+    throw "Context search diagnostics lexical_hit_count cannot be negative: $($searchDiagnostics.lexical_hit_count)"
 }
-if ($searchDiagnostics.mode -eq "vector" -and $searchDiagnostics.lexical_fallback) {
-    throw "Context search diagnostics reported vector mode with lexical_fallback=true."
+if ($searchDiagnostics.mode -in @("vector", "hybrid") -and !$searchDiagnostics.vector_available) {
+    throw "Context search diagnostics reported vector-backed mode without vector_available=true."
+}
+if ($searchDiagnostics.mode -in @("vector", "hybrid") -and $searchDiagnostics.lexical_fallback) {
+    throw "Context search diagnostics reported vector-backed mode with lexical_fallback=true."
 }
 if ($searchDiagnostics.lexical_fallback -and $searchDiagnostics.vector_available -and [int]$searchDiagnostics.vector_hit_count -ne 0) {
     throw "Context search diagnostics reported lexical fallback with vector hits."
@@ -304,13 +307,13 @@ if ($IncludeEmbeddings -and $agentProvider -eq $expectedProvider -and $agentProv
     if ([int]$searchDiagnostics.vector_hit_count -eq 0) {
         throw "Context search diagnostics did not report vector hits for embedding provider '$agentProvider'."
     }
-    if ($searchDiagnostics.mode -ne "vector") {
+    if ($searchDiagnostics.mode -notin @("vector", "hybrid")) {
         throw "Context search diagnostics reported mode '$($searchDiagnostics.mode)' for embedding provider '$agentProvider'."
     }
 }
 
 Write-Host "Context hits: $(@($search.hits).Count)"
-Write-Host "Search diagnostics: mode=$($searchDiagnostics.mode), provider=$($searchDiagnostics.model_provider), vector_hits=$($searchDiagnostics.vector_hit_count), fallback=$($searchDiagnostics.lexical_fallback)"
+Write-Host "Search diagnostics: mode=$($searchDiagnostics.mode), provider=$($searchDiagnostics.model_provider), vector_hits=$($searchDiagnostics.vector_hit_count), lexical_hits=$($searchDiagnostics.lexical_hit_count), fallback=$($searchDiagnostics.lexical_fallback)"
 
 Write-Step "Running symbol search"
 $symbolBody = @{

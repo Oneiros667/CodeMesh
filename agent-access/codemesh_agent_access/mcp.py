@@ -119,6 +119,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
                 "model_provider",
                 "vector_available",
                 "vector_hit_count",
+                "lexical_hit_count",
                 "lexical_fallback",
                 "hit_count",
             ],

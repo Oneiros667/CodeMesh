@@ -39,6 +39,7 @@ public sealed record AgentContextDiagnostics(
     [property: JsonPropertyName("model_provider")] string ModelProvider,
     [property: JsonPropertyName("vector_available")] bool VectorAvailable,
     [property: JsonPropertyName("vector_hit_count")] int VectorHitCount,
+    [property: JsonPropertyName("lexical_hit_count")] int LexicalHitCount,
     [property: JsonPropertyName("lexical_fallback")] bool LexicalFallback,
     [property: JsonPropertyName("hit_count")] int HitCount);
 

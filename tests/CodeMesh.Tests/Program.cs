@@ -152,12 +152,13 @@ static Task TestAgentAccessContractsMapRestJson()
             }
           ],
           "diagnostics": {
-            "mode": "vector",
+            "mode": "hybrid",
             "embedding_attempted": true,
             "embedding_source": "model_provider",
             "model_provider": "lmstudio",
             "vector_available": true,
             "vector_hit_count": 7,
+            "lexical_hit_count": 3,
             "lexical_fallback": false,
             "hit_count": 1
           },
@@ -174,9 +175,10 @@ static Task TestAgentAccessContractsMapRestJson()
     Equal("content:download", context.Hits[0].ContentHash ?? string.Empty, "Agent context hit content hash did not deserialize.");
     Equal(0.6, context.Hits[0].ScoreComponents!["vector_score"], "Agent context score components did not deserialize.");
     Equal("defined_ancestor", context.Hits[0].ExpandedContext!["reason"].GetString() ?? string.Empty, "Agent context expanded context did not deserialize.");
-    Equal("vector", context.Diagnostics!.Mode, "Agent context diagnostics mode did not deserialize.");
+    Equal("hybrid", context.Diagnostics!.Mode, "Agent context diagnostics mode did not deserialize.");
     Equal("lmstudio", context.Diagnostics.ModelProvider, "Agent context diagnostics provider did not deserialize.");
     Equal(7, context.Diagnostics.VectorHitCount, "Agent context diagnostics vector hit count did not deserialize.");
+    Equal(3, context.Diagnostics.LexicalHitCount, "Agent context diagnostics lexical hit count did not deserialize.");
 
     var package = JsonSerializer.Deserialize<AgentContextPackageResult>(
         """
@@ -268,7 +270,7 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
         throw new InvalidOperationException("Agent Access context request did not use REST JSON field names.");
     }
 
-    Equal("vector", context.Diagnostics!.Mode, "Agent Access context response diagnostics changed.");
+    Equal("hybrid", context.Diagnostics!.Mode, "Agent Access context response diagnostics changed.");
     Equal("node:download", context.Hits[0].NodeId, "Agent Access context hit did not deserialize.");
 
     var package = await client.GetContextPackageAsync(new AgentContextPackageQuery(
@@ -2282,12 +2284,13 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                     }
                   ],
                   "diagnostics": {
-                    "mode": "vector",
+                    "mode": "hybrid",
                     "embedding_attempted": true,
                     "embedding_source": "model_provider",
                     "model_provider": "lmstudio",
                     "vector_available": true,
                     "vector_hit_count": 1,
+                    "lexical_hit_count": 1,
                     "lexical_fallback": false,
                     "hit_count": 1
                   },

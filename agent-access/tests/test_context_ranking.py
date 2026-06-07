@@ -33,12 +33,13 @@ def test_vector_search_expands_parameter_declaration_to_method_context() -> None
 
     assert len(response.hits) == 1
     assert response.diagnostics == {
-        "mode": "vector",
+        "mode": "hybrid",
         "embedding_attempted": False,
         "embedding_source": "provided",
         "model_provider": "none",
         "vector_available": True,
         "vector_hit_count": 1,
+        "lexical_hit_count": 1,
         "lexical_fallback": False,
         "hit_count": 1,
     }
@@ -92,9 +93,11 @@ def test_vector_search_can_disable_context_expansion() -> None:
 
     assert len(response.hits) == 1
     hit = response.hits[0]
-    assert hit.node_id == store.parameter_declaration["id"]
-    assert hit.kind == "Declaration"
-    assert hit.expanded_context is None
+    assert hit.node_id == store.method_symbol["id"]
+    assert hit.kind == "Method"
+    assert hit.expanded_context is not None
+    assert hit.expanded_context["reason"] == "self"
+    assert hit.expanded_context["source"]["node_id"] == hit.expanded_context["selected"]["node_id"]
 
 
 def test_vector_search_reports_lexical_fallback_when_vector_has_no_hits() -> None:
@@ -120,6 +123,7 @@ def test_vector_search_reports_lexical_fallback_when_vector_has_no_hits() -> Non
         "model_provider": "none",
         "vector_available": True,
         "vector_hit_count": 0,
+        "lexical_hit_count": 1,
         "lexical_fallback": True,
         "hit_count": 1,
     }

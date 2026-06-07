@@ -125,18 +125,19 @@ class CodeMeshReadStore:
                 embedding_source = "model_provider"
 
         vector_hits = await self._search_vector_context(query, vector) if vector else []
-        hits = vector_hits
-        if not hits:
-            hits = await self._search_lexical_context(query)
+        lexical_hits = await self._search_lexical_context(query) if query.query.strip() else []
+        hits = [*vector_hits, *lexical_hits]
 
         ranked_hits = _ranked_unique_hits(hits, query.limit)
+        mode = "hybrid" if vector_hits and lexical_hits else "vector" if vector_hits else "lexical"
         diagnostics = {
-            "mode": "vector" if vector_hits else "lexical",
+            "mode": mode,
             "embedding_attempted": embedding_attempted,
             "embedding_source": embedding_source,
             "model_provider": self._embeddings.provider,
             "vector_available": bool(vector),
             "vector_hit_count": len(vector_hits),
+            "lexical_hit_count": len(lexical_hits),
             "lexical_fallback": bool(vector) and not vector_hits,
             "hit_count": len(ranked_hits),
         }
