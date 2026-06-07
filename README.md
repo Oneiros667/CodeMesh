@@ -119,6 +119,12 @@ To run the same smoke checks against the configured sample repository from `CODE
 .\scripts\e2e-smoke.ps1 -UseConfiguredSample
 ```
 
+To validate only the generated fixture path and cleanup behavior without starting Docker or ingesting code, use:
+
+```powershell
+.\scripts\e2e-smoke.ps1 -FixtureOnly
+```
+
 For LM Studio embeddings, start the LM Studio local server, load an embedding model, and run:
 
 ```powershell

@@ -10,7 +10,8 @@ param(
     [string]$LmStudioUrl = $env:CODEMESH_LM_STUDIO_URL,
     [switch]$SkipCompose,
     [switch]$UseConfiguredSample,
-    [switch]$KeepFixture
+    [switch]$KeepFixture,
+    [switch]$FixtureOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -173,6 +174,16 @@ if (!(Test-Path -LiteralPath $RepositoryRoot)) {
 
 if (!(Test-Path -LiteralPath $SolutionPath)) {
     throw "Solution/project path not found: $SolutionPath"
+}
+
+if ($FixtureOnly) {
+    Write-Host "Fixture root: $RepositoryRoot"
+    Write-Host "Fixture project: $SolutionPath"
+    if (!$KeepFixture) {
+        Write-Step "Cleaning generated fixture"
+        Remove-GeneratedFixture
+    }
+    return
 }
 
 if ([string]::IsNullOrWhiteSpace($EmbeddingProvider) -or $EmbeddingProvider -eq "none") {
