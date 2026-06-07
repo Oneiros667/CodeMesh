@@ -16,8 +16,11 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$fixtureRoot = Join-Path $repoRoot ".codemesh-smoke\Fixture"
+$smokeRoot = Join-Path $repoRoot ".codemesh-smoke"
+$fixtureRunId = [Guid]::NewGuid().ToString("N")
+$fixtureRoot = Join-Path $smokeRoot "Fixture-$fixtureRunId"
 $projectPath = Join-Path $fixtureRoot "CodeMeshSmokeFixture.csproj"
+$generatedFixture = $false
 
 function Write-Step {
     param([string]$Message)
@@ -98,6 +101,25 @@ public sealed class Downloader
 "@ | Set-Content -LiteralPath (Join-Path $fixtureRoot "Downloader.cs") -Encoding UTF8
 }
 
+function Remove-GeneratedFixture {
+    if (!$generatedFixture -or $KeepFixture) {
+        return
+    }
+
+    if ((Test-Path -LiteralPath $RepositoryRoot) -and [System.IO.Path]::GetFullPath($RepositoryRoot).StartsWith([System.IO.Path]::GetFullPath($smokeRoot), [System.StringComparison]::OrdinalIgnoreCase)) {
+        Remove-Item -LiteralPath $RepositoryRoot -Recurse -Force
+    }
+
+    if ((Test-Path -LiteralPath $smokeRoot) -and @((Get-ChildItem -LiteralPath $smokeRoot -Force)).Count -eq 0) {
+        Remove-Item -LiteralPath $smokeRoot -Force
+    }
+}
+
+trap {
+    Remove-GeneratedFixture
+    break
+}
+
 function Invoke-JsonCommand {
     param([string[]]$Arguments)
 
@@ -136,9 +158,10 @@ if ($UseConfiguredSample) {
     }
 }
 elseif ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
-    New-SmokeFixture
     $RepositoryRoot = $fixtureRoot
     $SolutionPath = $projectPath
+    $generatedFixture = $true
+    New-SmokeFixture
 }
 elseif ([string]::IsNullOrWhiteSpace($SolutionPath)) {
     $SolutionPath = $RepositoryRoot
@@ -349,9 +372,9 @@ if (@($package.items).Count -eq 0) {
 }
 Write-Host "Package items: $(@($package.items).Count)"
 
-if (!$KeepFixture -and [System.IO.Path]::GetFullPath($RepositoryRoot).StartsWith([System.IO.Path]::GetFullPath((Join-Path $repoRoot ".codemesh-smoke")), [System.StringComparison]::OrdinalIgnoreCase)) {
+if ($generatedFixture -and !$KeepFixture) {
     Write-Step "Cleaning generated fixture"
-    Remove-Item -LiteralPath (Join-Path $repoRoot ".codemesh-smoke") -Recurse -Force
+    Remove-GeneratedFixture
 }
 
 Write-Step "End-to-end smoke completed"
