@@ -37,6 +37,11 @@ def test_format_context_package_for_agent_emits_compact_brief() -> None:
                 "content": {
                     "hash": "method-body",
                 },
+                "summary": {
+                    "summary": "Downloads subtitles for a video URL.",
+                    "provider": "test",
+                    "model": "summary-counting",
+                },
                 "relationship_groups": {
                     "callers": [
                         {
@@ -85,6 +90,7 @@ def test_format_context_package_for_agent_emits_compact_brief() -> None:
     assert "File: Downloader.cs:10-24" in text
     assert "Score: 0.812; rank 1" in text
     assert "Content hash: method-body" in text
+    assert "Summary: Downloads subtitles for a video URL." in text
     assert "Callers: Main (Method, in, Program.cs:8-16)" in text
     assert "Callees: Normalize (Method, out, Downloader.cs:26-28)" in text
     assert "public Task DownloadAsync(string url)" in text

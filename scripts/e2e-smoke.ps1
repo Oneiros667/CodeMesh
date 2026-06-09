@@ -319,6 +319,12 @@ if ([int]$searchDiagnostics.vector_hit_count -lt 0) {
 if ([int]$searchDiagnostics.lexical_hit_count -lt 0) {
     throw "Context search diagnostics lexical_hit_count cannot be negative: $($searchDiagnostics.lexical_hit_count)"
 }
+if ($null -ne $searchDiagnostics.vector_candidate_count -and [int]$searchDiagnostics.vector_candidate_count -lt [int]$searchDiagnostics.vector_hit_count) {
+    throw "Context search diagnostics vector_candidate_count cannot be lower than vector_hit_count."
+}
+if ($null -ne $searchDiagnostics.lexical_candidate_count -and [int]$searchDiagnostics.lexical_candidate_count -lt [int]$searchDiagnostics.lexical_hit_count) {
+    throw "Context search diagnostics lexical_candidate_count cannot be lower than lexical_hit_count."
+}
 if ($searchDiagnostics.mode -in @("vector", "hybrid") -and !$searchDiagnostics.vector_available) {
     throw "Context search diagnostics reported vector-backed mode without vector_available=true."
 }
@@ -347,7 +353,7 @@ if ($IncludeEmbeddings -and $agentProvider -eq $expectedProvider -and $agentProv
 }
 
 Write-Host "Context hits: $(@($search.hits).Count)"
-Write-Host "Search diagnostics: mode=$($searchDiagnostics.mode), provider=$($searchDiagnostics.model_provider), vector_hits=$($searchDiagnostics.vector_hit_count), lexical_hits=$($searchDiagnostics.lexical_hit_count), fallback=$($searchDiagnostics.lexical_fallback)"
+Write-Host "Search diagnostics: mode=$($searchDiagnostics.mode), provider=$($searchDiagnostics.model_provider), vector_hits=$($searchDiagnostics.vector_hit_count), lexical_hits=$($searchDiagnostics.lexical_hit_count), vector_candidates=$($searchDiagnostics.vector_candidate_count), lexical_candidates=$($searchDiagnostics.lexical_candidate_count), fallback=$($searchDiagnostics.lexical_fallback)"
 
 Write-Step "Running symbol search"
 $symbolBody = @{

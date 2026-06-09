@@ -40,8 +40,8 @@ services:
 
   agent-access:
     build:
-      context: .
-      dockerfile: agent-access/Dockerfile
+      context: agent-access
+      dockerfile: Dockerfile
     environment:
       CODEMESH_AGENT_HOST: "0.0.0.0"
       CODEMESH_AGENT_PORT: "8080"
@@ -53,12 +53,13 @@ services:
       CODEMESH_MONGO_CONTENT_COLLECTION: "${CODEMESH_MONGO_CONTENT_COLLECTION:-content}"
       CODEMESH_MONGO_REPOSITORIES_COLLECTION: "${CODEMESH_MONGO_REPOSITORIES_COLLECTION:-repositories}"
       CODEMESH_MONGO_INGESTION_RUNS_COLLECTION: "${CODEMESH_MONGO_INGESTION_RUNS_COLLECTION:-ingestion_runs}"
+      CODEMESH_MONGO_NODE_SUMMARIES_COLLECTION: "${CODEMESH_MONGO_NODE_SUMMARIES_COLLECTION:-node_summaries}"
       CODEMESH_QDRANT_URL: "${CODEMESH_AGENT_QDRANT_URL:-http://qdrant:6333}"
       CODEMESH_QDRANT_COLLECTION: "${CODEMESH_QDRANT_COLLECTION:-codemesh-code}"
       CODEMESH_MODEL_PROVIDER: "${CODEMESH_MODEL_PROVIDER:-none}"
       CODEMESH_OLLAMA_URL: "${CODEMESH_AGENT_OLLAMA_URL:-http://host.docker.internal:11434}"
       CODEMESH_LM_STUDIO_URL: "${CODEMESH_AGENT_LM_STUDIO_URL:-http://host.docker.internal:1234/v1}"
-      CODEMESH_EMBEDDING_MODEL: "${CODEMESH_EMBEDDING_MODEL:-nomic-embed-text:latest}"
+      CODEMESH_EMBEDDING_MODEL: "${CODEMESH_EMBEDDING_MODEL:-}"
     ports:
       - "${CODEMESH_AGENT_ACCESS_PORT:-8088}:8080"
     depends_on:

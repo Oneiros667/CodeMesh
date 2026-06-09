@@ -196,6 +196,10 @@ def test_cli_prints_mcp_manifest(monkeypatch: Any, capsys: Any) -> None:
         "vector_available",
         "vector_hit_count",
         "lexical_hit_count",
+        "summary_hit_count",
+        "vector_candidate_count",
+        "lexical_candidate_count",
+        "summary_candidate_count",
         "lexical_fallback",
         "hit_count",
     ]

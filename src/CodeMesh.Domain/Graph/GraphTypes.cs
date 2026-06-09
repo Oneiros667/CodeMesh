@@ -94,6 +94,32 @@ public sealed record EmbeddingRecord(
     IReadOnlyList<float> Vector,
     IReadOnlyDictionary<string, string> Metadata);
 
+public sealed record CodeNodeSummary(
+    string Id,
+    string RepositoryId,
+    string RepositoryRoot,
+    string IngestionRunId,
+    string NodeId,
+    string StableKey,
+    CodeNodeKind Kind,
+    string Name,
+    string Language,
+    string Project,
+    SourceSpan Span,
+    string ContentHash,
+    string SummaryKind,
+    string Summary,
+    IReadOnlyList<string> Tags,
+    string Confidence,
+    string Provider,
+    string Model,
+    string PromptVersion,
+    string PromptHash,
+    DateTimeOffset GeneratedAt,
+    string Status,
+    string? Error,
+    IReadOnlyDictionary<string, string> Metadata);
+
 public sealed record CodeGraphBatch(
     string BatchId,
     RepositoryRef Repository,

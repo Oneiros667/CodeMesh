@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -25,6 +26,7 @@ from .models import (
     SymbolSearchHit,
     SymbolSearchResponse,
 )
+from .summary_store import MongoNodeSummaryStore
 from .vector_store import QdrantSearchClient
 
 
@@ -95,6 +97,7 @@ class CodeMeshReadStore:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._content = MongoContentStore(settings)
+        self._summaries = MongoNodeSummaryStore(settings)
         self._embeddings = QueryEmbeddingProvider(settings)
         self._graph = Neo4jGraphStore(settings)
         self._vectors = QdrantSearchClient(settings)
@@ -102,11 +105,15 @@ class CodeMeshReadStore:
     async def close(self) -> None:
         await self._graph.close()
         await self._content.close()
+        summaries = getattr(self, "_summaries", None)
+        if summaries is not None:
+            await summaries.close()
 
     async def health(self) -> HealthResponse:
         components = {
             "neo4j": await self._graph.health(),
             "mongodb": await self._content.health(),
+            "node_summaries": await self._summaries.health(),
             "qdrant": await self._vectors.health(),
             "model_provider": await self._embeddings.health(),
         }
@@ -124,20 +131,30 @@ class CodeMeshReadStore:
             if vector:
                 embedding_source = "model_provider"
 
-        vector_hits = await self._search_vector_context(query, vector) if vector else []
-        lexical_hits = await self._search_lexical_context(query) if query.query.strip() else []
-        hits = [*vector_hits, *lexical_hits]
+        vector_task = asyncio.create_task(self._search_vector_context(query, vector)) if vector else None
+        lexical_task = asyncio.create_task(self._search_lexical_context(query)) if query.query.strip() else None
+        summary_task = asyncio.create_task(self._search_summary_context(query)) if query.query.strip() else None
+        vector_hits = await vector_task if vector_task else []
+        lexical_hits = await lexical_task if lexical_task else []
+        summary_hits = await summary_task if summary_task else []
+        hits = [*vector_hits, *lexical_hits, *summary_hits]
 
         ranked_hits = _ranked_unique_hits(hits, query.limit)
-        mode = "hybrid" if vector_hits and lexical_hits else "vector" if vector_hits else "lexical"
+        vector_hit_count = _source_hit_count(ranked_hits, "vector_score")
+        lexical_hit_count = _source_hit_count(ranked_hits, "lexical_score")
+        summary_hit_count = _source_hit_count(ranked_hits, "summary_score")
         diagnostics = {
-            "mode": mode,
+            "mode": _search_mode(vector_hit_count, lexical_hit_count, summary_hit_count),
             "embedding_attempted": embedding_attempted,
             "embedding_source": embedding_source,
             "model_provider": self._embeddings.provider,
             "vector_available": bool(vector),
-            "vector_hit_count": len(vector_hits),
-            "lexical_hit_count": len(lexical_hits),
+            "vector_hit_count": vector_hit_count,
+            "lexical_hit_count": lexical_hit_count,
+            "summary_hit_count": summary_hit_count,
+            "vector_candidate_count": len(vector_hits),
+            "lexical_candidate_count": len(lexical_hits),
+            "summary_candidate_count": len(summary_hits),
             "lexical_fallback": bool(vector) and not vector_hits,
             "hit_count": len(ranked_hits),
         }
@@ -197,6 +214,8 @@ class CodeMeshReadStore:
                 total_snippet_characters += len(snippet or "")
                 remaining_characters = max(0, remaining_characters - len(snippet or ""))
 
+            summary = await self._get_node_summary(repository_id, hit.node_id, hit.content_hash)
+
             relationships = []
             if query.include_relationships:
                 relationships = await self._get_context_relationship_summaries(
@@ -211,6 +230,7 @@ class CodeMeshReadStore:
                     hit=hit,
                     node=node_response.node,
                     content=content,
+                    summary=summary,
                     snippet=snippet,
                     relationships=relationships,
                     relationship_groups=_group_relationships(relationships),
@@ -428,6 +448,14 @@ class CodeMeshReadStore:
     async def _get_content(self, content_hash: str) -> dict[str, Any] | None:
         return await self._content.get_content(content_hash)
 
+    async def _get_node_summary(
+        self,
+        repository_id: str | None,
+        node_id: str,
+        content_hash: str | None = None,
+    ) -> dict[str, Any] | None:
+        return await self._summaries.get_node_summary(repository_id, node_id, content_hash)
+
     async def _select_context_node(
         self,
         node: dict[str, Any],
@@ -583,6 +611,47 @@ class CodeMeshReadStore:
                     repository_id,
                     raw_score_name="vector_score",
                     preview=preview,
+                    expand_context=query.expand_context,
+                    context_depth=query.context_depth,
+                    include_context_relationships=query.include_context_relationships,
+                    context_relationship_limit=query.context_relationship_limit,
+                )
+            )
+
+        return hits
+
+    async def _search_summary_context(self, query: ContextQuery) -> list[ContextHit]:
+        search_text = query.query.casefold()
+        kinds = [kind for kind in query.kinds if kind]
+        summaries = await self._summaries.search_summaries(
+            query.query,
+            query.repository_id,
+            kinds,
+            _candidate_limit(query.limit),
+        )
+        hits: list[ContextHit] = []
+
+        for summary in summaries:
+            node_id = str(summary.get("node_id") or "")
+            if not node_id:
+                continue
+
+            content_hash = str(summary.get("content_hash") or "")
+            repository_id = query.repository_id or str(summary.get("repository_id") or "") or None
+            node = await self._get_node_properties(node_id, repository_id)
+            if node is None:
+                node = _node_from_summary(summary)
+
+            if not _matches_filters(node, query.filters) or not _matches_repository(node, query.repository_id):
+                continue
+
+            hits.append(
+                await self._build_context_hit(
+                    node,
+                    _summary_score(summary, search_text),
+                    repository_id,
+                    raw_score_name="summary_score",
+                    preview=str(summary.get("summary") or "") or None,
                     expand_context=query.expand_context,
                     context_depth=query.context_depth,
                     include_context_relationships=query.include_context_relationships,
@@ -850,14 +919,46 @@ def _ranked_unique_hits(hits: list[ContextHit], limit: int) -> list[ContextHit]:
     best_by_node_id: dict[str, ContextHit] = {}
     for hit in hits:
         existing = best_by_node_id.get(hit.node_id)
-        if existing is None or hit.score > existing.score:
+        if existing is None:
             best_by_node_id[hit.node_id] = hit
+        elif hit.score > existing.score:
+            best_by_node_id[hit.node_id] = _merge_hit_score_components(hit, existing)
+        else:
+            best_by_node_id[hit.node_id] = _merge_hit_score_components(existing, hit)
 
     return sorted(
         best_by_node_id.values(),
         key=lambda hit: (hit.score, _kind_weight_from_name(hit.kind), -hit.start_line),
         reverse=True,
     )[:limit]
+
+
+def _merge_hit_score_components(primary: ContextHit, secondary: ContextHit) -> ContextHit:
+    return primary.model_copy(
+        update={
+            "score_components": {
+                **secondary.score_components,
+                **primary.score_components,
+            }
+        }
+    )
+
+
+def _source_hit_count(hits: list[ContextHit], score_component: str) -> int:
+    return sum(1 for hit in hits if score_component in hit.score_components)
+
+
+def _search_mode(vector_hit_count: int, lexical_hit_count: int, summary_hit_count: int) -> str:
+    active = sum(1 for count in [vector_hit_count, lexical_hit_count, summary_hit_count] if count > 0)
+    if active > 1:
+        return "hybrid"
+    if vector_hit_count:
+        return "vector"
+    if lexical_hit_count:
+        return "lexical"
+    if summary_hit_count:
+        return "summary"
+    return "none"
 
 
 def _candidate_limit(limit: int) -> int:
@@ -943,6 +1044,56 @@ def _expansion_bonus(
 
 def _adjust_score(raw_score: float, kind_weight: float, expansion_bonus: float) -> float:
     return max(0.0, min(1.0, (raw_score * kind_weight) + expansion_bonus))
+
+
+def _summary_score(summary: dict[str, Any], search_text: str) -> float:
+    if not search_text:
+        return 0.5
+
+    summary_text = str(summary.get("summary") or "").casefold()
+    name = str(summary.get("name") or "").casefold()
+    stable_key = str(summary.get("stable_key") or "").casefold()
+    tags = [
+        str(tag).casefold()
+        for tag in summary.get("tags", [])
+        if str(tag).strip()
+    ]
+
+    if search_text == name or search_text in tags:
+        return 0.92
+    if search_text in name or search_text in stable_key:
+        return 0.82
+    if search_text in summary_text:
+        return 0.72
+
+    terms = [term for term in search_text.split() if term]
+    if terms and all(term in summary_text for term in terms):
+        return 0.68
+    if terms and any(term in summary_text for term in terms):
+        return 0.46
+
+    return 0.25
+
+
+def _node_from_summary(summary: dict[str, Any]) -> dict[str, Any]:
+    metadata = summary.get("metadata") if isinstance(summary.get("metadata"), dict) else {}
+    return {
+        "id": str(summary.get("node_id") or ""),
+        "stableKey": str(summary.get("stable_key") or summary.get("node_id") or ""),
+        "kind": str(summary.get("kind") or "Unknown"),
+        "name": str(summary.get("name") or summary.get("node_id") or ""),
+        "language": str(metadata.get("language") or ""),
+        "project": str(metadata.get("project") or ""),
+        "repositoryId": str(summary.get("repository_id") or ""),
+        "ingestionRunId": str(metadata.get("ingestionRunId") or ""),
+        "filePath": str(metadata.get("filePath") or ""),
+        "startLine": _int(metadata.get("startLine")),
+        "startColumn": _int(metadata.get("startColumn")),
+        "endLine": _int(metadata.get("endLine")),
+        "endColumn": _int(metadata.get("endColumn")),
+        "contentHash": str(summary.get("content_hash") or ""),
+        "metadataJson": json.dumps(metadata),
+    }
 
 
 def _matches_filters(node: dict[str, Any], filters: dict[str, str]) -> bool:

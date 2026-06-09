@@ -35,6 +35,16 @@ class QueryEmbeddingProvider:
             async with httpx.AsyncClient(timeout=2.0) as client:
                 response = await client.get(self._health_url(provider))
                 response.raise_for_status()
+                payload = response.json()
+
+            if self._settings.embedding_model not in _listed_model_ids(provider, payload):
+                return {
+                    "provider": provider,
+                    "url": self._base_url(provider),
+                    "embedding_model": self._settings.embedding_model,
+                    "status": "degraded",
+                    "detail": "Configured embedding model is not listed by the model provider.",
+                }
 
             return {
                 "provider": provider,
@@ -42,7 +52,7 @@ class QueryEmbeddingProvider:
                 "embedding_model": self._settings.embedding_model,
                 "status": "healthy",
             }
-        except httpx.HTTPError as exc:  # pragma: no cover - depends on local model service state
+        except (httpx.HTTPError, ValueError) as exc:  # pragma: no cover - depends on local model service state
             return {
                 "provider": provider,
                 "url": self._base_url(provider),
@@ -138,3 +148,21 @@ def model_provider(provider: str) -> str:
         return "lmstudio"
 
     return value
+
+
+def _listed_model_ids(provider: str, payload: Any) -> set[str]:
+    if not isinstance(payload, dict):
+        return set()
+
+    if provider == "lmstudio":
+        return {
+            str(item.get("id"))
+            for item in payload.get("data") or []
+            if isinstance(item, dict) and item.get("id")
+        }
+
+    return {
+        str(item.get("name") or item.get("model"))
+        for item in payload.get("models") or []
+        if isinstance(item, dict) and (item.get("name") or item.get("model"))
+    }

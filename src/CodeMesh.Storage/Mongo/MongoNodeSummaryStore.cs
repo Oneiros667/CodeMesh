@@ -1,0 +1,347 @@
+using CodeMesh.Domain.Graph;
+using CodeMesh.Domain.Health;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
+
+namespace CodeMesh.Storage.Mongo;
+
+public sealed record MongoNodeSummaryStoreOptions(
+    string ConnectionString,
+    string DatabaseName,
+    string CollectionName = "node_summaries",
+    TimeSpan? ServerSelectionTimeout = null);
+
+public sealed class MongoNodeSummaryStore :
+    INodeSummaryStore,
+    IIncrementalNodeSummaryStore,
+    IStoreHealthCheck
+{
+    private readonly IMongoDatabase _database;
+    private readonly IMongoCollection<NodeSummaryDocument> _summaries;
+    private int _indexesEnsured;
+
+    public MongoNodeSummaryStore(MongoNodeSummaryStoreOptions options)
+        : this(CreateClient(options), options.DatabaseName, options.CollectionName)
+    {
+    }
+
+    public MongoNodeSummaryStore(IMongoClient client, string databaseName, string collectionName = "node_summaries")
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(databaseName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(collectionName);
+
+        _database = client.GetDatabase(databaseName);
+        _summaries = _database.GetCollection<NodeSummaryDocument>(collectionName);
+        Name = $"mongodb:{databaseName}.{collectionName}";
+    }
+
+    public string Name { get; }
+
+    public async Task UpsertSummariesAsync(
+        IReadOnlyList<CodeNodeSummary> summaries,
+        CancellationToken cancellationToken = default)
+    {
+        if (summaries.Count == 0)
+        {
+            return;
+        }
+
+        await EnsureIndexesAsync(cancellationToken).ConfigureAwait(false);
+
+        var models = summaries
+            .Select(summary => new ReplaceOneModel<NodeSummaryDocument>(
+                Builders<NodeSummaryDocument>.Filter.Eq(item => item.Id, summary.Id),
+                NodeSummaryDocument.FromDomain(summary))
+            {
+                IsUpsert = true
+            })
+            .ToArray();
+
+        await _summaries.BulkWriteAsync(models, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<StoredNodeSummaryState>> GetSummaryStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureIndexesAsync(cancellationToken).ConfigureAwait(false);
+
+        var filter = Builders<NodeSummaryDocument>.Filter.Eq(item => item.RepositoryId, repositoryId);
+        var documents = await _summaries
+            .Find(filter)
+            .Project(item => new SummaryStateProjection
+            {
+                Id = item.Id,
+                NodeId = item.NodeId,
+                ContentHash = item.ContentHash,
+                SummaryKind = item.SummaryKind,
+                Provider = item.Provider,
+                Model = item.Model,
+                PromptVersion = item.PromptVersion,
+                Status = item.Status
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return documents
+            .Select(item => new StoredNodeSummaryState(
+                item.Id,
+                item.NodeId,
+                item.ContentHash,
+                item.SummaryKind,
+                item.Provider,
+                item.Model,
+                item.PromptVersion,
+                item.Status))
+            .ToArray();
+    }
+
+    public async Task RemoveSummariesExceptAsync(
+        string repositoryId,
+        IReadOnlySet<string> currentSummaryIds,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureIndexesAsync(cancellationToken).ConfigureAwait(false);
+
+        var filter = Builders<NodeSummaryDocument>.Filter.Eq(item => item.RepositoryId, repositoryId);
+        if (currentSummaryIds.Count > 0)
+        {
+            filter &= Builders<NodeSummaryDocument>.Filter.Nin(item => item.Id, currentSummaryIds.ToArray());
+        }
+
+        await _summaries.DeleteManyAsync(filter, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<ComponentHealth> CheckAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = new MongoDB.Bson.BsonDocument("ping", 1);
+            await _database.RunCommandAsync<MongoDB.Bson.BsonDocument>(command, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            return new ComponentHealth(
+                Name,
+                ComponentState.Healthy,
+                "MongoDB node summary store is available.",
+                new Dictionary<string, string>
+                {
+                    ["database"] = _database.DatabaseNamespace.DatabaseName,
+                    ["collection"] = _summaries.CollectionNamespace.CollectionName
+                });
+        }
+        catch (Exception exception) when (exception is MongoException or TimeoutException)
+        {
+            return new ComponentHealth(
+                Name,
+                ComponentState.Degraded,
+                "MongoDB node summary store is not reachable.",
+                new Dictionary<string, string>
+                {
+                    ["database"] = _database.DatabaseNamespace.DatabaseName,
+                    ["collection"] = _summaries.CollectionNamespace.CollectionName,
+                    ["detail"] = exception.Message
+                });
+        }
+    }
+
+    private static IMongoClient CreateClient(MongoNodeSummaryStoreOptions options)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(options.ConnectionString);
+        ArgumentException.ThrowIfNullOrWhiteSpace(options.DatabaseName);
+
+        var settings = MongoClientSettings.FromConnectionString(options.ConnectionString);
+        settings.ServerSelectionTimeout = options.ServerSelectionTimeout ?? TimeSpan.FromSeconds(2);
+
+        return new MongoClient(settings);
+    }
+
+    private async Task EnsureIndexesAsync(CancellationToken cancellationToken)
+    {
+        if (Interlocked.Exchange(ref _indexesEnsured, 1) == 1)
+        {
+            return;
+        }
+
+        var indexes = new[]
+        {
+            new CreateIndexModel<NodeSummaryDocument>(
+                Builders<NodeSummaryDocument>.IndexKeys
+                    .Ascending(item => item.RepositoryId)
+                    .Ascending(item => item.NodeId)
+                    .Ascending(item => item.ContentHash)
+                    .Ascending(item => item.SummaryKind)
+                    .Ascending(item => item.Provider)
+                    .Ascending(item => item.Model)
+                    .Ascending(item => item.PromptVersion),
+                new CreateIndexOptions
+                {
+                    Name = "node_summary_identity",
+                    Unique = true
+                }),
+            new CreateIndexModel<NodeSummaryDocument>(
+                Builders<NodeSummaryDocument>.IndexKeys
+                    .Ascending(item => item.RepositoryId)
+                    .Ascending(item => item.NodeId),
+                new CreateIndexOptions { Name = "repository_node" }),
+            new CreateIndexModel<NodeSummaryDocument>(
+                Builders<NodeSummaryDocument>.IndexKeys
+                    .Ascending(item => item.RepositoryId)
+                    .Ascending(item => item.Kind)
+                    .Ascending(item => item.Name),
+                new CreateIndexOptions { Name = "repository_kind_name" }),
+            new CreateIndexModel<NodeSummaryDocument>(
+                Builders<NodeSummaryDocument>.IndexKeys
+                    .Ascending(item => item.RepositoryId)
+                    .Ascending(item => item.ContentHash),
+                new CreateIndexOptions { Name = "repository_content_hash" })
+        };
+
+        await _summaries.Indexes.CreateManyAsync(indexes, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private sealed class NodeSummaryDocument
+    {
+        [BsonId]
+        [BsonElement("_id")]
+        public required string Id { get; init; }
+
+        [BsonElement("repositoryId")]
+        public required string RepositoryId { get; init; }
+
+        [BsonElement("repositoryRoot")]
+        public required string RepositoryRoot { get; init; }
+
+        [BsonElement("ingestionRunId")]
+        public required string IngestionRunId { get; init; }
+
+        [BsonElement("nodeId")]
+        public required string NodeId { get; init; }
+
+        [BsonElement("stableKey")]
+        public required string StableKey { get; init; }
+
+        [BsonElement("kind")]
+        public required string Kind { get; init; }
+
+        [BsonElement("name")]
+        public required string Name { get; init; }
+
+        [BsonElement("language")]
+        public required string Language { get; init; }
+
+        [BsonElement("project")]
+        public required string Project { get; init; }
+
+        [BsonElement("filePath")]
+        public required string FilePath { get; init; }
+
+        [BsonElement("startLine")]
+        public required int StartLine { get; init; }
+
+        [BsonElement("startColumn")]
+        public required int StartColumn { get; init; }
+
+        [BsonElement("endLine")]
+        public required int EndLine { get; init; }
+
+        [BsonElement("endColumn")]
+        public required int EndColumn { get; init; }
+
+        [BsonElement("contentHash")]
+        public required string ContentHash { get; init; }
+
+        [BsonElement("summaryKind")]
+        public required string SummaryKind { get; init; }
+
+        [BsonElement("summary")]
+        public required string Summary { get; init; }
+
+        [BsonElement("tags")]
+        public IReadOnlyList<string> Tags { get; init; } = [];
+
+        [BsonElement("confidence")]
+        public required string Confidence { get; init; }
+
+        [BsonElement("provider")]
+        public required string Provider { get; init; }
+
+        [BsonElement("model")]
+        public required string Model { get; init; }
+
+        [BsonElement("promptVersion")]
+        public required string PromptVersion { get; init; }
+
+        [BsonElement("promptHash")]
+        public required string PromptHash { get; init; }
+
+        [BsonElement("generatedAtUtc")]
+        public required DateTime GeneratedAtUtc { get; init; }
+
+        [BsonElement("status")]
+        public required string Status { get; init; }
+
+        [BsonElement("error")]
+        public string? Error { get; init; }
+
+        [BsonElement("metadata")]
+        public IReadOnlyDictionary<string, string> Metadata { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        public static NodeSummaryDocument FromDomain(CodeNodeSummary summary)
+        {
+            return new NodeSummaryDocument
+            {
+                Id = summary.Id,
+                RepositoryId = summary.RepositoryId,
+                RepositoryRoot = summary.RepositoryRoot,
+                IngestionRunId = summary.IngestionRunId,
+                NodeId = summary.NodeId,
+                StableKey = summary.StableKey,
+                Kind = summary.Kind.ToString(),
+                Name = summary.Name,
+                Language = summary.Language,
+                Project = summary.Project,
+                FilePath = summary.Span.FilePath,
+                StartLine = summary.Span.StartLine,
+                StartColumn = summary.Span.StartColumn,
+                EndLine = summary.Span.EndLine,
+                EndColumn = summary.Span.EndColumn,
+                ContentHash = summary.ContentHash,
+                SummaryKind = summary.SummaryKind,
+                Summary = summary.Summary,
+                Tags = summary.Tags,
+                Confidence = summary.Confidence,
+                Provider = summary.Provider,
+                Model = summary.Model,
+                PromptVersion = summary.PromptVersion,
+                PromptHash = summary.PromptHash,
+                GeneratedAtUtc = summary.GeneratedAt.UtcDateTime,
+                Status = summary.Status,
+                Error = summary.Error,
+                Metadata = summary.Metadata
+            };
+        }
+    }
+
+    private sealed class SummaryStateProjection
+    {
+        public required string Id { get; init; }
+
+        public required string NodeId { get; init; }
+
+        public required string ContentHash { get; init; }
+
+        public required string SummaryKind { get; init; }
+
+        public required string Provider { get; init; }
+
+        public required string Model { get; init; }
+
+        public required string PromptVersion { get; init; }
+
+        public required string Status { get; init; }
+    }
+}

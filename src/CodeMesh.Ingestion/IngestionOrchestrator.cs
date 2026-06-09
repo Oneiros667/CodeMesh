@@ -2,6 +2,7 @@ using CodeMesh.Domain.Contracts;
 using CodeMesh.Domain.Graph;
 using CodeMesh.Domain.Utilities;
 using CodeMesh.Ingestion.Embedding;
+using CodeMesh.Ingestion.Summary;
 using CodeMesh.Storage;
 
 namespace CodeMesh.Ingestion;
@@ -12,7 +13,9 @@ public sealed class IngestionOrchestrator(
     IContentStore contentStore,
     IVectorStore vectorStore,
     IEmbeddingProvider embeddingProvider,
-    IRegistryStore? registryStore = null) : IIngestionOrchestrator
+    IRegistryStore? registryStore = null,
+    INodeSummaryStore? summaryStore = null,
+    ICodeSummaryProvider? summaryProvider = null) : IIngestionOrchestrator
 {
     public async Task<IngestionResult> IngestAsync(
         IngestionRequest request,
@@ -114,6 +117,7 @@ public sealed class IngestionOrchestrator(
 
         var embeddingCount = 0;
         var skippedEmbeddingCount = 0;
+        CodeSummaryGenerationResult? summaryResult = null;
         int? currentEmbeddingCount = request.SkipEmbeddings ? null : 0;
 
         if (!request.DryRun)
@@ -204,6 +208,26 @@ public sealed class IngestionOrchestrator(
                 currentEmbeddingCount = currentEmbeddingIds.Count;
             }
 
+            if (request.IncludeSummaries)
+            {
+                if (summaryStore is null || summaryProvider is null)
+                {
+                    throw new InvalidOperationException("Node summaries require a summary store and summary provider.");
+                }
+
+                var contentByHash = currentContents
+                    .GroupBy(content => content.Hash, StringComparer.Ordinal)
+                    .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+                var summaryGenerator = new CodeSummaryGenerator(
+                    summaryProvider,
+                    summaryStore,
+                    new CodeSummaryGenerationOptions(Force: request.ForceSummaries));
+
+                summaryResult = await summaryGenerator
+                    .GenerateAsync(repository, ingestionRunId, nodes, contentByHash, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
             if (graphStore is IIncrementalGraphStore cleanupGraphStore)
             {
                 await cleanupGraphStore
@@ -264,7 +288,12 @@ public sealed class IngestionOrchestrator(
                 contentsToWrite.Length,
                 skippedContentCount,
                 embeddingCount,
-                skippedEmbeddingCount));
+                skippedEmbeddingCount,
+                summaryResult?.CandidateCount ?? 0,
+                summaryResult?.WrittenCount ?? 0,
+                summaryResult?.SkippedCount ?? 0,
+                summaryResult?.FailedCount ?? 0),
+            summaryResult?.WrittenCount ?? 0);
 
         if (!request.DryRun && registryStore is not null)
         {
@@ -318,7 +347,10 @@ public sealed class IngestionOrchestrator(
                 ["language"] = request.Language,
                 ["parserName"] = parseResult.ParserName,
                 ["embeddingProvider"] = embeddingProvider.Provider,
-                ["embeddingModel"] = embeddingProvider.Model
+                ["embeddingModel"] = embeddingProvider.Model,
+                ["summaryProvider"] = request.IncludeSummaries ? summaryProvider?.Provider ?? "none" : "none",
+                ["summaryModel"] = request.IncludeSummaries ? summaryProvider?.Model ?? "none" : "none",
+                ["summaryCount"] = result.SummaryCount.ToString()
             },
             repositoryAlias);
         var run = new IngestionRunIndexRecord(
@@ -347,7 +379,12 @@ public sealed class IngestionOrchestrator(
             diagnostics.Count(diagnostic => string.Equals(diagnostic.Severity, "warning", StringComparison.OrdinalIgnoreCase)),
             new Dictionary<string, string>
             {
-                ["parsedAt"] = parseResult.ParsedAt.ToString("O")
+                ["parsedAt"] = parseResult.ParsedAt.ToString("O"),
+                ["includeSummaries"] = request.IncludeSummaries.ToString(),
+                ["forceSummaries"] = request.ForceSummaries.ToString(),
+                ["summaryProvider"] = request.IncludeSummaries ? summaryProvider?.Provider ?? "none" : "none",
+                ["summaryModel"] = request.IncludeSummaries ? summaryProvider?.Model ?? "none" : "none",
+                ["summaryCount"] = result.SummaryCount.ToString()
             });
 
         await registryStore.UpsertRepositoryAsync(repository, cancellationToken)

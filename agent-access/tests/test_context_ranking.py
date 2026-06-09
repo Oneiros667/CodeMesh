@@ -40,6 +40,10 @@ def test_vector_search_expands_parameter_declaration_to_method_context() -> None
         "vector_available": True,
         "vector_hit_count": 1,
         "lexical_hit_count": 1,
+        "summary_hit_count": 0,
+        "vector_candidate_count": 1,
+        "lexical_candidate_count": 1,
+        "summary_candidate_count": 0,
         "lexical_fallback": False,
         "hit_count": 1,
     }
@@ -124,9 +128,36 @@ def test_vector_search_reports_lexical_fallback_when_vector_has_no_hits() -> Non
         "vector_available": True,
         "vector_hit_count": 0,
         "lexical_hit_count": 1,
+        "summary_hit_count": 0,
+        "vector_candidate_count": 0,
+        "lexical_candidate_count": 1,
+        "summary_candidate_count": 0,
         "lexical_fallback": True,
         "hit_count": 1,
     }
+
+
+def test_summary_search_contributes_context_hits() -> None:
+    store = FakeReadStore()
+    store.enable_summary_search = True
+
+    response = asyncio.run(
+        store.search_context(
+            ContextQuery(
+                query="subtitles",
+                repository_id="repo:test",
+                limit=1,
+                expand_context=False,
+            )
+        )
+    )
+
+    assert len(response.hits) == 1
+    hit = response.hits[0]
+    assert hit.node_id == store.method_symbol["id"]
+    assert hit.score_components["summary_score"] > 0
+    assert response.diagnostics["summary_hit_count"] == 1
+    assert response.diagnostics["summary_candidate_count"] == 1
 
 
 def test_ranked_unique_hits_keeps_best_expanded_context() -> None:
@@ -237,6 +268,9 @@ def test_context_package_includes_snippet_relationships_and_registry_metadata() 
         "created_at": None,
         "updated_at": None,
     }
+    assert item.summary is not None
+    assert item.summary["summary"] == "Downloads subtitles for a video URL."
+    assert item.summary["provider"] == "test"
     assert item.snippet is not None
     assert item.snippet.endswith("...<trimmed>")
     assert [(item["kind"], item["direction"]) for item in item.relationships[:5]] == [
@@ -317,6 +351,7 @@ class FakeReadStore(CodeMeshReadStore):
                 mongo_content_collection="content",
                 mongo_repositories_collection="repositories",
                 mongo_ingestion_runs_collection="ingestion_runs",
+                mongo_node_summaries_collection="node_summaries",
                 qdrant_url="http://unused",
                 qdrant_collection="codemesh-code",
                 model_provider="none",
@@ -326,6 +361,7 @@ class FakeReadStore(CodeMeshReadStore):
             )
         )
         self._vectors = FakeVectorClient(self)
+        self.enable_summary_search = False
         self.parameter_declaration = _node(
             "csharp:decl:csharp:param:Sample.Downloader.DownloadAsync(System.String):0:url:Downloader.cs:10:34",
             "Declaration",
@@ -545,6 +581,51 @@ class FakeReadStore(CodeMeshReadStore):
             }
         }
         return contents.get(content_hash)
+
+    async def _get_node_summary(
+        self,
+        repository_id: str | None,
+        node_id: str,
+        content_hash: str | None = None,
+    ) -> dict[str, object] | None:
+        if repository_id != "repo:test" or node_id != self.method_symbol["id"]:
+            return None
+
+        return {
+            "id": "summary:test",
+            "repository_id": "repo:test",
+            "node_id": self.method_symbol["id"],
+            "content_hash": "method-body",
+            "summary_kind": "symbol",
+            "summary": "Downloads subtitles for a video URL.",
+            "tags": ["download", "subtitles"],
+            "confidence": "high",
+            "provider": "test",
+            "model": "summary-counting",
+            "prompt_version": "node-summary-v1",
+        }
+
+    async def _search_summary_context(self, query: ContextQuery) -> list[ContextHit]:
+        if not self.enable_summary_search:
+            return []
+
+        summary = await self._get_node_summary(query.repository_id, self.method_symbol["id"], "method-body")
+        if summary is None:
+            return []
+
+        return [
+            await self._build_context_hit(
+                self.method_symbol,
+                0.72,
+                query.repository_id,
+                raw_score_name="summary_score",
+                preview=str(summary["summary"]),
+                expand_context=query.expand_context,
+                context_depth=query.context_depth,
+                include_context_relationships=query.include_context_relationships,
+                context_relationship_limit=query.context_relationship_limit,
+            )
+        ]
 
     async def get_repository(self, repository_id: str) -> RepositorySummary | None:
         if repository_id not in {"repo:test", "sample_repo"}:

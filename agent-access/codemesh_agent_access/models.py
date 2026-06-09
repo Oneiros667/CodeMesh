@@ -74,6 +74,7 @@ class ContextPackageItem(BaseModel):
     hit: ContextHit
     node: dict[str, Any] | None = None
     content: dict[str, Any] | None = None
+    summary: dict[str, Any] | None = None
     snippet: str | None = None
     relationships: list[dict[str, Any]] = Field(default_factory=list)
     relationship_groups: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)

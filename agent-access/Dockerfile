@@ -5,8 +5,8 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-COPY agent-access/pyproject.toml ./pyproject.toml
-COPY agent-access/codemesh_agent_access ./codemesh_agent_access
+COPY pyproject.toml ./pyproject.toml
+COPY codemesh_agent_access ./codemesh_agent_access
 
 RUN pip install --no-cache-dir .
 

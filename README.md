@@ -6,7 +6,7 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. Code
 
 - `.NET 10` solution with `CodeMesh.Domain`, `CodeMesh.Ingestion`, `CodeMesh.Control`, `CodeMesh.Parser.CSharp`, `CodeMesh.Storage`, and `CodeMesh.Cli`.
 - Shared records for code nodes, relationships, parser results, ingestion runs, agent context, and health checks.
-- Ingestion orchestration with incremental graph/content/vector writes and repository/run registry records.
+- Ingestion orchestration with incremental graph/content/vector/summary writes and repository/run registry records.
 - C# parser worker API with `/health`, `/capabilities`, and `/parse`.
 - Python Agent Access REST endpoints and MCP tools backed by Neo4j, MongoDB, and Qdrant read paths.
 - Docker Compose for Neo4j, MongoDB, Qdrant, Agent Access, C# parser worker, and optional Ollama.
@@ -82,7 +82,36 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
   --embedding-model text-embedding-nomic-embed-text-v2-moe
 ```
 
-Each successful ingestion run stamps graph, content, and vector records with a repository id and ingestion run id. CodeMesh also writes repository/run registry records to MongoDB so users and agents can discover indexed repositories and recent ingestion history. Repository registry records include a generated alias, for example `YoutubeDownloader` becomes `youtube_downloader`, and read commands accept either the hash id or alias. Incremental ingestion skips unchanged graph/content/vector writes after parsing, then removes stale records from the same repository that were not seen in the current run. If `--skip-embeddings` is used, vector cleanup is skipped so existing embeddings are left untouched.
+Generate MongoDB node summaries with a local chat/code model:
+
+```powershell
+ollama pull qwen2.5-coder:14b
+
+dotnet run --project src/CodeMesh.Cli -- ingest `
+  --root D:\source\repos\YoutubeDownloader `
+  --solution D:\source\repos\YoutubeDownloader\YoutubeDownloader.slnx `
+  --skip-embeddings `
+  --include-summaries `
+  --summary-provider ollama `
+  --summary-model qwen2.5-coder:14b
+```
+
+LM Studio summary generation uses its OpenAI-compatible chat API:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- ingest `
+  --root D:\source\repos\YoutubeDownloader `
+  --solution D:\source\repos\YoutubeDownloader\YoutubeDownloader.slnx `
+  --skip-embeddings `
+  --include-summaries `
+  --summary-provider lmstudio `
+  --lm-studio-url http://127.0.0.1:1234/v1 `
+  --summary-model qwen/qwen3.5-9b
+```
+
+Summaries are stored in MongoDB `node_summaries` by default and are keyed by repository, node, content hash, summary kind, provider, model, and prompt version. Incremental ingestion skips unchanged completed summaries; use `--force-summaries` to regenerate summaries for unchanged code.
+
+Each successful ingestion run stamps graph, content, vector, and summary records with a repository id and ingestion run id. CodeMesh also writes repository/run registry records to MongoDB so users and agents can discover indexed repositories and recent ingestion history. Repository registry records include a generated alias, for example `YoutubeDownloader` becomes `youtube_downloader`, and read commands accept either the hash id or alias. Incremental ingestion skips unchanged graph/content/vector/summary writes after parsing, then removes stale records from the same repository that were not seen in the current run. If `--skip-embeddings` is used, vector cleanup is skipped so existing embeddings are left untouched.
 
 Query the registry:
 
@@ -182,7 +211,7 @@ CODEMESH_AGENT_LM_STUDIO_URL=http://host.docker.internal:1234/v1
 CODEMESH_EMBEDDING_MODEL=text-embedding-nomic-embed-text-v2-moe
 ```
 
-`CODEMESH_LM_STUDIO_URL` is used by the host .NET CLI. `CODEMESH_AGENT_LM_STUDIO_URL` is used by Dockerized Agent Access, where `host.docker.internal` points back to the Windows host running LM Studio. `text-embedding-nomic-embed-text-v1.5` is also valid if that is the embedding model loaded in LM Studio.
+`CODEMESH_LM_STUDIO_URL` is used by the host .NET CLI. `CODEMESH_AGENT_LM_STUDIO_URL` is used by Dockerized Agent Access, where `host.docker.internal` points back to the Windows host running LM Studio. Leave `CODEMESH_EMBEDDING_MODEL` blank to use the provider default, or set it to the exact model listed by LM Studio. `text-embedding-nomic-embed-text-v1.5` is also valid if that is the embedding model loaded in LM Studio.
 
 ## Service Endpoints
 
@@ -289,13 +318,13 @@ uv run python -m codemesh_agent_access repos --limit 10
 uv run python -m codemesh_agent_access runs --repository-id <repository-id-or-alias> --limit 5
 ```
 
-Set `CODEMESH_MODEL_PROVIDER=ollama` or `CODEMESH_MODEL_PROVIDER=lmstudio` for Agent Access when you want text queries embedded automatically before Qdrant search. If the configured model provider or Qdrant vectors are unavailable, Agent Access falls back to lexical Neo4j search. `/context/search` responses include `diagnostics` metadata with the selected mode (`vector`, `lexical`, or `hybrid`), vector and lexical hit counts, embedding source, and lexical fallback status.
+Set `CODEMESH_MODEL_PROVIDER=ollama` or `CODEMESH_MODEL_PROVIDER=lmstudio` for Agent Access when you want text queries embedded automatically before Qdrant search. Agent Access health and `codemesh status` validate that the configured embedding model is listed by the selected provider. If the configured model provider or Qdrant vectors are unavailable, Agent Access falls back to lexical Neo4j search. `/context/search` responses include `diagnostics` metadata with the selected mode (`vector`, `lexical`, or `hybrid`), returned vector/lexical hit counts, raw vector/lexical candidate counts, embedding source, and lexical fallback status.
 
 Pass `repository_id` in REST/MCP context, node, and neighbor queries to constrain lookups to one ingested repository. The value can be the repository hash id or its generated alias. CLI commands accept the equivalent `--repository-id` option.
 
-Context search results are ranked for agent usefulness. When a query vector is available, Agent Access uses hybrid retrieval by merging vector hits with lexical graph hits before deduping and ranking. Low-level matches such as parameter declarations are expanded to their defining symbol or containing method/type before they are returned, and each hit includes `repository_id`, `content_hash`, `score_components`, and `expanded_context` when expansion occurred. Use `expand_context=false` in REST/MCP or `--no-expand-context` in the CLI for compact raw hits. Use `include_context_relationships=true` or `--include-context-relationships` when each hit should include a small immediate relationship summary.
+Context search results are ranked for agent usefulness. Agent Access merges vector hits, lexical graph hits, and generated-summary hits from MongoDB before deduping and ranking. Low-level matches such as parameter declarations are expanded to their defining symbol or containing method/type before they are returned, and each hit includes `repository_id`, `content_hash`, `score_components`, and `expanded_context` when expansion occurred. Use `expand_context=false` in REST/MCP or `--no-expand-context` in the CLI for compact raw hits. Use `include_context_relationships=true` or `--include-context-relationships` when each hit should include a small immediate relationship summary.
 
-Context packages build on search results and return an agent-ready bundle with selected hits, normalized node metadata, budgeted source snippets, immediate relationship summaries, repository metadata, and the latest ingestion run. Each item includes the flat `relationships` list plus `relationship_groups` for `callers`, `callees`, `reads`, `writes`, `contains`, `defines`, and `uses_types`. Relationship summaries are ordered for agent usefulness, prioritizing the primary declaration, enclosing owner, callers, callees, writes, reads, and type relationships before low-signal edges. Use `max_characters` / `--max-characters` to keep snippet output within a rough context budget, and use `caller_limit`, `callee_limit`, `read_limit`, `write_limit`, `contains_limit`, `definition_limit`, and `uses_type_limit` to cap noisy relationship groups inside the total `relationship_limit`. The package CLI defaults to JSON; pass `--output agent` for a concise text brief. MCP package calls default to structured JSON and can pass `output_format = "agent"` to include the same concise brief as `agent_text`.
+Context packages build on search results and return an agent-ready bundle with selected hits, normalized node metadata, generated node summaries when available, budgeted source snippets, immediate relationship summaries, repository metadata, and the latest ingestion run. Each item includes the flat `relationships` list plus `relationship_groups` for `callers`, `callees`, `reads`, `writes`, `contains`, `defines`, and `uses_types`. Relationship summaries are ordered for agent usefulness, prioritizing the primary declaration, enclosing owner, callers, callees, writes, reads, and type relationships before low-signal edges. Use `max_characters` / `--max-characters` to keep snippet output within a rough context budget, and use `caller_limit`, `callee_limit`, `read_limit`, `write_limit`, `contains_limit`, `definition_limit`, and `uses_type_limit` to cap noisy relationship groups inside the total `relationship_limit`. The package CLI defaults to JSON; pass `--output agent` for a concise text brief. MCP package calls default to structured JSON and can pass `output_format = "agent"` to include the same concise brief as `agent_text`.
 
 Symbol search is for precise code navigation before requesting a full package. Use `/symbols/search`, `codemesh_search_symbols`, or the `symbols` CLI command when an agent already has a likely type/member name and needs the canonical node id, display metadata, location, and primary declaration.
 

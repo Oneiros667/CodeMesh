@@ -20,6 +20,8 @@ public sealed record IngestionRequest(
     bool DryRun = false,
     bool SkipEmbeddings = true,
     bool ForceEmbeddings = false,
+    bool IncludeSummaries = false,
+    bool ForceSummaries = false,
     IReadOnlyDictionary<string, string>? Options = null);
 
 public sealed record IngestionRun(
@@ -37,7 +39,8 @@ public sealed record IngestionResult(
     int ContentCount,
     int EmbeddingCount,
     IReadOnlyList<ParserDiagnostic> Diagnostics,
-    IngestionStats? Stats = null);
+    IngestionStats? Stats = null,
+    int SummaryCount = 0);
 
 public sealed record IngestionStats(
     int ParsedNodeCount,
@@ -50,7 +53,11 @@ public sealed record IngestionStats(
     int WrittenContentCount,
     int SkippedContentCount,
     int WrittenEmbeddingCount,
-    int SkippedEmbeddingCount);
+    int SkippedEmbeddingCount,
+    int SummaryCandidateCount = 0,
+    int WrittenSummaryCount = 0,
+    int SkippedSummaryCount = 0,
+    int FailedSummaryCount = 0);
 
 public sealed record RepositoryIndexRecord(
     string RepositoryId,

@@ -5,6 +5,7 @@ using CodeMesh.Domain.Contracts;
 using CodeMesh.Domain.Health;
 using CodeMesh.Ingestion;
 using CodeMesh.Ingestion.Embedding;
+using CodeMesh.Ingestion.Summary;
 using CodeMesh.Parser.CSharp;
 using CodeMesh.Storage;
 using CodeMesh.Storage.Mongo;
@@ -198,6 +199,8 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
     using var vectorStore = CreateVectorStore(args);
     var (embeddingProvider, skipEmbeddings) = CreateEmbeddingProvider(args);
     using var disposableEmbeddingProvider = embeddingProvider as IDisposable;
+    var (summaryProvider, includeSummaries) = CreateSummaryProvider(args);
+    using var disposableSummaryProvider = summaryProvider as IDisposable;
 
     var request = new IngestionRequest(
         repositoryRoot,
@@ -206,7 +209,9 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
         language,
         DryRun: HasFlag(args, "--dry-run"),
         SkipEmbeddings: skipEmbeddings,
-        ForceEmbeddings: forceEmbeddings);
+        ForceEmbeddings: forceEmbeddings,
+        IncludeSummaries: includeSummaries,
+        ForceSummaries: HasFlag(args, "--force-summaries"));
 
     var orchestrator = new IngestionOrchestrator(
         parserClient,
@@ -214,7 +219,9 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
         contentStore,
         vectorStore,
         embeddingProvider,
-        registryStore);
+        registryStore,
+        CreateNodeSummaryStore(args),
+        summaryProvider);
 
     return await orchestrator.IngestAsync(request).ConfigureAwait(false);
 }
@@ -313,6 +320,16 @@ static MongoRegistryStore CreateRegistryStore(string[] args)
             ?? "ingestion_runs"));
 }
 
+static MongoNodeSummaryStore CreateNodeSummaryStore(string[] args)
+{
+    return new MongoNodeSummaryStore(new MongoNodeSummaryStoreOptions(
+        ReadOption(args, "--mongo-uri") ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_URI") ?? "mongodb://127.0.0.1:27017",
+        ReadOption(args, "--mongo-database") ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_DATABASE") ?? "codemesh",
+        ReadOption(args, "--mongo-node-summaries-collection")
+            ?? Environment.GetEnvironmentVariable("CODEMESH_MONGO_NODE_SUMMARIES_COLLECTION")
+            ?? "node_summaries"));
+}
+
 static QdrantVectorStore CreateVectorStore(string[] args)
 {
     return new QdrantVectorStore(new QdrantVectorStoreOptions(
@@ -361,6 +378,44 @@ static (IEmbeddingProvider Provider, bool SkipEmbeddings) CreateEmbeddingProvide
     };
 }
 
+static (ICodeSummaryProvider Provider, bool IncludeSummaries) CreateSummaryProvider(string[] args)
+{
+    var includeSummaries = HasFlag(args, "--include-summaries") || HasFlag(args, "--force-summaries");
+    if (!includeSummaries)
+    {
+        return (new NoCodeSummaryProvider(), false);
+    }
+
+    var provider = ReadOption(args, "--summary-provider")
+        ?? Environment.GetEnvironmentVariable("CODEMESH_SUMMARY_PROVIDER")
+        ?? Environment.GetEnvironmentVariable("CODEMESH_MODEL_PROVIDER")
+        ?? "ollama";
+    provider = NormalizeModelProvider(provider);
+    if (string.Equals(provider, "none", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException(
+            "Summary provider 'none' cannot be used when summaries are included. Supported values: ollama, lmstudio.");
+    }
+
+    var model = ReadOption(args, "--summary-model")
+        ?? Environment.GetEnvironmentVariable("CODEMESH_SUMMARY_MODEL")
+        ?? DefaultSummaryModel(provider);
+
+    return provider switch
+    {
+        "ollama" => (new OllamaCodeSummaryProvider(new OllamaCodeSummaryProviderOptions(
+            ReadOption(args, "--ollama-url") ?? Environment.GetEnvironmentVariable("CODEMESH_OLLAMA_URL") ?? "http://127.0.0.1:11434",
+            model)), true),
+        "lmstudio" => (new LmStudioCodeSummaryProvider(new LmStudioCodeSummaryProviderOptions(
+            ReadAnyOption(args, "--lm-studio-url", "--lmstudio-url")
+                ?? Environment.GetEnvironmentVariable("CODEMESH_LM_STUDIO_URL")
+                ?? "http://127.0.0.1:1234/v1",
+            model)), true),
+        _ => throw new InvalidOperationException(
+            $"Unsupported summary provider: {provider}. Supported values: ollama, lmstudio.")
+    };
+}
+
 static (string Provider, string Model) ResolveEmbeddingTarget(string[] args)
 {
     var provider = ReadOption(args, "--embedding-provider")
@@ -370,22 +425,37 @@ static (string Provider, string Model) ResolveEmbeddingTarget(string[] args)
     {
         provider = "ollama";
     }
-    provider = NormalizeEmbeddingProvider(provider);
+    provider = NormalizeModelProvider(provider);
 
     var model = ReadOption(args, "--embedding-model")
-        ?? Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL")
-        ?? DefaultEmbeddingModel(provider);
+        ?? Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL");
+    if (string.IsNullOrWhiteSpace(model))
+    {
+        model = DefaultEmbeddingModel(provider);
+    }
 
     return (provider, model);
 }
 
 static string NormalizeEmbeddingProvider(string provider)
 {
+    return NormalizeModelProvider(provider);
+}
+
+static string NormalizeModelProvider(string provider)
+{
     return provider.Trim().ToLowerInvariant() switch
     {
         "lm-studio" or "lm_studio" => "lmstudio",
         var value => value
     };
+}
+
+static string DefaultSummaryModel(string provider)
+{
+    return NormalizeModelProvider(provider) == "lmstudio"
+        ? "qwen/qwen3.5-9b"
+        : "qwen2.5-coder:14b";
 }
 
 static string DefaultEmbeddingModel(string provider)
@@ -476,6 +546,7 @@ static void PrintIngestionResult(IngestionResult result, bool json)
         Console.WriteLine($"Relationships: {result.RelationshipCount}");
         Console.WriteLine($"Content items: {result.ContentCount}");
         Console.WriteLine($"Embeddings: {result.EmbeddingCount}");
+        Console.WriteLine($"Summaries: {result.SummaryCount}");
     }
     else
     {
@@ -483,6 +554,7 @@ static void PrintIngestionResult(IngestionResult result, bool json)
         Console.WriteLine($"Relationships: {result.Stats.ParsedRelationshipCount} parsed, {result.Stats.WrittenRelationshipCount} written, {result.Stats.SkippedRelationshipCount} skipped");
         Console.WriteLine($"Content items: {result.Stats.ParsedContentCount} parsed, {result.Stats.WrittenContentCount} written, {result.Stats.SkippedContentCount} skipped");
         Console.WriteLine($"Embeddings: {result.Stats.WrittenEmbeddingCount} written, {result.Stats.SkippedEmbeddingCount} skipped");
+        Console.WriteLine($"Summaries: {result.Stats.WrittenSummaryCount} written, {result.Stats.SkippedSummaryCount} skipped, {result.Stats.FailedSummaryCount} failed, {result.Stats.SummaryCandidateCount} candidates");
     }
 
     if (result.Diagnostics.Count == 0)
@@ -714,7 +786,7 @@ static void PrintHelp()
     Console.WriteLine("Usage:");
     Console.WriteLine("  codemesh doctor [--root <path>] [--json]");
     Console.WriteLine("  codemesh status [--root <path>] [--json]");
-    Console.WriteLine("  codemesh ingest [--root <path>] [--solution <path>] [--project <path>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--json]");
+    Console.WriteLine("  codemesh ingest [--root <path>] [--solution <path>] [--project <path>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh embeddings verify <repository-id-or-alias> [--embedding-provider <provider>] [--embedding-model <model>] [--json]");
     Console.WriteLine("  codemesh repos list [--limit <count>] [--json]");
     Console.WriteLine("  codemesh repo show <repository-id-or-alias> [--json]");
@@ -723,11 +795,12 @@ static void PrintHelp()
     Console.WriteLine("Ingestion store options:");
     Console.WriteLine("  --neo4j-uri <uri> --neo4j-user <user> --neo4j-password <password> --neo4j-database <database>");
     Console.WriteLine("  --mongo-uri <uri> --mongo-database <database> --mongo-content-collection <collection>");
-    Console.WriteLine("  --mongo-repositories-collection <collection> --mongo-ingestion-runs-collection <collection>");
+    Console.WriteLine("  --mongo-repositories-collection <collection> --mongo-ingestion-runs-collection <collection> --mongo-node-summaries-collection <collection>");
     Console.WriteLine("  --qdrant-url <url> --qdrant-collection <collection>");
     Console.WriteLine("  --parser-url <url>");
     Console.WriteLine("  --include-embeddings --embedding-provider <none|ollama|lmstudio> --ollama-url <url> --lm-studio-url <url> --embedding-model <model>");
     Console.WriteLine("  --embedding-batch-size <count> --embedding-max-chars <count>");
+    Console.WriteLine("  --include-summaries --force-summaries --summary-provider <ollama|lmstudio> --summary-model <model>");
 }
 
 sealed class LocalCSharpParserClient(CSharpParseService parser) : IParserClient

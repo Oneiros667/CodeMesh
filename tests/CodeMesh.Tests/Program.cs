@@ -10,6 +10,7 @@ using CodeMesh.Domain.Health;
 using CodeMesh.Domain.Utilities;
 using CodeMesh.Ingestion;
 using CodeMesh.Ingestion.Embedding;
+using CodeMesh.Ingestion.Summary;
 using CodeMesh.Parser.CSharp;
 using CodeMesh.Storage.Memory;
 using CodeMesh.Storage.Mongo;
@@ -25,12 +26,14 @@ var tests = new (string Name, Func<Task> Run)[]
     ("dry-run ingestion skips stores", TestDryRunSkipsStores),
     ("repository refresh removes stale records", TestRepositoryRefreshRemovesStaleRecords),
     ("incremental ingestion skips unchanged records", TestIncrementalIngestionSkipsUnchangedRecords),
+    ("incremental ingestion skips unchanged summaries", TestIncrementalIngestionSkipsUnchangedSummaries),
     ("forced embedding ingestion rebuilds unchanged embeddings", TestForcedEmbeddingIngestionRebuildsUnchangedEmbeddings),
     ("embedding verifier reports missing and stale vectors", TestEmbeddingVerifierReportsMissingAndStaleVectors),
     ("repository aliases are generated and resolved", TestRepositoryAliasesAreGeneratedAndResolved),
     ("ingestion writes repository registry records", TestIngestionWritesRepositoryRegistryRecords),
     ("status uses configured ollama endpoint", TestStatusUsesConfiguredOllamaEndpoint),
     ("status retries transient ollama failures", TestStatusRetriesTransientOllamaFailures),
+    ("status degrades when configured model is missing", TestStatusDegradesWhenConfiguredModelIsMissing),
     ("ollama embedding provider maps responses", TestOllamaEmbeddingProviderMapsResponses),
     ("lm studio embedding provider maps responses", TestLmStudioEmbeddingProviderMapsResponses),
     ("mongodb content store round-trips content", TestMongoContentStoreRoundTripsContent),
@@ -159,6 +162,10 @@ static Task TestAgentAccessContractsMapRestJson()
             "vector_available": true,
             "vector_hit_count": 7,
             "lexical_hit_count": 3,
+            "summary_hit_count": 2,
+            "vector_candidate_count": 9,
+            "lexical_candidate_count": 5,
+            "summary_candidate_count": 4,
             "lexical_fallback": false,
             "hit_count": 1
           },
@@ -179,6 +186,10 @@ static Task TestAgentAccessContractsMapRestJson()
     Equal("lmstudio", context.Diagnostics.ModelProvider, "Agent context diagnostics provider did not deserialize.");
     Equal(7, context.Diagnostics.VectorHitCount, "Agent context diagnostics vector hit count did not deserialize.");
     Equal(3, context.Diagnostics.LexicalHitCount, "Agent context diagnostics lexical hit count did not deserialize.");
+    Equal(2, context.Diagnostics.SummaryHitCount, "Agent context diagnostics summary hit count did not deserialize.");
+    Equal(9, context.Diagnostics.VectorCandidateCount, "Agent context diagnostics vector candidate count did not deserialize.");
+    Equal(5, context.Diagnostics.LexicalCandidateCount, "Agent context diagnostics lexical candidate count did not deserialize.");
+    Equal(4, context.Diagnostics.SummaryCandidateCount, "Agent context diagnostics summary candidate count did not deserialize.");
 
     var package = JsonSerializer.Deserialize<AgentContextPackageResult>(
         """
@@ -219,6 +230,7 @@ static Task TestAgentAccessContractsMapRestJson()
               },
               "node": {"id": "node:download", "kind": "Method"},
               "content": {"hash": "content:download"},
+              "summary": {"summary": "Downloads subtitles for a video URL.", "provider": "test"},
               "snippet": "return Task.CompletedTask;",
               "relationships": [{"kind": "Invokes", "target_node_id": "node:callee"}],
               "relationship_groups": {
@@ -239,6 +251,7 @@ static Task TestAgentAccessContractsMapRestJson()
     Equal(0, package.Query.UsesTypeLimit ?? -1, "Agent context package uses type limit did not deserialize.");
     Equal("sample_repo", package.Repository!["alias"].GetString() ?? string.Empty, "Agent context package repository metadata did not deserialize.");
     Equal("lmstudio", package.LatestRun!["embedding_provider"].GetString() ?? string.Empty, "Agent context package latest run did not deserialize.");
+    Equal("Downloads subtitles for a video URL.", package.Items[0].Summary!["summary"].GetString() ?? string.Empty, "Agent context package summary did not deserialize.");
     Equal("return Task.CompletedTask;", package.Items[0].Snippet ?? string.Empty, "Agent context package snippet did not deserialize.");
     Equal("node:callee", package.Items[0].RelationshipGroups!["callees"][0]["target_node_id"].GetString() ?? string.Empty, "Agent context package relationship groups did not deserialize.");
     Equal(1, package.Items[0].Rationale!["rank"].GetInt32(), "Agent context package rationale did not deserialize.");
@@ -255,6 +268,15 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
     };
     var client = new AgentAccessClient(http);
 
+    var health = await client.GetHealthAsync();
+    Equal("health", handler.Requests[0].Path, "Agent Access health path changed.");
+    Equal("healthy", health.Status, "Agent Access health status did not deserialize.");
+    Equal("healthy", health.Components["model_provider"].GetProperty("status").GetString() ?? string.Empty, "Agent Access health components did not deserialize.");
+
+    var status = await client.GetStatusAsync();
+    Equal("status", handler.Requests[1].Path, "Agent Access status path changed.");
+    Equal("codemesh-agent-access", status.Service, "Agent Access status service did not deserialize.");
+
     var context = await client.SearchContextAsync(new AgentContextQuery(
         "DownloadAsync",
         RepositoryId: "repo:test",
@@ -263,9 +285,9 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
         Vector: [0.1f, 0.2f],
         IncludeContextRelationships: true));
 
-    Equal("context/search", handler.Requests[0].Path, "Agent Access context search path changed.");
-    if (!handler.Requests[0].Body.Contains("\"repository_id\":\"repo:test\"", StringComparison.Ordinal) ||
-        !handler.Requests[0].Body.Contains("\"include_context_relationships\":true", StringComparison.Ordinal))
+    Equal("context/search", handler.Requests[2].Path, "Agent Access context search path changed.");
+    if (!handler.Requests[2].Body.Contains("\"repository_id\":\"repo:test\"", StringComparison.Ordinal) ||
+        !handler.Requests[2].Body.Contains("\"include_context_relationships\":true", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("Agent Access context request did not use REST JSON field names.");
     }
@@ -279,9 +301,9 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
         MaxCharacters: 4000,
         CallerLimit: 2));
 
-    Equal("context/package", handler.Requests[1].Path, "Agent Access context package path changed.");
-    if (!handler.Requests[1].Body.Contains("\"max_characters\":4000", StringComparison.Ordinal) ||
-        !handler.Requests[1].Body.Contains("\"caller_limit\":2", StringComparison.Ordinal))
+    Equal("context/package", handler.Requests[3].Path, "Agent Access context package path changed.");
+    if (!handler.Requests[3].Body.Contains("\"max_characters\":4000", StringComparison.Ordinal) ||
+        !handler.Requests[3].Body.Contains("\"caller_limit\":2", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("Agent Access package request did not use REST JSON field names.");
     }
@@ -294,7 +316,7 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
         Kinds: ["Method"],
         IncludeDeclarations: false));
 
-    Equal("symbols/search", handler.Requests[2].Path, "Agent Access symbol search path changed.");
+    Equal("symbols/search", handler.Requests[4].Path, "Agent Access symbol search path changed.");
     Equal("DownloadAsync", symbols.Symbols[0].Node["name"].GetString() ?? string.Empty, "Agent Access symbol result did not deserialize.");
 
     var node = await client.GetNodeAsync(new AgentNodeLookup(
@@ -302,7 +324,7 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
         RepositoryId: "repo:test",
         IncludeContent: false));
 
-    Equal("nodes/get", handler.Requests[3].Path, "Agent Access node path changed.");
+    Equal("nodes/get", handler.Requests[5].Path, "Agent Access node path changed.");
     Equal("node:download", node.Node!["id"].GetString() ?? string.Empty, "Agent Access node result did not deserialize.");
 
     var neighbors = await client.GetNeighborsAsync(new AgentNeighborQuery(
@@ -310,20 +332,21 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
         RepositoryId: "repo:test",
         RelationshipKinds: ["Invokes"]));
 
-    Equal("graph/neighbors", handler.Requests[4].Path, "Agent Access neighbors path changed.");
+    Equal("graph/neighbors", handler.Requests[6].Path, "Agent Access neighbors path changed.");
+    Equal("node:download", neighbors.Node!["id"].GetString() ?? string.Empty, "Agent Access neighbor node did not deserialize.");
     Equal("Invokes", neighbors.Relationships[0]["kind"].GetString() ?? string.Empty, "Agent Access neighbor result did not deserialize.");
 
     var repositories = await client.ListRepositoriesAsync(limit: 3);
-    Equal("repositories?limit=3", handler.Requests[5].Path, "Agent Access repositories path changed.");
+    Equal("repositories?limit=3", handler.Requests[7].Path, "Agent Access repositories path changed.");
     Equal("sample_repo", repositories.Repositories[0].Alias ?? string.Empty, "Agent Access repository list did not deserialize.");
     Equal(17, repositories.Repositories[0].NodeCount, "Agent Access repository node count did not deserialize.");
 
     var repository = await client.GetRepositoryAsync("sample repo/id");
-    Equal("repositories/sample%20repo%2Fid", handler.Requests[6].Path, "Agent Access repository lookup path did not escape id.");
+    Equal("repositories/sample%20repo%2Fid", handler.Requests[8].Path, "Agent Access repository lookup path did not escape id.");
     Equal("repo:test", repository!.RepositoryId, "Agent Access repository lookup did not deserialize.");
 
     var runs = await client.ListIngestionRunsAsync(repositoryId: "sample repo/id", limit: 2);
-    Equal("ingestion-runs?limit=2&repository_id=sample%20repo%2Fid", handler.Requests[7].Path, "Agent Access runs path changed.");
+    Equal("ingestion-runs?limit=2&repository_id=sample%20repo%2Fid", handler.Requests[9].Path, "Agent Access runs path changed.");
     Equal("run:test", runs.Runs[0].RunId, "Agent Access ingestion run did not deserialize.");
     Equal("lmstudio", runs.Runs[0].EmbeddingProvider, "Agent Access run embedding provider did not deserialize.");
 
@@ -507,6 +530,67 @@ static async Task TestIncrementalIngestionSkipsUnchangedRecords()
         Equal(2, embeddingProvider.EmbeddedNodeCount, "Changed incremental ingest did not embed the changed node.");
         IsNull(await store.GetNodeAsync(RefreshParserClient.NodeIdFor("Alpha")), "Incremental cleanup did not remove stale Alpha node.");
         NotNull(await store.GetNodeAsync(RefreshParserClient.NodeIdFor("Beta")), "Incremental cleanup did not keep current Beta node.");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+static async Task TestIncrementalIngestionSkipsUnchangedSummaries()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-summary-test-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+
+    try
+    {
+        var store = new InMemoryCodeMeshStore();
+        var parser = new RefreshParserClient("Alpha");
+        var summaryProvider = new CountingSummaryProvider();
+        var orchestrator = new IngestionOrchestrator(
+            parser,
+            store,
+            store,
+            store,
+            new NoEmbeddingProvider(),
+            summaryStore: store,
+            summaryProvider: summaryProvider);
+        var repositoryId = CodeMeshHash.StableId(Path.GetFullPath(root));
+
+        var first = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            IncludeSummaries: true));
+
+        Equal(1, first.SummaryCount, "Initial ingest did not write a summary.");
+        Equal(1, first.Stats?.SummaryCandidateCount ?? -1, "Initial ingest summary candidate count changed.");
+        Equal(1, first.Stats?.WrittenSummaryCount ?? -1, "Initial ingest did not report a written summary.");
+        Equal(1, summaryProvider.SummarizedNodeCount, "Initial ingest did not call summary provider.");
+
+        var states = await store.GetSummaryStatesAsync(repositoryId);
+        Equal(1, states.Count, "Summary store did not retain the generated summary.");
+        Equal(RefreshParserClient.NodeIdFor("Alpha"), states[0].NodeId, "Summary state node id changed.");
+
+        var second = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            IncludeSummaries: true));
+
+        Equal(0, second.SummaryCount, "Unchanged ingest should not rewrite a summary.");
+        Equal(0, second.Stats?.WrittenSummaryCount ?? -1, "Unchanged ingest rewrote a summary.");
+        Equal(1, second.Stats?.SkippedSummaryCount ?? -1, "Unchanged ingest did not skip the existing summary.");
+        Equal(1, summaryProvider.SummarizedNodeCount, "Unchanged ingest called summary provider again.");
+
+        var forced = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            IncludeSummaries: true,
+            ForceSummaries: true));
+
+        Equal(1, forced.SummaryCount, "Forced ingest did not rewrite summary.");
+        Equal(1, forced.Stats?.WrittenSummaryCount ?? -1, "Forced ingest did not report a written summary.");
+        Equal(0, forced.Stats?.SkippedSummaryCount ?? -1, "Forced ingest incorrectly skipped summary.");
+        Equal(2, summaryProvider.SummarizedNodeCount, "Forced ingest did not call summary provider again.");
     }
     finally
     {
@@ -770,6 +854,43 @@ static async Task TestStatusRetriesTransientOllamaFailures()
     finally
     {
         Environment.SetEnvironmentVariable("CODEMESH_OLLAMA_URL", previousUrl);
+        Environment.SetEnvironmentVariable("CODEMESH_MODEL_PROVIDER", previousProvider);
+        Environment.SetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL", previousModel);
+    }
+}
+
+static async Task TestStatusDegradesWhenConfiguredModelIsMissing()
+{
+    var previousUrl = Environment.GetEnvironmentVariable("CODEMESH_LM_STUDIO_URL");
+    var previousProvider = Environment.GetEnvironmentVariable("CODEMESH_MODEL_PROVIDER");
+    var previousModel = Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL");
+
+    await using var server = new SlowHttpServer(
+        TimeSpan.Zero,
+        responseBody: """{"data":[{"id":"other-model"}]}""");
+
+    try
+    {
+        Environment.SetEnvironmentVariable("CODEMESH_LM_STUDIO_URL", server.BaseUrl);
+        Environment.SetEnvironmentVariable("CODEMESH_MODEL_PROVIDER", "lmstudio");
+        Environment.SetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL", "expected-model");
+
+        var report = await new CodeMeshStatusService()
+            .GetStatusAsync(Directory.GetCurrentDirectory());
+        var lmStudio = report.Components.Single(component => component.Name == "lmstudio");
+
+        Equal(ComponentState.Degraded, lmStudio.State, "Status did not degrade when the configured model was missing.");
+        Equal($"{server.BaseUrl}/models", lmStudio.Metadata["endpoint"], "Status did not probe the configured LM Studio URL.");
+        Equal("lmstudio", lmStudio.Metadata["provider"], "Status did not report the configured LM Studio provider.");
+        Equal("expected-model", lmStudio.Metadata["model"], "Status did not report the configured LM Studio model.");
+        Equal(
+            "Configured embedding model is not listed by the model provider.",
+            lmStudio.Metadata["detail"],
+            "Status did not report the missing model detail.");
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("CODEMESH_LM_STUDIO_URL", previousUrl);
         Environment.SetEnvironmentVariable("CODEMESH_MODEL_PROVIDER", previousProvider);
         Environment.SetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL", previousModel);
     }
@@ -1935,13 +2056,18 @@ sealed class SlowHttpServer : IAsyncDisposable
     private readonly CancellationTokenSource _cancellation = new();
     private readonly Task _serverTask;
     private readonly TimeSpan _delay;
+    private readonly string _responseBody;
     private int _failuresBeforeSuccess;
     private int _requestCount;
 
-    public SlowHttpServer(TimeSpan delay, int failuresBeforeSuccess = 0)
+    public SlowHttpServer(
+        TimeSpan delay,
+        int failuresBeforeSuccess = 0,
+        string responseBody = """{"models":[{"name":"test-embed"}]}""")
     {
         _delay = delay;
         _failuresBeforeSuccess = failuresBeforeSuccess;
+        _responseBody = responseBody;
         _listener = new TcpListener(IPAddress.Loopback, 0);
         _listener.Start();
 
@@ -2014,9 +2140,8 @@ sealed class SlowHttpServer : IAsyncDisposable
 
         await Task.Delay(_delay, cancellationToken).ConfigureAwait(false);
 
-        const string body = """{"models":[]}""";
         var response = Encoding.ASCII.GetBytes(
-            $"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n{body}");
+            $"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {_responseBody.Length}\r\nConnection: close\r\n\r\n{_responseBody}");
         await stream.WriteAsync(response, cancellationToken).ConfigureAwait(false);
     }
 }
@@ -2186,6 +2311,26 @@ sealed class CountingEmbeddingProvider : IEmbeddingProvider
     }
 }
 
+sealed class CountingSummaryProvider : ICodeSummaryProvider
+{
+    public int SummarizedNodeCount { get; private set; }
+
+    public string Provider => "test";
+
+    public string Model => "summary-counting";
+
+    public Task<CodeSummaryResult> SummarizeAsync(
+        CodeSummaryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        SummarizedNodeCount++;
+        return Task.FromResult(new CodeSummaryResult(
+            $"Summarizes {request.Node.Kind} {request.Node.Name}.",
+            [request.Node.Kind.ToString().ToLowerInvariant()],
+            "high"));
+    }
+}
+
 sealed class FakeOllamaEmbeddingHandler : HttpMessageHandler
 {
     public int RequestCount { get; private set; }
@@ -2282,6 +2427,24 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
 
         var payload = path switch
         {
+            "health" or "status" =>
+                """
+                {
+                  "service": "codemesh-agent-access",
+                  "status": "healthy",
+                  "checked_at": "2026-06-06T10:00:00Z",
+                  "components": {
+                    "neo4j": {"status": "healthy"},
+                    "mongodb": {"status": "healthy"},
+                    "qdrant": {"status": "healthy"},
+                    "model_provider": {
+                      "provider": "lmstudio",
+                      "embedding_model": "text-embedding-nomic-embed-text-v2-moe",
+                      "status": "healthy"
+                    }
+                  }
+                }
+                """,
             "context/search" =>
                 """
                 {
@@ -2305,6 +2468,10 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                     "vector_available": true,
                     "vector_hit_count": 1,
                     "lexical_hit_count": 1,
+                    "summary_hit_count": 0,
+                    "vector_candidate_count": 1,
+                    "lexical_candidate_count": 1,
+                    "summary_candidate_count": 0,
                     "lexical_fallback": false,
                     "hit_count": 1
                   },
@@ -2364,6 +2531,8 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
             "graph/neighbors" =>
                 """
                 {
+                  "node": {"id": "node:download", "kind": "Method"},
+                  "content": null,
                   "relationships": [
                     {"kind": "Invokes", "target_node_id": "node:callee"}
                   ]

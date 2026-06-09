@@ -4,6 +4,12 @@ using CodeMesh.Domain.Graph;
 
 namespace CodeMesh.Domain.Contracts;
 
+public sealed record AgentHealthResult(
+    [property: JsonPropertyName("service")] string Service,
+    [property: JsonPropertyName("status")] string Status,
+    [property: JsonPropertyName("checked_at")] DateTimeOffset CheckedAt,
+    [property: JsonPropertyName("components")] IReadOnlyDictionary<string, JsonElement> Components);
+
 public sealed record AgentContextQuery(
     [property: JsonPropertyName("query")] string Query,
     [property: JsonPropertyName("repository_id")] string? RepositoryId = null,
@@ -40,6 +46,10 @@ public sealed record AgentContextDiagnostics(
     [property: JsonPropertyName("vector_available")] bool VectorAvailable,
     [property: JsonPropertyName("vector_hit_count")] int VectorHitCount,
     [property: JsonPropertyName("lexical_hit_count")] int LexicalHitCount,
+    [property: JsonPropertyName("summary_hit_count")] int SummaryHitCount,
+    [property: JsonPropertyName("vector_candidate_count")] int VectorCandidateCount,
+    [property: JsonPropertyName("lexical_candidate_count")] int LexicalCandidateCount,
+    [property: JsonPropertyName("summary_candidate_count")] int SummaryCandidateCount,
     [property: JsonPropertyName("lexical_fallback")] bool LexicalFallback,
     [property: JsonPropertyName("hit_count")] int HitCount);
 
@@ -74,6 +84,7 @@ public sealed record AgentContextPackageItem(
     [property: JsonPropertyName("hit")] CodeSearchHit Hit,
     [property: JsonPropertyName("node")] IReadOnlyDictionary<string, JsonElement>? Node = null,
     [property: JsonPropertyName("content")] IReadOnlyDictionary<string, JsonElement>? Content = null,
+    [property: JsonPropertyName("summary")] IReadOnlyDictionary<string, JsonElement>? Summary = null,
     [property: JsonPropertyName("snippet")] string? Snippet = null,
     [property: JsonPropertyName("relationships")] IReadOnlyList<IReadOnlyDictionary<string, JsonElement>>? Relationships = null,
     [property: JsonPropertyName("relationship_groups")] IReadOnlyDictionary<string, IReadOnlyList<IReadOnlyDictionary<string, JsonElement>>>? RelationshipGroups = null,
@@ -124,6 +135,8 @@ public sealed record AgentNeighborQuery(
     [property: JsonPropertyName("relationship_kinds")] IReadOnlyList<string>? RelationshipKinds = null);
 
 public sealed record AgentNeighborResult(
+    [property: JsonPropertyName("node")] IReadOnlyDictionary<string, JsonElement>? Node,
+    [property: JsonPropertyName("content")] IReadOnlyDictionary<string, JsonElement>? Content,
     [property: JsonPropertyName("relationships")] IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> Relationships);
 
 public sealed record AgentRepositorySummary(

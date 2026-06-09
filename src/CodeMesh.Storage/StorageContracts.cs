@@ -65,6 +65,35 @@ public interface IVectorStore
         CancellationToken cancellationToken = default);
 }
 
+public interface INodeSummaryStore
+{
+    Task UpsertSummariesAsync(
+        IReadOnlyList<CodeNodeSummary> summaries,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record StoredNodeSummaryState(
+    string SummaryId,
+    string NodeId,
+    string ContentHash,
+    string SummaryKind,
+    string Provider,
+    string Model,
+    string PromptVersion,
+    string Status);
+
+public interface IIncrementalNodeSummaryStore : INodeSummaryStore
+{
+    Task<IReadOnlyList<StoredNodeSummaryState>> GetSummaryStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default);
+
+    Task RemoveSummariesExceptAsync(
+        string repositoryId,
+        IReadOnlySet<string> currentSummaryIds,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IRefreshableGraphStore : IGraphStore
 {
     Task RemoveStaleGraphAsync(

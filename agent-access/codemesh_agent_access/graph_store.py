@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+import sys
 from typing import Any
 
 from .config import Settings
 
-try:
-    from neo4j import AsyncGraphDatabase
-except ImportError:  # pragma: no cover - exercised only when dependencies are missing
-    AsyncGraphDatabase = None  # type: ignore[assignment]
+AsyncGraphDatabase: Any | None = None
+_neo4j_import_attempted = False
 
 
 class Neo4jGraphStore:
@@ -22,7 +21,7 @@ class Neo4jGraphStore:
             await driver.close()
 
     async def health(self) -> dict[str, Any]:
-        if AsyncGraphDatabase is None:
+        if _load_async_graph_database() is None:
             return {
                 "uri": self._settings.neo4j_uri,
                 "database": self._settings.neo4j_database,
@@ -50,7 +49,7 @@ class Neo4jGraphStore:
             }
 
     async def get_node_properties(self, node_id: str, repository_id: str | None = None) -> dict[str, Any] | None:
-        if AsyncGraphDatabase is None:
+        if _load_async_graph_database() is None:
             return None
 
         try:
@@ -84,7 +83,7 @@ class Neo4jGraphStore:
         repository_id: str | None,
         limit: int,
     ) -> list[dict[str, Any]]:
-        if AsyncGraphDatabase is None or not kinds:
+        if _load_async_graph_database() is None or not kinds:
             return []
 
         try:
@@ -122,7 +121,7 @@ class Neo4jGraphStore:
         repository_id: str | None = None,
         depth: int = 1,
     ) -> list[dict[str, Any]]:
-        if AsyncGraphDatabase is None:
+        if _load_async_graph_database() is None:
             return []
 
         clamped_depth = min(max(depth, 1), 4)
@@ -159,7 +158,7 @@ class Neo4jGraphStore:
         repository_id: str | None = None,
         depth: int = 4,
     ) -> list[dict[str, Any]]:
-        if AsyncGraphDatabase is None:
+        if _load_async_graph_database() is None:
             return []
 
         clamped_depth = min(max(depth, 1), 6)
@@ -213,7 +212,7 @@ class Neo4jGraphStore:
         node_id: str,
         repository_id: str | None = None,
     ) -> dict[str, Any] | None:
-        if AsyncGraphDatabase is None or not node_id:
+        if _load_async_graph_database() is None or not node_id:
             return None
 
         if repository_id:
@@ -248,7 +247,7 @@ class Neo4jGraphStore:
         repository_id: str | None = None,
         limit: int = 80,
     ) -> list[dict[str, Any]]:
-        if AsyncGraphDatabase is None or limit <= 0:
+        if _load_async_graph_database() is None or limit <= 0:
             return []
 
         if repository_id:
@@ -307,7 +306,7 @@ class Neo4jGraphStore:
         repository_id: str | None,
         limit: int,
     ) -> list[dict[str, Any]]:
-        if AsyncGraphDatabase is None:
+        if _load_async_graph_database() is None:
             return []
 
         try:
@@ -339,16 +338,60 @@ class Neo4jGraphStore:
         return [dict(record["node"]) for record in records]
 
     def _neo4j(self) -> Any:
-        if AsyncGraphDatabase is None:
+        graph_database = _load_async_graph_database()
+        if graph_database is None:
             raise RuntimeError("The neo4j Python package is not installed.")
 
         if self._neo4j_driver is None:
-            self._neo4j_driver = AsyncGraphDatabase.driver(
+            self._neo4j_driver = graph_database.driver(
                 self._settings.neo4j_uri,
                 auth=(self._settings.neo4j_user, self._settings.neo4j_password),
             )
 
         return self._neo4j_driver
+
+
+def _load_async_graph_database() -> Any | None:
+    global AsyncGraphDatabase, _neo4j_import_attempted
+
+    if AsyncGraphDatabase is not None or _neo4j_import_attempted:
+        return AsyncGraphDatabase
+
+    _neo4j_import_attempted = True
+    try:
+        if sys.platform.startswith("win"):
+            return _load_async_graph_database_without_windows_wmi()
+
+        from neo4j import AsyncGraphDatabase as loaded
+    except ImportError:  # pragma: no cover - exercised only when dependencies are missing
+        AsyncGraphDatabase = None
+    else:
+        AsyncGraphDatabase = loaded
+
+    return AsyncGraphDatabase
+
+
+def _load_async_graph_database_without_windows_wmi() -> Any | None:
+    import platform
+
+    original_system = platform.system
+    original_release = platform.release
+    original_machine = platform.machine
+    try:
+        platform.system = lambda: "Windows"
+        platform.release = lambda: "unknown"
+        platform.machine = lambda: "unknown"
+        from neo4j import AsyncGraphDatabase as loaded
+    except ImportError:  # pragma: no cover - exercised only when dependencies are missing
+        return None
+    finally:
+        platform.system = original_system
+        platform.release = original_release
+        platform.machine = original_machine
+
+    global AsyncGraphDatabase
+    AsyncGraphDatabase = loaded
+    return AsyncGraphDatabase
 
 
 def storage_key(repository_id: str, node_id: str) -> str:

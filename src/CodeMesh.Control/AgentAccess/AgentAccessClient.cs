@@ -10,6 +10,10 @@ public sealed record AgentAccessClientOptions(
 
 public interface IAgentAccessClient
 {
+    Task<AgentHealthResult> GetHealthAsync(CancellationToken cancellationToken = default);
+
+    Task<AgentHealthResult> GetStatusAsync(CancellationToken cancellationToken = default);
+
     Task<AgentContextResult> SearchContextAsync(AgentContextQuery query, CancellationToken cancellationToken = default);
 
     Task<AgentContextPackageResult> GetContextPackageAsync(AgentContextPackageQuery query, CancellationToken cancellationToken = default);
@@ -47,6 +51,12 @@ public sealed class AgentAccessClient : IAgentAccessClient, IDisposable
         _http = httpClient;
         _ownsHttpClient = ownsHttpClient;
     }
+
+    public Task<AgentHealthResult> GetHealthAsync(CancellationToken cancellationToken = default)
+        => GetAsync<AgentHealthResult>("health", cancellationToken);
+
+    public Task<AgentHealthResult> GetStatusAsync(CancellationToken cancellationToken = default)
+        => GetAsync<AgentHealthResult>("status", cancellationToken);
 
     public Task<AgentContextResult> SearchContextAsync(
         AgentContextQuery query,

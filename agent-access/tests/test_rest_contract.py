@@ -141,6 +141,7 @@ def test_rest_symbols_node_neighbors_and_registry_shapes() -> None:
         )
         repositories = client.get("/repositories", params={"limit": 7})
         repository = client.get("/repositories/sample_repo")
+        repository_with_path_chars = client.get("/repositories/sample%20repo%2Fid")
         runs = client.get("/ingestion-runs", params={"repository_id": "sample_repo", "limit": 2})
 
     assert symbols.status_code == 200
@@ -164,7 +165,11 @@ def test_rest_symbols_node_neighbors_and_registry_shapes() -> None:
 
     assert repository.status_code == 200
     assert repository.json()["repository_id"] == "repo:test"
-    assert store.repository_id == "sample_repo"
+    assert store.repository_ids[0] == "sample_repo"
+
+    assert repository_with_path_chars.status_code == 200
+    assert repository_with_path_chars.json()["repository_id"] == "repo:test"
+    assert store.repository_ids[1] == "sample repo/id"
 
     assert runs.status_code == 200
     assert runs.json()["runs"][0]["run_id"] == "run:test"
@@ -194,7 +199,7 @@ class FakeRestStore:
         self.node_lookup: NodeLookup | None = None
         self.neighbor_query: NeighborQuery | None = None
         self.repository_limit: int | None = None
-        self.repository_id: str | None = None
+        self.repository_ids: list[str] = []
         self.runs_repository_id: str | None = None
         self.runs_limit: int | None = None
 
@@ -294,7 +299,7 @@ class FakeRestStore:
         )
 
     async def get_repository(self, repository_id: str) -> RepositorySummary | None:
-        self.repository_id = repository_id
+        self.repository_ids.append(repository_id)
         return RepositorySummary(
             repository_id="repo:test",
             alias="sample_repo",

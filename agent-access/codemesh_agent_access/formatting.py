@@ -53,6 +53,10 @@ def format_context_package_for_agent(package: dict[str, Any]) -> str:
         if content and content.get("hash"):
             lines.append(f"   Content hash: {_value(content.get('hash'))}")
 
+        summary = item.get("summary") if isinstance(item.get("summary"), dict) else None
+        if summary and summary.get("summary"):
+            lines.append(f"   Summary: {_value(summary.get('summary'))}")
+
         group_lines = _relationship_lines(item.get("relationship_groups"))
         if group_lines:
             lines.append("   Relationships:")

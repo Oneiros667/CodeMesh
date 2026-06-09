@@ -11,7 +11,7 @@ Source-of-truth implementations:
 
 ## Common Controls
 
-Most read calls accept `repository_id`. This can be either the repository hash id or the generated alias. Agent Access resolves aliases before querying stores.
+Most read calls accept `repository_id`. This can be either the repository hash id or the generated alias. Agent Access resolves aliases before querying stores. Repository lookup accepts URL-encoded path characters in `repository_id`; generated aliases remain slash-free.
 
 Filters are exact-match string filters. They can match top-level node fields or metadata fields. `kinds` filters by CodeMesh node kind names such as `Method`, `Class`, `File`, or `Declaration`.
 
@@ -19,15 +19,15 @@ Filters are exact-match string filters. They can match top-level node fields or 
 
 | Method | Path | Request | Response | .NET client |
 | --- | --- | --- | --- | --- |
-| `GET` | `/health` | none | `HealthResponse` | none |
-| `GET` | `/status` | none | `HealthResponse` | none |
+| `GET` | `/health` | none | `HealthResponse` | `GetHealthAsync` |
+| `GET` | `/status` | none | `HealthResponse` | `GetStatusAsync` |
 | `POST` | `/context/search` | `ContextQuery` | `ContextResponse` | `SearchContextAsync` |
 | `POST` | `/context/package` | `ContextPackageQuery` | `ContextPackageResponse` | `GetContextPackageAsync` |
 | `POST` | `/symbols/search` | `SymbolQuery` | `SymbolSearchResponse` | `SearchSymbolsAsync` |
 | `POST` | `/nodes/get` | `NodeLookup` | `NodeResponse` | `GetNodeAsync` |
 | `POST` | `/graph/neighbors` | `NeighborQuery` | `NodeResponse` with `relationships` populated | `GetNeighborsAsync` |
 | `GET` | `/repositories?limit=50` | query string | `RepositoryListResponse` | `ListRepositoriesAsync` |
-| `GET` | `/repositories/{repository_id}` | route value | `RepositorySummary` or `null` | `GetRepositoryAsync` |
+| `GET` | `/repositories/{repository_id:path}` | route value | `RepositorySummary` or `null` | `GetRepositoryAsync` |
 | `GET` | `/ingestion-runs?repository_id=&limit=50` | query string | `IngestionRunListResponse` | `ListIngestionRunsAsync` |
 
 ## Context Search
@@ -56,23 +56,27 @@ Filters are exact-match string filters. They can match top-level node fields or 
 
 - `node_id`, `stable_key`, `kind`, `file_path`, `start_line`, `end_line`, `score`.
 - `repository_id` and `content_hash` when available.
-- `score_components`, including values such as `vector_score`, `lexical_score`, `kind_weight`, and `expansion_bonus`.
+- `score_components`, including values such as `vector_score`, `lexical_score`, `summary_score`, `kind_weight`, and `expansion_bonus`.
 - `expanded_context` when a low-level match was expanded or a declaration was attached.
 - `preview` when a snippet preview is available.
 
 Search diagnostics:
 
-- `mode`: `vector`, `lexical`, or `hybrid`.
+- `mode`: `vector`, `lexical`, `summary`, `hybrid`, or `none`.
 - `embedding_attempted`: true when Agent Access attempted to embed the text query.
 - `embedding_source`: `provided`, `model_provider`, or `none`.
 - `model_provider`: normalized configured provider, such as `none`, `ollama`, or `lmstudio`.
 - `vector_available`: true when an explicit or generated vector was available.
-- `vector_hit_count`: raw vector candidate count before dedupe/ranking.
-- `lexical_hit_count`: raw lexical candidate count before dedupe/ranking.
+- `vector_hit_count`: returned hit count with vector contribution after dedupe/ranking.
+- `lexical_hit_count`: returned hit count with lexical contribution after dedupe/ranking.
+- `summary_hit_count`: returned hit count with generated-summary contribution after dedupe/ranking.
+- `vector_candidate_count`: raw vector candidate count before dedupe/ranking.
+- `lexical_candidate_count`: raw lexical candidate count before dedupe/ranking.
+- `summary_candidate_count`: raw generated-summary candidate count before dedupe/ranking.
 - `lexical_fallback`: true when a vector was available but produced no vector hits.
 - `hit_count`: final returned hit count after dedupe/ranking.
 
-When a query vector is available, Agent Access uses hybrid retrieval by merging vector hits and lexical graph hits, then deduping by `node_id`.
+Agent Access merges vector hits, lexical graph hits, and MongoDB generated-summary hits, then dedupes by `node_id`.
 
 ## Context Package
 
@@ -95,6 +99,7 @@ Each package item includes:
 - `hit`: the ranked `ContextHit`.
 - `node`: normalized node metadata.
 - `content`: content document metadata.
+- `summary`: generated node summary metadata when a completed summary exists in MongoDB.
 - `snippet`: budgeted source text when available.
 - `relationships`: flat relationship summaries.
 - `relationship_groups`: grouped summaries for `callers`, `callees`, `reads`, `writes`, `contains`, `defines`, and `uses_types`.

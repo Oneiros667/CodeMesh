@@ -37,6 +37,10 @@ def test_mcp_manifest_matches_registered_tools() -> None:
         "vector_available",
         "vector_hit_count",
         "lexical_hit_count",
+        "summary_hit_count",
+        "vector_candidate_count",
+        "lexical_candidate_count",
+        "summary_candidate_count",
         "lexical_fallback",
         "hit_count",
     ]

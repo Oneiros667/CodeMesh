@@ -17,6 +17,7 @@ class Settings:
     mongo_content_collection: str
     mongo_repositories_collection: str
     mongo_ingestion_runs_collection: str
+    mongo_node_summaries_collection: str
     qdrant_url: str
     qdrant_collection: str
     model_provider: str
@@ -41,12 +42,16 @@ class Settings:
             mongo_content_collection=os.getenv("CODEMESH_MONGO_CONTENT_COLLECTION", "content"),
             mongo_repositories_collection=os.getenv("CODEMESH_MONGO_REPOSITORIES_COLLECTION", "repositories"),
             mongo_ingestion_runs_collection=os.getenv("CODEMESH_MONGO_INGESTION_RUNS_COLLECTION", "ingestion_runs"),
+            mongo_node_summaries_collection=os.getenv("CODEMESH_MONGO_NODE_SUMMARIES_COLLECTION", "node_summaries"),
             qdrant_url=os.getenv("CODEMESH_QDRANT_URL", "http://127.0.0.1:6333"),
             qdrant_collection=os.getenv("CODEMESH_QDRANT_COLLECTION", "codemesh-code"),
             model_provider=model_provider,
             ollama_url=os.getenv("CODEMESH_OLLAMA_URL", "http://127.0.0.1:11434"),
             lm_studio_url=os.getenv("CODEMESH_LM_STUDIO_URL", "http://127.0.0.1:1234/v1"),
-            embedding_model=os.getenv("CODEMESH_EMBEDDING_MODEL", _default_embedding_model(model_provider)),
+            embedding_model=_env_or_default(
+                "CODEMESH_EMBEDDING_MODEL",
+                _default_embedding_model(model_provider),
+            ),
         )
 
 
@@ -69,3 +74,8 @@ def _default_embedding_model(provider: str) -> str:
         return "text-embedding-nomic-embed-text-v1.5"
 
     return "nomic-embed-text:latest"
+
+
+def _env_or_default(name: str, default: str) -> str:
+    value = os.getenv(name)
+    return default if value is None or not value.strip() else value

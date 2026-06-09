@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Text.Json;
 using CodeMesh.Control.Configuration;
 using CodeMesh.Domain.Health;
 
@@ -231,7 +232,12 @@ public sealed class CodeMeshStatusService
         return provider switch
         {
             "lmstudio" => CheckLmStudioAsync(cancellationToken),
-            "none" or "ollama" => CheckOllamaAsync(cancellationToken),
+            "ollama" => CheckOllamaAsync(cancellationToken),
+            "none" => Task.FromResult(new ComponentHealth(
+                "model-provider",
+                ComponentState.NotConfigured,
+                "Local model provider is disabled.",
+                ModelProviderMetadata(provider))),
             _ => Task.FromResult(OptionalOffline(
                 "model-provider",
                 provider,
@@ -250,12 +256,12 @@ public sealed class CodeMeshStatusService
         for (var index = 0; index < endpoints.Count; index++)
         {
             var attempts = endpoints.Count > 1 && index == 0 ? 1 : 3;
-            var health = await CheckHttpAsync(
+            var health = await CheckModelProviderHttpAsync(
                 "ollama",
                 endpoints[index],
-                true,
                 OllamaProbeTimeout,
                 metadata,
+                item => ModelIdFromProperty(item, "name") ?? ModelIdFromProperty(item, "model"),
                 cancellationToken,
                 attempts,
                 OllamaRetryDelay).ConfigureAwait(false);
@@ -277,15 +283,108 @@ public sealed class CodeMeshStatusService
         var endpoint = LmStudioModelsEndpoint(baseUrl);
         var metadata = ModelProviderMetadata("lmstudio");
 
-        return await CheckHttpAsync(
+        return await CheckModelProviderHttpAsync(
             "lmstudio",
             endpoint,
-            true,
             OllamaProbeTimeout,
             metadata,
+            item => ModelIdFromProperty(item, "id"),
             cancellationToken,
             attempts: 3,
             retryDelay: OllamaRetryDelay).ConfigureAwait(false);
+    }
+
+    private static async Task<ComponentHealth> CheckModelProviderHttpAsync(
+        string name,
+        string url,
+        TimeSpan timeoutAfter,
+        IReadOnlyDictionary<string, string> metadata,
+        Func<JsonElement, string?> modelIdSelector,
+        CancellationToken cancellationToken,
+        int attempts = 1,
+        TimeSpan? retryDelay = null)
+    {
+        var maxAttempts = Math.Max(1, attempts);
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeout.CancelAfter(timeoutAfter);
+
+                using var http = new HttpClient { Timeout = timeoutAfter };
+                using var response = await http.GetAsync(url, timeout.Token).ConfigureAwait(false);
+
+                if (!response.IsSuccessStatusCode && attempt < maxAttempts && IsRetryableStatus(response.StatusCode))
+                {
+                    await DelayBeforeRetryAsync(retryDelay, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                var responseMetadata = MetadataWithEndpoint(url, metadata);
+                if (!response.IsSuccessStatusCode)
+                {
+                    return new ComponentHealth(
+                        name,
+                        ComponentState.Degraded,
+                        $"HTTP {(int)response.StatusCode} from {url}.",
+                        responseMetadata);
+                }
+
+                var body = await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
+                if (!ModelListContains(body, metadata["model"], modelIdSelector))
+                {
+                    responseMetadata["detail"] = "Configured embedding model is not listed by the model provider.";
+                    return new ComponentHealth(
+                        name,
+                        ComponentState.Degraded,
+                        "Configured embedding model is not listed by the model provider.",
+                        responseMetadata);
+                }
+
+                return new ComponentHealth(
+                    name,
+                    ComponentState.Healthy,
+                    $"HTTP {(int)response.StatusCode} from {url}.",
+                    responseMetadata);
+            }
+            catch (JsonException exception)
+            {
+                var responseMetadata = MetadataWithEndpoint(url, metadata, exception.Message);
+                return new ComponentHealth(
+                    name,
+                    ComponentState.Degraded,
+                    "Model provider returned invalid JSON.",
+                    responseMetadata);
+            }
+            catch (OperationCanceledException)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+
+                if (attempt < maxAttempts)
+                {
+                    await DelayBeforeRetryAsync(retryDelay, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                return OptionalOffline(name, url, "Request timed out.", metadata);
+            }
+            catch (HttpRequestException exception)
+            {
+                if (attempt < maxAttempts)
+                {
+                    await DelayBeforeRetryAsync(retryDelay, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                return OptionalOffline(name, url, exception.Message, metadata);
+            }
+        }
+
+        return OptionalOffline(name, url, "Request failed.", metadata);
     }
 
     private static bool IsRetryableStatus(HttpStatusCode statusCode)
@@ -353,14 +452,67 @@ public sealed class CodeMeshStatusService
         return $"{trimmed.TrimEnd('/')}/models";
     }
 
+    private static bool ModelListContains(
+        string responseBody,
+        string expectedModel,
+        Func<JsonElement, string?> modelIdSelector)
+    {
+        using var document = JsonDocument.Parse(responseBody);
+        var root = document.RootElement;
+
+        if (root.TryGetProperty("models", out var ollamaModels) &&
+            ModelListContains(ollamaModels, expectedModel, modelIdSelector))
+        {
+            return true;
+        }
+
+        return root.TryGetProperty("data", out var openAiModels) &&
+            ModelListContains(openAiModels, expectedModel, modelIdSelector);
+    }
+
+    private static bool ModelListContains(
+        JsonElement models,
+        string expectedModel,
+        Func<JsonElement, string?> modelIdSelector)
+    {
+        if (models.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        foreach (var item in models.EnumerateArray())
+        {
+            if (string.Equals(modelIdSelector(item), expectedModel, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string? ModelIdFromProperty(JsonElement item, string propertyName)
+    {
+        return item.ValueKind == JsonValueKind.Object &&
+            item.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.String
+                ? property.GetString()
+                : null;
+    }
+
     private static IReadOnlyDictionary<string, string> ModelProviderMetadata(string provider)
     {
         var normalizedProvider = NormalizeModelProvider(provider);
+        var model = Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL");
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            model = DefaultEmbeddingModel(normalizedProvider);
+        }
+
         return new Dictionary<string, string>
         {
             ["provider"] = normalizedProvider,
-            ["model"] = Environment.GetEnvironmentVariable("CODEMESH_EMBEDDING_MODEL")
-                ?? DefaultEmbeddingModel(normalizedProvider)
+            ["model"] = model
         };
     }
 

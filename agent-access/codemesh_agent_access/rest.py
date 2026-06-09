@@ -98,7 +98,7 @@ async def list_repositories(
     return await store.list_repositories(limit=limit)
 
 
-@app.get("/repositories/{repository_id}", response_model=RepositorySummary | None)
+@app.get("/repositories/{repository_id:path}", response_model=RepositorySummary | None)
 async def get_repository(
     repository_id: str,
     store: CodeMeshReadStore = Depends(get_store),

@@ -16,6 +16,8 @@ public sealed class InMemoryCodeMeshStore :
     IVectorStore,
     IRefreshableVectorStore,
     IIncrementalVectorStore,
+    INodeSummaryStore,
+    IIncrementalNodeSummaryStore,
     IRegistryStore,
     IStoreHealthCheck
 {
@@ -23,6 +25,7 @@ public sealed class InMemoryCodeMeshStore :
     private readonly ConcurrentDictionary<string, CodeRelationship> _relationships = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, CodeContent> _contents = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, EmbeddingRecord> _embeddings = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, CodeNodeSummary> _summaries = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, string>> _contentRunsByRepository = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, RepositoryIndexRecord> _repositories = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IngestionRunIndexRecord> _runs = new(StringComparer.Ordinal);
@@ -135,6 +138,18 @@ public sealed class InMemoryCodeMeshStore :
             .ToArray();
 
         return Task.FromResult<IReadOnlyList<VectorSearchMatch>>(matches);
+    }
+
+    public Task UpsertSummariesAsync(
+        IReadOnlyList<CodeNodeSummary> summaries,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var summary in summaries)
+        {
+            _summaries[summary.Id] = summary;
+        }
+
+        return Task.CompletedTask;
     }
 
     public Task<ComponentHealth> CheckAsync(CancellationToken cancellationToken = default)
@@ -337,6 +352,43 @@ public sealed class InMemoryCodeMeshStore :
                 !currentEmbeddingIds.Contains(embedding.Id))
             {
                 _embeddings.TryRemove(embeddingId, out _);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<StoredNodeSummaryState>> GetSummaryStatesAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        var states = _summaries.Values
+            .Where(summary => string.Equals(summary.RepositoryId, repositoryId, StringComparison.Ordinal))
+            .Select(summary => new StoredNodeSummaryState(
+                summary.Id,
+                summary.NodeId,
+                summary.ContentHash,
+                summary.SummaryKind,
+                summary.Provider,
+                summary.Model,
+                summary.PromptVersion,
+                summary.Status))
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<StoredNodeSummaryState>>(states);
+    }
+
+    public Task RemoveSummariesExceptAsync(
+        string repositoryId,
+        IReadOnlySet<string> currentSummaryIds,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var (summaryId, summary) in _summaries)
+        {
+            if (string.Equals(summary.RepositoryId, repositoryId, StringComparison.Ordinal) &&
+                !currentSummaryIds.Contains(summaryId))
+            {
+                _summaries.TryRemove(summaryId, out _);
             }
         }
 
