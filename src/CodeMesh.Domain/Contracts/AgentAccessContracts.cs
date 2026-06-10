@@ -160,6 +160,17 @@ public sealed record AgentRepositorySummary(
 public sealed record AgentRepositoryListResult(
     [property: JsonPropertyName("repositories")] IReadOnlyList<AgentRepositorySummary> Repositories);
 
+public sealed record AgentNodeSummaryCoverageResult(
+    [property: JsonPropertyName("repository_id")] string RepositoryId,
+    [property: JsonPropertyName("total_count")] int TotalCount,
+    [property: JsonPropertyName("completed_count")] int CompletedCount,
+    [property: JsonPropertyName("failed_count")] int FailedCount,
+    [property: JsonPropertyName("status_counts")] IReadOnlyDictionary<string, int> StatusCounts,
+    [property: JsonPropertyName("kind_counts")] IReadOnlyDictionary<string, int> KindCounts,
+    [property: JsonPropertyName("provider_model_counts")] IReadOnlyDictionary<string, int> ProviderModelCounts,
+    [property: JsonPropertyName("recent_failures")] IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> RecentFailures,
+    [property: JsonPropertyName("generated_at")] DateTimeOffset GeneratedAt);
+
 public sealed record AgentIngestionRunSummary(
     [property: JsonPropertyName("run_id")] string RunId,
     [property: JsonPropertyName("repository_id")] string RepositoryId,

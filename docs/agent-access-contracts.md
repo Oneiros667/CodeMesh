@@ -27,7 +27,7 @@ Filters are exact-match string filters. They can match top-level node fields or 
 | `POST` | `/nodes/get` | `NodeLookup` | `NodeResponse` | `GetNodeAsync` |
 | `POST` | `/graph/neighbors` | `NeighborQuery` | `NodeResponse` with `relationships` populated | `GetNeighborsAsync` |
 | `GET` | `/repositories?limit=50` | query string | `RepositoryListResponse` | `ListRepositoriesAsync` |
-| `GET` | `/repositories/{repository_id}/summaries` | route value | `NodeSummaryCoverageResponse` | n/a |
+| `GET` | `/repositories/{repository_id}/summaries` | route value | `NodeSummaryCoverageResponse` | `GetSummaryCoverageAsync` |
 | `GET` | `/repositories/{repository_id:path}` | route value | `RepositorySummary` or `null` | `GetRepositoryAsync` |
 | `GET` | `/ingestion-runs?repository_id=&limit=50` | query string | `IngestionRunListResponse` | `ListIngestionRunsAsync` |
 
@@ -188,4 +188,4 @@ var result = await client.SearchContextAsync(new AgentContextQuery(
     IncludeContextRelationships: true));
 ```
 
-The client wraps context search, context package, symbol search, node lookup, neighbor lookup, repository listing, repository lookup, and ingestion-run listing.
+The client wraps context search, context package, symbol search, node lookup, neighbor lookup, repository listing, repository lookup, summary coverage, and ingestion-run listing.

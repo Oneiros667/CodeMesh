@@ -392,8 +392,14 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
     Equal("repositories/sample%20repo%2Fid", handler.Requests[8].Path, "Agent Access repository lookup path did not escape id.");
     Equal("repo:test", repository!.RepositoryId, "Agent Access repository lookup did not deserialize.");
 
+    var coverage = await client.GetSummaryCoverageAsync("sample repo/id");
+    Equal("repositories/sample%20repo%2Fid/summaries", handler.Requests[9].Path, "Agent Access summary coverage path did not escape id.");
+    Equal(5, coverage.CompletedCount, "Agent Access summary coverage completed count did not deserialize.");
+    Equal(2, coverage.KindCounts["Method"], "Agent Access summary coverage kind counts did not deserialize.");
+    Equal("model failed", coverage.RecentFailures[0]["error"].GetString() ?? string.Empty, "Agent Access summary coverage failures did not deserialize.");
+
     var runs = await client.ListIngestionRunsAsync(repositoryId: "sample repo/id", limit: 2);
-    Equal("ingestion-runs?limit=2&repository_id=sample%20repo%2Fid", handler.Requests[9].Path, "Agent Access runs path changed.");
+    Equal("ingestion-runs?limit=2&repository_id=sample%20repo%2Fid", handler.Requests[10].Path, "Agent Access runs path changed.");
     Equal("run:test", runs.Runs[0].RunId, "Agent Access ingestion run did not deserialize.");
     Equal("lmstudio", runs.Runs[0].EmbeddingProvider, "Agent Access run embedding provider did not deserialize.");
 
@@ -2645,6 +2651,22 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                   "content_count": 13,
                   "embedding_count": 17,
                   "metadata": {"alias": "sample_repo"}
+                }
+                """,
+            "repositories/sample%20repo%2Fid/summaries" =>
+                """
+                {
+                  "repository_id": "repo:test",
+                  "total_count": 6,
+                  "completed_count": 5,
+                  "failed_count": 1,
+                  "status_counts": {"completed": 5, "failed": 1},
+                  "kind_counts": {"Method": 2, "Class": 1, "File": 1, "Property": 1},
+                  "provider_model_counts": {"lmstudio/qwen/qwen2.5-coder-14b/node-summary-v1": 6},
+                  "recent_failures": [
+                    {"node_id": "node:failed", "error": "model failed"}
+                  ],
+                  "generated_at": "2026-06-06T10:10:00Z"
                 }
                 """,
             "ingestion-runs?limit=2&repository_id=sample%20repo%2Fid" =>

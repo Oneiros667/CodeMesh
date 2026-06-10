@@ -28,6 +28,10 @@ public interface IAgentAccessClient
 
     Task<AgentRepositorySummary?> GetRepositoryAsync(string repositoryId, CancellationToken cancellationToken = default);
 
+    Task<AgentNodeSummaryCoverageResult> GetSummaryCoverageAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default);
+
     Task<AgentIngestionRunListResult> ListIngestionRunsAsync(
         string? repositoryId = null,
         int limit = 50,
@@ -92,6 +96,13 @@ public sealed class AgentAccessClient : IAgentAccessClient, IDisposable
         string repositoryId,
         CancellationToken cancellationToken = default)
         => GetAsync<AgentRepositorySummary?>($"repositories/{Uri.EscapeDataString(repositoryId)}", cancellationToken);
+
+    public Task<AgentNodeSummaryCoverageResult> GetSummaryCoverageAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+        => GetAsync<AgentNodeSummaryCoverageResult>(
+            $"repositories/{Uri.EscapeDataString(repositoryId)}/summaries",
+            cancellationToken);
 
     public Task<AgentIngestionRunListResult> ListIngestionRunsAsync(
         string? repositoryId = null,
