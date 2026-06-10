@@ -56,19 +56,19 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
 Persist graph/content and generate Qdrant embeddings with Ollama:
 
 ```powershell
-ollama pull nomic-embed-text:latest
+ollama pull nomic-embed-text-v2-moe:latest
 
 dotnet run --project src/CodeMesh.Cli -- ingest `
   --root D:\source\repos\YoutubeDownloader `
   --solution D:\source\repos\YoutubeDownloader\YoutubeDownloader.slnx `
   --include-embeddings `
   --embedding-provider ollama `
-  --embedding-model nomic-embed-text:latest
+  --embedding-model nomic-embed-text-v2-moe:latest
 ```
 
 `--skip-embeddings` remains the fastest ingestion mode. Use `--include-embeddings` when you want semantic search data written to Qdrant.
 Use `--force-embeddings` when graph/content are unchanged but Qdrant vectors should be regenerated for the selected provider and model.
-The Ollama embedding input defaults to 1500 characters per node for compatibility with `nomic-embed-text:latest`; use `--embedding-max-chars` to tune this for another embedding model.
+The embedding input defaults to 1500 characters per node for compatibility with `nomic-embed-text-v2-moe:latest`; use `--embedding-max-chars` to tune this for another embedding model. CodeMesh prefixes indexed node text with `search_document:` and Agent Access query text with `search_query:` for Nomic retrieval models.
 
 You can also generate embeddings with LM Studio when the local server is running and an embedding model is loaded:
 
@@ -119,7 +119,7 @@ Query the registry:
 dotnet run --project src/CodeMesh.Cli -- repos list
 dotnet run --project src/CodeMesh.Cli -- repo show <repository-id-or-alias>
 dotnet run --project src/CodeMesh.Cli -- runs list --repository-id <repository-id-or-alias> --limit 10
-dotnet run --project src/CodeMesh.Cli -- embeddings verify <repository-id-or-alias> --embedding-provider ollama --embedding-model nomic-embed-text:latest
+dotnet run --project src/CodeMesh.Cli -- embeddings verify <repository-id-or-alias> --embedding-provider ollama --embedding-model nomic-embed-text-v2-moe:latest
 dotnet run --project src/CodeMesh.Cli -- embeddings verify <repository-id-or-alias> --embedding-provider lmstudio --embedding-model text-embedding-nomic-embed-text-v2-moe
 ```
 
@@ -139,7 +139,7 @@ Run the end-to-end smoke script against live stores and Agent Access:
 By default the script creates a tiny C# fixture repository under a unique `.codemesh-smoke` run directory, starts Neo4j, MongoDB, Qdrant, and Agent Access, ingests the fixture without embeddings, then verifies `/repositories`, `/context/search`, `/symbols/search`, and `/context/package`. The context search check also validates response diagnostics, including search mode, vector hit count, and fallback status. To include embeddings, start your local model provider first and run, for example:
 
 ```powershell
-.\scripts\e2e-smoke.ps1 -IncludeEmbeddings -EmbeddingProvider ollama -EmbeddingModel nomic-embed-text:latest
+.\scripts\e2e-smoke.ps1 -IncludeEmbeddings -EmbeddingProvider ollama -EmbeddingModel nomic-embed-text-v2-moe:latest
 ```
 
 To run the same smoke checks against the configured sample repository from `CODEMESH_SAMPLE_CSHARP_ROOT` and `CODEMESH_SAMPLE_CSHARP_SOLUTION`, use:
@@ -174,7 +174,7 @@ In `.env`, use:
 CODEMESH_MODEL_PROVIDER=ollama
 CODEMESH_OLLAMA_URL=http://127.0.0.1:11434
 CODEMESH_AGENT_OLLAMA_URL=http://host.docker.internal:11434
-CODEMESH_EMBEDDING_MODEL=nomic-embed-text:latest
+CODEMESH_EMBEDDING_MODEL=nomic-embed-text-v2-moe:latest
 ```
 
 Then recreate Agent Access:

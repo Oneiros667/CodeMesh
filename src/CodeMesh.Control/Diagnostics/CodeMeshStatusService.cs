@@ -528,8 +528,8 @@ public sealed class CodeMeshStatusService
     private static string DefaultEmbeddingModel(string provider)
     {
         return NormalizeModelProvider(provider) == "lmstudio"
-            ? "text-embedding-nomic-embed-text-v1.5"
-            : "nomic-embed-text:latest";
+            ? "text-embedding-nomic-embed-text-v2-moe"
+            : "nomic-embed-text-v2-moe:latest";
     }
 
     private static ComponentHealth StoreOffline(string name, string endpoint, string detail)

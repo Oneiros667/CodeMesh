@@ -71,9 +71,9 @@ def _neo4j_credentials() -> tuple[str, str]:
 
 def _default_embedding_model(provider: str) -> str:
     if provider.casefold().strip() in {"lmstudio", "lm-studio", "lm_studio"}:
-        return "text-embedding-nomic-embed-text-v1.5"
+        return "text-embedding-nomic-embed-text-v2-moe"
 
-    return "nomic-embed-text:latest"
+    return "nomic-embed-text-v2-moe:latest"
 
 
 def _env_or_default(name: str, default: str) -> str:

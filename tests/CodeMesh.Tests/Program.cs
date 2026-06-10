@@ -937,6 +937,10 @@ static async Task TestOllamaEmbeddingProviderMapsResponses()
     Equal(3, embeddings[0].Dimensions, "Ollama embedding dimensions changed.");
     Equal("Class", embeddings[0].Metadata["kind"], "Ollama embedding kind metadata changed.");
     Equal("EmbeddedSmoke.cs", embeddings[0].Metadata["filePath"], "Ollama embedding file path metadata changed.");
+    if (!handler.LastRequestBody.Contains("search_document: public sealed class EmbeddedSmoke", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("Ollama embedding request was not prefixed for document retrieval.");
+    }
 }
 
 static async Task TestLmStudioEmbeddingProviderMapsResponses()
@@ -980,6 +984,10 @@ static async Task TestLmStudioEmbeddingProviderMapsResponses()
     Equal(3, embeddings[0].Dimensions, "LM Studio embedding dimensions changed.");
     Equal("Class", embeddings[0].Metadata["kind"], "LM Studio embedding kind metadata changed.");
     Equal("EmbeddedSmoke.cs", embeddings[0].Metadata["filePath"], "LM Studio embedding file path metadata changed.");
+    if (!handler.LastRequestBody.Contains("search_document: public sealed class EmbeddedSmoke", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("LM Studio embedding request was not prefixed for document retrieval.");
+    }
 }
 
 static async Task TestMongoContentStoreRoundTripsContent()
@@ -1124,7 +1132,7 @@ static async Task TestMongoRegistryStoreRoundTripsRepositoriesAndRuns()
         false,
         false,
         "ollama",
-        "nomic-embed-text:latest",
+        "nomic-embed-text-v2-moe:latest",
         7,
         11,
         5,
@@ -2334,16 +2342,20 @@ sealed class CountingSummaryProvider : ICodeSummaryProvider
 sealed class FakeOllamaEmbeddingHandler : HttpMessageHandler
 {
     public int RequestCount { get; private set; }
+    public string LastRequestBody { get; private set; } = string.Empty;
 
-    protected override Task<HttpResponseMessage> SendAsync(
+    protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
         RequestCount++;
+        LastRequestBody = request.Content is null
+            ? string.Empty
+            : await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
         if (request.RequestUri?.AbsolutePath != "/api/embed")
         {
-            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.NotFound));
+            return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
         }
 
         var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
@@ -2359,23 +2371,27 @@ sealed class FakeOllamaEmbeddingHandler : HttpMessageHandler
                 "application/json")
         };
 
-        return Task.FromResult(response);
+        return response;
     }
 }
 
 sealed class FakeLmStudioEmbeddingHandler : HttpMessageHandler
 {
     public int RequestCount { get; private set; }
+    public string LastRequestBody { get; private set; } = string.Empty;
 
-    protected override Task<HttpResponseMessage> SendAsync(
+    protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
         RequestCount++;
+        LastRequestBody = request.Content is null
+            ? string.Empty
+            : await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
         if (request.RequestUri?.AbsolutePath != "/v1/embeddings")
         {
-            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.NotFound));
+            return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
         }
 
         var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
@@ -2398,7 +2414,7 @@ sealed class FakeLmStudioEmbeddingHandler : HttpMessageHandler
                 "application/json")
         };
 
-        return Task.FromResult(response);
+        return response;
     }
 }
 

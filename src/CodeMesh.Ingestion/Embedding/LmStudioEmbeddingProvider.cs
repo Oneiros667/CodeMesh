@@ -8,7 +8,7 @@ namespace CodeMesh.Ingestion.Embedding;
 
 public sealed record LmStudioEmbeddingProviderOptions(
     string BaseUrl = "http://127.0.0.1:1234/v1",
-    string Model = "text-embedding-nomic-embed-text-v1.5",
+    string Model = "text-embedding-nomic-embed-text-v2-moe",
     int BatchSize = 16,
     int MaxInputCharacters = 1500,
     TimeSpan? Timeout = null);
@@ -29,7 +29,7 @@ public sealed class LmStudioEmbeddingProvider : IEmbeddingProvider, IDisposable
 
     public LmStudioEmbeddingProvider(
         HttpClient httpClient,
-        string model = "text-embedding-nomic-embed-text-v1.5",
+        string model = "text-embedding-nomic-embed-text-v2-moe",
         int batchSize = 16,
         int maxInputCharacters = 1500,
         bool ownsHttpClient = false)
@@ -143,6 +143,8 @@ public sealed class LmStudioEmbeddingProvider : IEmbeddingProvider, IDisposable
         {
             text = text[.._maxInputCharacters];
         }
+
+        text = $"search_document: {text}";
 
         return new EmbeddingInput(node, text, preview);
     }

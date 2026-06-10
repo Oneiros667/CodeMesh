@@ -31,19 +31,19 @@ def test_settings_uses_provider_default_when_embedding_model_is_blank(monkeypatc
 
     settings = Settings.from_env()
 
-    assert settings.embedding_model == "text-embedding-nomic-embed-text-v1.5"
+    assert settings.embedding_model == "text-embedding-nomic-embed-text-v2-moe"
     assert settings.mongo_node_summaries_collection == "node_summaries"
 
 
 def test_model_list_parsing_supports_ollama_and_lm_studio_shapes() -> None:
     assert _listed_model_ids(
         "ollama",
-        {"models": [{"name": "nomic-embed-text:latest"}, {"model": "other"}]},
-    ) == {"nomic-embed-text:latest", "other"}
+        {"models": [{"name": "nomic-embed-text-v2-moe:latest"}, {"model": "other"}]},
+    ) == {"nomic-embed-text-v2-moe:latest", "other"}
     assert _listed_model_ids(
         "lmstudio",
-        {"data": [{"id": "text-embedding-nomic-embed-text-v1.5"}]},
-    ) == {"text-embedding-nomic-embed-text-v1.5"}
+        {"data": [{"id": "text-embedding-nomic-embed-text-v2-moe"}]},
+    ) == {"text-embedding-nomic-embed-text-v2-moe"}
 
 
 def test_query_embedding_health_degrades_when_configured_model_is_missing(monkeypatch) -> None:
@@ -59,6 +59,22 @@ def test_query_embedding_health_degrades_when_configured_model_is_missing(monkey
     degraded = asyncio.run(QueryEmbeddingProvider(Settings.from_env()).health())
     assert degraded["status"] == "degraded"
     assert degraded["detail"] == "Configured embedding model is not listed by the model provider."
+
+
+def test_query_embedding_provider_prefixes_queries(monkeypatch) -> None:
+    monkeypatch.setenv("CODEMESH_MODEL_PROVIDER", "lmstudio")
+    monkeypatch.setenv("CODEMESH_EMBEDDING_MODEL", "expected-model")
+    monkeypatch.setattr(embeddings_module.httpx, "AsyncClient", FakeAsyncClient)
+    FakeAsyncClient.payload = {"data": [{"index": 0, "embedding": [0.25, 0.5]}]}
+    FakeAsyncClient.last_json = None
+
+    embedding = asyncio.run(QueryEmbeddingProvider(Settings.from_env()).embed_query("find greeting"))
+
+    assert embedding == [0.25, 0.5]
+    assert FakeAsyncClient.last_json == {
+        "model": "expected-model",
+        "input": ["search_query: find greeting"],
+    }
 
 
 def test_qdrant_filter_maps_exact_payload_matches() -> None:
@@ -262,6 +278,7 @@ class FakeClosable:
 
 class FakeAsyncClient:
     payload: dict[str, Any] = {}
+    last_json: dict[str, Any] | None = None
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         pass
@@ -273,6 +290,10 @@ class FakeAsyncClient:
         pass
 
     async def get(self, url: str) -> "FakeHttpResponse":
+        return FakeHttpResponse(self.payload)
+
+    async def post(self, url: str, json: dict[str, Any]) -> "FakeHttpResponse":
+        self.__class__.last_json = json
         return FakeHttpResponse(self.payload)
 
 

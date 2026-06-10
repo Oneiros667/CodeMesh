@@ -62,6 +62,7 @@ class QueryEmbeddingProvider:
             }
 
     async def embed_query(self, query: str) -> list[float]:
+        query = f"search_query: {query}"
         provider = self.provider
         if provider == "lmstudio":
             return await self._embed_lmstudio(query)

@@ -9,7 +9,7 @@ namespace CodeMesh.Ingestion.Embedding;
 
 public sealed record OllamaEmbeddingProviderOptions(
     string BaseUrl = "http://127.0.0.1:11434",
-    string Model = "nomic-embed-text:latest",
+    string Model = "nomic-embed-text-v2-moe:latest",
     int BatchSize = 16,
     int MaxInputCharacters = 1500,
     TimeSpan? Timeout = null);
@@ -30,7 +30,7 @@ public sealed class OllamaEmbeddingProvider : IEmbeddingProvider, IDisposable
 
     public OllamaEmbeddingProvider(
         HttpClient httpClient,
-        string model = "nomic-embed-text:latest",
+        string model = "nomic-embed-text-v2-moe:latest",
         int batchSize = 16,
         int maxInputCharacters = 1500,
         bool ownsHttpClient = false)
@@ -174,6 +174,8 @@ public sealed class OllamaEmbeddingProvider : IEmbeddingProvider, IDisposable
         {
             text = text[.._maxInputCharacters];
         }
+
+        text = $"search_document: {text}";
 
         return new EmbeddingInput(node, text, preview);
     }

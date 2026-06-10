@@ -461,8 +461,8 @@ static string DefaultSummaryModel(string provider)
 static string DefaultEmbeddingModel(string provider)
 {
     return NormalizeEmbeddingProvider(provider) == "lmstudio"
-        ? "text-embedding-nomic-embed-text-v1.5"
-        : "nomic-embed-text:latest";
+        ? "text-embedding-nomic-embed-text-v2-moe"
+        : "nomic-embed-text-v2-moe:latest";
 }
 
 static int ReadIntOption(string[] args, string name, int defaultValue)

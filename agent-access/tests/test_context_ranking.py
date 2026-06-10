@@ -357,7 +357,7 @@ class FakeReadStore(CodeMeshReadStore):
                 model_provider="none",
                 ollama_url="http://unused",
                 lm_studio_url="http://unused/v1",
-                embedding_model="nomic-embed-text:latest",
+                embedding_model="nomic-embed-text-v2-moe:latest",
             )
         )
         self._vectors = FakeVectorClient(self)

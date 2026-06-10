@@ -192,10 +192,10 @@ if ([string]::IsNullOrWhiteSpace($EmbeddingProvider) -or $EmbeddingProvider -eq 
 
 if ([string]::IsNullOrWhiteSpace($EmbeddingModel)) {
     $EmbeddingModel = if ($EmbeddingProvider -in @("lmstudio", "lm-studio", "lm_studio")) {
-        "text-embedding-nomic-embed-text-v1.5"
+        "text-embedding-nomic-embed-text-v2-moe"
     }
     else {
-        "nomic-embed-text:latest"
+        "nomic-embed-text-v2-moe:latest"
     }
 }
 
