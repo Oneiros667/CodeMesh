@@ -79,6 +79,27 @@ switch (command)
         }
     }
 
+    case "summaries":
+    {
+        try
+        {
+            var subcommand = ReadPositional(args, 1)?.ToLowerInvariant();
+            if (subcommand is not "coverage")
+            {
+                throw new InvalidOperationException("Usage: codemesh summaries coverage <repository-id-or-alias>");
+            }
+
+            var coverage = await RunSummaryCoverageAsync(args).ConfigureAwait(false);
+            PrintSummaryCoverage(coverage, json);
+            return 0;
+        }
+        catch (Exception exception)
+        {
+            PrintException(exception, json);
+            return 1;
+        }
+    }
+
     case "repos":
     {
         try
@@ -244,6 +265,21 @@ static async Task<EmbeddingVerificationResult> RunEmbeddingVerificationAsync(str
 
     return await verifier
         .VerifyAsync(new EmbeddingVerificationRequest(resolvedRepositoryId, provider, model))
+        .ConfigureAwait(false);
+}
+
+static async Task<NodeSummaryCoverage> RunSummaryCoverageAsync(string[] args)
+{
+    var repositoryId = ReadAnyOption(args, "--repository-id", "--repo")
+        ?? ReadPositional(args, 2)
+        ?? throw new InvalidOperationException("Repository id or alias is required. Usage: codemesh summaries coverage <repository-id-or-alias>");
+    var registryStore = CreateRegistryStore(args);
+    var resolvedRepositoryId = await ResolveRepositoryIdAsync(registryStore, repositoryId, ignoreResolutionErrors: true)
+        .ConfigureAwait(false) ?? repositoryId;
+    var summaryStore = CreateNodeSummaryStore(args);
+
+    return await summaryStore
+        .GetSummaryCoverageAsync(resolvedRepositoryId)
         .ConfigureAwait(false);
 }
 
@@ -686,6 +722,51 @@ static void PrintEmbeddingVerification(EmbeddingVerificationResult result, bool 
     }
 }
 
+static void PrintSummaryCoverage(NodeSummaryCoverage coverage, bool json)
+{
+    if (json)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(coverage, JsonOptions()));
+        return;
+    }
+
+    Console.WriteLine("CodeMesh summaries:");
+    Console.WriteLine($"Repository: {coverage.RepositoryId}");
+    Console.WriteLine($"Summaries: {coverage.TotalCount} total, {coverage.CompletedCount} completed, {coverage.FailedCount} failed");
+    PrintCountGroup("Statuses", coverage.StatusCounts);
+    PrintCountGroup("Kinds", coverage.KindCounts);
+    PrintCountGroup("Provider/model/prompt", coverage.ProviderModelCounts);
+
+    if (coverage.RecentFailures.Count == 0)
+    {
+        Console.WriteLine("Recent failures: none");
+        return;
+    }
+
+    Console.WriteLine("Recent failures:");
+    foreach (var failure in coverage.RecentFailures.Take(10))
+    {
+        Console.WriteLine($"  [{failure.GeneratedAt:O}] {failure.NodeId} ({failure.Kind})");
+        Console.WriteLine($"    provider/model: {failure.Provider}/{failure.Model}");
+        Console.WriteLine($"    error: {failure.Error}");
+    }
+}
+
+static void PrintCountGroup(string label, IReadOnlyDictionary<string, int> counts)
+{
+    if (counts.Count == 0)
+    {
+        Console.WriteLine($"{label}: none");
+        return;
+    }
+
+    Console.WriteLine($"{label}:");
+    foreach (var (key, count) in counts)
+    {
+        Console.WriteLine($"  {key}: {count}");
+    }
+}
+
 static void PrintRunList(IReadOnlyList<IngestionRunIndexRecord> runs, bool json)
 {
     if (json)
@@ -790,6 +871,7 @@ static void PrintHelp()
     Console.WriteLine("  codemesh status [--root <path>] [--json]");
     Console.WriteLine("  codemesh ingest [--root <path>] [--solution <path>] [--project <path>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh embeddings verify <repository-id-or-alias> [--embedding-provider <provider>] [--embedding-model <model>] [--json]");
+    Console.WriteLine("  codemesh summaries coverage <repository-id-or-alias> [--json]");
     Console.WriteLine("  codemesh repos list [--limit <count>] [--json]");
     Console.WriteLine("  codemesh repo show <repository-id-or-alias> [--json]");
     Console.WriteLine("  codemesh runs list [--repository-id <id-or-alias>] [--limit <count>] [--json]");

@@ -14,6 +14,7 @@ public sealed record MongoNodeSummaryStoreOptions(
 public sealed class MongoNodeSummaryStore :
     INodeSummaryStore,
     IIncrementalNodeSummaryStore,
+    INodeSummaryCoverageStore,
     IStoreHealthCheck
 {
     private readonly IMongoDatabase _database;
@@ -114,6 +115,56 @@ public sealed class MongoNodeSummaryStore :
             .ConfigureAwait(false);
     }
 
+    public async Task<NodeSummaryCoverage> GetSummaryCoverageAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureIndexesAsync(cancellationToken).ConfigureAwait(false);
+
+        var filter = Builders<NodeSummaryDocument>.Filter.Eq(item => item.RepositoryId, repositoryId);
+        var summaries = await _summaries
+            .Find(filter)
+            .Project(item => new SummaryCoverageProjection
+            {
+                Id = item.Id,
+                NodeId = item.NodeId,
+                Kind = item.Kind,
+                Name = item.Name,
+                Provider = item.Provider,
+                Model = item.Model,
+                PromptVersion = item.PromptVersion,
+                Status = item.Status,
+                Error = item.Error,
+                GeneratedAtUtc = item.GeneratedAtUtc
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new NodeSummaryCoverage(
+            repositoryId,
+            summaries.Count,
+            summaries.Count(summary => string.Equals(summary.Status, "completed", StringComparison.Ordinal)),
+            summaries.Count(summary => string.Equals(summary.Status, "failed", StringComparison.Ordinal)),
+            CountBy(summaries, summary => summary.Status),
+            CountBy(summaries, summary => summary.Kind),
+            CountBy(summaries, summary => $"{summary.Provider}/{summary.Model}/{summary.PromptVersion}"),
+            summaries
+                .Where(summary => string.Equals(summary.Status, "failed", StringComparison.Ordinal))
+                .OrderByDescending(summary => summary.GeneratedAtUtc)
+                .Take(10)
+                .Select(summary => new NodeSummaryFailure(
+                    summary.Id,
+                    summary.NodeId,
+                    summary.Kind,
+                    summary.Name,
+                    summary.Provider,
+                    summary.Model,
+                    summary.PromptVersion,
+                    summary.Error ?? string.Empty,
+                    new DateTimeOffset(DateTime.SpecifyKind(summary.GeneratedAtUtc, DateTimeKind.Utc))))
+                .ToArray());
+    }
+
     public async Task<ComponentHealth> CheckAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -201,6 +252,21 @@ public sealed class MongoNodeSummaryStore :
 
         await _summaries.Indexes.CreateManyAsync(indexes, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    private static IReadOnlyDictionary<string, int> CountBy<T>(
+        IEnumerable<T> items,
+        Func<T, string> keySelector)
+    {
+        return items
+            .GroupBy(item =>
+            {
+                var key = keySelector(item);
+                return string.IsNullOrWhiteSpace(key) ? "unknown" : key;
+            }, StringComparer.Ordinal)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
     }
 
     private sealed class NodeSummaryDocument
@@ -343,5 +409,28 @@ public sealed class MongoNodeSummaryStore :
         public required string PromptVersion { get; init; }
 
         public required string Status { get; init; }
+    }
+
+    private sealed class SummaryCoverageProjection
+    {
+        public required string Id { get; init; }
+
+        public required string NodeId { get; init; }
+
+        public required string Kind { get; init; }
+
+        public required string Name { get; init; }
+
+        public required string Provider { get; init; }
+
+        public required string Model { get; init; }
+
+        public required string PromptVersion { get; init; }
+
+        public required string Status { get; init; }
+
+        public string? Error { get; init; }
+
+        public required DateTime GeneratedAtUtc { get; init; }
     }
 }

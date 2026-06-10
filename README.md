@@ -119,6 +119,7 @@ Query the registry:
 dotnet run --project src/CodeMesh.Cli -- repos list
 dotnet run --project src/CodeMesh.Cli -- repo show <repository-id-or-alias>
 dotnet run --project src/CodeMesh.Cli -- runs list --repository-id <repository-id-or-alias> --limit 10
+dotnet run --project src/CodeMesh.Cli -- summaries coverage <repository-id-or-alias>
 dotnet run --project src/CodeMesh.Cli -- embeddings verify <repository-id-or-alias> --embedding-provider ollama --embedding-model nomic-embed-text-v2-moe:latest
 dotnet run --project src/CodeMesh.Cli -- embeddings verify <repository-id-or-alias> --embedding-provider lmstudio --embedding-model text-embedding-nomic-embed-text-v2-moe
 ```

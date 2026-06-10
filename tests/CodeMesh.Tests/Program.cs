@@ -623,6 +623,12 @@ static async Task TestIncrementalIngestionSkipsUnchangedSummaries()
         var states = await store.GetSummaryStatesAsync(repositoryId);
         Equal(1, states.Count, "Summary store did not retain the generated summary.");
         Equal(RefreshParserClient.NodeIdFor("Alpha"), states[0].NodeId, "Summary state node id changed.");
+        var coverage = await store.GetSummaryCoverageAsync(repositoryId);
+        Equal(1, coverage.TotalCount, "Summary coverage total count changed.");
+        Equal(1, coverage.CompletedCount, "Summary coverage completed count changed.");
+        Equal(0, coverage.FailedCount, "Summary coverage failed count changed.");
+        Equal(1, coverage.KindCounts["Class"], "Summary coverage kind count changed.");
+        Equal(1, coverage.ProviderModelCounts["test/summary-counting/node-summary-v1"], "Summary coverage provider/model count changed.");
 
         var second = await orchestrator.IngestAsync(new IngestionRequest(
             root,
@@ -644,6 +650,8 @@ static async Task TestIncrementalIngestionSkipsUnchangedSummaries()
         Equal(1, forced.Stats?.WrittenSummaryCount ?? -1, "Forced ingest did not report a written summary.");
         Equal(0, forced.Stats?.SkippedSummaryCount ?? -1, "Forced ingest incorrectly skipped summary.");
         Equal(2, summaryProvider.SummarizedNodeCount, "Forced ingest did not call summary provider again.");
+        coverage = await store.GetSummaryCoverageAsync(repositoryId);
+        Equal(1, coverage.TotalCount, "Forced summary coverage total count changed.");
     }
     finally
     {

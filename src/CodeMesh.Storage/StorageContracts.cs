@@ -94,6 +94,34 @@ public interface IIncrementalNodeSummaryStore : INodeSummaryStore
         CancellationToken cancellationToken = default);
 }
 
+public sealed record NodeSummaryFailure(
+    string SummaryId,
+    string NodeId,
+    string Kind,
+    string Name,
+    string Provider,
+    string Model,
+    string PromptVersion,
+    string Error,
+    DateTimeOffset GeneratedAt);
+
+public sealed record NodeSummaryCoverage(
+    string RepositoryId,
+    int TotalCount,
+    int CompletedCount,
+    int FailedCount,
+    IReadOnlyDictionary<string, int> StatusCounts,
+    IReadOnlyDictionary<string, int> KindCounts,
+    IReadOnlyDictionary<string, int> ProviderModelCounts,
+    IReadOnlyList<NodeSummaryFailure> RecentFailures);
+
+public interface INodeSummaryCoverageStore
+{
+    Task<NodeSummaryCoverage> GetSummaryCoverageAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IRefreshableGraphStore : IGraphStore
 {
     Task RemoveStaleGraphAsync(

@@ -18,6 +18,7 @@ public sealed class InMemoryCodeMeshStore :
     IIncrementalVectorStore,
     INodeSummaryStore,
     IIncrementalNodeSummaryStore,
+    INodeSummaryCoverageStore,
     IRegistryStore,
     IStoreHealthCheck
 {
@@ -395,6 +396,41 @@ public sealed class InMemoryCodeMeshStore :
         return Task.CompletedTask;
     }
 
+    public Task<NodeSummaryCoverage> GetSummaryCoverageAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        var summaries = _summaries.Values
+            .Where(summary => string.Equals(summary.RepositoryId, repositoryId, StringComparison.Ordinal))
+            .ToArray();
+
+        var coverage = new NodeSummaryCoverage(
+            repositoryId,
+            summaries.Length,
+            summaries.Count(summary => string.Equals(summary.Status, "completed", StringComparison.Ordinal)),
+            summaries.Count(summary => string.Equals(summary.Status, "failed", StringComparison.Ordinal)),
+            CountBy(summaries, summary => summary.Status),
+            CountBy(summaries, summary => summary.Kind.ToString()),
+            CountBy(summaries, summary => $"{summary.Provider}/{summary.Model}/{summary.PromptVersion}"),
+            summaries
+                .Where(summary => string.Equals(summary.Status, "failed", StringComparison.Ordinal))
+                .OrderByDescending(summary => summary.GeneratedAt)
+                .Take(10)
+                .Select(summary => new NodeSummaryFailure(
+                    summary.Id,
+                    summary.NodeId,
+                    summary.Kind.ToString(),
+                    summary.Name,
+                    summary.Provider,
+                    summary.Model,
+                    summary.PromptVersion,
+                    summary.Error ?? string.Empty,
+                    summary.GeneratedAt))
+                .ToArray());
+
+        return Task.FromResult(coverage);
+    }
+
     public Task UpsertRepositoryAsync(
         RepositoryIndexRecord repository,
         CancellationToken cancellationToken = default)
@@ -522,6 +558,21 @@ public sealed class InMemoryCodeMeshStore :
     {
         return metadata.TryGetValue("repositoryId", out var itemRepositoryId) &&
             string.Equals(itemRepositoryId, repositoryId, StringComparison.Ordinal);
+    }
+
+    private static IReadOnlyDictionary<string, int> CountBy<T>(
+        IEnumerable<T> items,
+        Func<T, string> keySelector)
+    {
+        return items
+            .GroupBy(item =>
+            {
+                var key = keySelector(item);
+                return string.IsNullOrWhiteSpace(key) ? "unknown" : key;
+            }, StringComparer.Ordinal)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
     }
 
     private static bool MatchesFilters(
