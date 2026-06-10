@@ -194,6 +194,59 @@ def test_node_summary_lookup_falls_back_when_content_hash_differs() -> None:
     ]
 
 
+def test_node_summary_coverage_counts_status_kind_and_provider_model() -> None:
+    store = MongoNodeSummaryStore.__new__(MongoNodeSummaryStore)
+    store._settings = Settings.from_env()
+    store._mongo_client = FakeMongoClient()
+    collection = FakeSummaryCollection(
+        [
+            {
+                "_id": "summary:completed",
+                "repositoryId": "repo:test",
+                "nodeId": "node:completed",
+                "kind": "Method",
+                "status": "completed",
+                "provider": "lmstudio",
+                "model": "qwen/qwen2.5-coder-14b",
+                "promptVersion": "node-summary-v1",
+            },
+            {
+                "_id": "summary:failed",
+                "repositoryId": "repo:test",
+                "nodeId": "node:failed",
+                "kind": "Class",
+                "status": "failed",
+                "provider": "lmstudio",
+                "model": "qwen/qwen2.5-coder-14b",
+                "promptVersion": "node-summary-v1",
+                "error": "model failed",
+            },
+            {
+                "_id": "summary:other",
+                "repositoryId": "repo:other",
+                "nodeId": "node:other",
+                "kind": "Method",
+                "status": "completed",
+            },
+        ]
+    )
+    store._mongo_client.databases[store._settings.mongo_database] = {
+        store._settings.mongo_node_summaries_collection: collection
+    }
+
+    coverage = asyncio.run(store.summary_coverage("repo:test"))
+
+    assert coverage["total_count"] == 2
+    assert coverage["completed_count"] == 1
+    assert coverage["failed_count"] == 1
+    assert coverage["status_counts"] == {"completed": 1, "failed": 1}
+    assert coverage["kind_counts"] == {"Method": 1, "Class": 1}
+    assert coverage["provider_model_counts"] == {
+        "lmstudio/qwen/qwen2.5-coder-14b/node-summary-v1": 2
+    }
+    assert coverage["recent_failures"][0]["error"] == "model failed"
+
+
 def test_content_store_close_closes_cached_mongo_client() -> None:
     store = MongoContentStore.__new__(MongoContentStore)
     client = FakeMongoClient()
@@ -242,22 +295,75 @@ class FakeMongoClient:
 
 
 class FakeSummaryCollection:
-    def __init__(self) -> None:
+    def __init__(self, documents: list[dict[str, Any]] | None = None) -> None:
         self.queries: list[dict[str, Any]] = []
+        self.documents = documents or [
+            {
+                "_id": "summary:test",
+                "repositoryId": "repo:test",
+                "nodeId": "node:test",
+                "contentHash": "symbol-hash",
+                "summary": "Fallback summary.",
+                "status": "completed",
+            }
+        ]
 
     def find_one(self, query: dict[str, Any], sort: Any = None) -> dict[str, Any] | None:
         self.queries.append(dict(query))
         if "contentHash" in query:
             return None
 
-        return {
-            "_id": "summary:test",
-            "repositoryId": "repo:test",
-            "nodeId": "node:test",
-            "contentHash": "symbol-hash",
-            "summary": "Fallback summary.",
-            "status": "completed",
-        }
+        return dict(self.documents[0]) if self.documents else None
+
+    def count_documents(self, query: dict[str, Any]) -> int:
+        return len(_matching_documents(self.documents, query))
+
+    def aggregate(self, pipeline: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        documents = _matching_documents(self.documents, pipeline[0].get("$match", {}))
+        group = pipeline[1].get("$group", {})
+        group_id = group.get("_id")
+        counts: dict[Any, int] = {}
+        for document in documents:
+            if isinstance(group_id, str):
+                key: Any = document.get(group_id.removeprefix("$"))
+            elif isinstance(group_id, dict):
+                key = {
+                    name: document.get(str(field).removeprefix("$"))
+                    for name, field in group_id.items()
+                }
+                key = tuple(sorted(key.items()))
+            else:
+                key = None
+            counts[key] = counts.get(key, 0) + 1
+
+        results = []
+        for key, count in counts.items():
+            if isinstance(key, tuple):
+                key = dict(key)
+            results.append({"_id": key, "count": count})
+        return results
+
+    def find(self, query: dict[str, Any]) -> "FakeSummaryCursor":
+        return FakeSummaryCursor(_matching_documents(self.documents, query))
+
+
+class FakeSummaryCursor:
+    def __init__(self, documents: list[dict[str, Any]]) -> None:
+        self._documents = documents
+
+    def sort(self, *args: Any) -> "FakeSummaryCursor":
+        return self
+
+    def limit(self, limit: int) -> list[dict[str, Any]]:
+        return [dict(document) for document in self._documents[:limit]]
+
+
+def _matching_documents(documents: list[dict[str, Any]], query: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        document
+        for document in documents
+        if all(document.get(key) == value for key, value in query.items())
+    ]
 
 
 class FakeNeo4jDriver:

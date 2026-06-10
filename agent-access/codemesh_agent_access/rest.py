@@ -14,6 +14,7 @@ from .models import (
     IngestionRunListResponse,
     NeighborQuery,
     NodeLookup,
+    NodeSummaryCoverageResponse,
     NodeResponse,
     RepositoryListResponse,
     RepositorySummary,
@@ -96,6 +97,14 @@ async def list_repositories(
     store: CodeMeshReadStore = Depends(get_store),
 ) -> RepositoryListResponse:
     return await store.list_repositories(limit=limit)
+
+
+@app.get("/repositories/{repository_id}/summaries", response_model=NodeSummaryCoverageResponse)
+async def get_repository_summary_coverage(
+    repository_id: str,
+    store: CodeMeshReadStore = Depends(get_store),
+) -> NodeSummaryCoverageResponse:
+    return await store.get_summary_coverage(repository_id)
 
 
 @app.get("/repositories/{repository_id:path}", response_model=RepositorySummary | None)

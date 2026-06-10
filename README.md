@@ -243,6 +243,7 @@ REST endpoints:
 - `POST /nodes/get`
 - `POST /graph/neighbors`
 - `GET /repositories`
+- `GET /repositories/{repository_id}/summaries`
 - `GET /repositories/{repository_id}`
 - `GET /ingestion-runs`
 
@@ -267,6 +268,7 @@ PowerShell examples:
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8088/health
 Invoke-RestMethod http://127.0.0.1:8088/repositories
+Invoke-RestMethod http://127.0.0.1:8088/repositories/<repository-id-or-alias>/summaries
 Invoke-RestMethod 'http://127.0.0.1:8088/ingestion-runs?limit=5'
 
 $nodeBody = @{

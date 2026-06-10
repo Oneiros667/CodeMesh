@@ -155,6 +155,18 @@ class RepositoryListResponse(BaseModel):
     repositories: list[RepositorySummary] = Field(default_factory=list)
 
 
+class NodeSummaryCoverageResponse(BaseModel):
+    repository_id: str
+    total_count: int = 0
+    completed_count: int = 0
+    failed_count: int = 0
+    status_counts: dict[str, int] = Field(default_factory=dict)
+    kind_counts: dict[str, int] = Field(default_factory=dict)
+    provider_model_counts: dict[str, int] = Field(default_factory=dict)
+    recent_failures: list[dict[str, Any]] = Field(default_factory=list)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class IngestionRunSummary(BaseModel):
     run_id: str
     repository_id: str

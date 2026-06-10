@@ -125,6 +125,41 @@ class MongoNodeSummaryStore:
 
         return [normalize_node_summary(document) for document in documents]
 
+    async def summary_coverage(self, repository_id: str) -> dict[str, Any]:
+        if not repository_id or MongoClient is None:
+            return _empty_summary_coverage(repository_id)
+
+        def aggregate() -> dict[str, Any]:
+            collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_node_summaries_collection]
+            base_filter = {"repositoryId": repository_id}
+
+            total_count = collection.count_documents(base_filter)
+            status_counts = _count_by(collection, base_filter, "status")
+            kind_counts = _count_by(collection, base_filter, "kind")
+            provider_model_counts = _count_by_provider_model(collection, base_filter)
+            recent_failures = [
+                normalize_node_summary(document) | {"error": str(document.get("error") or "")}
+                for document in collection.find({**base_filter, "status": "failed"})
+                .sort("generatedAtUtc", -1)
+                .limit(10)
+            ]
+
+            return {
+                "repository_id": repository_id,
+                "total_count": total_count,
+                "completed_count": status_counts.get("completed", 0),
+                "failed_count": status_counts.get("failed", 0),
+                "status_counts": status_counts,
+                "kind_counts": kind_counts,
+                "provider_model_counts": provider_model_counts,
+                "recent_failures": recent_failures,
+            }
+
+        try:
+            return await asyncio.to_thread(aggregate)
+        except PyMongoError:
+            return _empty_summary_coverage(repository_id)
+
     def _mongo(self) -> Any:
         if MongoClient is None:
             raise RuntimeError("The pymongo package is not installed.")
@@ -169,3 +204,56 @@ def _kind_variants(kinds: list[str]) -> list[str]:
         values.add(text[:1].upper() + text[1:].lower())
 
     return sorted(values)
+
+
+def _empty_summary_coverage(repository_id: str) -> dict[str, Any]:
+    return {
+        "repository_id": repository_id,
+        "total_count": 0,
+        "completed_count": 0,
+        "failed_count": 0,
+        "status_counts": {},
+        "kind_counts": {},
+        "provider_model_counts": {},
+        "recent_failures": [],
+    }
+
+
+def _count_by(collection: Any, base_filter: dict[str, Any], field: str) -> dict[str, int]:
+    return {
+        str(item.get("_id") or "unknown"): int(item.get("count") or 0)
+        for item in collection.aggregate(
+            [
+                {"$match": base_filter},
+                {"$group": {"_id": f"${field}", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1, "_id": 1}},
+            ]
+        )
+    }
+
+
+def _count_by_provider_model(collection: Any, base_filter: dict[str, Any]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in collection.aggregate(
+        [
+            {"$match": base_filter},
+            {
+                "$group": {
+                    "_id": {
+                        "provider": "$provider",
+                        "model": "$model",
+                        "promptVersion": "$promptVersion",
+                    },
+                    "count": {"$sum": 1},
+                }
+            },
+            {"$sort": {"count": -1}},
+        ]
+    ):
+        key = item.get("_id") if isinstance(item.get("_id"), dict) else {}
+        provider = str(key.get("provider") or "unknown")
+        model = str(key.get("model") or "unknown")
+        prompt_version = str(key.get("promptVersion") or "unknown")
+        counts[f"{provider}/{model}/{prompt_version}"] = int(item.get("count") or 0)
+
+    return counts

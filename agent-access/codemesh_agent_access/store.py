@@ -19,6 +19,7 @@ from .models import (
     IngestionRunListResponse,
     NeighborQuery,
     NodeLookup,
+    NodeSummaryCoverageResponse,
     NodeResponse,
     RepositoryListResponse,
     RepositorySummary,
@@ -324,6 +325,11 @@ class CodeMeshReadStore:
 
     async def get_repository(self, repository_id: str) -> RepositorySummary | None:
         return await self._content.get_repository(repository_id)
+
+    async def get_summary_coverage(self, repository_id: str) -> NodeSummaryCoverageResponse:
+        resolved_repository_id = await self._resolve_repository_id(repository_id)
+        coverage = await self._summaries.summary_coverage(resolved_repository_id or repository_id)
+        return NodeSummaryCoverageResponse(**coverage)
 
     async def list_ingestion_runs(
         self,

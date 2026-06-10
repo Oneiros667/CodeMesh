@@ -27,6 +27,7 @@ Filters are exact-match string filters. They can match top-level node fields or 
 | `POST` | `/nodes/get` | `NodeLookup` | `NodeResponse` | `GetNodeAsync` |
 | `POST` | `/graph/neighbors` | `NeighborQuery` | `NodeResponse` with `relationships` populated | `GetNeighborsAsync` |
 | `GET` | `/repositories?limit=50` | query string | `RepositoryListResponse` | `ListRepositoriesAsync` |
+| `GET` | `/repositories/{repository_id}/summaries` | route value | `NodeSummaryCoverageResponse` | n/a |
 | `GET` | `/repositories/{repository_id:path}` | route value | `RepositorySummary` or `null` | `GetRepositoryAsync` |
 | `GET` | `/ingestion-runs?repository_id=&limit=50` | query string | `IngestionRunListResponse` | `ListIngestionRunsAsync` |
 
@@ -77,6 +78,20 @@ Search diagnostics:
 - `hit_count`: final returned hit count after dedupe/ranking.
 
 Agent Access merges vector hits, lexical graph hits, and MongoDB generated-summary hits, then dedupes by `node_id`.
+
+## Summary Coverage
+
+`GET /repositories/{repository_id}/summaries` accepts a repository hash id or alias and returns summary pipeline coverage for that repository.
+
+`NodeSummaryCoverageResponse` fields:
+
+- `repository_id`: resolved repository id.
+- `total_count`, `completed_count`, `failed_count`.
+- `status_counts`: summary counts grouped by status.
+- `kind_counts`: summary counts grouped by CodeMesh node kind.
+- `provider_model_counts`: counts grouped by provider, model, and prompt version.
+- `recent_failures`: up to ten recent failed summary records with error metadata.
+- `generated_at`: UTC timestamp.
 
 ## Context Package
 

@@ -16,6 +16,7 @@ from codemesh_agent_access.models import (
     IngestionRunSummary,
     NeighborQuery,
     NodeLookup,
+    NodeSummaryCoverageResponse,
     NodeResponse,
     RepositoryListResponse,
     RepositorySummary,
@@ -141,6 +142,7 @@ def test_rest_symbols_node_neighbors_and_registry_shapes() -> None:
         )
         repositories = client.get("/repositories", params={"limit": 7})
         repository = client.get("/repositories/sample_repo")
+        summary_coverage = client.get("/repositories/sample_repo/summaries")
         repository_with_path_chars = client.get("/repositories/sample%20repo%2Fid")
         runs = client.get("/ingestion-runs", params={"repository_id": "sample_repo", "limit": 2})
 
@@ -166,6 +168,11 @@ def test_rest_symbols_node_neighbors_and_registry_shapes() -> None:
     assert repository.status_code == 200
     assert repository.json()["repository_id"] == "repo:test"
     assert store.repository_ids[0] == "sample_repo"
+
+    assert summary_coverage.status_code == 200
+    assert summary_coverage.json()["completed_count"] == 3
+    assert summary_coverage.json()["kind_counts"] == {"Method": 2, "Class": 1}
+    assert store.summary_repository_ids == ["sample_repo"]
 
     assert repository_with_path_chars.status_code == 200
     assert repository_with_path_chars.json()["repository_id"] == "repo:test"
@@ -200,6 +207,7 @@ class FakeRestStore:
         self.neighbor_query: NeighborQuery | None = None
         self.repository_limit: int | None = None
         self.repository_ids: list[str] = []
+        self.summary_repository_ids: list[str] = []
         self.runs_repository_id: str | None = None
         self.runs_limit: int | None = None
 
@@ -304,6 +312,19 @@ class FakeRestStore:
             repository_id="repo:test",
             alias="sample_repo",
             root_path="C:/sample",
+        )
+
+    async def get_summary_coverage(self, repository_id: str) -> NodeSummaryCoverageResponse:
+        self.summary_repository_ids.append(repository_id)
+        return NodeSummaryCoverageResponse(
+            repository_id="repo:test",
+            total_count=4,
+            completed_count=3,
+            failed_count=1,
+            status_counts={"completed": 3, "failed": 1},
+            kind_counts={"Method": 2, "Class": 1},
+            provider_model_counts={"lmstudio/qwen/qwen2.5-coder-14b/node-summary-v1": 4},
+            recent_failures=[{"node_id": "node:failed", "error": "model failed"}],
         )
 
     async def list_ingestion_runs(
