@@ -735,7 +735,7 @@ static void PrintSummaryCoverage(NodeSummaryCoverage coverage, bool json)
     Console.WriteLine($"Summaries: {coverage.TotalCount} total, {coverage.CompletedCount} completed, {coverage.FailedCount} failed");
     PrintCountGroup("Statuses", coverage.StatusCounts);
     PrintCountGroup("Kinds", coverage.KindCounts);
-    PrintCountGroup("Provider/model/prompt", coverage.ProviderModelCounts);
+    PrintProviderModelDetails(coverage);
 
     if (coverage.RecentFailures.Count == 0)
     {
@@ -750,6 +750,25 @@ static void PrintSummaryCoverage(NodeSummaryCoverage coverage, bool json)
         Console.WriteLine($"    provider/model: {failure.Provider}/{failure.Model}");
         Console.WriteLine($"    error: {failure.Error}");
     }
+}
+
+static void PrintProviderModelDetails(NodeSummaryCoverage coverage)
+{
+    if (coverage.ProviderModelCountDetails.Count > 0)
+    {
+        Console.WriteLine("Provider/model/prompt:");
+        foreach (var detail in coverage.ProviderModelCountDetails)
+        {
+            Console.WriteLine($"  provider: {detail.Provider}");
+            Console.WriteLine($"    model: {detail.Model}");
+            Console.WriteLine($"    prompt: {detail.PromptVersion}");
+            Console.WriteLine($"    count: {detail.Count}");
+        }
+
+        return;
+    }
+
+    PrintCountGroup("Provider/model/prompt", coverage.ProviderModelCounts);
 }
 
 static void PrintCountGroup(string label, IReadOnlyDictionary<string, int> counts)
