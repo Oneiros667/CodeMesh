@@ -632,6 +632,42 @@ static async Task TestIncrementalIngestionSkipsUnchangedSummaries()
         Equal(1, coverage.ProviderModelCounts["test/summary-counting/node-summary-v1"], "Summary coverage provider/model count changed.");
         Equal("summary-counting", coverage.ProviderModelCountDetails[0].Model, "Summary coverage provider/model detail changed.");
 
+        await store.UpsertSummariesAsync([
+            new CodeNodeSummary(
+                CodeMeshHash.StableId(
+                    "summary",
+                    repositoryId,
+                    RefreshParserClient.NodeIdFor("Alpha"),
+                    states[0].ContentHash,
+                    "symbol",
+                    "other",
+                    "other-model",
+                    "node-summary-v1"),
+                repositoryId,
+                Path.GetFullPath(root),
+                "run:other-summary",
+                RefreshParserClient.NodeIdFor("Alpha"),
+                RefreshParserClient.NodeIdFor("Alpha"),
+                CodeNodeKind.Class,
+                "Alpha",
+                "csharp",
+                "Sample",
+                new SourceSpan("Alpha.cs", 1, 1, 1, 1),
+                states[0].ContentHash,
+                "symbol",
+                "Alternate provider summary.",
+                [],
+                "high",
+                "other",
+                "other-model",
+                "node-summary-v1",
+                CodeMeshHash.StableId("summary-prompt", "node-summary-v1"),
+                DateTimeOffset.UtcNow,
+                "completed",
+                null,
+                new Dictionary<string, string>())
+        ]);
+
         var second = await orchestrator.IngestAsync(new IngestionRequest(
             root,
             DryRun: false,
@@ -653,7 +689,8 @@ static async Task TestIncrementalIngestionSkipsUnchangedSummaries()
         Equal(0, forced.Stats?.SkippedSummaryCount ?? -1, "Forced ingest incorrectly skipped summary.");
         Equal(2, summaryProvider.SummarizedNodeCount, "Forced ingest did not call summary provider again.");
         coverage = await store.GetSummaryCoverageAsync(repositoryId);
-        Equal(1, coverage.TotalCount, "Forced summary coverage total count changed.");
+        Equal(2, coverage.TotalCount, "Forced summary cleanup removed current summaries from another provider/model.");
+        Equal(1, coverage.ProviderModelCounts["other/other-model/node-summary-v1"], "Forced summary cleanup did not keep alternate provider summary.");
 
         parser.TypeName = "Beta";
         var changedWithoutSummaries = await orchestrator.IngestAsync(new IngestionRequest(
@@ -664,7 +701,7 @@ static async Task TestIncrementalIngestionSkipsUnchangedSummaries()
         Equal(0, changedWithoutSummaries.SummaryCount, "Summary-disabled changed ingest should not write summaries.");
         Equal(2, summaryProvider.SummarizedNodeCount, "Summary-disabled changed ingest called the summary provider.");
         coverage = await store.GetSummaryCoverageAsync(repositoryId);
-        Equal(0, coverage.TotalCount, "Summary-disabled changed ingest did not remove stale summaries.");
+        Equal(0, coverage.TotalCount, "Summary-disabled changed ingest did not remove stale summaries across providers.");
     }
     finally
     {

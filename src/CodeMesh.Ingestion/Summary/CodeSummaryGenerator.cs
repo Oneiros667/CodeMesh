@@ -43,13 +43,19 @@ public sealed class CodeSummaryGenerator(
             .ToHashSet(StringComparer.Ordinal);
         var nodesToSummarize = candidates;
         var skippedCount = 0;
+        IReadOnlyList<StoredNodeSummaryState> existingSummaries = [];
+        var incrementalStore = summaryStore as IIncrementalNodeSummaryStore;
 
-        if (!_options.Force && summaryStore is IIncrementalNodeSummaryStore incrementalStore)
+        if (incrementalStore is not null)
         {
-            var existing = await incrementalStore
+            existingSummaries = await incrementalStore
                 .GetSummaryStatesAsync(repository.Id, cancellationToken)
                 .ConfigureAwait(false);
-            var existingKeys = existing
+        }
+
+        if (!_options.Force && incrementalStore is not null)
+        {
+            var existingKeys = existingSummaries
                 .Where(summary =>
                     string.Equals(summary.Provider, provider.Provider, StringComparison.Ordinal) &&
                     string.Equals(summary.Model, provider.Model, StringComparison.Ordinal) &&
@@ -78,10 +84,25 @@ public sealed class CodeSummaryGenerator(
         await summaryStore.UpsertSummariesAsync(summaries, cancellationToken)
             .ConfigureAwait(false);
 
-        if (summaryStore is IIncrementalNodeSummaryStore cleanupStore)
+        if (incrementalStore is not null)
         {
-            await cleanupStore
-                .RemoveSummariesExceptAsync(repository.Id, currentSummaryIds, cancellationToken)
+            var currentSummaryKeys = candidates
+                .Select(node => CodeSummaryIdentity.LookupKey(
+                    node.Id,
+                    node.ContentHash,
+                    CodeSummaryIdentity.SummaryKind(node)))
+                .ToHashSet(StringComparer.Ordinal);
+            var retainedSummaryIds = existingSummaries
+                .Where(summary => currentSummaryKeys.Contains(CodeSummaryIdentity.LookupKey(
+                    summary.NodeId,
+                    summary.ContentHash,
+                    summary.SummaryKind)))
+                .Select(summary => summary.SummaryId)
+                .Concat(currentSummaryIds)
+                .ToHashSet(StringComparer.Ordinal);
+
+            await incrementalStore
+                .RemoveSummariesExceptAsync(repository.Id, retainedSummaryIds, cancellationToken)
                 .ConfigureAwait(false);
         }
 
