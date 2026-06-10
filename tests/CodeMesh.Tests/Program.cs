@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using CodeMesh.Control.Configuration;
 using CodeMesh.Control.AgentAccess;
 using CodeMesh.Control.Diagnostics;
 using CodeMesh.Domain.Contracts;
@@ -20,6 +21,7 @@ using CodeMesh.Storage.Qdrant;
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("sha256 helper is deterministic", TestHash),
+    ("environment file loader fills missing variables", TestEnvironmentFileLoaderFillsMissingVariables),
     ("agent access contracts map REST JSON", TestAgentAccessContractsMapRestJson),
     ("agent access client calls REST endpoints", TestAgentAccessClientCallsRestEndpoints),
     ("ingestion writes parser output", TestIngestionWritesParserOutput),
@@ -84,6 +86,51 @@ static Task TestHash()
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
         CodeMeshHash.Sha256Hex("abc"),
         "SHA-256 output changed.");
+
+    return Task.CompletedTask;
+}
+
+static Task TestEnvironmentFileLoaderFillsMissingVariables()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-env-loader-test-{Guid.NewGuid():N}");
+    var missingKey = $"CODEMESH_TEST_ENV_MISSING_{Guid.NewGuid():N}";
+    var quotedKey = $"CODEMESH_TEST_ENV_QUOTED_{Guid.NewGuid():N}";
+    var existingKey = $"CODEMESH_TEST_ENV_EXISTING_{Guid.NewGuid():N}";
+
+    try
+    {
+        Directory.CreateDirectory(root);
+        File.WriteAllLines(
+            Path.Combine(root, ".env"),
+            [
+                "# comment",
+                $"{missingKey}=from-env-file",
+                $"{quotedKey}=\"quoted value\"",
+                $"{existingKey}=from-env-file"
+            ]);
+
+        Environment.SetEnvironmentVariable(missingKey, null);
+        Environment.SetEnvironmentVariable(quotedKey, null);
+        Environment.SetEnvironmentVariable(existingKey, "already-set");
+
+        var loaded = EnvironmentFileLoader.LoadIfExists(root);
+
+        Equal(2, loaded, "Environment loader loaded an unexpected number of variables.");
+        Equal("from-env-file", Environment.GetEnvironmentVariable(missingKey) ?? string.Empty, "Environment loader did not set a missing variable.");
+        Equal("quoted value", Environment.GetEnvironmentVariable(quotedKey) ?? string.Empty, "Environment loader did not unquote a value.");
+        Equal("already-set", Environment.GetEnvironmentVariable(existingKey) ?? string.Empty, "Environment loader overwrote an existing variable.");
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable(missingKey, null);
+        Environment.SetEnvironmentVariable(quotedKey, null);
+        Environment.SetEnvironmentVariable(existingKey, null);
+
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 
     return Task.CompletedTask;
 }

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using CodeMesh.Control.Configuration;
 using CodeMesh.Control.Diagnostics;
 using CodeMesh.Domain.Contracts;
 using CodeMesh.Domain.Health;
@@ -21,6 +22,7 @@ if (command is null or "-h" or "--help" or "help")
 }
 
 var root = ReadOption(args, "--root") ?? Directory.GetCurrentDirectory();
+EnvironmentFileLoader.LoadIfExists(root);
 var json = args.Any(arg => string.Equals(arg, "--json", StringComparison.OrdinalIgnoreCase));
 var statusService = new CodeMeshStatusService();
 
