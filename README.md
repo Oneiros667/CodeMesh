@@ -164,6 +164,16 @@ For LM Studio embeddings, start the LM Studio local server, load an embedding mo
   -LmStudioUrl http://127.0.0.1:1234/v1
 ```
 
+To validate summary generation as well, load a local chat/code model and add the summary options:
+
+```powershell
+.\scripts\e2e-smoke.ps1 `
+  -IncludeSummaries `
+  -SummaryProvider lmstudio `
+  -SummaryModel qwen/qwen2.5-coder-14b `
+  -LmStudioUrl http://127.0.0.1:1234/v1
+```
+
 ### Ollama Modes
 
 Native Windows Ollama is the recommended mode when you want GPU acceleration on Windows. Use `http://127.0.0.1:11434` for the host .NET CLI to avoid intermittent Windows `localhost` IPv6 probe timeouts; Dockerized Agent Access reaches the same Windows Ollama service through `http://host.docker.internal:11434`.

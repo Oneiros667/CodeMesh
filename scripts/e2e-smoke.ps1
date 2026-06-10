@@ -4,8 +4,12 @@ param(
     [string]$AgentAccessUrl = "http://127.0.0.1:8088",
     [switch]$IncludeEmbeddings,
     [switch]$ForceEmbeddings,
+    [switch]$IncludeSummaries,
+    [switch]$ForceSummaries,
     [string]$EmbeddingProvider = $env:CODEMESH_MODEL_PROVIDER,
     [string]$EmbeddingModel = $env:CODEMESH_EMBEDDING_MODEL,
+    [string]$SummaryProvider = $env:CODEMESH_SUMMARY_PROVIDER,
+    [string]$SummaryModel = $env:CODEMESH_SUMMARY_MODEL,
     [string]$OllamaUrl = $env:CODEMESH_OLLAMA_URL,
     [string]$LmStudioUrl = $env:CODEMESH_LM_STUDIO_URL,
     [switch]$SkipCompose,
@@ -199,6 +203,24 @@ if ([string]::IsNullOrWhiteSpace($EmbeddingModel)) {
     }
 }
 
+if ([string]::IsNullOrWhiteSpace($SummaryProvider)) {
+    $SummaryProvider = if ([string]::IsNullOrWhiteSpace($EmbeddingProvider) -or $EmbeddingProvider -eq "none") {
+        "ollama"
+    }
+    else {
+        $EmbeddingProvider
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($SummaryModel)) {
+    $SummaryModel = if ($SummaryProvider -in @("lmstudio", "lm-studio", "lm_studio")) {
+        "qwen/qwen3.5-9b"
+    }
+    else {
+        "qwen2.5-coder:14b"
+    }
+}
+
 if (!$SkipCompose) {
     Write-Step "Starting CodeMesh stores and Agent Access"
     & docker compose up -d --build neo4j mongodb qdrant agent-access
@@ -248,6 +270,27 @@ else {
     $ingestArgs += "--skip-embeddings"
 }
 
+if ($IncludeSummaries) {
+    $ingestArgs += @(
+        "--include-summaries",
+        "--summary-provider",
+        $SummaryProvider,
+        "--summary-model",
+        $SummaryModel
+    )
+
+    if ($ForceSummaries) {
+        $ingestArgs += "--force-summaries"
+    }
+
+    if ($SummaryProvider -eq "ollama" -and ![string]::IsNullOrWhiteSpace($OllamaUrl)) {
+        $ingestArgs += @("--ollama-url", $OllamaUrl)
+    }
+    elseif ($SummaryProvider -in @("lmstudio", "lm-studio", "lm_studio") -and ![string]::IsNullOrWhiteSpace($LmStudioUrl)) {
+        $ingestArgs += @("--lm-studio-url", $LmStudioUrl)
+    }
+}
+
 $ingest = Invoke-JsonCommand $ingestArgs
 $repositoryId = $ingest.Repository.Id
 if ([string]::IsNullOrWhiteSpace($repositoryId)) {
@@ -255,7 +298,18 @@ if ([string]::IsNullOrWhiteSpace($repositoryId)) {
 }
 
 Write-Host "Repository: $repositoryId"
-Write-Host "Nodes: $($ingest.NodeCount), relationships: $($ingest.RelationshipCount), content: $($ingest.ContentCount), embeddings: $($ingest.EmbeddingCount)"
+Write-Host "Nodes: $($ingest.NodeCount), relationships: $($ingest.RelationshipCount), content: $($ingest.ContentCount), embeddings: $($ingest.EmbeddingCount), summaries: $($ingest.SummaryCount)"
+
+if ($IncludeSummaries) {
+    if ([int]$ingest.SummaryCount -eq 0) {
+        throw "Summary ingestion was requested but no summaries were written."
+    }
+    if ($null -ne $ingest.Stats -and [int]$ingest.Stats.FailedSummaryCount -ne 0) {
+        throw "Summary ingestion reported failed summaries: $($ingest.Stats.FailedSummaryCount)"
+    }
+
+    Write-Host "Summaries generated: $($ingest.SummaryCount)"
+}
 
 if ($IncludeEmbeddings) {
     Write-Step "Verifying embeddings"
@@ -307,7 +361,7 @@ if ($null -eq $search.diagnostics) {
 
 $searchHitCount = @($search.hits).Count
 $searchDiagnostics = $search.diagnostics
-if ($searchDiagnostics.mode -notin @("vector", "lexical", "hybrid")) {
+if ($searchDiagnostics.mode -notin @("vector", "lexical", "summary", "hybrid")) {
     throw "Context search diagnostics returned unexpected mode: $($searchDiagnostics.mode)"
 }
 if ([int]$searchDiagnostics.hit_count -ne $searchHitCount) {
@@ -319,20 +373,29 @@ if ([int]$searchDiagnostics.vector_hit_count -lt 0) {
 if ([int]$searchDiagnostics.lexical_hit_count -lt 0) {
     throw "Context search diagnostics lexical_hit_count cannot be negative: $($searchDiagnostics.lexical_hit_count)"
 }
+if ($null -ne $searchDiagnostics.summary_hit_count -and [int]$searchDiagnostics.summary_hit_count -lt 0) {
+    throw "Context search diagnostics summary_hit_count cannot be negative: $($searchDiagnostics.summary_hit_count)"
+}
 if ($null -ne $searchDiagnostics.vector_candidate_count -and [int]$searchDiagnostics.vector_candidate_count -lt [int]$searchDiagnostics.vector_hit_count) {
     throw "Context search diagnostics vector_candidate_count cannot be lower than vector_hit_count."
 }
 if ($null -ne $searchDiagnostics.lexical_candidate_count -and [int]$searchDiagnostics.lexical_candidate_count -lt [int]$searchDiagnostics.lexical_hit_count) {
     throw "Context search diagnostics lexical_candidate_count cannot be lower than lexical_hit_count."
 }
-if ($searchDiagnostics.mode -in @("vector", "hybrid") -and !$searchDiagnostics.vector_available) {
+if ($null -ne $searchDiagnostics.summary_candidate_count -and $null -ne $searchDiagnostics.summary_hit_count -and [int]$searchDiagnostics.summary_candidate_count -lt [int]$searchDiagnostics.summary_hit_count) {
+    throw "Context search diagnostics summary_candidate_count cannot be lower than summary_hit_count."
+}
+if ([int]$searchDiagnostics.vector_hit_count -gt 0 -and !$searchDiagnostics.vector_available) {
     throw "Context search diagnostics reported vector-backed mode without vector_available=true."
 }
-if ($searchDiagnostics.mode -in @("vector", "hybrid") -and $searchDiagnostics.lexical_fallback) {
-    throw "Context search diagnostics reported vector-backed mode with lexical_fallback=true."
+if ([int]$searchDiagnostics.vector_hit_count -gt 0 -and $searchDiagnostics.lexical_fallback) {
+    throw "Context search diagnostics reported vector hits with lexical_fallback=true."
 }
 if ($searchDiagnostics.lexical_fallback -and $searchDiagnostics.vector_available -and [int]$searchDiagnostics.vector_hit_count -ne 0) {
     throw "Context search diagnostics reported lexical fallback with vector hits."
+}
+if ($IncludeSummaries -and [int]$searchDiagnostics.summary_hit_count -eq 0) {
+    throw "Context search diagnostics did not report summary hits while summaries were included."
 }
 
 $agentProvider = Normalize-Provider $searchDiagnostics.model_provider
@@ -353,7 +416,7 @@ if ($IncludeEmbeddings -and $agentProvider -eq $expectedProvider -and $agentProv
 }
 
 Write-Host "Context hits: $(@($search.hits).Count)"
-Write-Host "Search diagnostics: mode=$($searchDiagnostics.mode), provider=$($searchDiagnostics.model_provider), vector_hits=$($searchDiagnostics.vector_hit_count), lexical_hits=$($searchDiagnostics.lexical_hit_count), vector_candidates=$($searchDiagnostics.vector_candidate_count), lexical_candidates=$($searchDiagnostics.lexical_candidate_count), fallback=$($searchDiagnostics.lexical_fallback)"
+Write-Host "Search diagnostics: mode=$($searchDiagnostics.mode), provider=$($searchDiagnostics.model_provider), vector_hits=$($searchDiagnostics.vector_hit_count), lexical_hits=$($searchDiagnostics.lexical_hit_count), summary_hits=$($searchDiagnostics.summary_hit_count), vector_candidates=$($searchDiagnostics.vector_candidate_count), lexical_candidates=$($searchDiagnostics.lexical_candidate_count), summary_candidates=$($searchDiagnostics.summary_candidate_count), fallback=$($searchDiagnostics.lexical_fallback)"
 
 Write-Step "Running symbol search"
 $symbolBody = @{
@@ -386,6 +449,14 @@ $packageBody = @{
 $package = Invoke-RestMethod -Uri "$AgentAccessUrl/context/package" -Method Post -ContentType "application/json" -Body $packageBody -TimeoutSec 30
 if (@($package.items).Count -eq 0) {
     throw "Context package returned no items."
+}
+if ($IncludeSummaries) {
+    $itemsWithSummary = @($package.items) | Where-Object { $null -ne $_.summary -and ![string]::IsNullOrWhiteSpace($_.summary.summary) }
+    if ($itemsWithSummary.Count -eq 0) {
+        throw "Context package did not include generated summaries."
+    }
+
+    Write-Host "Package summaries: $($itemsWithSummary.Count)"
 }
 Write-Host "Package items: $(@($package.items).Count)"
 
