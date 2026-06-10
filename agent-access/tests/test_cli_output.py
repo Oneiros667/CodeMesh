@@ -180,6 +180,23 @@ def test_neighbors_cli_forwards_relationship_kinds(monkeypatch: Any, capsys: Any
     assert payload["data"] == {"relationships": []}
 
 
+def test_summaries_cli_outputs_coverage_json(monkeypatch: Any, capsys: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    async def fake_get_summary_coverage(repository_id: str) -> ToolResult:
+        captured["repository_id"] = repository_id
+        return ToolResult(data={"repository_id": repository_id, "completed_count": 4})
+
+    monkeypatch.setattr(cli.tools, "get_summary_coverage", fake_get_summary_coverage)
+    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "summaries", "sample_repo"])
+
+    cli.main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert captured["repository_id"] == "sample_repo"
+    assert payload["data"] == {"repository_id": "sample_repo", "completed_count": 4}
+
+
 def test_cli_prints_mcp_manifest(monkeypatch: Any, capsys: Any) -> None:
     monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "mcp-manifest"])
 

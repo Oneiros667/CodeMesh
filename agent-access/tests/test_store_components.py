@@ -244,6 +244,14 @@ def test_node_summary_coverage_counts_status_kind_and_provider_model() -> None:
     assert coverage["provider_model_counts"] == {
         "lmstudio/qwen/qwen2.5-coder-14b/node-summary-v1": 2
     }
+    assert coverage["provider_model_count_details"] == [
+        {
+            "provider": "lmstudio",
+            "model": "qwen/qwen2.5-coder-14b",
+            "prompt_version": "node-summary-v1",
+            "count": 2,
+        }
+    ]
     assert coverage["recent_failures"][0]["error"] == "model failed"
 
 

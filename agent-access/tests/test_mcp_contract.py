@@ -210,6 +210,27 @@ def test_mcp_symbol_search_forwards_query_controls(monkeypatch: Any) -> None:
     assert structured["data"]["symbols"] == []
 
 
+def test_mcp_summary_coverage_forwards_repository_id(monkeypatch: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    async def fake_get_summary_coverage(repository_id: str) -> ToolResult:
+        captured["repository_id"] = repository_id
+        return ToolResult(data={"repository_id": repository_id, "completed_count": 3})
+
+    monkeypatch.setattr(mcp.tools, "get_summary_coverage", fake_get_summary_coverage)
+
+    server = mcp.build_server()
+    _content, structured = asyncio.run(
+        server.call_tool(
+            "codemesh_get_summary_coverage",
+            {"repository_id": "sample_repo"},
+        )
+    )
+
+    assert captured["repository_id"] == "sample_repo"
+    assert structured["data"]["completed_count"] == 3
+
+
 def test_print_tool_manifest_emits_contract_json(capsys: Any) -> None:
     asyncio.run(mcp.print_tool_manifest())
 

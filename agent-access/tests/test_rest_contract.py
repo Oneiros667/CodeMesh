@@ -324,6 +324,14 @@ class FakeRestStore:
             status_counts={"completed": 3, "failed": 1},
             kind_counts={"Method": 2, "Class": 1},
             provider_model_counts={"lmstudio/qwen/qwen2.5-coder-14b/node-summary-v1": 4},
+            provider_model_count_details=[
+                {
+                    "provider": "lmstudio",
+                    "model": "qwen/qwen2.5-coder-14b",
+                    "prompt_version": "node-summary-v1",
+                    "count": 4,
+                }
+            ],
             recent_failures=[{"node_id": "node:failed", "error": "model failed"}],
         )
 

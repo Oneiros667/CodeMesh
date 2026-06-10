@@ -343,6 +343,37 @@ if ($null -eq $registered) {
 }
 Write-Host "Registry alias: $($registered.alias)"
 
+if ($IncludeSummaries) {
+    Write-Step "Checking summary coverage"
+    $summaryCoverage = Invoke-RestMethod -Uri "$AgentAccessUrl/repositories/$repositoryId/summaries" -Method Get -TimeoutSec 30
+    if ([int]$summaryCoverage.total_count -lt [int]$ingest.SummaryCount) {
+        throw "Summary coverage total_count $($summaryCoverage.total_count) is lower than ingestion summary count $($ingest.SummaryCount)."
+    }
+    if ([int]$summaryCoverage.completed_count -lt [int]$ingest.SummaryCount) {
+        throw "Summary coverage completed_count $($summaryCoverage.completed_count) is lower than ingestion summary count $($ingest.SummaryCount)."
+    }
+    if ([int]$summaryCoverage.failed_count -ne 0) {
+        throw "Summary coverage reported failed summaries: $($summaryCoverage.failed_count)"
+    }
+
+    $coverageArgs = @(
+        "run",
+        "--project",
+        "src/CodeMesh.Cli",
+        "--",
+        "summaries",
+        "coverage",
+        $repositoryId,
+        "--json"
+    )
+    $cliCoverage = Invoke-JsonCommand $coverageArgs
+    if ([int]$cliCoverage.CompletedCount -ne [int]$summaryCoverage.completed_count) {
+        throw "CLI summary coverage completed count $($cliCoverage.CompletedCount) did not match Agent Access $($summaryCoverage.completed_count)."
+    }
+
+    Write-Host "Summary coverage: $($summaryCoverage.completed_count)/$($summaryCoverage.total_count) completed."
+}
+
 Write-Step "Running context search"
 $searchBody = @{
     query = "DownloadAsync"

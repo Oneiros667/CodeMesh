@@ -76,6 +76,9 @@ def main() -> None:
     repo_parser = subcommands.add_parser("repo", help="Fetch an indexed CodeMesh repository.")
     repo_parser.add_argument("repository_id")
 
+    summaries_parser = subcommands.add_parser("summaries", help="Fetch generated node summary coverage.")
+    summaries_parser.add_argument("repository_id")
+
     runs_parser = subcommands.add_parser("runs", help="List CodeMesh ingestion runs.")
     runs_parser.add_argument("--repository-id")
     runs_parser.add_argument("--limit", type=int, default=50)
@@ -191,6 +194,11 @@ def main() -> None:
 
     if args.command == "repo":
         result = asyncio.run(tools.get_repository(args.repository_id))
+        print(json.dumps(result.model_dump(mode="json"), indent=2))
+        return
+
+    if args.command == "summaries":
+        result = asyncio.run(tools.get_summary_coverage(args.repository_id))
         print(json.dumps(result.model_dump(mode="json"), indent=2))
         return
 

@@ -137,6 +137,7 @@ class MongoNodeSummaryStore:
             status_counts = _count_by(collection, base_filter, "status")
             kind_counts = _count_by(collection, base_filter, "kind")
             provider_model_counts = _count_by_provider_model(collection, base_filter)
+            provider_model_count_details = _count_by_provider_model_details(collection, base_filter)
             recent_failures = [
                 normalize_node_summary(document) | {"error": str(document.get("error") or "")}
                 for document in collection.find({**base_filter, "status": "failed"})
@@ -152,6 +153,7 @@ class MongoNodeSummaryStore:
                 "status_counts": status_counts,
                 "kind_counts": kind_counts,
                 "provider_model_counts": provider_model_counts,
+                "provider_model_count_details": provider_model_count_details,
                 "recent_failures": recent_failures,
             }
 
@@ -215,6 +217,7 @@ def _empty_summary_coverage(repository_id: str) -> dict[str, Any]:
         "status_counts": {},
         "kind_counts": {},
         "provider_model_counts": {},
+        "provider_model_count_details": [],
         "recent_failures": [],
     }
 
@@ -257,3 +260,34 @@ def _count_by_provider_model(collection: Any, base_filter: dict[str, Any]) -> di
         counts[f"{provider}/{model}/{prompt_version}"] = int(item.get("count") or 0)
 
     return counts
+
+
+def _count_by_provider_model_details(collection: Any, base_filter: dict[str, Any]) -> list[dict[str, Any]]:
+    details: list[dict[str, Any]] = []
+    for item in collection.aggregate(
+        [
+            {"$match": base_filter},
+            {
+                "$group": {
+                    "_id": {
+                        "provider": "$provider",
+                        "model": "$model",
+                        "promptVersion": "$promptVersion",
+                    },
+                    "count": {"$sum": 1},
+                }
+            },
+            {"$sort": {"count": -1}},
+        ]
+    ):
+        key = item.get("_id") if isinstance(item.get("_id"), dict) else {}
+        details.append(
+            {
+                "provider": str(key.get("provider") or "unknown"),
+                "model": str(key.get("model") or "unknown"),
+                "prompt_version": str(key.get("promptVersion") or "unknown"),
+                "count": int(item.get("count") or 0),
+            }
+        )
+
+    return details

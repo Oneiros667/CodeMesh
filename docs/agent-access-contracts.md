@@ -90,6 +90,7 @@ Agent Access merges vector hits, lexical graph hits, and MongoDB generated-summa
 - `status_counts`: summary counts grouped by status.
 - `kind_counts`: summary counts grouped by CodeMesh node kind.
 - `provider_model_counts`: counts grouped by provider, model, and prompt version.
+- `provider_model_count_details`: structured provider/model/prompt count records for clients that should not parse the compatibility keys in `provider_model_counts`.
 - `recent_failures`: up to ten recent failed summary records with error metadata.
 - `generated_at`: UTC timestamp.
 
@@ -160,6 +161,7 @@ MCP tool names:
 - `codemesh_get_neighbors`
 - `codemesh_list_repositories`
 - `codemesh_get_repository`
+- `codemesh_get_summary_coverage`
 - `codemesh_list_ingestion_runs`
 
 The manifest can be printed with:

@@ -394,9 +394,10 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
 
     var coverage = await client.GetSummaryCoverageAsync("sample repo/id");
     Equal("repositories/sample%20repo%2Fid/summaries", handler.Requests[9].Path, "Agent Access summary coverage path did not escape id.");
-    Equal(5, coverage.CompletedCount, "Agent Access summary coverage completed count did not deserialize.");
-    Equal(2, coverage.KindCounts["Method"], "Agent Access summary coverage kind counts did not deserialize.");
-    Equal("model failed", coverage.RecentFailures[0]["error"].GetString() ?? string.Empty, "Agent Access summary coverage failures did not deserialize.");
+        Equal(5, coverage.CompletedCount, "Agent Access summary coverage completed count did not deserialize.");
+        Equal(2, coverage.KindCounts["Method"], "Agent Access summary coverage kind counts did not deserialize.");
+        Equal("qwen/qwen2.5-coder-14b", coverage.ProviderModelCountDetails[0].Model, "Agent Access summary coverage provider/model details did not deserialize.");
+        Equal("model failed", coverage.RecentFailures[0]["error"].GetString() ?? string.Empty, "Agent Access summary coverage failures did not deserialize.");
 
     var runs = await client.ListIngestionRunsAsync(repositoryId: "sample repo/id", limit: 2);
     Equal("ingestion-runs?limit=2&repository_id=sample%20repo%2Fid", handler.Requests[10].Path, "Agent Access runs path changed.");
@@ -629,6 +630,7 @@ static async Task TestIncrementalIngestionSkipsUnchangedSummaries()
         Equal(0, coverage.FailedCount, "Summary coverage failed count changed.");
         Equal(1, coverage.KindCounts["Class"], "Summary coverage kind count changed.");
         Equal(1, coverage.ProviderModelCounts["test/summary-counting/node-summary-v1"], "Summary coverage provider/model count changed.");
+        Equal("summary-counting", coverage.ProviderModelCountDetails[0].Model, "Summary coverage provider/model detail changed.");
 
         var second = await orchestrator.IngestAsync(new IngestionRequest(
             root,
@@ -652,6 +654,17 @@ static async Task TestIncrementalIngestionSkipsUnchangedSummaries()
         Equal(2, summaryProvider.SummarizedNodeCount, "Forced ingest did not call summary provider again.");
         coverage = await store.GetSummaryCoverageAsync(repositoryId);
         Equal(1, coverage.TotalCount, "Forced summary coverage total count changed.");
+
+        parser.TypeName = "Beta";
+        var changedWithoutSummaries = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            IncludeSummaries: false));
+
+        Equal(0, changedWithoutSummaries.SummaryCount, "Summary-disabled changed ingest should not write summaries.");
+        Equal(2, summaryProvider.SummarizedNodeCount, "Summary-disabled changed ingest called the summary provider.");
+        coverage = await store.GetSummaryCoverageAsync(repositoryId);
+        Equal(0, coverage.TotalCount, "Summary-disabled changed ingest did not remove stale summaries.");
     }
     finally
     {
@@ -2671,6 +2684,9 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                   "status_counts": {"completed": 5, "failed": 1},
                   "kind_counts": {"Method": 2, "Class": 1, "File": 1, "Property": 1},
                   "provider_model_counts": {"lmstudio/qwen/qwen2.5-coder-14b/node-summary-v1": 6},
+                  "provider_model_count_details": [
+                    {"provider": "lmstudio", "model": "qwen/qwen2.5-coder-14b", "prompt_version": "node-summary-v1", "count": 6}
+                  ],
                   "recent_failures": [
                     {"node_id": "node:failed", "error": "model failed"}
                   ],

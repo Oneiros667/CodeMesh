@@ -254,6 +254,29 @@ public sealed class IngestionOrchestrator(
                     .ConfigureAwait(false);
             }
 
+            if (!request.IncludeSummaries &&
+                summaryStore is IIncrementalNodeSummaryStore cleanupSummaryStore)
+            {
+                var currentSummaryKeys = nodes
+                    .Where(IsSummaryCandidate)
+                    .Select(node => SummaryLookupKey(node.Id, node.ContentHash, SummaryKind(node)))
+                    .ToHashSet(StringComparer.Ordinal);
+                var existingSummaries = await cleanupSummaryStore
+                    .GetSummaryStatesAsync(repository.Id, cancellationToken)
+                    .ConfigureAwait(false);
+                var currentSummaryIds = existingSummaries
+                    .Where(summary => currentSummaryKeys.Contains(SummaryLookupKey(
+                        summary.NodeId,
+                        summary.ContentHash,
+                        summary.SummaryKind)))
+                    .Select(summary => summary.SummaryId)
+                    .ToHashSet(StringComparer.Ordinal);
+
+                await cleanupSummaryStore
+                    .RemoveSummariesExceptAsync(repository.Id, currentSummaryIds, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
             if (!request.SkipEmbeddings &&
                 vectorStore is not IIncrementalVectorStore &&
                 vectorStore is IRefreshableVectorStore refreshableVectorStore)
@@ -421,6 +444,31 @@ public sealed class IngestionOrchestrator(
     private static string EmbeddingLookupKey(string nodeId, string contentHash)
     {
         return $"{nodeId}\u001f{contentHash}";
+    }
+
+    private static bool IsSummaryCandidate(CodeNode node)
+    {
+        return node.Kind is
+            CodeNodeKind.File or
+            CodeNodeKind.Class or
+            CodeNodeKind.Interface or
+            CodeNodeKind.Struct or
+            CodeNodeKind.Enum or
+            CodeNodeKind.Delegate or
+            CodeNodeKind.Method or
+            CodeNodeKind.Constructor or
+            CodeNodeKind.Property or
+            CodeNodeKind.Event;
+    }
+
+    private static string SummaryKind(CodeNode node)
+    {
+        return node.Kind == CodeNodeKind.File ? "file" : "symbol";
+    }
+
+    private static string SummaryLookupKey(string nodeId, string contentHash, string summaryKind)
+    {
+        return $"{nodeId}\u001f{contentHash}\u001f{summaryKind}";
     }
 
     private static IReadOnlyList<CodeNode> StampNodes(

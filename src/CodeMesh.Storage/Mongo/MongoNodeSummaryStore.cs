@@ -148,6 +148,7 @@ public sealed class MongoNodeSummaryStore :
             CountBy(summaries, summary => summary.Status),
             CountBy(summaries, summary => summary.Kind),
             CountBy(summaries, summary => $"{summary.Provider}/{summary.Model}/{summary.PromptVersion}"),
+            CountProviderModels(summaries),
             summaries
                 .Where(summary => string.Equals(summary.Status, "failed", StringComparison.Ordinal))
                 .OrderByDescending(summary => summary.GeneratedAtUtc)
@@ -267,6 +268,28 @@ public sealed class MongoNodeSummaryStore :
             .OrderByDescending(group => group.Count())
             .ThenBy(group => group.Key, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+    }
+
+    private static IReadOnlyList<NodeSummaryProviderModelCount> CountProviderModels(
+        IEnumerable<SummaryCoverageProjection> summaries)
+    {
+        return summaries
+            .GroupBy(summary => new
+            {
+                Provider = string.IsNullOrWhiteSpace(summary.Provider) ? "unknown" : summary.Provider,
+                Model = string.IsNullOrWhiteSpace(summary.Model) ? "unknown" : summary.Model,
+                PromptVersion = string.IsNullOrWhiteSpace(summary.PromptVersion) ? "unknown" : summary.PromptVersion
+            })
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key.Provider, StringComparer.Ordinal)
+            .ThenBy(group => group.Key.Model, StringComparer.Ordinal)
+            .ThenBy(group => group.Key.PromptVersion, StringComparer.Ordinal)
+            .Select(group => new NodeSummaryProviderModelCount(
+                group.Key.Provider,
+                group.Key.Model,
+                group.Key.PromptVersion,
+                group.Count()))
+            .ToArray();
     }
 
     private sealed class NodeSummaryDocument

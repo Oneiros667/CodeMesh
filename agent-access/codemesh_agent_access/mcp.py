@@ -18,6 +18,7 @@ _TOOL_NAMES = [
     "codemesh_get_neighbors",
     "codemesh_list_repositories",
     "codemesh_get_repository",
+    "codemesh_get_summary_coverage",
     "codemesh_list_ingestion_runs",
 ]
 
@@ -85,6 +86,10 @@ _LIST_REPOSITORIES_ARGUMENTS: dict[str, dict[str, Any]] = {
 }
 
 _GET_REPOSITORY_ARGUMENTS: dict[str, dict[str, Any]] = {
+    "repository_id": {"type": "string", "required": True, "description": "Repository hash id or alias."},
+}
+
+_SUMMARY_COVERAGE_ARGUMENTS: dict[str, dict[str, Any]] = {
     "repository_id": {"type": "string", "required": True, "description": "Repository hash id or alias."},
 }
 
@@ -156,6 +161,24 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
     "codemesh_get_repository": {
         "description": "Fetch one indexed CodeMesh repository by id or alias.",
         "arguments": _GET_REPOSITORY_ARGUMENTS,
+    },
+    "codemesh_get_summary_coverage": {
+        "description": "Fetch generated node summary coverage for one indexed CodeMesh repository.",
+        "arguments": _SUMMARY_COVERAGE_ARGUMENTS,
+        "response": {
+            "fields": [
+                "repository_id",
+                "total_count",
+                "completed_count",
+                "failed_count",
+                "status_counts",
+                "kind_counts",
+                "provider_model_counts",
+                "provider_model_count_details",
+                "recent_failures",
+                "generated_at",
+            ],
+        },
     },
     "codemesh_list_ingestion_runs": {
         "description": "List CodeMesh ingestion runs, optionally scoped to a repository id or alias.",
@@ -330,6 +353,11 @@ def build_server() -> Any:
     async def codemesh_get_repository(repository_id: str) -> dict[str, Any]:
         """Fetch one indexed CodeMesh repository by id."""
         return (await tools.get_repository(repository_id)).model_dump(mode="json")
+
+    @server.tool()
+    async def codemesh_get_summary_coverage(repository_id: str) -> dict[str, Any]:
+        """Fetch generated node summary coverage for one indexed CodeMesh repository."""
+        return (await tools.get_summary_coverage(repository_id)).model_dump(mode="json")
 
     @server.tool()
     async def codemesh_list_ingestion_runs(

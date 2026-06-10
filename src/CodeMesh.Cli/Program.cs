@@ -814,7 +814,7 @@ static void PrintException(Exception exception, bool json)
         return;
     }
 
-    Console.Error.WriteLine($"Ingestion failed: {exception.Message}");
+    Console.Error.WriteLine($"Command failed: {exception.Message}");
 }
 
 static JsonSerializerOptions JsonOptions()

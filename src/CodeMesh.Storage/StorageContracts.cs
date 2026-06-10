@@ -105,6 +105,12 @@ public sealed record NodeSummaryFailure(
     string Error,
     DateTimeOffset GeneratedAt);
 
+public sealed record NodeSummaryProviderModelCount(
+    string Provider,
+    string Model,
+    string PromptVersion,
+    int Count);
+
 public sealed record NodeSummaryCoverage(
     string RepositoryId,
     int TotalCount,
@@ -113,6 +119,7 @@ public sealed record NodeSummaryCoverage(
     IReadOnlyDictionary<string, int> StatusCounts,
     IReadOnlyDictionary<string, int> KindCounts,
     IReadOnlyDictionary<string, int> ProviderModelCounts,
+    IReadOnlyList<NodeSummaryProviderModelCount> ProviderModelCountDetails,
     IReadOnlyList<NodeSummaryFailure> RecentFailures);
 
 public interface INodeSummaryCoverageStore

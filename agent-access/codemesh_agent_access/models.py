@@ -163,6 +163,7 @@ class NodeSummaryCoverageResponse(BaseModel):
     status_counts: dict[str, int] = Field(default_factory=dict)
     kind_counts: dict[str, int] = Field(default_factory=dict)
     provider_model_counts: dict[str, int] = Field(default_factory=dict)
+    provider_model_count_details: list[dict[str, Any]] = Field(default_factory=list)
     recent_failures: list[dict[str, Any]] = Field(default_factory=list)
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

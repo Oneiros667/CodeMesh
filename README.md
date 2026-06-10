@@ -258,6 +258,7 @@ MCP tools:
 - `codemesh_get_neighbors`
 - `codemesh_list_repositories`
 - `codemesh_get_repository`
+- `codemesh_get_summary_coverage`
 - `codemesh_list_ingestion_runs`
 
 `codemesh_search_context` and `codemesh_get_context_package` accept the same core query controls as REST: `repository_id`, `kinds`, `filters`, explicit `vector` values, and context expansion limits. `codemesh_get_context_package` also accepts `output_format = "agent"` to include an `agent_text` brief alongside the structured package. `codemesh_search_symbols` searches indexed symbols by name, id, display signature, namespace, or file path, and can include each symbol's primary declaration node. `codemesh_get_neighbors` accepts `relationship_kinds` when callers need to limit the relationship types returned.
@@ -328,6 +329,7 @@ uv run python -m codemesh_agent_access package "download video with subtitles" -
 uv run python -m codemesh_agent_access get-node csharp:type:CodeMesh.Tests.Neo4jSmokeSource --repository-id repo:neo4j-smoke --no-content
 uv run python -m codemesh_agent_access neighbors csharp:type:CodeMesh.Tests.Neo4jSmokeSource --repository-id repo:neo4j-smoke --relationship-kind Contains
 uv run python -m codemesh_agent_access repos --limit 10
+uv run python -m codemesh_agent_access summaries <repository-id-or-alias>
 uv run python -m codemesh_agent_access runs --repository-id <repository-id-or-alias> --limit 5
 ```
 
