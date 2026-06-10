@@ -1,5 +1,4 @@
 using CodeMesh.Domain.Graph;
-using CodeMesh.Domain.Utilities;
 using CodeMesh.Storage;
 
 namespace CodeMesh.Ingestion.Summary;
@@ -31,10 +30,16 @@ public sealed class CodeSummaryGenerator(
         CancellationToken cancellationToken = default)
     {
         var candidates = nodes
-            .Where(IsSummaryCandidate)
+            .Where(CodeSummaryIdentity.IsCandidate)
             .ToArray();
         var currentSummaryIds = candidates
-            .Select(node => SummaryId(repository.Id, node, SummaryKind(node), provider.Provider, provider.Model, _options.PromptVersion))
+            .Select(node => CodeSummaryIdentity.SummaryId(
+                repository.Id,
+                node,
+                CodeSummaryIdentity.SummaryKind(node),
+                provider.Provider,
+                provider.Model,
+                _options.PromptVersion))
             .ToHashSet(StringComparer.Ordinal);
         var nodesToSummarize = candidates;
         var skippedCount = 0;
@@ -50,11 +55,14 @@ public sealed class CodeSummaryGenerator(
                     string.Equals(summary.Model, provider.Model, StringComparison.Ordinal) &&
                     string.Equals(summary.PromptVersion, _options.PromptVersion, StringComparison.Ordinal) &&
                     string.Equals(summary.Status, "completed", StringComparison.Ordinal))
-                .Select(summary => SummaryLookupKey(summary.NodeId, summary.ContentHash, summary.SummaryKind))
+                .Select(summary => CodeSummaryIdentity.LookupKey(summary.NodeId, summary.ContentHash, summary.SummaryKind))
                 .ToHashSet(StringComparer.Ordinal);
 
             nodesToSummarize = candidates
-                .Where(node => !existingKeys.Contains(SummaryLookupKey(node.Id, node.ContentHash, SummaryKind(node))))
+                .Where(node => !existingKeys.Contains(CodeSummaryIdentity.LookupKey(
+                    node.Id,
+                    node.ContentHash,
+                    CodeSummaryIdentity.SummaryKind(node))))
                 .ToArray();
             skippedCount = candidates.Length - nodesToSummarize.Length;
         }
@@ -94,8 +102,14 @@ public sealed class CodeSummaryGenerator(
         IReadOnlyDictionary<string, CodeContent> contentByHash,
         CancellationToken cancellationToken)
     {
-        var summaryKind = SummaryKind(node);
-        var id = SummaryId(repository.Id, node, summaryKind, provider.Provider, provider.Model, _options.PromptVersion);
+        var summaryKind = CodeSummaryIdentity.SummaryKind(node);
+        var id = CodeSummaryIdentity.SummaryId(
+            repository.Id,
+            node,
+            summaryKind,
+            provider.Provider,
+            provider.Model,
+            _options.PromptVersion);
         var generatedAt = DateTimeOffset.UtcNow;
         var metadata = MetadataFor(node, repository, ingestionRunId);
         contentByHash.TryGetValue(node.ContentHash, out var content);
@@ -162,50 +176,6 @@ public sealed class CodeSummaryGenerator(
                 exception.Message,
                 metadata);
         }
-    }
-
-    public static string SummaryId(
-        string repositoryId,
-        CodeNode node,
-        string summaryKind,
-        string provider,
-        string model,
-        string promptVersion)
-    {
-        return CodeMeshHash.StableId(
-            "summary",
-            repositoryId,
-            node.Id,
-            node.ContentHash,
-            summaryKind,
-            provider,
-            model,
-            promptVersion);
-    }
-
-    private static bool IsSummaryCandidate(CodeNode node)
-    {
-        return node.Kind is
-            CodeNodeKind.File or
-            CodeNodeKind.Class or
-            CodeNodeKind.Interface or
-            CodeNodeKind.Struct or
-            CodeNodeKind.Enum or
-            CodeNodeKind.Delegate or
-            CodeNodeKind.Method or
-            CodeNodeKind.Constructor or
-            CodeNodeKind.Property or
-            CodeNodeKind.Event;
-    }
-
-    private static string SummaryKind(CodeNode node)
-    {
-        return node.Kind == CodeNodeKind.File ? "file" : "symbol";
-    }
-
-    private static string SummaryLookupKey(string nodeId, string contentHash, string summaryKind)
-    {
-        return $"{nodeId}\u001f{contentHash}\u001f{summaryKind}";
     }
 
     private static IReadOnlyDictionary<string, string> MetadataFor(
