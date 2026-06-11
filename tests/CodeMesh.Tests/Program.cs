@@ -31,6 +31,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("incremental ingestion skips unchanged summaries", TestIncrementalIngestionSkipsUnchangedSummaries),
     ("forced embedding ingestion rebuilds unchanged embeddings", TestForcedEmbeddingIngestionRebuildsUnchangedEmbeddings),
     ("embedding verifier reports missing and stale vectors", TestEmbeddingVerifierReportsMissingAndStaleVectors),
+    ("repository cleanup removes indexed data", TestRepositoryCleanupRemovesIndexedData),
     ("repository aliases are generated and resolved", TestRepositoryAliasesAreGeneratedAndResolved),
     ("ingestion writes repository registry records", TestIngestionWritesRepositoryRegistryRecords),
     ("status uses configured ollama endpoint", TestStatusUsesConfiguredOllamaEndpoint),
@@ -403,6 +404,13 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
     Equal("ingestion-runs?limit=2&repository_id=sample%20repo%2Fid", handler.Requests[10].Path, "Agent Access runs path changed.");
     Equal("run:test", runs.Runs[0].RunId, "Agent Access ingestion run did not deserialize.");
     Equal("lmstudio", runs.Runs[0].EmbeddingProvider, "Agent Access run embedding provider did not deserialize.");
+
+    var delete = await client.DeleteRepositoryAsync("sample repo/id");
+    Equal(HttpMethod.Delete.Method, handler.Requests[11].Method, "Agent Access repository delete method changed.");
+    Equal("repositories/sample%20repo%2Fid", handler.Requests[11].Path, "Agent Access repository delete path did not escape id.");
+    Equal("repo:test", delete.RepositoryId, "Agent Access repository delete response did not deserialize.");
+    Equal(true, delete.Deleted, "Agent Access repository delete did not report deletion.");
+    Equal(true, delete.SummariesCleaned, "Agent Access repository delete cleanup flags did not deserialize.");
 
     handler.FailNextRequest = true;
     try
@@ -815,6 +823,74 @@ static async Task TestEmbeddingVerifierReportsMissingAndStaleVectors()
             embeddingProvider.Model));
         Equal(false, missingRepository.IsComplete, "Verifier incorrectly reported a missing repository as complete.");
         Equal("empty_graph", missingRepository.Issues[0].Kind, "Verifier did not report an empty graph inventory.");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+static async Task TestRepositoryCleanupRemovesIndexedData()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-cleanup-test-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+
+    try
+    {
+        var store = new InMemoryCodeMeshStore();
+        var parser = new RefreshParserClient("Alpha");
+        var embeddingProvider = new CountingEmbeddingProvider();
+        var summaryProvider = new CountingSummaryProvider();
+        var orchestrator = new IngestionOrchestrator(
+            parser,
+            store,
+            store,
+            store,
+            embeddingProvider,
+            store,
+            store,
+            summaryProvider);
+        var result = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            SkipEmbeddings: false,
+            IncludeSummaries: true));
+
+        var repositoryId = result.Repository.Id;
+        NotNull(await store.GetNodeAsync(RefreshParserClient.NodeIdFor("Alpha")), "Cleanup setup did not write a graph node.");
+        NotNull(await store.GetContentAsync(RefreshParserClient.ContentHashFor("Alpha")), "Cleanup setup did not write content.");
+        Equal(1, (await store.GetEmbeddingStatesAsync(repositoryId)).Count, "Cleanup setup did not write an embedding.");
+        Equal(1, (await store.GetSummaryStatesAsync(repositoryId)).Count, "Cleanup setup did not write a summary.");
+        NotNull(await store.GetRepositoryAsync(repositoryId), "Cleanup setup did not write repository metadata.");
+        Equal(1, (await store.ListRunsAsync(repositoryId)).Count, "Cleanup setup did not write an ingestion run.");
+
+        var cleanup = new RepositoryCleanupService(
+            store,
+            store,
+            store,
+            store,
+            store);
+        var cleanupResult = await cleanup.DeleteRepositoryAsync(repositoryId);
+
+        Equal(repositoryId, cleanupResult.RepositoryId, "Cleanup result repository id changed.");
+        Equal(true, cleanupResult.RegistryEntryExisted, "Cleanup did not find the registry entry.");
+        Equal(true, cleanupResult.GraphCleaned, "Cleanup did not report graph cleanup.");
+        Equal(true, cleanupResult.ContentCleaned, "Cleanup did not report content cleanup.");
+        Equal(true, cleanupResult.EmbeddingsCleaned, "Cleanup did not report embedding cleanup.");
+        Equal(true, cleanupResult.SummariesCleaned, "Cleanup did not report summary cleanup.");
+        IsNull(await store.GetNodeAsync(RefreshParserClient.NodeIdFor("Alpha")), "Cleanup did not remove graph node.");
+        IsNull(await store.GetContentAsync(RefreshParserClient.ContentHashFor("Alpha")), "Cleanup did not remove content.");
+        Equal(0, (await store.GetContentStatesAsync(repositoryId)).Count, "Cleanup left content state behind.");
+        Equal(0, (await store.GetEmbeddingStatesAsync(repositoryId)).Count, "Cleanup left embeddings behind.");
+        Equal(0, (await store.GetSummaryStatesAsync(repositoryId)).Count, "Cleanup left summaries behind.");
+        IsNull(await store.GetRepositoryAsync(repositoryId), "Cleanup did not remove repository metadata.");
+        Equal(0, (await store.ListRunsAsync(repositoryId)).Count, "Cleanup did not remove ingestion runs.");
+
+        var matches = await store.SearchAsync(
+            [1.0f, 0.0f],
+            10,
+            new Dictionary<string, string> { ["repositoryId"] = repositoryId });
+        Equal(0, matches.Count, "Cleanup left searchable embeddings behind.");
     }
     finally
     {
@@ -1284,6 +1360,12 @@ static async Task TestMongoRegistryStoreRoundTripsRepositoriesAndRuns()
     Equal(run.RunId, runs[0].RunId, "MongoDB registry run id changed.");
     Equal(run.ParserName, runs[0].ParserName, "MongoDB registry parser name changed.");
     Equal(run.Stats?.SkippedNodeCount ?? 0, runs[0].Stats?.SkippedNodeCount ?? 0, "MongoDB registry stats changed.");
+
+    await store.DeleteRepositoryAsync(repository.RepositoryId, timeout.Token);
+    IsNull(await store.GetRepositoryAsync(repository.RepositoryId, timeout.Token), "MongoDB registry did not delete repository by id.");
+    IsNull(await store.GetRepositoryAsync(repository.Alias!, timeout.Token), "MongoDB registry did not delete repository alias.");
+    runs = await store.ListRunsAsync(repository.RepositoryId, cancellationToken: timeout.Token);
+    Equal(0, runs.Count, "MongoDB registry did not delete repository runs.");
 }
 
 static async Task TestNeo4jGraphStoreRoundTripsGraph()
@@ -2531,7 +2613,7 @@ sealed class FakeLmStudioEmbeddingHandler : HttpMessageHandler
 
 sealed class FakeAgentAccessHandler : HttpMessageHandler
 {
-    public List<(string Path, string Body)> Requests { get; } = [];
+    public List<(string Method, string Path, string Body)> Requests { get; } = [];
 
     public bool FailNextRequest { get; set; }
 
@@ -2544,7 +2626,7 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
             ? string.Empty
             : await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
-        Requests.Add((path, body));
+        Requests.Add((request.Method.Method, path, body));
 
         if (FailNextRequest)
         {
@@ -2552,7 +2634,9 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
             return JsonResponse(HttpStatusCode.ServiceUnavailable, """{"detail":"offline"}""");
         }
 
-        var payload = path switch
+        var payload = request.Method == HttpMethod.Delete
+            ? DeletePayload(path)
+            : path switch
         {
             "health" or "status" =>
                 """
@@ -2769,6 +2853,26 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
         return string.IsNullOrEmpty(payload)
             ? JsonResponse(HttpStatusCode.NotFound, """{"detail":"not found"}""")
             : JsonResponse(HttpStatusCode.OK, payload);
+    }
+
+    private static string DeletePayload(string path)
+    {
+        return path switch
+        {
+            "repositories/sample%20repo%2Fid" =>
+                """
+                {
+                  "repository_id": "repo:test",
+                  "deleted": true,
+                  "registry_entry_existed": true,
+                  "graph_cleaned": true,
+                  "content_cleaned": true,
+                  "embeddings_cleaned": true,
+                  "summaries_cleaned": true
+                }
+                """,
+            _ => string.Empty
+        };
     }
 
     private static HttpResponseMessage JsonResponse(HttpStatusCode statusCode, string payload)

@@ -122,14 +122,31 @@ switch (command)
     {
         try
         {
-            var repositoryId = ReadPositional(args, 2)
-                ?? throw new InvalidOperationException("Repository id or alias is required. Usage: codemesh repo show <repository-id-or-alias>");
-            var store = CreateRegistryStore(args);
-            var repository = await store
-                .GetRepositoryAsync(repositoryId)
-                .ConfigureAwait(false);
-            PrintRepository(repository, json);
-            return repository is null ? 1 : 0;
+            var subcommand = ReadPositional(args, 1)?.ToLowerInvariant();
+            switch (subcommand)
+            {
+                case "show":
+                {
+                    var repositoryId = ReadPositional(args, 2)
+                        ?? throw new InvalidOperationException("Repository id or alias is required. Usage: codemesh repo show <repository-id-or-alias>");
+                    var store = CreateRegistryStore(args);
+                    var repository = await store
+                        .GetRepositoryAsync(repositoryId)
+                        .ConfigureAwait(false);
+                    PrintRepository(repository, json);
+                    return repository is null ? 1 : 0;
+                }
+
+                case "delete":
+                {
+                    var result = await RunRepositoryDeleteAsync(args).ConfigureAwait(false);
+                    PrintRepositoryCleanup(result, json);
+                    return 0;
+                }
+
+                default:
+                    throw new InvalidOperationException("Usage: codemesh repo show <repository-id-or-alias> | codemesh repo delete <repository-id-or-alias>");
+            }
         }
         catch (Exception exception)
         {
@@ -280,6 +297,33 @@ static async Task<NodeSummaryCoverage> RunSummaryCoverageAsync(string[] args)
 
     return await summaryStore
         .GetSummaryCoverageAsync(resolvedRepositoryId)
+        .ConfigureAwait(false);
+}
+
+static async Task<RepositoryCleanupResult> RunRepositoryDeleteAsync(string[] args)
+{
+    var repositoryRef = ReadAnyOption(args, "--repository-id", "--repo")
+        ?? ReadPositional(args, 2)
+        ?? throw new InvalidOperationException("Repository id or alias is required. Usage: codemesh repo delete <repository-id-or-alias>");
+    var registryStore = CreateRegistryStore(args);
+    var repository = await registryStore
+        .GetRepositoryAsync(repositoryRef)
+        .ConfigureAwait(false)
+        ?? throw new InvalidOperationException($"Repository not found: {repositoryRef}");
+
+    await using var graphStore = CreateGraphStore(args);
+    var contentStore = CreateContentStore(args);
+    using var vectorStore = CreateVectorStore(args);
+    var summaryStore = CreateNodeSummaryStore(args);
+    var cleanup = new RepositoryCleanupService(
+        graphStore,
+        contentStore,
+        vectorStore,
+        registryStore,
+        summaryStore);
+
+    return await cleanup
+        .DeleteRepositoryAsync(repository.RepositoryId)
         .ConfigureAwait(false);
 }
 
@@ -771,6 +815,23 @@ static void PrintProviderModelDetails(NodeSummaryCoverage coverage)
     PrintCountGroup("Provider/model/prompt", coverage.ProviderModelCounts);
 }
 
+static void PrintRepositoryCleanup(RepositoryCleanupResult result, bool json)
+{
+    if (json)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions()));
+        return;
+    }
+
+    Console.WriteLine("CodeMesh repository deleted:");
+    Console.WriteLine($"Repository: {result.RepositoryId}");
+    Console.WriteLine($"Registry entry existed: {result.RegistryEntryExisted}");
+    Console.WriteLine($"Graph cleaned: {result.GraphCleaned}");
+    Console.WriteLine($"Content cleaned: {result.ContentCleaned}");
+    Console.WriteLine($"Embeddings cleaned: {result.EmbeddingsCleaned}");
+    Console.WriteLine($"Summaries cleaned: {result.SummariesCleaned}");
+}
+
 static void PrintCountGroup(string label, IReadOnlyDictionary<string, int> counts)
 {
     if (counts.Count == 0)
@@ -893,6 +954,7 @@ static void PrintHelp()
     Console.WriteLine("  codemesh summaries coverage <repository-id-or-alias> [--json]");
     Console.WriteLine("  codemesh repos list [--limit <count>] [--json]");
     Console.WriteLine("  codemesh repo show <repository-id-or-alias> [--json]");
+    Console.WriteLine("  codemesh repo delete <repository-id-or-alias> [--json]");
     Console.WriteLine("  codemesh runs list [--repository-id <id-or-alias>] [--limit <count>] [--json]");
     Console.WriteLine();
     Console.WriteLine("Ingestion store options:");

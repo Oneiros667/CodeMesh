@@ -492,6 +492,39 @@ if ($IncludeSummaries) {
 Write-Host "Package items: $(@($package.items).Count)"
 
 if ($generatedFixture -and !$KeepFixture) {
+    Write-Step "Deleting indexed smoke repository"
+    $escapedRepositoryId = [System.Uri]::EscapeDataString($repositoryId)
+    $deleteResult = Invoke-RestMethod -Uri "$AgentAccessUrl/repositories/$escapedRepositoryId" -Method Delete -TimeoutSec 30
+    if (!$deleteResult.deleted) {
+        throw "Repository delete did not report deleted=true for $repositoryId."
+    }
+    if (!$deleteResult.graph_cleaned -or !$deleteResult.content_cleaned -or !$deleteResult.embeddings_cleaned -or !$deleteResult.summaries_cleaned) {
+        throw "Repository delete did not report all stores cleaned: $($deleteResult | ConvertTo-Json -Depth 8)"
+    }
+
+    $repositoriesAfterDelete = Invoke-RestMethod -Uri "$AgentAccessUrl/repositories" -Method Get -TimeoutSec 15
+    $registeredAfterDelete = @($repositoriesAfterDelete.repositories) | Where-Object { $_.repository_id -eq $repositoryId } | Select-Object -First 1
+    if ($null -ne $registeredAfterDelete) {
+        throw "Deleted repository $repositoryId is still listed by Agent Access."
+    }
+
+    $runsAfterDelete = Invoke-RestMethod -Uri "$AgentAccessUrl/ingestion-runs?repository_id=$escapedRepositoryId&limit=5" -Method Get -TimeoutSec 15
+    if (@($runsAfterDelete.runs).Count -ne 0) {
+        throw "Deleted repository $repositoryId still has ingestion runs."
+    }
+
+    $coverageAfterDelete = Invoke-RestMethod -Uri "$AgentAccessUrl/repositories/$escapedRepositoryId/summaries" -Method Get -TimeoutSec 15
+    if ([int]$coverageAfterDelete.total_count -ne 0) {
+        throw "Deleted repository $repositoryId still has summary coverage: $($coverageAfterDelete.total_count)."
+    }
+
+    $searchAfterDelete = Invoke-RestMethod -Uri "$AgentAccessUrl/context/search" -Method Post -ContentType "application/json" -Body $searchBody -TimeoutSec 30
+    if (@($searchAfterDelete.hits).Count -ne 0) {
+        throw "Deleted repository $repositoryId still returns context search hits."
+    }
+
+    Write-Host "Indexed repository deleted: $repositoryId"
+
     Write-Step "Cleaning generated fixture"
     Remove-GeneratedFixture
 }

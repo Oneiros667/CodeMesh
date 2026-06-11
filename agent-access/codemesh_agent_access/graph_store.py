@@ -337,6 +337,31 @@ class Neo4jGraphStore:
 
         return [dict(record["node"]) for record in records]
 
+    async def delete_repository(self, repository_id: str) -> None:
+        if _load_async_graph_database() is None or not repository_id:
+            return
+
+        driver = self._neo4j()
+        async with driver.session(database=self._settings.neo4j_database) as session:
+            result = await session.run(
+                """
+                MATCH ()-[r:CODEMESH_REL]->()
+                WHERE r.repositoryId = $repository_id
+                DELETE r
+                """,
+                repository_id=repository_id,
+            )
+            await result.consume()
+            result = await session.run(
+                """
+                MATCH (n:CodeMeshNode)
+                WHERE n.repositoryId = $repository_id
+                DETACH DELETE n
+                """,
+                repository_id=repository_id,
+            )
+            await result.consume()
+
     def _neo4j(self) -> Any:
         graph_database = _load_async_graph_database()
         if graph_database is None:

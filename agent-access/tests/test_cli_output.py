@@ -197,6 +197,34 @@ def test_summaries_cli_outputs_coverage_json(monkeypatch: Any, capsys: Any) -> N
     assert payload["data"] == {"repository_id": "sample_repo", "completed_count": 4}
 
 
+def test_delete_repo_cli_outputs_cleanup_json(monkeypatch: Any, capsys: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    async def fake_delete_repository(repository_id: str) -> ToolResult:
+        captured["repository_id"] = repository_id
+        return ToolResult(
+            data={
+                "repository_id": "repo:test",
+                "deleted": True,
+                "registry_entry_existed": True,
+                "graph_cleaned": True,
+                "content_cleaned": True,
+                "embeddings_cleaned": True,
+                "summaries_cleaned": True,
+            }
+        )
+
+    monkeypatch.setattr(cli.tools, "delete_repository", fake_delete_repository)
+    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "delete-repo", "sample_repo"])
+
+    cli.main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert captured["repository_id"] == "sample_repo"
+    assert payload["data"]["repository_id"] == "repo:test"
+    assert payload["data"]["deleted"] is True
+
+
 def test_cli_prints_mcp_manifest(monkeypatch: Any, capsys: Any) -> None:
     monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "mcp-manifest"])
 

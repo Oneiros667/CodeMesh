@@ -160,6 +160,15 @@ public sealed record AgentRepositorySummary(
 public sealed record AgentRepositoryListResult(
     [property: JsonPropertyName("repositories")] IReadOnlyList<AgentRepositorySummary> Repositories);
 
+public sealed record AgentRepositoryDeleteResult(
+    [property: JsonPropertyName("repository_id")] string RepositoryId,
+    [property: JsonPropertyName("deleted")] bool Deleted,
+    [property: JsonPropertyName("registry_entry_existed")] bool RegistryEntryExisted,
+    [property: JsonPropertyName("graph_cleaned")] bool GraphCleaned,
+    [property: JsonPropertyName("content_cleaned")] bool ContentCleaned,
+    [property: JsonPropertyName("embeddings_cleaned")] bool EmbeddingsCleaned,
+    [property: JsonPropertyName("summaries_cleaned")] bool SummariesCleaned);
+
 public sealed record AgentNodeSummaryProviderModelCount(
     [property: JsonPropertyName("provider")] string Provider,
     [property: JsonPropertyName("model")] string Model,

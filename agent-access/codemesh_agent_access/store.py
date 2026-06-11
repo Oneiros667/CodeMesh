@@ -21,6 +21,7 @@ from .models import (
     NodeLookup,
     NodeSummaryCoverageResponse,
     NodeResponse,
+    RepositoryDeleteResponse,
     RepositoryListResponse,
     RepositorySummary,
     SymbolQuery,
@@ -325,6 +326,36 @@ class CodeMeshReadStore:
 
     async def get_repository(self, repository_id: str) -> RepositorySummary | None:
         return await self._content.get_repository(repository_id)
+
+    async def delete_repository(self, repository_id: str) -> RepositoryDeleteResponse:
+        repository = await self.get_repository(repository_id)
+        if repository is None:
+            return RepositoryDeleteResponse(repository_id=repository_id)
+
+        resolved_repository_id = repository.repository_id
+        graph_cleaned = content_cleaned = embeddings_cleaned = summaries_cleaned = False
+
+        await self._graph.delete_repository(resolved_repository_id)
+        graph_cleaned = True
+
+        await self._content.delete_repository(resolved_repository_id)
+        content_cleaned = True
+
+        await self._vectors.delete_repository(resolved_repository_id)
+        embeddings_cleaned = True
+
+        await self._summaries.delete_repository(resolved_repository_id)
+        summaries_cleaned = True
+
+        return RepositoryDeleteResponse(
+            repository_id=resolved_repository_id,
+            deleted=True,
+            registry_entry_existed=True,
+            graph_cleaned=graph_cleaned,
+            content_cleaned=content_cleaned,
+            embeddings_cleaned=embeddings_cleaned,
+            summaries_cleaned=summaries_cleaned,
+        )
 
     async def get_summary_coverage(self, repository_id: str) -> NodeSummaryCoverageResponse:
         resolved_repository_id = await self._resolve_repository_id(repository_id)
@@ -642,7 +673,6 @@ class CodeMeshReadStore:
             if not node_id:
                 continue
 
-            content_hash = str(summary.get("content_hash") or "")
             repository_id = query.repository_id or str(summary.get("repository_id") or "") or None
             node = await self._get_node_properties(node_id, repository_id)
             if node is None:

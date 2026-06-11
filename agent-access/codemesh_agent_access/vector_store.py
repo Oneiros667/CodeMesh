@@ -73,6 +73,27 @@ class QdrantSearchClient:
             for hit in payload.get("result", [])
         ]
 
+    async def delete_repository(self, repository_id: str) -> None:
+        if not repository_id:
+            return
+
+        body = {
+            "filter": qdrant_filter_for({"repositoryId": repository_id}),
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    f"{self._qdrant_url()}/collections/{self._settings.qdrant_collection}/points/delete",
+                    params={"wait": "true"},
+                    json=body,
+                )
+                if response.status_code == 404:
+                    return
+                response.raise_for_status()
+        except httpx.HTTPError:
+            return
+
     def _qdrant_url(self) -> str:
         return self._settings.qdrant_url.rstrip("/")
 

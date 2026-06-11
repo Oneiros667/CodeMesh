@@ -212,6 +212,10 @@ public interface IRegistryStore
         string? repositoryId = null,
         int limit = 50,
         CancellationToken cancellationToken = default);
+
+    Task DeleteRepositoryAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IStoreHealthCheck

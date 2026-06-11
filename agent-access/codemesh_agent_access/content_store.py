@@ -99,6 +99,32 @@ class MongoContentStore:
         document = await asyncio.to_thread(find_repository_document, collection, repository_id)
         return normalize_repository(document) if document else None
 
+    async def delete_repository(self, repository_id: str) -> None:
+        if not repository_id or MongoClient is None:
+            return
+
+        def delete() -> None:
+            database = self._mongo()[self._settings.mongo_database]
+            content_collection = database[self._settings.mongo_content_collection]
+            repository_collection = database[self._settings.mongo_repositories_collection]
+            runs_collection = database[self._settings.mongo_ingestion_runs_collection]
+
+            content_collection.update_many(
+                {"repositoryIds": repository_id},
+                {
+                    "$pull": {"repositoryIds": repository_id},
+                    "$unset": {
+                        f"repositoryRuns.{repository_id}": "",
+                        f"repositoryLastSeenAtUtc.{repository_id}": "",
+                    },
+                },
+            )
+            content_collection.delete_many({"repositoryIds": {"$size": 0}})
+            repository_collection.delete_one({"_id": repository_id})
+            runs_collection.delete_many({"repositoryId": repository_id})
+
+        await asyncio.to_thread(delete)
+
     async def list_ingestion_runs(
         self,
         repository_id: str | None = None,

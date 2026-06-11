@@ -18,6 +18,7 @@ from codemesh_agent_access.models import (
     NodeLookup,
     NodeSummaryCoverageResponse,
     NodeResponse,
+    RepositoryDeleteResponse,
     RepositoryListResponse,
     RepositorySummary,
     SymbolQuery,
@@ -144,6 +145,7 @@ def test_rest_symbols_node_neighbors_and_registry_shapes() -> None:
         repository = client.get("/repositories/sample_repo")
         summary_coverage = client.get("/repositories/sample_repo/summaries")
         repository_with_path_chars = client.get("/repositories/sample%20repo%2Fid")
+        delete_repository = client.delete("/repositories/sample_repo")
         runs = client.get("/ingestion-runs", params={"repository_id": "sample_repo", "limit": 2})
 
     assert symbols.status_code == 200
@@ -178,6 +180,10 @@ def test_rest_symbols_node_neighbors_and_registry_shapes() -> None:
     assert repository_with_path_chars.json()["repository_id"] == "repo:test"
     assert store.repository_ids[1] == "sample repo/id"
 
+    assert delete_repository.status_code == 200
+    assert delete_repository.json()["deleted"] is True
+    assert store.deleted_repository_ids == ["sample_repo"]
+
     assert runs.status_code == 200
     assert runs.json()["runs"][0]["run_id"] == "run:test"
     assert store.runs_repository_id == "sample_repo"
@@ -207,6 +213,7 @@ class FakeRestStore:
         self.neighbor_query: NeighborQuery | None = None
         self.repository_limit: int | None = None
         self.repository_ids: list[str] = []
+        self.deleted_repository_ids: list[str] = []
         self.summary_repository_ids: list[str] = []
         self.runs_repository_id: str | None = None
         self.runs_limit: int | None = None
@@ -312,6 +319,18 @@ class FakeRestStore:
             repository_id="repo:test",
             alias="sample_repo",
             root_path="C:/sample",
+        )
+
+    async def delete_repository(self, repository_id: str) -> RepositoryDeleteResponse:
+        self.deleted_repository_ids.append(repository_id)
+        return RepositoryDeleteResponse(
+            repository_id="repo:test",
+            deleted=True,
+            registry_entry_existed=True,
+            graph_cleaned=True,
+            content_cleaned=True,
+            embeddings_cleaned=True,
+            summaries_cleaned=True,
         )
 
     async def get_summary_coverage(self, repository_id: str) -> NodeSummaryCoverageResponse:

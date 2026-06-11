@@ -510,6 +510,23 @@ public sealed class InMemoryCodeMeshStore :
         return Task.FromResult<IReadOnlyList<IngestionRunIndexRecord>>(runs);
     }
 
+    public Task DeleteRepositoryAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        _repositories.TryRemove(repositoryId, out _);
+
+        foreach (var (runId, run) in _runs)
+        {
+            if (string.Equals(run.RepositoryId, repositoryId, StringComparison.Ordinal))
+            {
+                _runs.TryRemove(runId, out _);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
     private string? PreviewFor(string contentHash)
     {
         if (!_contents.TryGetValue(contentHash, out var content))

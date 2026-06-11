@@ -16,6 +16,7 @@ from .models import (
     NodeLookup,
     NodeSummaryCoverageResponse,
     NodeResponse,
+    RepositoryDeleteResponse,
     RepositoryListResponse,
     RepositorySummary,
     SymbolQuery,
@@ -113,6 +114,14 @@ async def get_repository(
     store: CodeMeshReadStore = Depends(get_store),
 ) -> RepositorySummary | None:
     return await store.get_repository(repository_id)
+
+
+@app.delete("/repositories/{repository_id:path}", response_model=RepositoryDeleteResponse)
+async def delete_repository(
+    repository_id: str,
+    store: CodeMeshReadStore = Depends(get_store),
+) -> RepositoryDeleteResponse:
+    return await store.delete_repository(repository_id)
 
 
 @app.get("/ingestion-runs", response_model=IngestionRunListResponse)

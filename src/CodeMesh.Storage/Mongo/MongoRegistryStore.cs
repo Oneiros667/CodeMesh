@@ -161,6 +161,19 @@ public sealed class MongoRegistryStore : IRegistryStore, IStoreHealthCheck
         return documents.Select(document => document.ToDomain()).ToArray();
     }
 
+    public async Task DeleteRepositoryAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        var repositoryFilter = Builders<RepositoryDocument>.Filter.Eq(item => item.RepositoryId, repositoryId);
+        var runsFilter = Builders<IngestionRunDocument>.Filter.Eq(item => item.RepositoryId, repositoryId);
+
+        await _repositories.DeleteOneAsync(repositoryFilter, cancellationToken)
+            .ConfigureAwait(false);
+        await _runs.DeleteManyAsync(runsFilter, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<ComponentHealth> CheckAsync(CancellationToken cancellationToken = default)
     {
         try

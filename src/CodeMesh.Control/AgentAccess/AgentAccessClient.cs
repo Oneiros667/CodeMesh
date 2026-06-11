@@ -28,6 +28,8 @@ public interface IAgentAccessClient
 
     Task<AgentRepositorySummary?> GetRepositoryAsync(string repositoryId, CancellationToken cancellationToken = default);
 
+    Task<AgentRepositoryDeleteResult> DeleteRepositoryAsync(string repositoryId, CancellationToken cancellationToken = default);
+
     Task<AgentNodeSummaryCoverageResult> GetSummaryCoverageAsync(
         string repositoryId,
         CancellationToken cancellationToken = default);
@@ -97,6 +99,11 @@ public sealed class AgentAccessClient : IAgentAccessClient, IDisposable
         CancellationToken cancellationToken = default)
         => GetAsync<AgentRepositorySummary?>($"repositories/{Uri.EscapeDataString(repositoryId)}", cancellationToken);
 
+    public Task<AgentRepositoryDeleteResult> DeleteRepositoryAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+        => DeleteAsync<AgentRepositoryDeleteResult>($"repositories/{Uri.EscapeDataString(repositoryId)}", cancellationToken);
+
     public Task<AgentNodeSummaryCoverageResult> GetSummaryCoverageAsync(
         string repositoryId,
         CancellationToken cancellationToken = default)
@@ -155,6 +162,27 @@ public sealed class AgentAccessClient : IAgentAccessClient, IDisposable
         CancellationToken cancellationToken)
     {
         using var response = await _http.GetAsync(path, cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            throw new InvalidOperationException(
+                $"Agent Access request to '{path}' failed with HTTP {(int)response.StatusCode}: {body}");
+        }
+
+        var result = await response.Content
+            .ReadFromJsonAsync<TResponse>(JsonOptions, cancellationToken)
+            .ConfigureAwait(false);
+
+        return result ?? throw new InvalidOperationException(
+            $"Agent Access request to '{path}' returned an empty response.");
+    }
+
+    private async Task<TResponse> DeleteAsync<TResponse>(
+        string path,
+        CancellationToken cancellationToken)
+    {
+        using var response = await _http.DeleteAsync(path, cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {

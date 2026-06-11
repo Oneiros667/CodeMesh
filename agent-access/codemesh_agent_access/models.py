@@ -155,6 +155,16 @@ class RepositoryListResponse(BaseModel):
     repositories: list[RepositorySummary] = Field(default_factory=list)
 
 
+class RepositoryDeleteResponse(BaseModel):
+    repository_id: str
+    deleted: bool = False
+    registry_entry_existed: bool = False
+    graph_cleaned: bool = False
+    content_cleaned: bool = False
+    embeddings_cleaned: bool = False
+    summaries_cleaned: bool = False
+
+
 class NodeSummaryCoverageResponse(BaseModel):
     repository_id: str
     total_count: int = 0

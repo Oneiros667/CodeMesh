@@ -290,6 +290,27 @@ def test_read_store_close_delegates_to_owned_stores() -> None:
     assert content.closed is True
 
 
+def test_read_store_delete_repository_resolves_alias_and_cleans_all_stores() -> None:
+    store = CodeMeshReadStore.__new__(CodeMeshReadStore)
+    graph = FakeCleanupStore()
+    content = FakeContentCleanupStore()
+    vector = FakeCleanupStore()
+    summaries = FakeCleanupStore()
+    store._graph = graph
+    store._content = content
+    store._vectors = vector
+    store._summaries = summaries
+
+    result = asyncio.run(store.delete_repository("sample_repo"))
+
+    assert result.repository_id == "repo:test"
+    assert result.deleted is True
+    assert graph.deleted_repository_ids == ["repo:test"]
+    assert content.deleted_repository_ids == ["repo:test"]
+    assert vector.deleted_repository_ids == ["repo:test"]
+    assert summaries.deleted_repository_ids == ["repo:test"]
+
+
 class FakeMongoClient:
     def __init__(self) -> None:
         self.closed = False
@@ -390,6 +411,26 @@ class FakeClosable:
         self.closed = True
 
 
+class FakeCleanupStore:
+    def __init__(self) -> None:
+        self.deleted_repository_ids: list[str] = []
+
+    async def delete_repository(self, repository_id: str) -> None:
+        self.deleted_repository_ids.append(repository_id)
+
+
+class FakeContentCleanupStore(FakeCleanupStore):
+    async def get_repository(self, repository_id: str) -> Any:
+        assert repository_id == "sample_repo"
+        return type(
+            "Repository",
+            (),
+            {
+                "repository_id": "repo:test",
+            },
+        )()
+
+
 class FakeAsyncClient:
     payload: dict[str, Any] = {}
     last_json: dict[str, Any] | None = None
@@ -406,12 +447,14 @@ class FakeAsyncClient:
     async def get(self, url: str) -> "FakeHttpResponse":
         return FakeHttpResponse(self.payload)
 
-    async def post(self, url: str, json: dict[str, Any]) -> "FakeHttpResponse":
+    async def post(self, url: str, json: dict[str, Any], **kwargs: Any) -> "FakeHttpResponse":
         self.__class__.last_json = json
         return FakeHttpResponse(self.payload)
 
 
 class FakeHttpResponse:
+    status_code = 200
+
     def __init__(self, payload: dict[str, Any]) -> None:
         self._payload = payload
 

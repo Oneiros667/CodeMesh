@@ -118,11 +118,14 @@ Query the registry:
 ```powershell
 dotnet run --project src/CodeMesh.Cli -- repos list
 dotnet run --project src/CodeMesh.Cli -- repo show <repository-id-or-alias>
+dotnet run --project src/CodeMesh.Cli -- repo delete <repository-id-or-alias>
 dotnet run --project src/CodeMesh.Cli -- runs list --repository-id <repository-id-or-alias> --limit 10
 dotnet run --project src/CodeMesh.Cli -- summaries coverage <repository-id-or-alias>
 dotnet run --project src/CodeMesh.Cli -- embeddings verify <repository-id-or-alias> --embedding-provider ollama --embedding-model nomic-embed-text-v2-moe:latest
 dotnet run --project src/CodeMesh.Cli -- embeddings verify <repository-id-or-alias> --embedding-provider lmstudio --embedding-model text-embedding-nomic-embed-text-v2-moe
 ```
+
+`repo delete` resolves aliases through the registry, then removes that repository's graph records from Neo4j, content and node summaries from MongoDB, vectors from Qdrant, and repository/run registry records from MongoDB.
 
 Start the default local stores and services:
 
@@ -137,7 +140,7 @@ Run the end-to-end smoke script against live stores and Agent Access:
 .\scripts\e2e-smoke.ps1
 ```
 
-By default the script creates a tiny C# fixture repository under a unique `.codemesh-smoke` run directory, starts Neo4j, MongoDB, Qdrant, and Agent Access, ingests the fixture without embeddings, then verifies `/repositories`, `/context/search`, `/symbols/search`, and `/context/package`. The context search check also validates response diagnostics, including search mode, vector hit count, and fallback status. To include embeddings, start your local model provider first and run, for example:
+By default the script creates a tiny C# fixture repository under a unique `.codemesh-smoke` run directory, starts Neo4j, MongoDB, Qdrant, and Agent Access, ingests the fixture without embeddings, verifies `/repositories`, `/context/search`, `/symbols/search`, and `/context/package`, then deletes the indexed fixture through `DELETE /repositories/{repository_id}` and verifies the registry, runs, summaries, and search hits are gone. The context search check also validates response diagnostics, including search mode, vector hit count, and fallback status. To include embeddings, start your local model provider first and run, for example:
 
 ```powershell
 .\scripts\e2e-smoke.ps1 -IncludeEmbeddings -EmbeddingProvider ollama -EmbeddingModel nomic-embed-text-v2-moe:latest
@@ -246,6 +249,7 @@ REST endpoints:
 - `GET /repositories`
 - `GET /repositories/{repository_id}/summaries`
 - `GET /repositories/{repository_id}`
+- `DELETE /repositories/{repository_id}`
 - `GET /ingestion-runs`
 
 MCP tools:
@@ -271,6 +275,7 @@ PowerShell examples:
 Invoke-RestMethod http://127.0.0.1:8088/health
 Invoke-RestMethod http://127.0.0.1:8088/repositories
 Invoke-RestMethod http://127.0.0.1:8088/repositories/<repository-id-or-alias>/summaries
+Invoke-RestMethod -Method Delete http://127.0.0.1:8088/repositories/<repository-id-or-alias>
 Invoke-RestMethod 'http://127.0.0.1:8088/ingestion-runs?limit=5'
 
 $nodeBody = @{
@@ -313,7 +318,7 @@ $packageBody = @{
 Invoke-RestMethod http://127.0.0.1:8088/context/package -Method Post -ContentType 'application/json' -Body $packageBody
 ```
 
-For .NET callers, `CodeMesh.Control.AgentAccess.AgentAccessClient` provides typed methods for context search, context packages, symbol search, node lookup, neighbor lookup, repository listing, repository lookup, summary coverage, and ingestion-run listing using the contracts in `CodeMesh.Domain.Contracts`.
+For .NET callers, `CodeMesh.Control.AgentAccess.AgentAccessClient` provides typed methods for context search, context packages, symbol search, node lookup, neighbor lookup, repository listing, repository lookup/deletion, summary coverage, and ingestion-run listing using the contracts in `CodeMesh.Domain.Contracts`.
 
 Direct CLI examples:
 
@@ -329,6 +334,7 @@ uv run python -m codemesh_agent_access package "download video with subtitles" -
 uv run python -m codemesh_agent_access get-node csharp:type:CodeMesh.Tests.Neo4jSmokeSource --repository-id repo:neo4j-smoke --no-content
 uv run python -m codemesh_agent_access neighbors csharp:type:CodeMesh.Tests.Neo4jSmokeSource --repository-id repo:neo4j-smoke --relationship-kind Contains
 uv run python -m codemesh_agent_access repos --limit 10
+uv run python -m codemesh_agent_access delete-repo <repository-id-or-alias>
 uv run python -m codemesh_agent_access summaries <repository-id-or-alias>
 uv run python -m codemesh_agent_access runs --repository-id <repository-id-or-alias> --limit 5
 ```

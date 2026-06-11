@@ -162,6 +162,16 @@ class MongoNodeSummaryStore:
         except PyMongoError:
             return _empty_summary_coverage(repository_id)
 
+    async def delete_repository(self, repository_id: str) -> None:
+        if not repository_id or MongoClient is None:
+            return
+
+        def delete() -> None:
+            collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_node_summaries_collection]
+            collection.delete_many({"repositoryId": repository_id})
+
+        await asyncio.to_thread(delete)
+
     def _mongo(self) -> Any:
         if MongoClient is None:
             raise RuntimeError("The pymongo package is not installed.")

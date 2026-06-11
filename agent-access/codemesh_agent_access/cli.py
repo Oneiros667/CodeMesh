@@ -76,6 +76,9 @@ def main() -> None:
     repo_parser = subcommands.add_parser("repo", help="Fetch an indexed CodeMesh repository.")
     repo_parser.add_argument("repository_id")
 
+    delete_repo_parser = subcommands.add_parser("delete-repo", help="Delete an indexed CodeMesh repository from all stores.")
+    delete_repo_parser.add_argument("repository_id")
+
     summaries_parser = subcommands.add_parser("summaries", help="Fetch generated node summary coverage.")
     summaries_parser.add_argument("repository_id")
 
@@ -194,6 +197,11 @@ def main() -> None:
 
     if args.command == "repo":
         result = asyncio.run(tools.get_repository(args.repository_id))
+        print(json.dumps(result.model_dump(mode="json"), indent=2))
+        return
+
+    if args.command == "delete-repo":
+        result = asyncio.run(tools.delete_repository(args.repository_id))
         print(json.dumps(result.model_dump(mode="json"), indent=2))
         return
 
