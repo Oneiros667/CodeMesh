@@ -8,6 +8,7 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. Code
 - Shared records for code nodes, relationships, parser results, ingestion runs, agent context, and health checks.
 - Ingestion orchestration with incremental graph/content/vector/summary writes and repository/run registry records.
 - C# parser worker API with `/health`, `/capabilities`, and `/parse`.
+- Local Markdown parser support for documents, headings, sections, anchors, and containment relationships.
 - Local Python parser support for files, classes, functions, async functions, and containment relationships.
 - Python Agent Access REST endpoints and MCP tools backed by Neo4j, MongoDB, and Qdrant read paths.
 - Docker Compose for Neo4j, MongoDB, Qdrant, Agent Access, C# parser worker, and optional Ollama.
@@ -31,6 +32,7 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. Code
 dotnet run --project src/CodeMesh.Cli -- doctor
 dotnet run --project src/CodeMesh.Cli -- status
 dotnet run --project src/CodeMesh.Cli -- ingest --root D:\source\repos\YoutubeDownloader --solution D:\source\repos\YoutubeDownloader\YoutubeDownloader.slnx --skip-embeddings
+dotnet run --project src/CodeMesh.Cli -- ingest --root . --language markdown --dry-run --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- ingest --root .\agent-access --language python --dry-run --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- self ingest --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- self smoke --skip-embeddings

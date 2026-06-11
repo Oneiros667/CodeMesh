@@ -47,6 +47,8 @@ _PREFERRED_CONTEXT_KINDS = {
     "field",
     "event",
     "file",
+    "document",
+    "section",
 }
 
 _DECLARABLE_SYMBOL_KINDS = {
@@ -85,6 +87,8 @@ _KIND_WEIGHTS = {
     "enum": 1.12,
     "delegate": 1.10,
     "file": 1.04,
+    "document": 1.08,
+    "section": 1.12,
     "property": 1.02,
     "field": 0.95,
     "event": 0.95,

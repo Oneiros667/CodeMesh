@@ -10,6 +10,7 @@ using CodeMesh.Ingestion;
 using CodeMesh.Ingestion.Embedding;
 using CodeMesh.Ingestion.Summary;
 using CodeMesh.Parser.CSharp;
+using CodeMesh.Parser.Markdown;
 using CodeMesh.Parser.Python;
 using CodeMesh.Storage;
 using CodeMesh.Storage.Mongo;
@@ -264,7 +265,7 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
 
     if (!IsSupportedLanguage(language))
     {
-        throw new InvalidOperationException($"Unsupported ingestion language: {language}. Supported values: csharp, python.");
+        throw new InvalidOperationException($"Unsupported ingestion language: {language}. Supported values: csharp, markdown, python.");
     }
 
     var parserClient = CreateParserClient(args);
@@ -533,14 +534,15 @@ static IParserClient CreateParserClient(string[] args)
     return NormalizeLanguage(language) switch
     {
         "csharp" => new LocalCSharpParserClient(new CSharpParseService()),
+        "markdown" => new LocalMarkdownParserClient(new MarkdownParseService()),
         "python" => new LocalPythonParserClient(new PythonParseService()),
-        _ => throw new InvalidOperationException($"Unsupported ingestion language: {language}. Supported values: csharp, python.")
+        _ => throw new InvalidOperationException($"Unsupported ingestion language: {language}. Supported values: csharp, markdown, python.")
     };
 }
 
 static bool IsSupportedLanguage(string language)
 {
-    return NormalizeLanguage(language) is "csharp" or "python";
+    return NormalizeLanguage(language) is "csharp" or "markdown" or "python";
 }
 
 static string NormalizeLanguage(string language)
@@ -548,6 +550,7 @@ static string NormalizeLanguage(string language)
     return language.Trim().ToLowerInvariant() switch
     {
         "cs" or "c#" => "csharp",
+        "md" => "markdown",
         "py" => "python",
         var value => value
     };
@@ -1164,7 +1167,7 @@ static void PrintHelp()
     Console.WriteLine("Usage:");
     Console.WriteLine("  codemesh doctor [--root <path>] [--json]");
     Console.WriteLine("  codemesh status [--root <path>] [--json]");
-    Console.WriteLine("  codemesh ingest [--root <path>] [--solution <path>] [--project <path>] [--language <csharp|python>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
+    Console.WriteLine("  codemesh ingest [--root <path>] [--solution <path>] [--project <path>] [--language <csharp|markdown|python>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh self ingest [--dry-run] [--skip-embeddings] [--include-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh self smoke [--agent-access-url <url>] [--skip-embeddings] [--query <text>] [--json]");
     Console.WriteLine("  codemesh embeddings verify <repository-id-or-alias> [--embedding-provider <provider>] [--embedding-model <model>] [--json]");
@@ -1190,6 +1193,19 @@ sealed class LocalCSharpParserClient(CSharpParseService parser) : IParserClient
     public Task<ParserCapability> GetCapabilityAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(CSharpParseService.Capability);
+    }
+
+    public Task<ParseResult> ParseAsync(ParseRequest request, CancellationToken cancellationToken = default)
+    {
+        return parser.ParseAsync(request, cancellationToken);
+    }
+}
+
+sealed class LocalMarkdownParserClient(MarkdownParseService parser) : IParserClient
+{
+    public Task<ParserCapability> GetCapabilityAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(MarkdownParseService.Capability);
     }
 
     public Task<ParseResult> ParseAsync(ParseRequest request, CancellationToken cancellationToken = default)

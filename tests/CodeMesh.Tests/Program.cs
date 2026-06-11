@@ -13,6 +13,7 @@ using CodeMesh.Ingestion;
 using CodeMesh.Ingestion.Embedding;
 using CodeMesh.Ingestion.Summary;
 using CodeMesh.Parser.CSharp;
+using CodeMesh.Parser.Markdown;
 using CodeMesh.Parser.Python;
 using CodeMesh.Storage.Memory;
 using CodeMesh.Storage.Mongo;
@@ -53,6 +54,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("csharp parser emits invocation and member access relationships", TestCSharpParserEmitsInvocationAndMemberAccessRelationships),
     ("csharp parser separates partial declarations from symbols", TestCSharpParserSeparatesPartialDeclarations),
     ("csharp parser honors project compile items", TestCSharpParserHonorsProjectCompileItems),
+    ("markdown parser emits documents sections and containment", TestMarkdownParserEmitsDocumentsSectionsAndContainment),
+    ("markdown parser parses repository docs", TestMarkdownParserParsesRepositoryDocs),
     ("python parser emits classes functions and containment", TestPythonParserEmitsClassesFunctionsAndContainment),
     ("python parser parses Agent Access project", TestPythonParserParsesAgentAccessProject),
     ("csharp parser parses YoutubeDownloader sample", TestYoutubeDownloaderSampleParser)
@@ -2338,6 +2341,83 @@ static async Task TestCSharpParserHonorsProjectCompileItems()
     {
         Directory.Delete(root, recursive: true);
     }
+}
+
+static async Task TestMarkdownParserEmitsDocumentsSectionsAndContainment()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-markdown-parser-test-{Guid.NewGuid():N}");
+    try
+    {
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "README.md"),
+            """
+            # Product
+
+            Overview text.
+
+            ## Setup
+
+            Run the thing.
+
+            ### Local
+
+            Use local services.
+            """);
+
+        var parser = new MarkdownParseService();
+        var result = await parser.ParseAsync(new ParseRequest(
+            root,
+            null,
+            null,
+            "markdown",
+            new Dictionary<string, string>()));
+
+        Equal("codemesh-parser-markdown", result.ParserName, "Markdown parser name changed.");
+        Equal(0, result.Diagnostics.Count(diagnostic => diagnostic.Severity == "error"), "Markdown parser emitted errors.");
+        HasNode(result, CodeNodeKind.Document, "README.md");
+        HasNode(result, CodeNodeKind.Section, "Product");
+        HasNode(result, CodeNodeKind.Section, "Setup");
+        HasNode(result, CodeNodeKind.Section, "Local");
+        HasRelationshipBetween(
+            result,
+            "markdown:document:README.md",
+            "markdown:section:README.md#product",
+            CodeRelationshipKind.Contains);
+        HasRelationshipBetween(
+            result,
+            "markdown:section:README.md#setup",
+            "markdown:section:README.md#local",
+            CodeRelationshipKind.Contains);
+
+        var setup = result.Nodes.Single(node => node.Id == "markdown:section:README.md#setup");
+        Equal("2", setup.Metadata["headingLevel"], "Markdown heading level metadata changed.");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static async Task TestMarkdownParserParsesRepositoryDocs()
+{
+    var root = Directory.GetCurrentDirectory();
+    var parser = new MarkdownParseService();
+    var result = await parser.ParseAsync(new ParseRequest(
+        root,
+        null,
+        null,
+        "markdown",
+        new Dictionary<string, string>()));
+
+    Equal(0, result.Diagnostics.Count(diagnostic => diagnostic.Severity == "error"), "Markdown parser emitted errors for repository docs.");
+    HasNode(result, CodeNodeKind.Document, "README.md");
+    HasNode(result, CodeNodeKind.Section, "CodeMesh");
+    HasNode(result, CodeNodeKind.Document, "next-steps.md");
+    HasNode(result, CodeNodeKind.Section, "1. Self-Ingestion Workflow");
 }
 
 static async Task TestPythonParserEmitsClassesFunctionsAndContainment()

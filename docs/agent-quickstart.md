@@ -21,6 +21,7 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. It i
 - `src/CodeMesh.Domain`: shared contracts, graph types, health contracts, and utility records.
 - `src/CodeMesh.Ingestion`: parsing orchestration, repository cleanup, embedding, and summary generation.
 - `src/CodeMesh.Parser.CSharp`: C# parser worker backed by Roslyn.
+- `src/CodeMesh.Parser.Markdown`: local Markdown parser for documents, sections, anchors, and heading containment.
 - `src/CodeMesh.Parser.Python`: local Python parser for files, classes, functions, async functions, and containment.
 - `src/CodeMesh.Storage`: Neo4j, MongoDB, Qdrant, and in-memory storage adapters.
 - `src/CodeMesh.Control`: status checks, environment loading, and Agent Access .NET client.

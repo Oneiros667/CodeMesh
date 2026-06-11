@@ -3,6 +3,8 @@ namespace CodeMesh.Domain.Graph;
 public enum CodeNodeKind
 {
     Repository,
+    Document,
+    Section,
     Solution,
     Project,
     Assembly,

@@ -52,6 +52,14 @@ CodeMesh is organized around a write-side ingestion pipeline and a read-side Age
 - Excludes common generated/cache directories such as `.venv`, `__pycache__`, `.pytest_cache`, and build output.
 - Does not yet emit Python call/import/type relationships.
 
+`src/CodeMesh.Parser.Markdown` is the local Markdown parser:
+
+- Parses `.md` and `.markdown` files from a repository root.
+- Emits document and section nodes.
+- Emits containment relationships from documents to headings and from parent headings to child headings.
+- Stores heading level, anchor, file path, and document kind metadata.
+- Excludes common generated/cache directories.
+
 ### Storage
 
 `src/CodeMesh.Storage` contains write and read adapters:

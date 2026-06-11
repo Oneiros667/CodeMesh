@@ -119,6 +119,13 @@ CodeMesh currently includes important Python implementation code. Without Python
 
 Index repository documentation as first-class context.
 
+Current implementation:
+
+- `src/CodeMesh.Parser.Markdown` parses `.md` and `.markdown` files locally.
+- It emits `Document` and `Section` nodes, heading anchors, heading levels, source spans, and `Contains` relationships.
+- `dotnet run --project src/CodeMesh.Cli -- ingest --root . --language markdown --dry-run --skip-embeddings` validates repository documentation parsing.
+- Current parser scope is Markdown structure only; cross-links from docs to commands, endpoints, tools, source files, and projects remain future work.
+
 Expected outcome:
 
 - README, roadmap, next-step, contract, and architecture docs ingested as document nodes with headings, anchors, and source spans.

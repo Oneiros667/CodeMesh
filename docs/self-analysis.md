@@ -71,7 +71,7 @@ See `docs/mcp-setup.md` for MCP client configuration.
 
 - Structured C# parsing is richer than Python parsing.
 - The Python `agent-access` implementation can be ingested with `--language python`, but current Python support is limited to file, class, function, async function, and containment relationships.
-- Markdown documents are not yet ingested as first-class document nodes unless future documentation ingestion is added.
+- Markdown documents can be ingested with `--language markdown`, but current support is limited to document, section, anchor, heading-level, and containment structure.
 - Freshness diagnostics should be checked manually with `repos list`, `runs list`, and current git state until dedicated MCP freshness reporting exists.
 
 ## Expected Dogfooding Improvements
