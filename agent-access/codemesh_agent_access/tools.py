@@ -160,6 +160,11 @@ async def get_summary_coverage(repository_id: str) -> ToolResult:
     return ToolResult(data=result.model_dump(mode="json"))
 
 
+async def get_repository_status(repository_id: str) -> ToolResult:
+    result = await get_store().get_repository_status(repository_id)
+    return ToolResult(data=result.model_dump(mode="json"))
+
+
 async def list_ingestion_runs(repository_id: str | None = None, limit: int = 50) -> ToolResult:
     result = await get_store().list_ingestion_runs(repository_id=repository_id, limit=limit)
     return ToolResult(data=result.model_dump(mode="json"))

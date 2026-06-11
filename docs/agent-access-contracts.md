@@ -29,6 +29,7 @@ Filters are exact-match string filters. They can match top-level node fields or 
 | `GET` | `/repositories?limit=50` | query string | `RepositoryListResponse` | `ListRepositoriesAsync` |
 | `GET` | `/repositories/{repository_id:path}` | route value | `RepositorySummary` or `null` | `GetRepositoryAsync` |
 | `GET` | `/repositories/{repository_id}/summaries` | route value | `NodeSummaryCoverageResponse` | `GetSummaryCoverageAsync` |
+| `GET` | `/repositories/{repository_id}/status` | route value | `RepositoryStatusResponse` | `GetRepositoryStatusAsync` |
 | `DELETE` | `/repositories/{repository_id:path}` | route value | `RepositoryDeleteResponse` | `DeleteRepositoryAsync` |
 | `GET` | `/ingestion-runs?repository_id=&limit=50` | query string | `IngestionRunListResponse` | `ListIngestionRunsAsync` |
 
@@ -83,6 +84,18 @@ Agent Access merges vector hits, lexical graph hits, and MongoDB generated-summa
 ## Summary Coverage
 
 `GET /repositories/{repository_id}/summaries` accepts a repository hash id or alias and returns summary pipeline coverage for that repository.
+
+## Repository Status And Freshness
+
+`GET /repositories/{repository_id}/status` accepts a repository hash id or alias and returns an agent-facing repository status bundle. It includes:
+
+- `repository`: registry metadata when the repository exists.
+- `latest_run`: the latest ingestion run when available.
+- `summary_coverage`: summary coverage for the repository.
+- `counts`: graph node, relationship, content document, vector, and summary counts.
+- `freshness`: local git diagnostics when the repository path is accessible to Agent Access.
+
+Freshness fields include `indexed_commit`, `current_commit`, `current_branch`, `working_tree_dirty`, `is_stale`, `status`, and `detail` when available. If ingestion has not stored an indexed commit yet, `status` is `unknown` and `is_stale` is `null`; agents should treat the response as a useful warning rather than proof that the index is fresh.
 
 `NodeSummaryCoverageResponse` fields:
 
@@ -191,6 +204,7 @@ MCP tool names:
 - `codemesh_get_neighbors`
 - `codemesh_list_repositories`
 - `codemesh_get_repository`
+- `codemesh_get_repository_status`
 - `codemesh_delete_repository`
 - `codemesh_get_summary_coverage`
 - `codemesh_list_ingestion_runs`
@@ -224,3 +238,4 @@ var result = await client.SearchContextAsync(new AgentContextQuery(
 ```
 
 The client wraps context search, context package, symbol search, node lookup, neighbor lookup, repository listing, repository lookup/deletion, summary coverage, and ingestion-run listing.
+It also exposes repository status and freshness through `GetRepositoryStatusAsync`.

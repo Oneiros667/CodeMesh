@@ -28,6 +28,8 @@ public interface IAgentAccessClient
 
     Task<AgentRepositorySummary?> GetRepositoryAsync(string repositoryId, CancellationToken cancellationToken = default);
 
+    Task<AgentRepositoryStatusResult> GetRepositoryStatusAsync(string repositoryId, CancellationToken cancellationToken = default);
+
     Task<AgentRepositoryDeleteResult> DeleteRepositoryAsync(string repositoryId, CancellationToken cancellationToken = default);
 
     Task<AgentNodeSummaryCoverageResult> GetSummaryCoverageAsync(
@@ -42,7 +44,10 @@ public interface IAgentAccessClient
 
 public sealed class AgentAccessClient : IAgentAccessClient, IDisposable
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    };
 
     private readonly HttpClient _http;
     private readonly bool _ownsHttpClient;
@@ -98,6 +103,11 @@ public sealed class AgentAccessClient : IAgentAccessClient, IDisposable
         string repositoryId,
         CancellationToken cancellationToken = default)
         => GetAsync<AgentRepositorySummary?>($"repositories/{Uri.EscapeDataString(repositoryId)}", cancellationToken);
+
+    public Task<AgentRepositoryStatusResult> GetRepositoryStatusAsync(
+        string repositoryId,
+        CancellationToken cancellationToken = default)
+        => GetAsync<AgentRepositoryStatusResult>($"repositories/{Uri.EscapeDataString(repositoryId)}/status", cancellationToken);
 
     public Task<AgentRepositoryDeleteResult> DeleteRepositoryAsync(
         string repositoryId,

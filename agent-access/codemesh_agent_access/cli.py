@@ -76,6 +76,9 @@ def main() -> None:
     repo_parser = subcommands.add_parser("repo", help="Fetch an indexed CodeMesh repository.")
     repo_parser.add_argument("repository_id")
 
+    repo_status_parser = subcommands.add_parser("repo-status", help="Fetch repository status and freshness diagnostics.")
+    repo_status_parser.add_argument("repository_id")
+
     delete_repo_parser = subcommands.add_parser("delete-repo", help="Delete an indexed CodeMesh repository from all stores.")
     delete_repo_parser.add_argument("repository_id")
 
@@ -197,6 +200,11 @@ def main() -> None:
 
     if args.command == "repo":
         result = asyncio.run(tools.get_repository(args.repository_id))
+        print(json.dumps(result.model_dump(mode="json"), indent=2))
+        return
+
+    if args.command == "repo-status":
+        result = asyncio.run(tools.get_repository_status(args.repository_id))
         print(json.dumps(result.model_dump(mode="json"), indent=2))
         return
 

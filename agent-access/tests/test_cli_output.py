@@ -197,6 +197,23 @@ def test_summaries_cli_outputs_coverage_json(monkeypatch: Any, capsys: Any) -> N
     assert payload["data"] == {"repository_id": "sample_repo", "completed_count": 4}
 
 
+def test_repo_status_cli_outputs_status_json(monkeypatch: Any, capsys: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    async def fake_get_repository_status(repository_id: str) -> ToolResult:
+        captured["repository_id"] = repository_id
+        return ToolResult(data={"repository_id": repository_id, "freshness": {"status": "unknown"}})
+
+    monkeypatch.setattr(cli.tools, "get_repository_status", fake_get_repository_status)
+    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "repo-status", "sample_repo"])
+
+    cli.main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert captured["repository_id"] == "sample_repo"
+    assert payload["data"]["freshness"]["status"] == "unknown"
+
+
 def test_delete_repo_cli_outputs_cleanup_json(monkeypatch: Any, capsys: Any) -> None:
     captured: dict[str, Any] = {}
 

@@ -1,13 +1,16 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using CodeMesh.Control.AgentAccess;
 using CodeMesh.Control.Configuration;
 using CodeMesh.Control.Diagnostics;
 using CodeMesh.Domain.Contracts;
 using CodeMesh.Domain.Health;
+using CodeMesh.Domain.Utilities;
 using CodeMesh.Ingestion;
 using CodeMesh.Ingestion.Embedding;
 using CodeMesh.Ingestion.Summary;
 using CodeMesh.Parser.CSharp;
+using CodeMesh.Parser.Python;
 using CodeMesh.Storage;
 using CodeMesh.Storage.Mongo;
 using CodeMesh.Storage.Neo4j;
@@ -50,6 +53,38 @@ switch (command)
             var result = await RunIngestAsync(args).ConfigureAwait(false);
             PrintIngestionResult(result, json);
             return HasErrorDiagnostics(result) ? 1 : 0;
+        }
+        catch (Exception exception)
+        {
+            PrintException(exception, json);
+            return 1;
+        }
+    }
+
+    case "self":
+    {
+        try
+        {
+            var subcommand = ReadPositional(args, 1)?.ToLowerInvariant();
+            switch (subcommand)
+            {
+                case "ingest":
+                {
+                    var result = await RunSelfIngestAsync(args).ConfigureAwait(false);
+                    PrintIngestionResult(result, json);
+                    return HasErrorDiagnostics(result) ? 1 : 0;
+                }
+
+                case "smoke":
+                {
+                    var result = await RunSelfSmokeAsync(args).ConfigureAwait(false);
+                    PrintSelfSmokeResult(result, json);
+                    return result.Success ? 0 : 1;
+                }
+
+                default:
+                    throw new InvalidOperationException("Usage: codemesh self ingest [options] | codemesh self smoke [options]");
+            }
         }
         catch (Exception exception)
         {
@@ -227,9 +262,9 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
     var language = ReadOption(args, "--language") ?? "csharp";
     var forceEmbeddings = HasFlag(args, "--force-embeddings");
 
-    if (!string.Equals(language, "csharp", StringComparison.OrdinalIgnoreCase))
+    if (!IsSupportedLanguage(language))
     {
-        throw new InvalidOperationException($"Unsupported ingestion language: {language}. Only csharp is available.");
+        throw new InvalidOperationException($"Unsupported ingestion language: {language}. Supported values: csharp, python.");
     }
 
     var parserClient = CreateParserClient(args);
@@ -264,6 +299,135 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
         summaryProvider);
 
     return await orchestrator.IngestAsync(request).ConfigureAwait(false);
+}
+
+static async Task<IngestionResult> RunSelfIngestAsync(string[] args)
+{
+    var target = CodeMeshSelfWorkflow.ResolveTarget(ReadAnyOption(args, "--root", "--repository-root"), ReadAnyOption(args, "--solution", "--solution-path"));
+    return await RunIngestAsync(CodeMeshSelfWorkflow.BuildSelfIngestArgs(args, target)).ConfigureAwait(false);
+}
+
+static async Task<SelfSmokeResult> RunSelfSmokeAsync(string[] args)
+{
+    if (HasFlag(args, "--dry-run"))
+    {
+        throw new InvalidOperationException("codemesh self smoke requires persistent ingestion. Use `codemesh self ingest --dry-run` to validate parsing only.");
+    }
+
+    var target = CodeMeshSelfWorkflow.ResolveTarget(ReadAnyOption(args, "--root", "--repository-root"), ReadAnyOption(args, "--solution", "--solution-path"));
+    var ingestArgs = CodeMeshSelfWorkflow.BuildSelfIngestArgs(args, target);
+    var ingest = await RunIngestAsync(ingestArgs).ConfigureAwait(false);
+
+    if (HasErrorDiagnostics(ingest))
+    {
+        return new SelfSmokeResult(
+            false,
+            ingest.Repository.Id,
+            RepositoryAlias.FromPath(ingest.Repository.RootPath),
+            target.RootPath,
+            target.SolutionPath,
+            "Ingestion completed with error diagnostics.",
+            ingest.NodeCount,
+            ingest.RelationshipCount,
+            ingest.ContentCount,
+            ingest.EmbeddingCount,
+            ingest.SummaryCount,
+            0,
+            0,
+            null);
+    }
+
+    using var client = new AgentAccessClient(new AgentAccessClientOptions(
+        ReadOption(args, "--agent-access-url") ?? Environment.GetEnvironmentVariable("CODEMESH_AGENT_ACCESS_URL") ?? "http://127.0.0.1:8088",
+        TimeSpan.FromSeconds(ReadIntOption(args, "--agent-timeout-seconds", 30))));
+
+    var repositories = await client.ListRepositoriesAsync(100).ConfigureAwait(false);
+    var repository = repositories.Repositories.FirstOrDefault(item =>
+        string.Equals(item.RepositoryId, ingest.Repository.Id, StringComparison.Ordinal) ||
+        string.Equals(item.Alias, RepositoryAlias.FromPath(ingest.Repository.RootPath), StringComparison.OrdinalIgnoreCase));
+    if (repository is null)
+    {
+        return new SelfSmokeResult(
+            false,
+            ingest.Repository.Id,
+            RepositoryAlias.FromPath(ingest.Repository.RootPath),
+            target.RootPath,
+            target.SolutionPath,
+            "Agent Access did not list the self-ingested repository.",
+            ingest.NodeCount,
+            ingest.RelationshipCount,
+            ingest.ContentCount,
+            ingest.EmbeddingCount,
+            ingest.SummaryCount,
+            repositories.Repositories.Count,
+            0,
+            null);
+    }
+
+    var runs = await client.ListIngestionRunsAsync(ingest.Repository.Id, 5).ConfigureAwait(false);
+    if (runs.Runs.Count == 0)
+    {
+        return new SelfSmokeResult(
+            false,
+            ingest.Repository.Id,
+            repository.Alias,
+            target.RootPath,
+            target.SolutionPath,
+            "Agent Access did not list ingestion runs for the self-ingested repository.",
+            ingest.NodeCount,
+            ingest.RelationshipCount,
+            ingest.ContentCount,
+            ingest.EmbeddingCount,
+            ingest.SummaryCount,
+            repositories.Repositories.Count,
+            0,
+            null);
+    }
+
+    var query = ReadOption(args, "--query") ?? "IngestionOrchestrator";
+    var context = await client.SearchContextAsync(new AgentContextQuery(
+        query,
+        RepositoryId: ingest.Repository.Id,
+        Limit: ReadIntOption(args, "--limit", 5),
+        Kinds: ["Class", "Method"],
+        Filters: new Dictionary<string, string>())).ConfigureAwait(false);
+
+    if (context.Hits.Count == 0)
+    {
+        return new SelfSmokeResult(
+            false,
+            ingest.Repository.Id,
+            repository.Alias,
+            target.RootPath,
+            target.SolutionPath,
+            $"Agent Access context search returned no hits for '{query}'.",
+            ingest.NodeCount,
+            ingest.RelationshipCount,
+            ingest.ContentCount,
+            ingest.EmbeddingCount,
+            ingest.SummaryCount,
+            repositories.Repositories.Count,
+            runs.Runs.Count,
+            query);
+    }
+
+    return new SelfSmokeResult(
+        true,
+        ingest.Repository.Id,
+        repository.Alias,
+        target.RootPath,
+        target.SolutionPath,
+        "Self-ingestion smoke completed.",
+        ingest.NodeCount,
+        ingest.RelationshipCount,
+        ingest.ContentCount,
+        ingest.EmbeddingCount,
+        ingest.SummaryCount,
+        repositories.Repositories.Count,
+        runs.Runs.Count,
+        query,
+        context.Hits.Count,
+        context.Diagnostics?.Mode);
 }
 
 static async Task<EmbeddingVerificationResult> RunEmbeddingVerificationAsync(string[] args)
@@ -353,6 +517,7 @@ static async Task<string?> ResolveRepositoryIdAsync(
 
 static IParserClient CreateParserClient(string[] args)
 {
+    var language = ReadOption(args, "--language") ?? "csharp";
     var parserUrl = ReadOption(args, "--parser-url")
         ?? Environment.GetEnvironmentVariable("CODEMESH_CSHARP_PARSER_URL");
 
@@ -365,7 +530,27 @@ static IParserClient CreateParserClient(string[] args)
         });
     }
 
-    return new LocalCSharpParserClient(new CSharpParseService());
+    return NormalizeLanguage(language) switch
+    {
+        "csharp" => new LocalCSharpParserClient(new CSharpParseService()),
+        "python" => new LocalPythonParserClient(new PythonParseService()),
+        _ => throw new InvalidOperationException($"Unsupported ingestion language: {language}. Supported values: csharp, python.")
+    };
+}
+
+static bool IsSupportedLanguage(string language)
+{
+    return NormalizeLanguage(language) is "csharp" or "python";
+}
+
+static string NormalizeLanguage(string language)
+{
+    return language.Trim().ToLowerInvariant() switch
+    {
+        "cs" or "c#" => "csharp",
+        "py" => "python",
+        var value => value
+    };
 }
 
 static Neo4jGraphStore CreateGraphStore(string[] args)
@@ -796,6 +981,36 @@ static void PrintSummaryCoverage(NodeSummaryCoverage coverage, bool json)
     }
 }
 
+static void PrintSelfSmokeResult(SelfSmokeResult result, bool json)
+{
+    if (json)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions()));
+        return;
+    }
+
+    Console.WriteLine($"CodeMesh self smoke: {(result.Success ? "Passed" : "Failed")}");
+    Console.WriteLine($"Repository: {result.RepositoryId}");
+    if (!string.IsNullOrWhiteSpace(result.Alias))
+    {
+        Console.WriteLine($"Alias: {result.Alias}");
+    }
+
+    Console.WriteLine($"Root: {result.RootPath}");
+    Console.WriteLine($"Solution: {result.SolutionPath}");
+    Console.WriteLine($"Nodes: {result.NodeCount}, relationships: {result.RelationshipCount}, content: {result.ContentCount}, embeddings: {result.EmbeddingCount}, summaries: {result.SummaryCount}");
+    Console.WriteLine($"Agent repositories visible: {result.VisibleRepositoryCount}");
+    Console.WriteLine($"Recent runs: {result.RecentRunCount}");
+    if (!string.IsNullOrWhiteSpace(result.Query))
+    {
+        Console.WriteLine($"Context query: {result.Query}");
+        Console.WriteLine($"Context hits: {result.ContextHitCount}");
+        Console.WriteLine($"Search mode: {result.SearchMode ?? "unknown"}");
+    }
+
+    Console.WriteLine($"Message: {result.Message}");
+}
+
 static void PrintProviderModelDetails(NodeSummaryCoverage coverage)
 {
     if (coverage.ProviderModelCountDetails.Count > 0)
@@ -949,7 +1164,9 @@ static void PrintHelp()
     Console.WriteLine("Usage:");
     Console.WriteLine("  codemesh doctor [--root <path>] [--json]");
     Console.WriteLine("  codemesh status [--root <path>] [--json]");
-    Console.WriteLine("  codemesh ingest [--root <path>] [--solution <path>] [--project <path>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
+    Console.WriteLine("  codemesh ingest [--root <path>] [--solution <path>] [--project <path>] [--language <csharp|python>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
+    Console.WriteLine("  codemesh self ingest [--dry-run] [--skip-embeddings] [--include-embeddings] [--include-summaries] [--json]");
+    Console.WriteLine("  codemesh self smoke [--agent-access-url <url>] [--skip-embeddings] [--query <text>] [--json]");
     Console.WriteLine("  codemesh embeddings verify <repository-id-or-alias> [--embedding-provider <provider>] [--embedding-model <model>] [--json]");
     Console.WriteLine("  codemesh summaries coverage <repository-id-or-alias> [--json]");
     Console.WriteLine("  codemesh repos list [--limit <count>] [--json]");
@@ -980,3 +1197,34 @@ sealed class LocalCSharpParserClient(CSharpParseService parser) : IParserClient
         return parser.ParseAsync(request, cancellationToken);
     }
 }
+
+sealed class LocalPythonParserClient(PythonParseService parser) : IParserClient
+{
+    public Task<ParserCapability> GetCapabilityAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(PythonParseService.Capability);
+    }
+
+    public Task<ParseResult> ParseAsync(ParseRequest request, CancellationToken cancellationToken = default)
+    {
+        return parser.ParseAsync(request, cancellationToken);
+    }
+}
+
+sealed record SelfSmokeResult(
+    bool Success,
+    string RepositoryId,
+    string? Alias,
+    string RootPath,
+    string SolutionPath,
+    string Message,
+    int NodeCount,
+    int RelationshipCount,
+    int ContentCount,
+    int EmbeddingCount,
+    int SummaryCount,
+    int VisibleRepositoryCount,
+    int RecentRunCount,
+    string? Query,
+    int ContextHitCount = 0,
+    string? SearchMode = null);

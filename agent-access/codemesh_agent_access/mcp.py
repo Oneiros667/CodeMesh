@@ -18,6 +18,7 @@ _TOOL_NAMES = [
     "codemesh_get_neighbors",
     "codemesh_list_repositories",
     "codemesh_get_repository",
+    "codemesh_get_repository_status",
     "codemesh_delete_repository",
     "codemesh_get_summary_coverage",
     "codemesh_list_ingestion_runs",
@@ -87,6 +88,10 @@ _LIST_REPOSITORIES_ARGUMENTS: dict[str, dict[str, Any]] = {
 }
 
 _GET_REPOSITORY_ARGUMENTS: dict[str, dict[str, Any]] = {
+    "repository_id": {"type": "string", "required": True, "description": "Repository hash id or alias."},
+}
+
+_GET_REPOSITORY_STATUS_ARGUMENTS: dict[str, dict[str, Any]] = {
     "repository_id": {"type": "string", "required": True, "description": "Repository hash id or alias."},
 }
 
@@ -167,6 +172,21 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
     "codemesh_get_repository": {
         "description": "Fetch one indexed CodeMesh repository by id or alias.",
         "arguments": _GET_REPOSITORY_ARGUMENTS,
+    },
+    "codemesh_get_repository_status": {
+        "description": "Fetch repository status, counts, latest ingestion run, summary coverage, and local git freshness diagnostics.",
+        "arguments": _GET_REPOSITORY_STATUS_ARGUMENTS,
+        "response": {
+            "fields": [
+                "repository_id",
+                "repository",
+                "latest_run",
+                "summary_coverage",
+                "counts",
+                "freshness",
+                "generated_at",
+            ],
+        },
     },
     "codemesh_delete_repository": {
         "description": "Delete one indexed CodeMesh repository from graph, content, vectors, summaries, and registry data. Requires confirm=true.",
@@ -374,6 +394,11 @@ def build_server() -> Any:
     async def codemesh_get_repository(repository_id: str) -> dict[str, Any]:
         """Fetch one indexed CodeMesh repository by id."""
         return (await tools.get_repository(repository_id)).model_dump(mode="json")
+
+    @server.tool()
+    async def codemesh_get_repository_status(repository_id: str) -> dict[str, Any]:
+        """Fetch repository status, counts, latest run, summary coverage, and freshness diagnostics."""
+        return (await tools.get_repository_status(repository_id)).model_dump(mode="json")
 
     @server.tool()
     async def codemesh_delete_repository(repository_id: str, confirm: bool = False) -> dict[str, Any]:

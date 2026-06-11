@@ -5,6 +5,7 @@
     <ProjectReference Include="..\..\src\CodeMesh.Domain\CodeMesh.Domain.csproj" />
     <ProjectReference Include="..\..\src\CodeMesh.Ingestion\CodeMesh.Ingestion.csproj" />
     <ProjectReference Include="..\..\src\CodeMesh.Parser.CSharp\CodeMesh.Parser.CSharp.csproj" />
+    <ProjectReference Include="..\..\src\CodeMesh.Parser.Python\CodeMesh.Parser.Python.csproj" />
     <ProjectReference Include="..\..\src\CodeMesh.Storage\CodeMesh.Storage.csproj" />
   </ItemGroup>
 

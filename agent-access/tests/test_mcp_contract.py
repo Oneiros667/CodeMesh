@@ -83,6 +83,17 @@ def test_mcp_manifest_matches_registered_tools() -> None:
         "summaries_cleaned",
     ]
 
+    status_contract = manifest["contracts"]["codemesh_get_repository_status"]
+    assert status_contract["response"]["fields"] == [
+        "repository_id",
+        "repository",
+        "latest_run",
+        "summary_coverage",
+        "counts",
+        "freshness",
+        "generated_at",
+    ]
+
 
 def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
     captured: dict[str, Any] = {}
@@ -240,6 +251,27 @@ def test_mcp_summary_coverage_forwards_repository_id(monkeypatch: Any) -> None:
 
     assert captured["repository_id"] == "sample_repo"
     assert structured["data"]["completed_count"] == 3
+
+
+def test_mcp_repository_status_forwards_repository_id(monkeypatch: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    async def fake_get_repository_status(repository_id: str) -> ToolResult:
+        captured["repository_id"] = repository_id
+        return ToolResult(data={"repository_id": repository_id, "freshness": {"status": "unknown"}})
+
+    monkeypatch.setattr(mcp.tools, "get_repository_status", fake_get_repository_status)
+
+    server = mcp.build_server()
+    _content, structured = asyncio.run(
+        server.call_tool(
+            "codemesh_get_repository_status",
+            {"repository_id": "sample_repo"},
+        )
+    )
+
+    assert captured["repository_id"] == "sample_repo"
+    assert structured["data"]["freshness"]["status"] == "unknown"
 
 
 def test_mcp_delete_repository_requires_confirmation(monkeypatch: Any) -> None:

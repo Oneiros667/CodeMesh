@@ -169,6 +169,15 @@ public sealed record AgentRepositoryDeleteResult(
     [property: JsonPropertyName("embeddings_cleaned")] bool EmbeddingsCleaned,
     [property: JsonPropertyName("summaries_cleaned")] bool SummariesCleaned);
 
+public sealed record AgentRepositoryStatusResult(
+    [property: JsonPropertyName("repository_id")] string RepositoryId,
+    [property: JsonPropertyName("repository")] AgentRepositorySummary? Repository,
+    [property: JsonPropertyName("latest_run")] AgentIngestionRunSummary? LatestRun,
+    [property: JsonPropertyName("summary_coverage")] AgentNodeSummaryCoverageResult? SummaryCoverage,
+    [property: JsonPropertyName("counts")] IReadOnlyDictionary<string, JsonElement> Counts,
+    [property: JsonPropertyName("freshness")] IReadOnlyDictionary<string, JsonElement> Freshness,
+    [property: JsonPropertyName("generated_at")] DateTimeOffset GeneratedAt);
+
 public sealed record AgentNodeSummaryProviderModelCount(
     [property: JsonPropertyName("provider")] string Provider,
     [property: JsonPropertyName("model")] string Model,

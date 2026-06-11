@@ -39,9 +39,23 @@ public sealed class IngestionOrchestrator(
         var parseResult = await parserClient.ParseAsync(parseRequest, cancellationToken)
             .ConfigureAwait(false);
 
-        var nodes = StampNodes(parseResult.Nodes, repository, ingestionRunId, seenAt);
+        var redaction = ContentRedactor.Redact(parseResult.Contents);
+        var diagnostics = parseResult.Diagnostics.ToList();
+        if (redaction.RedactedContentCount > 0)
+        {
+            diagnostics.Add(new ParserDiagnostic(
+                "CMSEC001",
+                $"Redacted sensitive-looking values from {redaction.RedactedContentCount} content item(s) before persistence and model-provider calls.",
+                "warning"));
+        }
+
+        var nodes = StampNodes(
+            ContentRedactor.RemapNodeContentHashes(parseResult.Nodes, redaction.ContentHashMap),
+            repository,
+            ingestionRunId,
+            seenAt);
         var relationships = StampRelationships(parseResult.Relationships, repository, ingestionRunId, seenAt);
-        var currentContents = parseResult.Contents
+        var currentContents = redaction.Contents
             .GroupBy(content => content.Hash, StringComparer.Ordinal)
             .Select(group => group.First())
             .ToArray();
@@ -302,7 +316,7 @@ public sealed class IngestionOrchestrator(
             relationships.Count,
             currentContents.Length,
             embeddingCount,
-            parseResult.Diagnostics,
+            diagnostics,
             new IngestionStats(
                 nodes.Count,
                 nodesToWrite.Count,

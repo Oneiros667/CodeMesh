@@ -209,6 +209,16 @@ class IngestionRunListResponse(BaseModel):
     runs: list[IngestionRunSummary] = Field(default_factory=list)
 
 
+class RepositoryStatusResponse(BaseModel):
+    repository_id: str
+    repository: RepositorySummary | None = None
+    latest_run: IngestionRunSummary | None = None
+    summary_coverage: NodeSummaryCoverageResponse | None = None
+    counts: dict[str, int | None] = Field(default_factory=dict)
+    freshness: dict[str, Any] = Field(default_factory=dict)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class ToolResult(BaseModel):
     ok: bool = True
     data: dict[str, Any] = Field(default_factory=dict)

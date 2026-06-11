@@ -13,6 +13,7 @@ using CodeMesh.Ingestion;
 using CodeMesh.Ingestion.Embedding;
 using CodeMesh.Ingestion.Summary;
 using CodeMesh.Parser.CSharp;
+using CodeMesh.Parser.Python;
 using CodeMesh.Storage.Memory;
 using CodeMesh.Storage.Mongo;
 using CodeMesh.Storage.Neo4j;
@@ -22,9 +23,13 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("sha256 helper is deterministic", TestHash),
     ("environment file loader fills missing variables", TestEnvironmentFileLoaderFillsMissingVariables),
+    ("self workflow resolves repository root", TestSelfWorkflowResolvesRepositoryRoot),
+    ("self workflow normalizes ingest arguments", TestSelfWorkflowNormalizesIngestArguments),
+    ("self workflow rejects invalid roots", TestSelfWorkflowRejectsInvalidRoots),
     ("agent access contracts map REST JSON", TestAgentAccessContractsMapRestJson),
     ("agent access client calls REST endpoints", TestAgentAccessClientCallsRestEndpoints),
     ("ingestion writes parser output", TestIngestionWritesParserOutput),
+    ("ingestion redacts sensitive content before stores and embeddings", TestIngestionRedactsSensitiveContentBeforeStoresAndEmbeddings),
     ("dry-run ingestion skips stores", TestDryRunSkipsStores),
     ("repository refresh removes stale records", TestRepositoryRefreshRemovesStaleRecords),
     ("incremental ingestion skips unchanged records", TestIncrementalIngestionSkipsUnchangedRecords),
@@ -48,6 +53,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("csharp parser emits invocation and member access relationships", TestCSharpParserEmitsInvocationAndMemberAccessRelationships),
     ("csharp parser separates partial declarations from symbols", TestCSharpParserSeparatesPartialDeclarations),
     ("csharp parser honors project compile items", TestCSharpParserHonorsProjectCompileItems),
+    ("python parser emits classes functions and containment", TestPythonParserEmitsClassesFunctionsAndContainment),
+    ("python parser parses Agent Access project", TestPythonParserParsesAgentAccessProject),
     ("csharp parser parses YoutubeDownloader sample", TestYoutubeDownloaderSampleParser)
 };
 
@@ -128,6 +135,108 @@ static Task TestEnvironmentFileLoaderFillsMissingVariables()
         Environment.SetEnvironmentVariable(quotedKey, null);
         Environment.SetEnvironmentVariable(existingKey, null);
 
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    return Task.CompletedTask;
+}
+
+static Task TestSelfWorkflowResolvesRepositoryRoot()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-self-root-test-{Guid.NewGuid():N}");
+    var nested = Path.Combine(root, "src", "Nested");
+    var solution = Path.Combine(root, CodeMeshSelfWorkflow.SolutionFileName);
+
+    try
+    {
+        Directory.CreateDirectory(nested);
+        File.WriteAllText(solution, string.Empty);
+        File.WriteAllText(Path.Combine(root, CodeMeshSelfWorkflow.MarkerFileName), "version: test");
+
+        var target = CodeMeshSelfWorkflow.ResolveTarget(nested);
+
+        Equal(root, target.RootPath, "Self workflow did not walk up to the CodeMesh repository root.");
+        Equal(solution, target.SolutionPath, "Self workflow did not default to CodeMesh.sln.");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    return Task.CompletedTask;
+}
+
+static Task TestSelfWorkflowNormalizesIngestArguments()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-self-args-test-{Guid.NewGuid():N}");
+    var solution = Path.Combine(root, CodeMeshSelfWorkflow.SolutionFileName);
+    var alternateSolution = Path.Combine(root, "Alternate.sln");
+
+    try
+    {
+        Directory.CreateDirectory(root);
+        File.WriteAllText(solution, string.Empty);
+        File.WriteAllText(alternateSolution, string.Empty);
+        File.WriteAllText(Path.Combine(root, CodeMeshSelfWorkflow.AgentInstructionsFileName), "# test");
+
+        var target = CodeMeshSelfWorkflow.ResolveTarget(root, alternateSolution);
+        var args = CodeMeshSelfWorkflow.BuildSelfIngestArgs(
+            [
+                "self",
+                "smoke",
+                "--root",
+                "ignored",
+                "--solution",
+                "ignored.sln",
+                "--agent-access-url",
+                "http://127.0.0.1:8088",
+                "--query",
+                "ignored query",
+                "--skip-embeddings",
+                "--include-summaries",
+                "--json"
+            ],
+            target);
+
+        Equal("ingest", args[0], "Self workflow did not normalize to the ingest command.");
+        Equal(false, args.Contains("smoke"), "Self workflow leaked the self smoke subcommand into ingest args.");
+        Equal(false, args.Contains("--agent-access-url"), "Self workflow leaked smoke-only Agent Access options into ingest args.");
+        Equal(true, args.Contains("--skip-embeddings"), "Self workflow removed an ingestion flag.");
+        Equal(true, args.Contains("--include-summaries"), "Self workflow removed a summary flag.");
+        Equal(true, args.Contains("--json"), "Self workflow removed json output flag.");
+        Equal(root, args[Array.LastIndexOf(args, "--root") + 1], "Self workflow did not inject the resolved root.");
+        Equal(alternateSolution, args[Array.LastIndexOf(args, "--solution") + 1], "Self workflow did not inject the resolved solution.");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    return Task.CompletedTask;
+}
+
+static Task TestSelfWorkflowRejectsInvalidRoots()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-self-invalid-test-{Guid.NewGuid():N}");
+
+    try
+    {
+        Directory.CreateDirectory(root);
+        Throws<InvalidOperationException>(
+            () => CodeMeshSelfWorkflow.ResolveTarget(root),
+            "Self workflow accepted a directory without CodeMesh root markers.");
+    }
+    finally
+    {
         if (Directory.Exists(root))
         {
             Directory.Delete(root, recursive: true);
@@ -357,6 +466,11 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
         throw new InvalidOperationException("Agent Access package request did not use REST JSON field names.");
     }
 
+    if (handler.Requests[3].Body.Contains("\"vector\":null", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("Agent Access package request should omit null vectors.");
+    }
+
     Equal("return Task.CompletedTask;", package.Items[0].Snippet ?? string.Empty, "Agent Access package response did not deserialize.");
 
     var symbols = await client.SearchSymbolsAsync(new AgentSymbolQuery(
@@ -394,21 +508,27 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
     Equal("repositories/sample%20repo%2Fid", handler.Requests[8].Path, "Agent Access repository lookup path did not escape id.");
     Equal("repo:test", repository!.RepositoryId, "Agent Access repository lookup did not deserialize.");
 
+    var repositoryStatus = await client.GetRepositoryStatusAsync("sample repo/id");
+    Equal("repositories/sample%20repo%2Fid/status", handler.Requests[9].Path, "Agent Access repository status path did not escape id.");
+    Equal("repo:test", repositoryStatus.RepositoryId, "Agent Access repository status did not deserialize.");
+    Equal("fresh", repositoryStatus.Freshness["status"].GetString() ?? string.Empty, "Agent Access repository freshness did not deserialize.");
+    Equal(17, repositoryStatus.Counts["graph_nodes"].GetInt32(), "Agent Access repository status counts did not deserialize.");
+
     var coverage = await client.GetSummaryCoverageAsync("sample repo/id");
-    Equal("repositories/sample%20repo%2Fid/summaries", handler.Requests[9].Path, "Agent Access summary coverage path did not escape id.");
+    Equal("repositories/sample%20repo%2Fid/summaries", handler.Requests[10].Path, "Agent Access summary coverage path did not escape id.");
         Equal(5, coverage.CompletedCount, "Agent Access summary coverage completed count did not deserialize.");
         Equal(2, coverage.KindCounts["Method"], "Agent Access summary coverage kind counts did not deserialize.");
         Equal("qwen/qwen2.5-coder-14b", coverage.ProviderModelCountDetails[0].Model, "Agent Access summary coverage provider/model details did not deserialize.");
         Equal("model failed", coverage.RecentFailures[0]["error"].GetString() ?? string.Empty, "Agent Access summary coverage failures did not deserialize.");
 
     var runs = await client.ListIngestionRunsAsync(repositoryId: "sample repo/id", limit: 2);
-    Equal("ingestion-runs?limit=2&repository_id=sample%20repo%2Fid", handler.Requests[10].Path, "Agent Access runs path changed.");
+    Equal("ingestion-runs?limit=2&repository_id=sample%20repo%2Fid", handler.Requests[11].Path, "Agent Access runs path changed.");
     Equal("run:test", runs.Runs[0].RunId, "Agent Access ingestion run did not deserialize.");
     Equal("lmstudio", runs.Runs[0].EmbeddingProvider, "Agent Access run embedding provider did not deserialize.");
 
     var delete = await client.DeleteRepositoryAsync("sample repo/id");
-    Equal(HttpMethod.Delete.Method, handler.Requests[11].Method, "Agent Access repository delete method changed.");
-    Equal("repositories/sample%20repo%2Fid", handler.Requests[11].Path, "Agent Access repository delete path did not escape id.");
+    Equal(HttpMethod.Delete.Method, handler.Requests[12].Method, "Agent Access repository delete method changed.");
+    Equal("repositories/sample%20repo%2Fid", handler.Requests[12].Path, "Agent Access repository delete path did not escape id.");
     Equal("repo:test", delete.RepositoryId, "Agent Access repository delete response did not deserialize.");
     Equal(true, delete.Deleted, "Agent Access repository delete did not report deletion.");
     Equal(true, delete.SummariesCleaned, "Agent Access repository delete cleanup flags did not deserialize.");
@@ -451,6 +571,45 @@ static async Task TestIngestionWritesParserOutput()
 
     var content = await store.GetContentAsync(FakeParserClient.ContentHash);
     NotNull(content, "Content was not written to content store.");
+}
+
+static async Task TestIngestionRedactsSensitiveContentBeforeStoresAndEmbeddings()
+{
+    var store = new InMemoryCodeMeshStore();
+    var parser = new SecretParserClient();
+    var embeddingProvider = new CapturingEmbeddingProvider();
+    var orchestrator = new IngestionOrchestrator(
+        parser,
+        store,
+        store,
+        store,
+        embeddingProvider);
+
+    var result = await orchestrator.IngestAsync(new IngestionRequest(
+        Directory.GetCurrentDirectory(),
+        SkipEmbeddings: false));
+
+    Equal(1, result.ContentCount, "Redaction changed content count.");
+    Equal(1, result.Diagnostics.Count(diagnostic => diagnostic.Code == "CMSEC001"), "Redaction diagnostic was not emitted.");
+
+    var node = await store.GetNodeAsync(SecretParserClient.NodeId);
+    NotNull(node, "Redacted node was not written.");
+    var content = await store.GetContentAsync(node!.ContentHash);
+    NotNull(content, "Redacted content was not written under the node content hash.");
+
+    if (content!.Text.Contains(SecretParserClient.SecretValue, StringComparison.Ordinal) ||
+        embeddingProvider.LastText.Contains(SecretParserClient.SecretValue, StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("Sensitive value reached persisted content or embedding input.");
+    }
+
+    if (!content.Text.Contains("<redacted>", StringComparison.Ordinal) ||
+        !embeddingProvider.LastText.Contains("<redacted>", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("Sensitive value was not replaced with a redaction marker.");
+    }
+
+    Equal(node.ContentHash, content.Hash, "Node content hash was not remapped to the redacted content hash.");
 }
 
 static async Task TestDryRunSkipsStores()
@@ -2181,6 +2340,89 @@ static async Task TestCSharpParserHonorsProjectCompileItems()
     }
 }
 
+static async Task TestPythonParserEmitsClassesFunctionsAndContainment()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-python-parser-test-{Guid.NewGuid():N}");
+    try
+    {
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "service.py"),
+            """
+            import asyncio
+
+            class Greeter:
+                def greet(self, name: str) -> str:
+                    return normalize(name)
+
+            async def normalize(value: str) -> str:
+                return value.strip().lower()
+            """);
+
+        var parser = new PythonParseService();
+        var result = await parser.ParseAsync(new ParseRequest(
+            root,
+            null,
+            null,
+            "python",
+            new Dictionary<string, string>()));
+
+        Equal("codemesh-parser-python", result.ParserName, "Python parser name changed.");
+        Equal(0, result.Diagnostics.Count(diagnostic => diagnostic.Severity == "error"), "Python parser emitted errors.");
+        HasNode(result, CodeNodeKind.File, "service.py");
+        HasNode(result, CodeNodeKind.Class, "Greeter");
+        HasNode(result, CodeNodeKind.Method, "greet");
+        HasNode(result, CodeNodeKind.Method, "normalize");
+        HasRelationshipBetween(
+            result,
+            "python:file:service.py",
+            "python:class:service.Greeter",
+            CodeRelationshipKind.Contains);
+        HasRelationshipBetween(
+            result,
+            "python:class:service.Greeter",
+            "python:method:service.Greeter.greet",
+            CodeRelationshipKind.Contains);
+
+        var normalize = result.Nodes.Single(node => node.Id == "python:method:service.normalize");
+        Equal("True", normalize.Metadata["async"], "Python parser did not mark async functions.");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static async Task TestPythonParserParsesAgentAccessProject()
+{
+    var root = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "agent-access"));
+    if (!Directory.Exists(root))
+    {
+        throw new SkipTestException($"Agent Access root not found: {root}");
+    }
+
+    var parser = new PythonParseService();
+    var result = await parser.ParseAsync(new ParseRequest(
+        root,
+        null,
+        null,
+        "python",
+        new Dictionary<string, string>()));
+
+    Equal(0, result.Diagnostics.Count(diagnostic => diagnostic.Severity == "error"), "Python parser emitted errors for Agent Access.");
+    if (result.Nodes.Count(node => node.Kind == CodeNodeKind.File) < 10)
+    {
+        throw new InvalidOperationException("Python parser emitted too few Agent Access file nodes.");
+    }
+
+    HasNode(result, CodeNodeKind.Class, "CodeMeshReadStore");
+    HasNode(result, CodeNodeKind.Method, "search_context");
+    HasNode(result, CodeNodeKind.Method, "tool_manifest");
+}
+
 static async Task TestYoutubeDownloaderSampleParser()
 {
     var sampleRoot = Environment.GetEnvironmentVariable("CODEMESH_SAMPLE_CSHARP_ROOT")
@@ -2298,6 +2540,25 @@ static void IsNull<T>(T? value, string message)
     {
         throw new InvalidOperationException(message);
     }
+}
+
+static void Throws<TException>(Action action, string message)
+    where TException : Exception
+{
+    try
+    {
+        action();
+    }
+    catch (TException)
+    {
+        return;
+    }
+    catch (Exception exception)
+    {
+        throw new InvalidOperationException($"{message} Expected {typeof(TException).Name}, got {exception.GetType().Name}.");
+    }
+
+    throw new InvalidOperationException($"{message} Expected {typeof(TException).Name}, but no exception was thrown.");
 }
 
 static async Task DeleteQdrantCollectionAsync(string url, string collection)
@@ -2464,6 +2725,59 @@ sealed class FakeParserClient : IParserClient
     }
 }
 
+sealed class SecretParserClient : IParserClient
+{
+    public const string SecretValue = "super-secret-value";
+    public static readonly string Text = $$"""
+        public static class SecretFixture
+        {
+            private const string ApiKey = "{{SecretValue}}";
+        }
+        """;
+    public static readonly string ContentHash = CodeMeshHash.Sha256Hex(Text);
+    public const string NodeId = "csharp:type:SecretFixture";
+
+    public Task<ParserCapability> GetCapabilityAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new ParserCapability(
+            "secret-parser",
+            "csharp",
+            "test",
+            [".cs"],
+            ["repositoryRoot"]));
+    }
+
+    public Task<ParseResult> ParseAsync(ParseRequest request, CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var node = new CodeNode(
+            NodeId,
+            NodeId,
+            CodeNodeKind.Class,
+            "SecretFixture",
+            "csharp",
+            "SecretFixture",
+            new SourceSpan("SecretFixture.cs", 1, 1, 4, 1),
+            ContentHash,
+            new Dictionary<string, string>());
+        var content = new CodeContent(
+            ContentHash,
+            Text,
+            "text/x-csharp",
+            now,
+            now);
+
+        return Task.FromResult(new ParseResult(
+            "secret-parser",
+            "csharp",
+            [node],
+            Array.Empty<CodeRelationship>(),
+            [content],
+            Array.Empty<ParserDiagnostic>(),
+            now));
+    }
+}
+
 sealed class RefreshParserClient(string typeName) : IParserClient
 {
     public string TypeName { get; set; } = typeName;
@@ -2544,6 +2858,40 @@ sealed class DeterministicEmbeddingProvider : IEmbeddingProvider
             .ToArray();
 
         return Task.FromResult(embeddings);
+    }
+}
+
+sealed class CapturingEmbeddingProvider : IEmbeddingProvider
+{
+    public string Provider => "test";
+
+    public string Model => "capturing";
+
+    public string LastText { get; private set; } = string.Empty;
+
+    public Task<IReadOnlyList<EmbeddingRecord>> EmbedAsync(
+        IReadOnlyList<CodeNode> nodes,
+        IReadOnlyDictionary<string, CodeContent> contentByHash,
+        CancellationToken cancellationToken = default)
+    {
+        var embeddings = new List<EmbeddingRecord>();
+        foreach (var node in nodes)
+        {
+            LastText = contentByHash.TryGetValue(node.ContentHash, out var content)
+                ? content.Text
+                : string.Empty;
+            embeddings.Add(new EmbeddingRecord(
+                CodeMeshHash.StableId("embedding", node.Id, node.ContentHash),
+                node.Id,
+                node.ContentHash,
+                Provider,
+                Model,
+                1,
+                [1.0f],
+                new Dictionary<string, string>()));
+        }
+
+        return Task.FromResult<IReadOnlyList<EmbeddingRecord>>(embeddings);
     }
 }
 
@@ -2909,6 +3257,35 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                   "content_count": 13,
                   "embedding_count": 17,
                   "metadata": {"alias": "sample_repo"}
+                }
+                """,
+            "repositories/sample%20repo%2Fid/status" =>
+                """
+                {
+                  "repository_id": "repo:test",
+                  "repository": {
+                    "repository_id": "repo:test",
+                    "alias": "sample_repo",
+                    "root_path": "C:/sample",
+                    "remote_url": null,
+                    "branch": "main",
+                    "commit": "abc123",
+                    "first_seen_at": "2026-06-06T09:00:00Z",
+                    "last_seen_at": "2026-06-06T10:00:00Z",
+                    "last_run_id": "run:test",
+                    "last_stage": "Completed",
+                    "last_message": null,
+                    "node_count": 17,
+                    "relationship_count": 28,
+                    "content_count": 13,
+                    "embedding_count": 17,
+                    "metadata": {"alias": "sample_repo"}
+                  },
+                  "latest_run": null,
+                  "summary_coverage": null,
+                  "counts": {"graph_nodes": 17, "relationships": 28, "content_documents": 13, "vectors": 17},
+                  "freshness": {"status": "fresh", "is_stale": false, "indexed_commit": "abc123", "current_commit": "abc123"},
+                  "generated_at": "2026-06-06T10:10:00Z"
                 }
                 """,
             "repositories/sample%20repo%2Fid/summaries" =>

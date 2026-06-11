@@ -21,6 +21,7 @@ from codemesh_agent_access.models import (
     RepositoryDeleteResponse,
     RepositoryListResponse,
     RepositorySummary,
+    RepositoryStatusResponse,
     SymbolQuery,
     SymbolSearchHit,
     SymbolSearchResponse,
@@ -144,6 +145,7 @@ def test_rest_symbols_node_neighbors_and_registry_shapes() -> None:
         repositories = client.get("/repositories", params={"limit": 7})
         repository = client.get("/repositories/sample_repo")
         summary_coverage = client.get("/repositories/sample_repo/summaries")
+        repository_status = client.get("/repositories/sample_repo/status")
         repository_with_path_chars = client.get("/repositories/sample%20repo%2Fid")
         delete_repository = client.delete("/repositories/sample_repo")
         runs = client.get("/ingestion-runs", params={"repository_id": "sample_repo", "limit": 2})
@@ -175,6 +177,11 @@ def test_rest_symbols_node_neighbors_and_registry_shapes() -> None:
     assert summary_coverage.json()["completed_count"] == 3
     assert summary_coverage.json()["kind_counts"] == {"Method": 2, "Class": 1}
     assert store.summary_repository_ids == ["sample_repo"]
+
+    assert repository_status.status_code == 200
+    assert repository_status.json()["freshness"]["status"] == "unknown"
+    assert repository_status.json()["counts"]["graph_nodes"] == 17
+    assert store.status_repository_ids == ["sample_repo"]
 
     assert repository_with_path_chars.status_code == 200
     assert repository_with_path_chars.json()["repository_id"] == "repo:test"
@@ -215,6 +222,7 @@ class FakeRestStore:
         self.repository_ids: list[str] = []
         self.deleted_repository_ids: list[str] = []
         self.summary_repository_ids: list[str] = []
+        self.status_repository_ids: list[str] = []
         self.runs_repository_id: str | None = None
         self.runs_limit: int | None = None
 
@@ -352,6 +360,23 @@ class FakeRestStore:
                 }
             ],
             recent_failures=[{"node_id": "node:failed", "error": "model failed"}],
+        )
+
+    async def get_repository_status(self, repository_id: str) -> RepositoryStatusResponse:
+        self.status_repository_ids.append(repository_id)
+        return RepositoryStatusResponse(
+            repository_id="repo:test",
+            repository=RepositorySummary(
+                repository_id="repo:test",
+                alias="sample_repo",
+                root_path="C:/sample",
+                node_count=17,
+                relationship_count=28,
+                content_count=13,
+                embedding_count=17,
+            ),
+            counts={"graph_nodes": 17, "relationships": 28, "content_documents": 13, "vectors": 17},
+            freshness={"status": "unknown", "is_stale": None},
         )
 
     async def list_ingestion_runs(

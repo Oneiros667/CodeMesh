@@ -8,8 +8,22 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. Code
 - Shared records for code nodes, relationships, parser results, ingestion runs, agent context, and health checks.
 - Ingestion orchestration with incremental graph/content/vector/summary writes and repository/run registry records.
 - C# parser worker API with `/health`, `/capabilities`, and `/parse`.
+- Local Python parser support for files, classes, functions, async functions, and containment relationships.
 - Python Agent Access REST endpoints and MCP tools backed by Neo4j, MongoDB, and Qdrant read paths.
 - Docker Compose for Neo4j, MongoDB, Qdrant, Agent Access, C# parser worker, and optional Ollama.
+
+## Documentation
+
+- [Agent Quickstart](docs/agent-quickstart.md): starting point for AI agents working in this repository.
+- [Architecture](docs/architecture.md): current components, data flow, stores, and extension points.
+- [Testing Guide](docs/testing.md): verification commands and smoke-test guidance.
+- [Agent Access Contracts](docs/agent-access-contracts.md): REST, MCP, CLI, and .NET client contracts.
+- [MCP Setup](docs/mcp-setup.md): configure CodeMesh as an MCP service for AI agents.
+- [CodeMesh Self-Analysis](docs/self-analysis.md): index and query CodeMesh with CodeMesh itself.
+- [Security And Redaction](docs/security-and-redaction.md): secret-handling expectations for agent-facing context.
+- [Agent Prompts](docs/agent-prompts.md): example prompts for agents using CodeMesh through MCP.
+- [Next Steps](docs/next-steps.md): prioritized backlog for effective MCP agent use.
+- [SDLC Roadmap](docs/sdlc-roadmap.md): longer-term SDLC intelligence goals.
 
 ## Quick Start
 
@@ -17,6 +31,9 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. Code
 dotnet run --project src/CodeMesh.Cli -- doctor
 dotnet run --project src/CodeMesh.Cli -- status
 dotnet run --project src/CodeMesh.Cli -- ingest --root D:\source\repos\YoutubeDownloader --solution D:\source\repos\YoutubeDownloader\YoutubeDownloader.slnx --skip-embeddings
+dotnet run --project src/CodeMesh.Cli -- ingest --root .\agent-access --language python --dry-run --skip-embeddings
+dotnet run --project src/CodeMesh.Cli -- self ingest --skip-embeddings
+dotnet run --project src/CodeMesh.Cli -- self smoke --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- repos list
 dotnet run --project src/CodeMesh.Cli -- runs list --limit 5
 dotnet run --project tests/CodeMesh.Tests
@@ -249,6 +266,7 @@ REST endpoints:
 - `GET /repositories`
 - `GET /repositories/{repository_id}/summaries`
 - `GET /repositories/{repository_id}`
+- `GET /repositories/{repository_id}/status`
 - `DELETE /repositories/{repository_id}`
 - `GET /ingestion-runs`
 
@@ -262,6 +280,7 @@ MCP tools:
 - `codemesh_get_neighbors`
 - `codemesh_list_repositories`
 - `codemesh_get_repository`
+- `codemesh_get_repository_status`
 - `codemesh_delete_repository` (requires `confirm = true`)
 - `codemesh_get_summary_coverage`
 - `codemesh_list_ingestion_runs`
@@ -275,6 +294,7 @@ PowerShell examples:
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8088/health
 Invoke-RestMethod http://127.0.0.1:8088/repositories
+Invoke-RestMethod http://127.0.0.1:8088/repositories/<repository-id-or-alias>/status
 Invoke-RestMethod http://127.0.0.1:8088/repositories/<repository-id-or-alias>/summaries
 Invoke-RestMethod -Method Delete http://127.0.0.1:8088/repositories/<repository-id-or-alias>
 Invoke-RestMethod 'http://127.0.0.1:8088/ingestion-runs?limit=5'

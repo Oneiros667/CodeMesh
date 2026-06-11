@@ -19,6 +19,7 @@ from .models import (
     RepositoryDeleteResponse,
     RepositoryListResponse,
     RepositorySummary,
+    RepositoryStatusResponse,
     SymbolQuery,
     SymbolSearchResponse,
 )
@@ -106,6 +107,14 @@ async def get_repository_summary_coverage(
     store: CodeMeshReadStore = Depends(get_store),
 ) -> NodeSummaryCoverageResponse:
     return await store.get_summary_coverage(repository_id)
+
+
+@app.get("/repositories/{repository_id}/status", response_model=RepositoryStatusResponse)
+async def get_repository_status(
+    repository_id: str,
+    store: CodeMeshReadStore = Depends(get_store),
+) -> RepositoryStatusResponse:
+    return await store.get_repository_status(repository_id)
 
 
 @app.get("/repositories/{repository_id:path}", response_model=RepositorySummary | None)

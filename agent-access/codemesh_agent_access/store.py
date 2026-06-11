@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import subprocess
 from typing import Any
 
 from .config import Settings
@@ -24,6 +26,7 @@ from .models import (
     RepositoryDeleteResponse,
     RepositoryListResponse,
     RepositorySummary,
+    RepositoryStatusResponse,
     SymbolQuery,
     SymbolSearchHit,
     SymbolSearchResponse,
@@ -369,6 +372,40 @@ class CodeMeshReadStore:
     ) -> IngestionRunListResponse:
         return await self._content.list_ingestion_runs(repository_id, limit)
 
+    async def get_repository_status(self, repository_id: str) -> RepositoryStatusResponse:
+        repository = await self.get_repository(repository_id)
+        if repository is None:
+            return RepositoryStatusResponse(
+                repository_id=repository_id,
+                freshness={
+                    "status": "missing",
+                    "is_stale": None,
+                    "detail": "Repository was not found in the CodeMesh registry.",
+                },
+            )
+
+        runs = await self.list_ingestion_runs(repository.repository_id, limit=1)
+        latest_run = runs.runs[0] if runs.runs else None
+        summary_coverage = await self.get_summary_coverage(repository.repository_id)
+        freshness = await asyncio.to_thread(_repository_freshness, repository)
+
+        return RepositoryStatusResponse(
+            repository_id=repository.repository_id,
+            repository=repository,
+            latest_run=latest_run,
+            summary_coverage=summary_coverage,
+            counts={
+                "graph_nodes": repository.node_count,
+                "relationships": repository.relationship_count,
+                "content_documents": repository.content_count,
+                "vectors": repository.embedding_count,
+                "summaries_total": summary_coverage.total_count,
+                "summaries_completed": summary_coverage.completed_count,
+                "summaries_failed": summary_coverage.failed_count,
+            },
+            freshness=freshness,
+        )
+
     async def _resolve_context_query_repository(self, query: ContextQuery) -> ContextQuery:
         repository_id = await self._resolve_repository_id(query.repository_id)
         return query if repository_id == query.repository_id else query.model_copy(update={"repository_id": repository_id})
@@ -700,6 +737,85 @@ class CodeMeshReadStore:
 
 def _component_ok(component: Any) -> bool:
     return isinstance(component, dict) and component.get("status") in {"healthy", "configured"}
+
+
+def _repository_freshness(repository: RepositorySummary) -> dict[str, Any]:
+    indexed_commit = repository.commit or repository.metadata.get("commit") or repository.metadata.get("repositoryCommit")
+    root_path = repository.root_path
+    git = _git_snapshot(root_path)
+
+    if git["available"]:
+        current_commit = git.get("current_commit")
+        is_dirty = bool(git.get("working_tree_dirty"))
+        if indexed_commit:
+            is_stale = indexed_commit != current_commit or is_dirty
+            status = "stale" if is_stale else "fresh"
+            detail = "Indexed commit differs from the local checkout or the working tree has uncommitted changes." if is_stale else "Indexed commit matches the local checkout and the working tree is clean."
+        else:
+            is_stale = None
+            status = "unknown"
+            detail = "The registry does not include an indexed commit yet; run-level commit stamping is not available."
+
+        return {
+            **git,
+            "indexed_commit": indexed_commit,
+            "is_stale": is_stale,
+            "status": status,
+            "detail": detail,
+        }
+
+    return {
+        **git,
+        "indexed_commit": indexed_commit,
+        "is_stale": None,
+        "status": "unknown",
+        "detail": git.get("detail") or "Local git state is unavailable for this repository path.",
+    }
+
+
+def _git_snapshot(root_path: str) -> dict[str, Any]:
+    if not root_path or not os.path.isdir(root_path):
+        return {
+            "available": False,
+            "root_path": root_path,
+            "detail": "Repository root path is not accessible from Agent Access.",
+        }
+
+    current_commit = _run_git(root_path, "rev-parse", "HEAD")
+    if current_commit is None:
+        return {
+            "available": False,
+            "root_path": root_path,
+            "detail": "Repository root is not a readable git checkout.",
+        }
+
+    branch = _run_git(root_path, "rev-parse", "--abbrev-ref", "HEAD")
+    status = _run_git(root_path, "status", "--porcelain")
+    return {
+        "available": True,
+        "root_path": root_path,
+        "current_commit": current_commit,
+        "current_branch": branch,
+        "working_tree_dirty": bool(status),
+    }
+
+
+def _run_git(root_path: str, *args: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", root_path, *args],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+    if result.returncode != 0:
+        return None
+
+    return result.stdout.strip()
 
 
 def _normalize_node(node: dict[str, Any]) -> dict[str, Any]:
