@@ -18,6 +18,7 @@ _TOOL_NAMES = [
     "codemesh_get_neighbors",
     "codemesh_list_repositories",
     "codemesh_get_repository",
+    "codemesh_delete_repository",
     "codemesh_get_summary_coverage",
     "codemesh_list_ingestion_runs",
 ]
@@ -87,6 +88,11 @@ _LIST_REPOSITORIES_ARGUMENTS: dict[str, dict[str, Any]] = {
 
 _GET_REPOSITORY_ARGUMENTS: dict[str, dict[str, Any]] = {
     "repository_id": {"type": "string", "required": True, "description": "Repository hash id or alias."},
+}
+
+_DELETE_REPOSITORY_ARGUMENTS: dict[str, dict[str, Any]] = {
+    "repository_id": {"type": "string", "required": True, "description": "Repository hash id or alias."},
+    "confirm": {"type": "boolean", "default": False, "description": "Must be true to delete indexed repository data."},
 }
 
 _SUMMARY_COVERAGE_ARGUMENTS: dict[str, dict[str, Any]] = {
@@ -161,6 +167,21 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
     "codemesh_get_repository": {
         "description": "Fetch one indexed CodeMesh repository by id or alias.",
         "arguments": _GET_REPOSITORY_ARGUMENTS,
+    },
+    "codemesh_delete_repository": {
+        "description": "Delete one indexed CodeMesh repository from graph, content, vectors, summaries, and registry data. Requires confirm=true.",
+        "arguments": _DELETE_REPOSITORY_ARGUMENTS,
+        "response": {
+            "fields": [
+                "repository_id",
+                "deleted",
+                "registry_entry_existed",
+                "graph_cleaned",
+                "content_cleaned",
+                "embeddings_cleaned",
+                "summaries_cleaned",
+            ],
+        },
     },
     "codemesh_get_summary_coverage": {
         "description": "Fetch generated node summary coverage for one indexed CodeMesh repository.",
@@ -353,6 +374,18 @@ def build_server() -> Any:
     async def codemesh_get_repository(repository_id: str) -> dict[str, Any]:
         """Fetch one indexed CodeMesh repository by id."""
         return (await tools.get_repository(repository_id)).model_dump(mode="json")
+
+    @server.tool()
+    async def codemesh_delete_repository(repository_id: str, confirm: bool = False) -> dict[str, Any]:
+        """Delete one indexed CodeMesh repository. Requires confirm=true."""
+        if not confirm:
+            return {
+                "ok": False,
+                "data": {},
+                "error": "Repository deletion requires confirm=true.",
+            }
+
+        return (await tools.delete_repository(repository_id)).model_dump(mode="json")
 
     @server.tool()
     async def codemesh_get_summary_coverage(repository_id: str) -> dict[str, Any]:

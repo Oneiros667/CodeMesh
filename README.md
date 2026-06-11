@@ -262,6 +262,7 @@ MCP tools:
 - `codemesh_get_neighbors`
 - `codemesh_list_repositories`
 - `codemesh_get_repository`
+- `codemesh_delete_repository` (requires `confirm = true`)
 - `codemesh_get_summary_coverage`
 - `codemesh_list_ingestion_runs`
 

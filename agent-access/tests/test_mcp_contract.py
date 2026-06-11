@@ -72,6 +72,17 @@ def test_mcp_manifest_matches_registered_tools() -> None:
 
     assert package_properties["output_format"]["enum"] == ["json", "agent"]
 
+    delete_contract = manifest["contracts"]["codemesh_delete_repository"]
+    assert delete_contract["response"]["fields"] == [
+        "repository_id",
+        "deleted",
+        "registry_entry_existed",
+        "graph_cleaned",
+        "content_cleaned",
+        "embeddings_cleaned",
+        "summaries_cleaned",
+    ]
+
 
 def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
     captured: dict[str, Any] = {}
@@ -229,6 +240,49 @@ def test_mcp_summary_coverage_forwards_repository_id(monkeypatch: Any) -> None:
 
     assert captured["repository_id"] == "sample_repo"
     assert structured["data"]["completed_count"] == 3
+
+
+def test_mcp_delete_repository_requires_confirmation(monkeypatch: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    async def fake_delete_repository(repository_id: str) -> ToolResult:
+        captured["repository_id"] = repository_id
+        return ToolResult(
+            data={
+                "repository_id": "repo:test",
+                "deleted": True,
+                "registry_entry_existed": True,
+                "graph_cleaned": True,
+                "content_cleaned": True,
+                "embeddings_cleaned": True,
+                "summaries_cleaned": True,
+            }
+        )
+
+    monkeypatch.setattr(mcp.tools, "delete_repository", fake_delete_repository)
+
+    server = mcp.build_server()
+    _content, denied = asyncio.run(
+        server.call_tool(
+            "codemesh_delete_repository",
+            {"repository_id": "sample_repo"},
+        )
+    )
+
+    assert denied["ok"] is False
+    assert denied["error"] == "Repository deletion requires confirm=true."
+    assert captured == {}
+
+    _content, deleted = asyncio.run(
+        server.call_tool(
+            "codemesh_delete_repository",
+            {"repository_id": "sample_repo", "confirm": True},
+        )
+    )
+
+    assert captured["repository_id"] == "sample_repo"
+    assert deleted["data"]["repository_id"] == "repo:test"
+    assert deleted["data"]["deleted"] is True
 
 
 def test_print_tool_manifest_emits_contract_json(capsys: Any) -> None:
