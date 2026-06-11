@@ -102,9 +102,41 @@ Code:
             : trimmed;
     }
 
-    private static string NormalizeConfidence(string? confidence)
+    private static string NormalizeConfidence(JsonElement? confidence)
     {
-        return confidence?.Trim().ToLowerInvariant() switch
+        if (confidence is not { } value)
+        {
+            return "medium";
+        }
+
+        if (value.ValueKind == JsonValueKind.Number &&
+            value.TryGetDouble(out var score))
+        {
+            return score switch
+            {
+                >= 0.8 => "high",
+                <= 0.4 => "low",
+                _ => "medium"
+            };
+        }
+
+        if (value.ValueKind != JsonValueKind.String)
+        {
+            return "medium";
+        }
+
+        var raw = value.GetString()?.Trim();
+        if (double.TryParse(raw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out score))
+        {
+            return score switch
+            {
+                >= 0.8 => "high",
+                <= 0.4 => "low",
+                _ => "medium"
+            };
+        }
+
+        return raw?.ToLowerInvariant() switch
         {
             "high" => "high",
             "low" => "low",
@@ -115,5 +147,5 @@ Code:
     private sealed record SummaryResponse(
         [property: JsonPropertyName("summary")] string? Summary,
         [property: JsonPropertyName("tags")] IReadOnlyList<string>? Tags,
-        [property: JsonPropertyName("confidence")] string? Confidence);
+        [property: JsonPropertyName("confidence")] JsonElement? Confidence);
 }

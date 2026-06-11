@@ -106,7 +106,7 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
   --include-summaries `
   --summary-provider lmstudio `
   --lm-studio-url http://127.0.0.1:1234/v1 `
-  --summary-model qwen/qwen3.5-9b
+  --summary-model mistralai/ministral-3-3b
 ```
 
 Summaries are stored in MongoDB `node_summaries` by default and are keyed by repository, node, content hash, summary kind, provider, model, and prompt version. Incremental ingestion skips unchanged completed summaries; use `--force-summaries` to regenerate summaries for unchanged code.
@@ -174,7 +174,7 @@ To validate summary generation as well, load a local chat/code model and add the
 .\scripts\e2e-smoke.ps1 `
   -IncludeSummaries `
   -SummaryProvider lmstudio `
-  -SummaryModel qwen/qwen2.5-coder-14b `
+  -SummaryModel mistralai/ministral-3-3b `
   -LmStudioUrl http://127.0.0.1:1234/v1
 ```
 

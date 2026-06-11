@@ -536,7 +536,7 @@ static string NormalizeModelProvider(string provider)
 static string DefaultSummaryModel(string provider)
 {
     return NormalizeModelProvider(provider) == "lmstudio"
-        ? "qwen/qwen3.5-9b"
+        ? "mistralai/ministral-3-3b"
         : "qwen2.5-coder:14b";
 }
 

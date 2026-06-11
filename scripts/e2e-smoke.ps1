@@ -214,7 +214,7 @@ if ([string]::IsNullOrWhiteSpace($SummaryProvider)) {
 
 if ([string]::IsNullOrWhiteSpace($SummaryModel)) {
     $SummaryModel = if ($SummaryProvider -in @("lmstudio", "lm-studio", "lm_studio")) {
-        "qwen/qwen3.5-9b"
+        "mistralai/ministral-3-3b"
     }
     else {
         "qwen2.5-coder:14b"

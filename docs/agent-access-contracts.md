@@ -27,8 +27,9 @@ Filters are exact-match string filters. They can match top-level node fields or 
 | `POST` | `/nodes/get` | `NodeLookup` | `NodeResponse` | `GetNodeAsync` |
 | `POST` | `/graph/neighbors` | `NeighborQuery` | `NodeResponse` with `relationships` populated | `GetNeighborsAsync` |
 | `GET` | `/repositories?limit=50` | query string | `RepositoryListResponse` | `ListRepositoriesAsync` |
-| `GET` | `/repositories/{repository_id}/summaries` | route value | `NodeSummaryCoverageResponse` | `GetSummaryCoverageAsync` |
 | `GET` | `/repositories/{repository_id:path}` | route value | `RepositorySummary` or `null` | `GetRepositoryAsync` |
+| `GET` | `/repositories/{repository_id}/summaries` | route value | `NodeSummaryCoverageResponse` | `GetSummaryCoverageAsync` |
+| `DELETE` | `/repositories/{repository_id:path}` | route value | `RepositoryDeleteResponse` | `DeleteRepositoryAsync` |
 | `GET` | `/ingestion-runs?repository_id=&limit=50` | query string | `IngestionRunListResponse` | `ListIngestionRunsAsync` |
 
 ## Context Search
@@ -93,6 +94,26 @@ Agent Access merges vector hits, lexical graph hits, and MongoDB generated-summa
 - `provider_model_count_details`: structured provider/model/prompt count records for clients that should not parse the compatibility keys in `provider_model_counts`.
 - `recent_failures`: up to ten recent failed summary records with error metadata.
 - `generated_at`: UTC timestamp.
+
+## Repository Delete
+
+`DELETE /repositories/{repository_id}` accepts a repository hash id or alias, resolves it through the registry, and removes that repository from the graph, content, vector, summary, run, and repository registry stores.
+
+The Python CLI exposes the same operation:
+
+```powershell
+cd agent-access
+uv run python -m codemesh_agent_access delete-repo <repository-id-or-alias>
+```
+
+`RepositoryDeleteResponse` fields:
+
+- `repository_id`: resolved repository id, or the supplied value when the registry had no match.
+- `deleted`: true when a registry entry was found and cleanup was attempted.
+- `registry_entry_existed`: true when the repository existed in the registry.
+- `graph_cleaned`, `content_cleaned`, `embeddings_cleaned`, `summaries_cleaned`: true when the corresponding store cleanup completed.
+
+For unknown repositories, the response is non-failing and returns `deleted = false`.
 
 ## Context Package
 
@@ -161,8 +182,11 @@ MCP tool names:
 - `codemesh_get_neighbors`
 - `codemesh_list_repositories`
 - `codemesh_get_repository`
+- `codemesh_delete_repository`
 - `codemesh_get_summary_coverage`
 - `codemesh_list_ingestion_runs`
+
+`codemesh_delete_repository` requires `repository_id` and a deliberate `confirm = true` argument before it will call the destructive cleanup path. Without confirmation it returns a failed tool result and leaves stores unchanged.
 
 The manifest can be printed with:
 
@@ -190,4 +214,4 @@ var result = await client.SearchContextAsync(new AgentContextQuery(
     IncludeContextRelationships: true));
 ```
 
-The client wraps context search, context package, symbol search, node lookup, neighbor lookup, repository listing, repository lookup, summary coverage, and ingestion-run listing.
+The client wraps context search, context package, symbol search, node lookup, neighbor lookup, repository listing, repository lookup/deletion, summary coverage, and ingestion-run listing.

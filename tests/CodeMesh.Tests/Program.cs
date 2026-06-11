@@ -39,6 +39,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("status degrades when configured model is missing", TestStatusDegradesWhenConfiguredModelIsMissing),
     ("ollama embedding provider maps responses", TestOllamaEmbeddingProviderMapsResponses),
     ("lm studio embedding provider maps responses", TestLmStudioEmbeddingProviderMapsResponses),
+    ("lm studio summary provider accepts numeric confidence", TestLmStudioSummaryProviderAcceptsNumericConfidence),
     ("mongodb content store round-trips content", TestMongoContentStoreRoundTripsContent),
     ("mongodb registry store round-trips repositories and runs", TestMongoRegistryStoreRoundTripsRepositoriesAndRuns),
     ("neo4j graph store round-trips graph", TestNeo4jGraphStoreRoundTripsGraph),
@@ -1174,6 +1175,55 @@ static async Task TestLmStudioEmbeddingProviderMapsResponses()
     if (!handler.LastRequestBody.Contains("search_document: public sealed class EmbeddedSmoke", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("LM Studio embedding request was not prefixed for document retrieval.");
+    }
+}
+
+static async Task TestLmStudioSummaryProviderAcceptsNumericConfidence()
+{
+    var handler = new FakeLmStudioSummaryHandler();
+    using var http = new HttpClient(handler)
+    {
+        BaseAddress = new Uri("http://lmstudio.test/v1/")
+    };
+    using var provider = new LmStudioCodeSummaryProvider(http, "test-summary");
+
+    const string text = "public static string Normalize(string url) => url.Trim().ToLowerInvariant();";
+    var hash = CodeMeshHash.Sha256Hex(text);
+    var node = new CodeNode(
+        "csharp:method:CodeMesh.Tests.EmbeddedSmoke.Normalize(System.String)",
+        "csharp:method:CodeMesh.Tests.EmbeddedSmoke.Normalize(System.String)",
+        CodeNodeKind.Method,
+        "Normalize",
+        "csharp",
+        "CodeMesh.Tests",
+        new SourceSpan("EmbeddedSmoke.cs", 1, 1, 1, 72),
+        hash,
+        new Dictionary<string, string>());
+    var content = new CodeContent(
+        hash,
+        text,
+        "text/x-csharp-fragment",
+        DateTimeOffset.UtcNow,
+        DateTimeOffset.UtcNow);
+
+    var summary = await provider.SummarizeAsync(new CodeSummaryRequest(
+        node,
+        content,
+        "node-summary-v1",
+        1500));
+
+    Equal(1, handler.RequestCount, "Expected one LM Studio summary request.");
+    Equal("lmstudio", provider.Provider, "LM Studio summary provider name changed.");
+    Equal("test-summary", provider.Model, "LM Studio summary model changed.");
+    Equal(
+        "Trims a URL and converts it to lowercase.",
+        summary.Summary,
+        "LM Studio summary text did not deserialize.");
+    Equal("high", summary.Confidence, "LM Studio numeric confidence was not normalized.");
+    Equal("normalization", summary.Tags[0], "LM Studio summary tags did not deserialize.");
+    if (!handler.LastRequestBody.Contains("\"response_format\":{\"type\":\"text\"}", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("LM Studio summary request response format changed.");
     }
 }
 
@@ -2599,6 +2649,53 @@ sealed class FakeLmStudioEmbeddingHandler : HttpMessageHandler
                       "object": "embedding",
                       "index": 0,
                       "embedding": [0.125, 0.25, 0.5]
+                    }
+                  ]
+                }
+                """,
+                System.Text.Encoding.UTF8,
+                "application/json")
+        };
+
+        return response;
+    }
+}
+
+sealed class FakeLmStudioSummaryHandler : HttpMessageHandler
+{
+    public int RequestCount { get; private set; }
+    public string LastRequestBody { get; private set; } = string.Empty;
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        RequestCount++;
+        LastRequestBody = request.Content is null
+            ? string.Empty
+            : await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        if (request.RequestUri?.AbsolutePath != "/v1/chat/completions")
+        {
+            return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+        }
+
+        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """
+                {
+                  "id": "chatcmpl-test",
+                  "object": "chat.completion",
+                  "model": "test-summary",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "message": {
+                        "role": "assistant",
+                        "content": "```json\n{\"summary\":\"Trims a URL and converts it to lowercase.\",\"tags\":[\"normalization\",\"url\"],\"confidence\":0.98}\n```"
+                      },
+                      "finish_reason": "stop"
                     }
                   ]
                 }
