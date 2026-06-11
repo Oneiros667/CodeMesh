@@ -440,7 +440,11 @@ public sealed class MongoRegistryStore : IRegistryStore, IStoreHealthCheck
         int WrittenContentCount,
         int SkippedContentCount,
         int WrittenEmbeddingCount,
-        int SkippedEmbeddingCount)
+        int SkippedEmbeddingCount,
+        int SummaryCandidateCount = 0,
+        int WrittenSummaryCount = 0,
+        int SkippedSummaryCount = 0,
+        int FailedSummaryCount = 0)
     {
         public static IngestionStatsDocument FromDomain(IngestionStats stats)
         {
@@ -455,7 +459,11 @@ public sealed class MongoRegistryStore : IRegistryStore, IStoreHealthCheck
                 stats.WrittenContentCount,
                 stats.SkippedContentCount,
                 stats.WrittenEmbeddingCount,
-                stats.SkippedEmbeddingCount);
+                stats.SkippedEmbeddingCount,
+                stats.SummaryCandidateCount,
+                stats.WrittenSummaryCount,
+                stats.SkippedSummaryCount,
+                stats.FailedSummaryCount);
         }
 
         public IngestionStats ToDomain()
@@ -471,7 +479,11 @@ public sealed class MongoRegistryStore : IRegistryStore, IStoreHealthCheck
                 WrittenContentCount,
                 SkippedContentCount,
                 WrittenEmbeddingCount,
-                SkippedEmbeddingCount);
+                SkippedEmbeddingCount,
+                SummaryCandidateCount,
+                WrittenSummaryCount,
+                SkippedSummaryCount,
+                FailedSummaryCount);
         }
     }
 

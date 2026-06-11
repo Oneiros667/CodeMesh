@@ -272,6 +272,10 @@ def normalize_stats(value: Any) -> dict[str, Any] | None:
         "skipped_content_count": int_value(value.get("SkippedContentCount") or value.get("skippedContentCount")),
         "written_embedding_count": int_value(value.get("WrittenEmbeddingCount") or value.get("writtenEmbeddingCount")),
         "skipped_embedding_count": int_value(value.get("SkippedEmbeddingCount") or value.get("skippedEmbeddingCount")),
+        "summary_candidate_count": int_value(value.get("SummaryCandidateCount") or value.get("summaryCandidateCount")),
+        "written_summary_count": int_value(value.get("WrittenSummaryCount") or value.get("writtenSummaryCount")),
+        "skipped_summary_count": int_value(value.get("SkippedSummaryCount") or value.get("skippedSummaryCount")),
+        "failed_summary_count": int_value(value.get("FailedSummaryCount") or value.get("failedSummaryCount")),
     }
 
 

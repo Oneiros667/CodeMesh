@@ -301,11 +301,12 @@ Write-Host "Repository: $repositoryId"
 Write-Host "Nodes: $($ingest.NodeCount), relationships: $($ingest.RelationshipCount), content: $($ingest.ContentCount), embeddings: $($ingest.EmbeddingCount), summaries: $($ingest.SummaryCount)"
 
 if ($IncludeSummaries) {
-    if ([int]$ingest.SummaryCount -eq 0) {
-        throw "Summary ingestion was requested but no summaries were written."
-    }
     if ($null -ne $ingest.Stats -and [int]$ingest.Stats.FailedSummaryCount -ne 0) {
-        throw "Summary ingestion reported failed summaries: $($ingest.Stats.FailedSummaryCount)"
+        throw "Summary ingestion reported failed summaries: $($ingest.Stats.FailedSummaryCount) of $($ingest.Stats.SummaryCandidateCount) candidate(s)."
+    }
+    if ([int]$ingest.SummaryCount -eq 0) {
+        $candidateCount = if ($null -ne $ingest.Stats) { [int]$ingest.Stats.SummaryCandidateCount } else { 0 }
+        throw "Summary ingestion was requested but no summaries were written. Candidate count: $candidateCount."
     }
 
     Write-Host "Summaries generated: $($ingest.SummaryCount)"

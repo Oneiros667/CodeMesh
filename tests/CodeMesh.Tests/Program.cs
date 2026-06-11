@@ -1374,7 +1374,22 @@ static async Task TestMongoRegistryStoreRoundTripsRepositoriesAndRuns()
         11,
         5,
         2,
-        new IngestionStats(7, 1, 6, 11, 2, 9, 5, 0, 5, 2, 5),
+        new IngestionStats(
+            7,
+            1,
+            6,
+            11,
+            2,
+            9,
+            5,
+            0,
+            5,
+            2,
+            5,
+            SummaryCandidateCount: 4,
+            WrittenSummaryCount: 2,
+            SkippedSummaryCount: 1,
+            FailedSummaryCount: 1),
         1,
         0,
         0,
@@ -1410,6 +1425,10 @@ static async Task TestMongoRegistryStoreRoundTripsRepositoriesAndRuns()
     Equal(run.RunId, runs[0].RunId, "MongoDB registry run id changed.");
     Equal(run.ParserName, runs[0].ParserName, "MongoDB registry parser name changed.");
     Equal(run.Stats?.SkippedNodeCount ?? 0, runs[0].Stats?.SkippedNodeCount ?? 0, "MongoDB registry stats changed.");
+    Equal(4, runs[0].Stats?.SummaryCandidateCount ?? -1, "MongoDB registry summary candidate stats changed.");
+    Equal(2, runs[0].Stats?.WrittenSummaryCount ?? -1, "MongoDB registry written summary stats changed.");
+    Equal(1, runs[0].Stats?.SkippedSummaryCount ?? -1, "MongoDB registry skipped summary stats changed.");
+    Equal(1, runs[0].Stats?.FailedSummaryCount ?? -1, "MongoDB registry failed summary stats changed.");
 
     await store.DeleteRepositoryAsync(repository.RepositoryId, timeout.Token);
     IsNull(await store.GetRepositoryAsync(repository.RepositoryId, timeout.Token), "MongoDB registry did not delete repository by id.");

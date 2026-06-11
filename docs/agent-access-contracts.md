@@ -115,6 +115,15 @@ uv run python -m codemesh_agent_access delete-repo <repository-id-or-alias>
 
 For unknown repositories, the response is non-failing and returns `deleted = false`.
 
+## Ingestion Runs
+
+`GET /ingestion-runs` returns recent ingestion runs, optionally filtered by `repository_id` hash id or alias.
+
+Each `IngestionRunSummary` includes:
+
+- Repository, parser, solution/project, stage, timing, diagnostic, embedding provider/model, and count metadata.
+- `stats`: normalized incremental write counts when available. Summary-specific keys are `summary_candidate_count`, `written_summary_count`, `skipped_summary_count`, and `failed_summary_count`.
+
 ## Context Package
 
 `ContextPackageQuery` fields:

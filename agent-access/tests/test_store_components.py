@@ -120,7 +120,14 @@ def test_content_store_normalizers_preserve_registry_fields() -> None:
             "_id": "run:test",
             "repositoryId": "repo:test",
             "skipEmbeddings": False,
-            "stats": {"ParsedNodeCount": "7", "writtenEmbeddingCount": "5"},
+            "stats": {
+                "ParsedNodeCount": "7",
+                "writtenEmbeddingCount": "5",
+                "SummaryCandidateCount": "4",
+                "writtenSummaryCount": "2",
+                "skippedSummaryCount": "1",
+                "failedSummaryCount": "1",
+            },
         }
     )
 
@@ -139,6 +146,10 @@ def test_content_store_normalizers_preserve_registry_fields() -> None:
         "skipped_content_count": 0,
         "written_embedding_count": 5,
         "skipped_embedding_count": 0,
+        "summary_candidate_count": 4,
+        "written_summary_count": 2,
+        "skipped_summary_count": 1,
+        "failed_summary_count": 1,
     }
 
 
