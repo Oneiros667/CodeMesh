@@ -327,7 +327,7 @@ def build_server() -> Any:
         )
         payload = result.model_dump(mode="json")
         if output_format == "agent":
-            payload["agent_text"] = format_context_package_for_agent(result.data)
+            payload["agent_text"] = format_context_package_for_agent(result.data, max_characters=max_characters)
         return payload
 
     @server.tool()

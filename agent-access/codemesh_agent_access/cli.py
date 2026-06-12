@@ -150,7 +150,7 @@ def main() -> None:
             )
         )
         if args.output == "agent":
-            print(format_context_package_for_agent(result.data))
+            print(format_context_package_for_agent(result.data, max_characters=args.max_characters))
             return
         print(json.dumps(result.model_dump(mode="json"), indent=2))
         return

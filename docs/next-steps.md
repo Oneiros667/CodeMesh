@@ -140,6 +140,13 @@ Agents need project intent, usage contracts, and operational instructions, not o
 
 Harden context packages for direct use in agent prompts.
 
+Current implementation:
+
+- MCP `output_format = "agent"` and CLI `--output agent` produce compact `agent_text`.
+- Agent text now includes each item's file span, node id, stable key, repository id, content hash, score, rank, and rationale details.
+- Agent text applies the context package `max_characters` budget for MCP and CLI output and emits an explicit truncation marker when capped.
+- Snippets are emitted before relationship detail so the most directly actionable content is preserved first under tight budgets.
+
 Expected outcome:
 
 - Stable, compact `agent_text` output optimized for MCP callers.

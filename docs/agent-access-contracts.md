@@ -179,7 +179,7 @@ Each package item includes:
 - `relationship_groups`: grouped summaries for `callers`, `callees`, `reads`, `writes`, `contains`, `defines`, and `uses_types`.
 - `rationale`: ranking and expansion metadata.
 
-MCP `codemesh_get_context_package` also accepts `output_format = "agent"`. In that mode the tool response includes `agent_text`, a concise text brief generated from the structured package.
+MCP `codemesh_get_context_package` also accepts `output_format = "agent"`. In that mode the tool response includes `agent_text`, a concise text brief generated from the structured package. The brief includes each item's file span, node id, stable key, repository id, content hash, score, rank, and rationale details. It uses the package `max_characters` budget and adds a truncation marker when capped.
 
 ## Symbols, Nodes, And Neighbors
 

@@ -14,7 +14,7 @@ _RELATIONSHIP_GROUP_LABELS = {
 }
 
 
-def format_context_package_for_agent(package: dict[str, Any]) -> str:
+def format_context_package_for_agent(package: dict[str, Any], max_characters: int | None = None) -> str:
     query = package.get("query") if isinstance(package.get("query"), dict) else {}
     repository = package.get("repository") if isinstance(package.get("repository"), dict) else None
     latest_run = package.get("latest_run") if isinstance(package.get("latest_run"), dict) else None
@@ -45,29 +45,35 @@ def format_context_package_for_agent(package: dict[str, Any]) -> str:
                 f"{index}. {_node_title(hit, node)}",
                 f"   File: {_span_location(hit, span)}",
                 f"   Node: {_value(hit.get('node_id') or node.get('id'))}",
+                f"   Stable key: {_value(hit.get('stable_key'))}",
+                f"   Repository ID: {_value(hit.get('repository_id') or query.get('repository_id'))}",
                 f"   Score: {_score(hit.get('score'))}; rank {rationale.get('rank', index)}",
             ]
         )
 
         content = item.get("content") if isinstance(item.get("content"), dict) else None
-        if content and content.get("hash"):
-            lines.append(f"   Content hash: {_value(content.get('hash'))}")
+        content_hash = hit.get("content_hash") or (content.get("hash") if content else None)
+        lines.append(f"   Content hash: {_value(content_hash)}")
+
+        rationale_line = _rationale_line(rationale)
+        if rationale_line:
+            lines.append(f"   Rationale: {rationale_line}")
 
         summary = item.get("summary") if isinstance(item.get("summary"), dict) else None
         if summary and summary.get("summary"):
             lines.append(f"   Summary: {_value(summary.get('summary'))}")
-
-        group_lines = _relationship_lines(item.get("relationship_groups"))
-        if group_lines:
-            lines.append("   Relationships:")
-            lines.extend(group_lines)
 
         snippet = str(item.get("snippet") or "").strip()
         if snippet:
             lines.append("   Snippet:")
             lines.extend(f"     {line}" for line in snippet.splitlines())
 
-    return "\n".join(lines)
+        group_lines = _relationship_lines(item.get("relationship_groups"))
+        if group_lines:
+            lines.append("   Relationships:")
+            lines.extend(group_lines)
+
+    return _apply_character_budget(lines, max_characters)
 
 
 def _node_title(hit: dict[str, Any], node: dict[str, Any]) -> str:
@@ -123,6 +129,33 @@ def _relationship_location(other: dict[str, Any]) -> str:
     if start_line:
         return f"{file_path}:{start_line}"
     return file_path
+
+
+def _rationale_line(rationale: dict[str, Any]) -> str:
+    parts = []
+    if "expanded" in rationale:
+        parts.append(f"expanded={str(bool(rationale.get('expanded'))).lower()}")
+
+    score_components = rationale.get("score_components")
+    if isinstance(score_components, dict) and score_components:
+        components = sorted(score_components.items(), key=lambda item: item[0])
+        component_text = ", ".join(f"{key}={_score(value)}" for key, value in components[:5])
+        parts.append(f"score_components[{component_text}]")
+
+    return "; ".join(parts)
+
+
+def _apply_character_budget(lines: list[str], max_characters: int | None) -> str:
+    text = "\n".join(lines)
+    if max_characters is None or max_characters <= 0 or len(text) <= max_characters:
+        return text
+
+    marker = f"\n[truncated to {max_characters} characters]"
+    if max_characters <= len(marker):
+        return marker.strip()[:max_characters]
+
+    limit = max_characters - len(marker)
+    return text[:limit].rstrip() + marker
 
 
 def _value(value: Any) -> str:
