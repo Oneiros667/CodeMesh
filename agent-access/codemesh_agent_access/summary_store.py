@@ -64,12 +64,16 @@ class MongoNodeSummaryStore:
             query["contentHash"] = content_hash
 
         def find_one() -> dict[str, Any] | None:
-            collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_node_summaries_collection]
+            collection = self._mongo()[self._settings.mongo_database][
+                self._settings.mongo_node_summaries_collection
+            ]
             document = collection.find_one(query, sort=[("generatedAtUtc", -1)])
             if document is None and content_hash:
                 fallback_query = dict(query)
                 fallback_query.pop("contentHash", None)
-                document = collection.find_one(fallback_query, sort=[("generatedAtUtc", -1)])
+                document = collection.find_one(
+                    fallback_query, sort=[("generatedAtUtc", -1)]
+                )
             return dict(document) if document else None
 
         try:
@@ -110,7 +114,9 @@ class MongoNodeSummaryStore:
         ]
 
         def find() -> list[dict[str, Any]]:
-            collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_node_summaries_collection]
+            collection = self._mongo()[self._settings.mongo_database][
+                self._settings.mongo_node_summaries_collection
+            ]
             return [
                 dict(document)
                 for document in collection.find(filter_query)
@@ -130,16 +136,21 @@ class MongoNodeSummaryStore:
             return _empty_summary_coverage(repository_id)
 
         def aggregate() -> dict[str, Any]:
-            collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_node_summaries_collection]
+            collection = self._mongo()[self._settings.mongo_database][
+                self._settings.mongo_node_summaries_collection
+            ]
             base_filter = {"repositoryId": repository_id}
 
             total_count = collection.count_documents(base_filter)
             status_counts = _count_by(collection, base_filter, "status")
             kind_counts = _count_by(collection, base_filter, "kind")
             provider_model_counts = _count_by_provider_model(collection, base_filter)
-            provider_model_count_details = _count_by_provider_model_details(collection, base_filter)
+            provider_model_count_details = _count_by_provider_model_details(
+                collection, base_filter
+            )
             recent_failures = [
-                normalize_node_summary(document) | {"error": str(document.get("error") or "")}
+                normalize_node_summary(document)
+                | {"error": str(document.get("error") or "")}
                 for document in collection.find({**base_filter, "status": "failed"})
                 .sort("generatedAtUtc", -1)
                 .limit(10)
@@ -167,7 +178,9 @@ class MongoNodeSummaryStore:
             return
 
         def delete() -> None:
-            collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_node_summaries_collection]
+            collection = self._mongo()[self._settings.mongo_database][
+                self._settings.mongo_node_summaries_collection
+            ]
             collection.delete_many({"repositoryId": repository_id})
 
         await asyncio.to_thread(delete)
@@ -177,7 +190,9 @@ class MongoNodeSummaryStore:
             raise RuntimeError("The pymongo package is not installed.")
 
         if self._mongo_client is None:
-            self._mongo_client = MongoClient(self._settings.mongo_uri, serverSelectionTimeoutMS=2000)
+            self._mongo_client = MongoClient(
+                self._settings.mongo_uri, serverSelectionTimeoutMS=2000
+            )
 
         return self._mongo_client
 
@@ -232,7 +247,9 @@ def _empty_summary_coverage(repository_id: str) -> dict[str, Any]:
     }
 
 
-def _count_by(collection: Any, base_filter: dict[str, Any], field: str) -> dict[str, int]:
+def _count_by(
+    collection: Any, base_filter: dict[str, Any], field: str
+) -> dict[str, int]:
     return {
         str(item.get("_id") or "unknown"): int(item.get("count") or 0)
         for item in collection.aggregate(
@@ -245,7 +262,9 @@ def _count_by(collection: Any, base_filter: dict[str, Any], field: str) -> dict[
     }
 
 
-def _count_by_provider_model(collection: Any, base_filter: dict[str, Any]) -> dict[str, int]:
+def _count_by_provider_model(
+    collection: Any, base_filter: dict[str, Any]
+) -> dict[str, int]:
     counts: dict[str, int] = {}
     for item in collection.aggregate(
         [
@@ -272,7 +291,9 @@ def _count_by_provider_model(collection: Any, base_filter: dict[str, Any]) -> di
     return counts
 
 
-def _count_by_provider_model_details(collection: Any, base_filter: dict[str, Any]) -> list[dict[str, Any]]:
+def _count_by_provider_model_details(
+    collection: Any, base_filter: dict[str, Any]
+) -> list[dict[str, Any]]:
     details: list[dict[str, Any]] = []
     for item in collection.aggregate(
         [

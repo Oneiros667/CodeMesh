@@ -11,10 +11,17 @@ from codemesh_agent_access.content_store import (
     repository_alias,
 )
 from codemesh_agent_access.config import Settings
-from codemesh_agent_access.embeddings import QueryEmbeddingProvider, _listed_model_ids, model_provider
+from codemesh_agent_access.embeddings import (
+    QueryEmbeddingProvider,
+    _listed_model_ids,
+    model_provider,
+)
 from codemesh_agent_access.graph_store import Neo4jGraphStore, storage_key
 from codemesh_agent_access.store import CodeMeshReadStore
-from codemesh_agent_access.summary_store import MongoNodeSummaryStore, normalize_node_summary
+from codemesh_agent_access.summary_store import (
+    MongoNodeSummaryStore,
+    normalize_node_summary,
+)
 from codemesh_agent_access.vector_store import qdrant_filter_for
 
 
@@ -25,7 +32,9 @@ def test_model_provider_normalizes_lm_studio_aliases() -> None:
     assert model_provider(" ollama ") == "ollama"
 
 
-def test_settings_uses_provider_default_when_embedding_model_is_blank(monkeypatch) -> None:
+def test_settings_uses_provider_default_when_embedding_model_is_blank(
+    monkeypatch,
+) -> None:
     monkeypatch.setenv("CODEMESH_MODEL_PROVIDER", "lmstudio")
     monkeypatch.setenv("CODEMESH_EMBEDDING_MODEL", "")
 
@@ -46,7 +55,9 @@ def test_model_list_parsing_supports_ollama_and_lm_studio_shapes() -> None:
     ) == {"text-embedding-nomic-embed-text-v2-moe"}
 
 
-def test_query_embedding_health_degrades_when_configured_model_is_missing(monkeypatch) -> None:
+def test_query_embedding_health_degrades_when_configured_model_is_missing(
+    monkeypatch,
+) -> None:
     monkeypatch.setenv("CODEMESH_MODEL_PROVIDER", "lmstudio")
     monkeypatch.setenv("CODEMESH_EMBEDDING_MODEL", "expected-model")
     monkeypatch.setattr(embeddings_module.httpx, "AsyncClient", FakeAsyncClient)
@@ -58,7 +69,10 @@ def test_query_embedding_health_degrades_when_configured_model_is_missing(monkey
     FakeAsyncClient.payload = {"data": [{"id": "other-model"}]}
     degraded = asyncio.run(QueryEmbeddingProvider(Settings.from_env()).health())
     assert degraded["status"] == "degraded"
-    assert degraded["detail"] == "Configured embedding model is not listed by the model provider."
+    assert (
+        degraded["detail"]
+        == "Configured embedding model is not listed by the model provider."
+    )
 
 
 def test_query_embedding_provider_prefixes_queries(monkeypatch) -> None:
@@ -68,7 +82,9 @@ def test_query_embedding_provider_prefixes_queries(monkeypatch) -> None:
     FakeAsyncClient.payload = {"data": [{"index": 0, "embedding": [0.25, 0.5]}]}
     FakeAsyncClient.last_json = None
 
-    embedding = asyncio.run(QueryEmbeddingProvider(Settings.from_env()).embed_query("find greeting"))
+    embedding = asyncio.run(
+        QueryEmbeddingProvider(Settings.from_env()).embed_query("find greeting")
+    )
 
     assert embedding == [0.25, 0.5]
     assert FakeAsyncClient.last_json == {
@@ -88,7 +104,10 @@ def test_qdrant_filter_maps_exact_payload_matches() -> None:
 
 
 def test_repository_alias_splits_paths_and_camel_case() -> None:
-    assert repository_alias("D:/source/repos/YoutubeDownloader") == "d_source_repos_youtube_downloader"
+    assert (
+        repository_alias("D:/source/repos/YoutubeDownloader")
+        == "d_source_repos_youtube_downloader"
+    )
     assert repository_alias("YoutubeDownloader") == "youtube_downloader"
     assert repository_alias("") == "repository"
 
@@ -195,12 +214,19 @@ def test_node_summary_lookup_falls_back_when_content_hash_differs() -> None:
         store._settings.mongo_node_summaries_collection: collection
     }
 
-    summary = asyncio.run(store.get_node_summary("repo:test", "node:test", "declaration-hash"))
+    summary = asyncio.run(
+        store.get_node_summary("repo:test", "node:test", "declaration-hash")
+    )
 
     assert summary is not None
     assert summary["content_hash"] == "symbol-hash"
     assert collection.queries == [
-        {"repositoryId": "repo:test", "nodeId": "node:test", "status": "completed", "contentHash": "declaration-hash"},
+        {
+            "repositoryId": "repo:test",
+            "nodeId": "node:test",
+            "status": "completed",
+            "contentHash": "declaration-hash",
+        },
         {"repositoryId": "repo:test", "nodeId": "node:test", "status": "completed"},
     ]
 
@@ -348,7 +374,9 @@ class FakeSummaryCollection:
             }
         ]
 
-    def find_one(self, query: dict[str, Any], sort: Any = None) -> dict[str, Any] | None:
+    def find_one(
+        self, query: dict[str, Any], sort: Any = None
+    ) -> dict[str, Any] | None:
         self.queries.append(dict(query))
         if "contentHash" in query:
             return None
@@ -398,7 +426,9 @@ class FakeSummaryCursor:
         return [dict(document) for document in self._documents[:limit]]
 
 
-def _matching_documents(documents: list[dict[str, Any]], query: dict[str, Any]) -> list[dict[str, Any]]:
+def _matching_documents(
+    documents: list[dict[str, Any]], query: dict[str, Any]
+) -> list[dict[str, Any]]:
     return [
         document
         for document in documents
@@ -458,7 +488,9 @@ class FakeAsyncClient:
     async def get(self, url: str) -> "FakeHttpResponse":
         return FakeHttpResponse(self.payload)
 
-    async def post(self, url: str, json: dict[str, Any], **kwargs: Any) -> "FakeHttpResponse":
+    async def post(
+        self, url: str, json: dict[str, Any], **kwargs: Any
+    ) -> "FakeHttpResponse":
         self.__class__.last_json = json
         return FakeHttpResponse(self.payload)
 

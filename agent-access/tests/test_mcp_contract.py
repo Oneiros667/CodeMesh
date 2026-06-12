@@ -19,7 +19,11 @@ def test_mcp_manifest_matches_registered_tools() -> None:
     for tool_name, contract in manifest["contracts"].items():
         schema = registered_tools[tool_name].inputSchema
         properties = schema["properties"]
-        required = [name for name, argument in contract["arguments"].items() if argument.get("required", False)]
+        required = [
+            name
+            for name, argument in contract["arguments"].items()
+            if argument.get("required", False)
+        ]
 
         assert schema.get("required", []) == required
         assert set(contract["arguments"]) == set(properties)
@@ -57,7 +61,9 @@ def test_mcp_manifest_matches_registered_tools() -> None:
     ]
     assert package_contract["response"]["output_formats"] == ["json", "agent"]
 
-    package_properties = registered_tools["codemesh_get_context_package"].inputSchema["properties"]
+    package_properties = registered_tools["codemesh_get_context_package"].inputSchema[
+        "properties"
+    ]
     for name in [
         "caller_limit",
         "callee_limit",
@@ -109,7 +115,9 @@ def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
     async def fake_get_context_package(query: str, **kwargs: Any) -> ToolResult:
         captured["query"] = query
         captured.update(kwargs)
-        return ToolResult(data={"query": {"query": query}, "items": [], "arguments": kwargs})
+        return ToolResult(
+            data={"query": {"query": query}, "items": [], "arguments": kwargs}
+        )
 
     monkeypatch.setattr(mcp.tools, "get_context_package", fake_get_context_package)
 
@@ -165,7 +173,10 @@ def test_mcp_tool_guidance_ranks_task_workflows() -> None:
     data = structured["data"]
     assert data["task"] == "check whether the repository index is stale before editing"
     assert data["recommended_workflows"][0]["id"] == "check_freshness"
-    assert data["recommended_workflows"][0]["steps"][0]["tool"] == "codemesh_list_repositories"
+    assert (
+        data["recommended_workflows"][0]["steps"][0]["tool"]
+        == "codemesh_list_repositories"
+    )
     assert "codemesh_get_tool_guidance" in data["available_tools"]
 
 
@@ -282,7 +293,9 @@ def test_mcp_repository_status_forwards_repository_id(monkeypatch: Any) -> None:
 
     async def fake_get_repository_status(repository_id: str) -> ToolResult:
         captured["repository_id"] = repository_id
-        return ToolResult(data={"repository_id": repository_id, "freshness": {"status": "unknown"}})
+        return ToolResult(
+            data={"repository_id": repository_id, "freshness": {"status": "unknown"}}
+        )
 
     monkeypatch.setattr(mcp.tools, "get_repository_status", fake_get_repository_status)
 

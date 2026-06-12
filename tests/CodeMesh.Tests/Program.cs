@@ -2,8 +2,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
-using CodeMesh.Control.Configuration;
 using CodeMesh.Control.AgentAccess;
+using CodeMesh.Control.Configuration;
 using CodeMesh.Control.Diagnostics;
 using CodeMesh.Domain.Contracts;
 using CodeMesh.Domain.Graph;
@@ -519,10 +519,10 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
 
     var coverage = await client.GetSummaryCoverageAsync("sample repo/id");
     Equal("repositories/sample%20repo%2Fid/summaries", handler.Requests[10].Path, "Agent Access summary coverage path did not escape id.");
-        Equal(5, coverage.CompletedCount, "Agent Access summary coverage completed count did not deserialize.");
-        Equal(2, coverage.KindCounts["Method"], "Agent Access summary coverage kind counts did not deserialize.");
-        Equal("qwen/qwen2.5-coder-14b", coverage.ProviderModelCountDetails[0].Model, "Agent Access summary coverage provider/model details did not deserialize.");
-        Equal("model failed", coverage.RecentFailures[0]["error"].GetString() ?? string.Empty, "Agent Access summary coverage failures did not deserialize.");
+    Equal(5, coverage.CompletedCount, "Agent Access summary coverage completed count did not deserialize.");
+    Equal(2, coverage.KindCounts["Method"], "Agent Access summary coverage kind counts did not deserialize.");
+    Equal("qwen/qwen2.5-coder-14b", coverage.ProviderModelCountDetails[0].Model, "Agent Access summary coverage provider/model details did not deserialize.");
+    Equal("model failed", coverage.RecentFailures[0]["error"].GetString() ?? string.Empty, "Agent Access summary coverage failures did not deserialize.");
 
     var runs = await client.ListIngestionRunsAsync(repositoryId: "sample repo/id", limit: 2);
     Equal("ingestion-runs?limit=2&repository_id=sample%20repo%2Fid", handler.Requests[11].Path, "Agent Access runs path changed.");
@@ -3181,9 +3181,9 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
         var payload = request.Method == HttpMethod.Delete
             ? DeletePayload(path)
             : path switch
-        {
-            "health" or "status" =>
-                """
+            {
+                "health" or "status" =>
+                    """
                 {
                   "service": "codemesh-agent-access",
                   "status": "healthy",
@@ -3200,8 +3200,8 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                   }
                 }
                 """,
-            "context/search" =>
-                """
+                "context/search" =>
+                    """
                 {
                   "query": {"query": "DownloadAsync", "repository_id": "repo:test"},
                   "hits": [
@@ -3233,8 +3233,8 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                   "generated_at": "2026-06-06T10:00:00Z"
                 }
                 """,
-            "context/package" =>
-                """
+                "context/package" =>
+                    """
                 {
                   "query": {"query": "DownloadAsync", "repository_id": "repo:test"},
                   "repository": {"repository_id": "repo:test"},
@@ -3260,8 +3260,8 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                   "generated_at": "2026-06-06T10:00:00Z"
                 }
                 """,
-            "symbols/search" =>
-                """
+                "symbols/search" =>
+                    """
                 {
                   "query": {"query": "DownloadAsync", "repository_id": "repo:test"},
                   "symbols": [
@@ -3275,16 +3275,16 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                   "generated_at": "2026-06-06T10:00:00Z"
                 }
                 """,
-            "nodes/get" =>
-                """
+                "nodes/get" =>
+                    """
                 {
                   "node": {"id": "node:download", "kind": "Method"},
                   "content": null,
                   "relationships": []
                 }
                 """,
-            "graph/neighbors" =>
-                """
+                "graph/neighbors" =>
+                    """
                 {
                   "node": {"id": "node:download", "kind": "Method"},
                   "content": null,
@@ -3293,8 +3293,8 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                   ]
                 }
                 """,
-            "repositories?limit=3" =>
-                """
+                "repositories?limit=3" =>
+                    """
                 {
                   "repositories": [
                     {
@@ -3318,8 +3318,8 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                   ]
                 }
                 """,
-            "repositories/sample%20repo%2Fid" =>
-                """
+                "repositories/sample%20repo%2Fid" =>
+                    """
                 {
                   "repository_id": "repo:test",
                   "alias": "sample_repo",
@@ -3339,8 +3339,8 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                   "metadata": {"alias": "sample_repo"}
                 }
                 """,
-            "repositories/sample%20repo%2Fid/status" =>
-                """
+                "repositories/sample%20repo%2Fid/status" =>
+                    """
                 {
                   "repository_id": "repo:test",
                   "repository": {
@@ -3368,8 +3368,8 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                   "generated_at": "2026-06-06T10:10:00Z"
                 }
                 """,
-            "repositories/sample%20repo%2Fid/summaries" =>
-                """
+                "repositories/sample%20repo%2Fid/summaries" =>
+                    """
                 {
                   "repository_id": "repo:test",
                   "total_count": 6,
@@ -3387,8 +3387,8 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                   "generated_at": "2026-06-06T10:10:00Z"
                 }
                 """,
-            "ingestion-runs?limit=2&repository_id=sample%20repo%2Fid" =>
-                """
+                "ingestion-runs?limit=2&repository_id=sample%20repo%2Fid" =>
+                    """
                 {
                   "runs": [
                     {
@@ -3420,8 +3420,8 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                   ]
                 }
                 """,
-            _ => string.Empty
-        };
+                _ => string.Empty
+            };
 
         return string.IsNullOrEmpty(payload)
             ? JsonResponse(HttpStatusCode.NotFound, """{"detail":"not found"}""")

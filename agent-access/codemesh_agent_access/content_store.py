@@ -63,7 +63,9 @@ class MongoContentStore:
             return None
 
         def find_one() -> dict[str, Any] | None:
-            collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_content_collection]
+            collection = self._mongo()[self._settings.mongo_database][
+                self._settings.mongo_content_collection
+            ]
             document = collection.find_one({"_id": content_hash})
             return dict(document) if document else None
 
@@ -78,7 +80,9 @@ class MongoContentStore:
         if MongoClient is None:
             return RepositoryListResponse()
 
-        collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_repositories_collection]
+        collection = self._mongo()[self._settings.mongo_database][
+            self._settings.mongo_repositories_collection
+        ]
         documents = await asyncio.to_thread(
             lambda: list(
                 collection.find({})
@@ -95,8 +99,12 @@ class MongoContentStore:
         if MongoClient is None:
             return None
 
-        collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_repositories_collection]
-        document = await asyncio.to_thread(find_repository_document, collection, repository_id)
+        collection = self._mongo()[self._settings.mongo_database][
+            self._settings.mongo_repositories_collection
+        ]
+        document = await asyncio.to_thread(
+            find_repository_document, collection, repository_id
+        )
         return normalize_repository(document) if document else None
 
     async def delete_repository(self, repository_id: str) -> None:
@@ -106,7 +114,9 @@ class MongoContentStore:
         def delete() -> None:
             database = self._mongo()[self._settings.mongo_database]
             content_collection = database[self._settings.mongo_content_collection]
-            repository_collection = database[self._settings.mongo_repositories_collection]
+            repository_collection = database[
+                self._settings.mongo_repositories_collection
+            ]
             runs_collection = database[self._settings.mongo_ingestion_runs_collection]
 
             content_collection.update_many(
@@ -135,7 +145,9 @@ class MongoContentStore:
 
         repository_id = await self.resolve_repository_id(repository_id)
         filter_query = {"repositoryId": repository_id} if repository_id else {}
-        collection = self._mongo()[self._settings.mongo_database][self._settings.mongo_ingestion_runs_collection]
+        collection = self._mongo()[self._settings.mongo_database][
+            self._settings.mongo_ingestion_runs_collection
+        ]
         documents = await asyncio.to_thread(
             lambda: list(
                 collection.find(filter_query)
@@ -164,12 +176,16 @@ class MongoContentStore:
             raise RuntimeError("The pymongo package is not installed.")
 
         if self._mongo_client is None:
-            self._mongo_client = MongoClient(self._settings.mongo_uri, serverSelectionTimeoutMS=2000)
+            self._mongo_client = MongoClient(
+                self._settings.mongo_uri, serverSelectionTimeoutMS=2000
+            )
 
         return self._mongo_client
 
 
-def find_repository_document(collection: Any, repository_id: str) -> dict[str, Any] | None:
+def find_repository_document(
+    collection: Any, repository_id: str
+) -> dict[str, Any] | None:
     exact = collection.find_one({"_id": repository_id})
     if exact is not None:
         return exact
@@ -190,7 +206,9 @@ def find_repository_document(collection: Any, repository_id: str) -> dict[str, A
         for document in documents
     }
     if len(by_repository_id) > 1:
-        raise RuntimeError(f"Repository alias '{repository_id}' matches multiple repositories.")
+        raise RuntimeError(
+            f"Repository alias '{repository_id}' matches multiple repositories."
+        )
 
     return next(iter(by_repository_id.values()), None)
 
@@ -241,7 +259,11 @@ def normalize_ingestion_run(document: dict[str, Any]) -> IngestionRunSummary:
         solution_path=optional_str(document.get("solutionPath")),
         project_path=optional_str(document.get("projectPath")),
         dry_run=bool(document.get("dryRun") or False),
-        skip_embeddings=bool(document.get("skipEmbeddings") if document.get("skipEmbeddings") is not None else True),
+        skip_embeddings=bool(
+            document.get("skipEmbeddings")
+            if document.get("skipEmbeddings") is not None
+            else True
+        ),
         embedding_provider=str(document.get("embeddingProvider") or ""),
         embedding_model=str(document.get("embeddingModel") or ""),
         node_count=int_value(document.get("nodeCount")),
@@ -261,21 +283,53 @@ def normalize_stats(value: Any) -> dict[str, Any] | None:
         return None
 
     return {
-        "parsed_node_count": int_value(value.get("ParsedNodeCount") or value.get("parsedNodeCount")),
-        "written_node_count": int_value(value.get("WrittenNodeCount") or value.get("writtenNodeCount")),
-        "skipped_node_count": int_value(value.get("SkippedNodeCount") or value.get("skippedNodeCount")),
-        "parsed_relationship_count": int_value(value.get("ParsedRelationshipCount") or value.get("parsedRelationshipCount")),
-        "written_relationship_count": int_value(value.get("WrittenRelationshipCount") or value.get("writtenRelationshipCount")),
-        "skipped_relationship_count": int_value(value.get("SkippedRelationshipCount") or value.get("skippedRelationshipCount")),
-        "parsed_content_count": int_value(value.get("ParsedContentCount") or value.get("parsedContentCount")),
-        "written_content_count": int_value(value.get("WrittenContentCount") or value.get("writtenContentCount")),
-        "skipped_content_count": int_value(value.get("SkippedContentCount") or value.get("skippedContentCount")),
-        "written_embedding_count": int_value(value.get("WrittenEmbeddingCount") or value.get("writtenEmbeddingCount")),
-        "skipped_embedding_count": int_value(value.get("SkippedEmbeddingCount") or value.get("skippedEmbeddingCount")),
-        "summary_candidate_count": int_value(value.get("SummaryCandidateCount") or value.get("summaryCandidateCount")),
-        "written_summary_count": int_value(value.get("WrittenSummaryCount") or value.get("writtenSummaryCount")),
-        "skipped_summary_count": int_value(value.get("SkippedSummaryCount") or value.get("skippedSummaryCount")),
-        "failed_summary_count": int_value(value.get("FailedSummaryCount") or value.get("failedSummaryCount")),
+        "parsed_node_count": int_value(
+            value.get("ParsedNodeCount") or value.get("parsedNodeCount")
+        ),
+        "written_node_count": int_value(
+            value.get("WrittenNodeCount") or value.get("writtenNodeCount")
+        ),
+        "skipped_node_count": int_value(
+            value.get("SkippedNodeCount") or value.get("skippedNodeCount")
+        ),
+        "parsed_relationship_count": int_value(
+            value.get("ParsedRelationshipCount") or value.get("parsedRelationshipCount")
+        ),
+        "written_relationship_count": int_value(
+            value.get("WrittenRelationshipCount")
+            or value.get("writtenRelationshipCount")
+        ),
+        "skipped_relationship_count": int_value(
+            value.get("SkippedRelationshipCount")
+            or value.get("skippedRelationshipCount")
+        ),
+        "parsed_content_count": int_value(
+            value.get("ParsedContentCount") or value.get("parsedContentCount")
+        ),
+        "written_content_count": int_value(
+            value.get("WrittenContentCount") or value.get("writtenContentCount")
+        ),
+        "skipped_content_count": int_value(
+            value.get("SkippedContentCount") or value.get("skippedContentCount")
+        ),
+        "written_embedding_count": int_value(
+            value.get("WrittenEmbeddingCount") or value.get("writtenEmbeddingCount")
+        ),
+        "skipped_embedding_count": int_value(
+            value.get("SkippedEmbeddingCount") or value.get("skippedEmbeddingCount")
+        ),
+        "summary_candidate_count": int_value(
+            value.get("SummaryCandidateCount") or value.get("summaryCandidateCount")
+        ),
+        "written_summary_count": int_value(
+            value.get("WrittenSummaryCount") or value.get("writtenSummaryCount")
+        ),
+        "skipped_summary_count": int_value(
+            value.get("SkippedSummaryCount") or value.get("skippedSummaryCount")
+        ),
+        "failed_summary_count": int_value(
+            value.get("FailedSummaryCount") or value.get("failedSummaryCount")
+        ),
     }
 
 

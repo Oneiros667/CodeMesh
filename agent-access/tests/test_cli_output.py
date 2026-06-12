@@ -40,7 +40,11 @@ def test_package_cli_agent_output_mode(monkeypatch: Any, capsys: Any) -> None:
         )
 
     monkeypatch.setattr(cli.tools, "get_context_package", fake_get_context_package)
-    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "package", "download", "--output", "agent"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["codemesh-agent-access", "package", "download", "--output", "agent"],
+    )
 
     cli.main()
 
@@ -81,7 +85,9 @@ def test_search_cli_still_outputs_json(monkeypatch: Any, capsys: Any) -> None:
     assert payload["data"] == {"query": "download", "hits": []}
 
 
-def test_tool_guidance_cli_outputs_ranked_guidance(monkeypatch: Any, capsys: Any) -> None:
+def test_tool_guidance_cli_outputs_ranked_guidance(
+    monkeypatch: Any, capsys: Any
+) -> None:
     monkeypatch.setattr(
         sys,
         "argv",
@@ -98,7 +104,10 @@ def test_tool_guidance_cli_outputs_ranked_guidance(monkeypatch: Any, capsys: Any
     assert payload["ok"] is True
     assert payload["data"]["task"] == "find callers before changing code"
     assert payload["data"]["recommended_workflows"][0]["id"] == "inspect_relationships"
-    assert payload["data"]["recommended_workflows"][0]["steps"][0]["tool"] == "codemesh_get_neighbors"
+    assert (
+        payload["data"]["recommended_workflows"][0]["steps"][0]["tool"]
+        == "codemesh_get_neighbors"
+    )
 
 
 def test_symbols_cli_outputs_json(monkeypatch: Any, capsys: Any) -> None:
@@ -138,7 +147,9 @@ def test_symbols_cli_outputs_json(monkeypatch: Any, capsys: Any) -> None:
     assert payload["data"] == {"query": {"query": "DownloadAsync"}, "symbols": []}
 
 
-def test_package_cli_forwards_filters_and_repository_toggle(monkeypatch: Any, capsys: Any) -> None:
+def test_package_cli_forwards_filters_and_repository_toggle(
+    monkeypatch: Any, capsys: Any
+) -> None:
     captured: dict[str, Any] = {}
 
     async def fake_get_context_package(query: str, **kwargs: Any) -> ToolResult:
@@ -169,7 +180,9 @@ def test_package_cli_forwards_filters_and_repository_toggle(monkeypatch: Any, ca
     assert payload["data"] == {"query": {"query": "download"}, "items": []}
 
 
-def test_neighbors_cli_forwards_relationship_kinds(monkeypatch: Any, capsys: Any) -> None:
+def test_neighbors_cli_forwards_relationship_kinds(
+    monkeypatch: Any, capsys: Any
+) -> None:
     captured: dict[str, Any] = {}
 
     async def fake_get_neighbors(node_id: str, **kwargs: Any) -> ToolResult:
@@ -208,7 +221,9 @@ def test_summaries_cli_outputs_coverage_json(monkeypatch: Any, capsys: Any) -> N
         return ToolResult(data={"repository_id": repository_id, "completed_count": 4})
 
     monkeypatch.setattr(cli.tools, "get_summary_coverage", fake_get_summary_coverage)
-    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "summaries", "sample_repo"])
+    monkeypatch.setattr(
+        sys, "argv", ["codemesh-agent-access", "summaries", "sample_repo"]
+    )
 
     cli.main()
 
@@ -222,10 +237,14 @@ def test_repo_status_cli_outputs_status_json(monkeypatch: Any, capsys: Any) -> N
 
     async def fake_get_repository_status(repository_id: str) -> ToolResult:
         captured["repository_id"] = repository_id
-        return ToolResult(data={"repository_id": repository_id, "freshness": {"status": "unknown"}})
+        return ToolResult(
+            data={"repository_id": repository_id, "freshness": {"status": "unknown"}}
+        )
 
     monkeypatch.setattr(cli.tools, "get_repository_status", fake_get_repository_status)
-    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "repo-status", "sample_repo"])
+    monkeypatch.setattr(
+        sys, "argv", ["codemesh-agent-access", "repo-status", "sample_repo"]
+    )
 
     cli.main()
 
@@ -252,7 +271,9 @@ def test_delete_repo_cli_outputs_cleanup_json(monkeypatch: Any, capsys: Any) -> 
         )
 
     monkeypatch.setattr(cli.tools, "delete_repository", fake_delete_repository)
-    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "delete-repo", "sample_repo"])
+    monkeypatch.setattr(
+        sys, "argv", ["codemesh-agent-access", "delete-repo", "sample_repo"]
+    )
 
     cli.main()
 
@@ -270,7 +291,9 @@ def test_cli_prints_mcp_manifest(monkeypatch: Any, capsys: Any) -> None:
     payload = json.loads(capsys.readouterr().out)
     assert payload["service"] == "codemesh-agent-access"
     assert "codemesh_search_context" in {tool["name"] for tool in payload["tools"]}
-    assert payload["contracts"]["codemesh_search_context"]["response"]["diagnostics"] == [
+    assert payload["contracts"]["codemesh_search_context"]["response"][
+        "diagnostics"
+    ] == [
         "mode",
         "embedding_attempted",
         "embedding_source",
@@ -288,7 +311,11 @@ def test_cli_prints_mcp_manifest(monkeypatch: Any, capsys: Any) -> None:
 
 
 def test_cli_filter_requires_key_value_pair(monkeypatch: Any) -> None:
-    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "search", "download", "--filter", "broken"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["codemesh-agent-access", "search", "download", "--filter", "broken"],
+    )
 
     try:
         cli.main()

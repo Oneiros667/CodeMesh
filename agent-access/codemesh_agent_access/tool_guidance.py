@@ -197,8 +197,13 @@ def _rank_workflows(task: str) -> list[dict[str, Any]]:
     if not ranked:
         return list(_WORKFLOWS)
 
-    return [workflow for _score, workflow in sorted(ranked, key=lambda item: item[0], reverse=True)]
+    return [
+        workflow
+        for _score, workflow in sorted(ranked, key=lambda item: item[0], reverse=True)
+    ]
 
 
 def _normalize(value: str) -> str:
-    return "".join(character.lower() if character.isalnum() else " " for character in value)
+    return "".join(
+        character.lower() if character.isalnum() else " " for character in value
+    )

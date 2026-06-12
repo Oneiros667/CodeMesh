@@ -126,7 +126,11 @@ class CodeMeshReadStore:
             "qdrant": await self._vectors.health(),
             "model_provider": await self._embeddings.health(),
         }
-        status = "healthy" if all(_component_ok(value) for value in components.values()) else "degraded"
+        status = (
+            "healthy"
+            if all(_component_ok(value) for value in components.values())
+            else "degraded"
+        )
         return HealthResponse(status=status, components=components)
 
     async def search_context(self, query: ContextQuery) -> ContextResponse:
@@ -140,9 +144,21 @@ class CodeMeshReadStore:
             if vector:
                 embedding_source = "model_provider"
 
-        vector_task = asyncio.create_task(self._search_vector_context(query, vector)) if vector else None
-        lexical_task = asyncio.create_task(self._search_lexical_context(query)) if query.query.strip() else None
-        summary_task = asyncio.create_task(self._search_summary_context(query)) if query.query.strip() else None
+        vector_task = (
+            asyncio.create_task(self._search_vector_context(query, vector))
+            if vector
+            else None
+        )
+        lexical_task = (
+            asyncio.create_task(self._search_lexical_context(query))
+            if query.query.strip()
+            else None
+        )
+        summary_task = (
+            asyncio.create_task(self._search_summary_context(query))
+            if query.query.strip()
+            else None
+        )
         vector_hits = await vector_task if vector_task else []
         lexical_hits = await lexical_task if lexical_task else []
         summary_hits = await summary_task if summary_task else []
@@ -153,7 +169,9 @@ class CodeMeshReadStore:
         lexical_hit_count = _source_hit_count(ranked_hits, "lexical_score")
         summary_hit_count = _source_hit_count(ranked_hits, "summary_score")
         diagnostics = {
-            "mode": _search_mode(vector_hit_count, lexical_hit_count, summary_hit_count),
+            "mode": _search_mode(
+                vector_hit_count, lexical_hit_count, summary_hit_count
+            ),
             "embedding_attempted": embedding_attempted,
             "embedding_source": embedding_source,
             "model_provider": self._embeddings.provider,
@@ -170,7 +188,9 @@ class CodeMeshReadStore:
 
         return ContextResponse(query=query, hits=ranked_hits, diagnostics=diagnostics)
 
-    async def get_context_package(self, query: ContextPackageQuery) -> ContextPackageResponse:
+    async def get_context_package(
+        self, query: ContextPackageQuery
+    ) -> ContextPackageResponse:
         query = await self._resolve_package_query_repository(query)
         search = await self.search_context(
             ContextQuery(
@@ -189,8 +209,14 @@ class CodeMeshReadStore:
         latest_run = None
         if query.include_repository and query.repository_id:
             repository_summary = await self.get_repository(query.repository_id)
-            repository = repository_summary.model_dump(mode="json") if repository_summary else None
-            runs = await self.list_ingestion_runs(repository_id=query.repository_id, limit=1)
+            repository = (
+                repository_summary.model_dump(mode="json")
+                if repository_summary
+                else None
+            )
+            runs = await self.list_ingestion_runs(
+                repository_id=query.repository_id, limit=1
+            )
             latest_run = runs.runs[0].model_dump(mode="json") if runs.runs else None
 
         max_characters = max(0, query.max_characters)
@@ -212,7 +238,10 @@ class CodeMeshReadStore:
             snippet = None
             content_document = node_response.content
             if query.include_content and hit.content_hash:
-                if content_document is None or str(content_document.get("hash") or "") != hit.content_hash:
+                if (
+                    content_document is None
+                    or str(content_document.get("hash") or "") != hit.content_hash
+                ):
                     content_document = await self._get_content(hit.content_hash)
                 content = _content_metadata(content_document)
 
@@ -223,7 +252,9 @@ class CodeMeshReadStore:
                 total_snippet_characters += len(snippet or "")
                 remaining_characters = max(0, remaining_characters - len(snippet or ""))
 
-            summary = await self._get_node_summary(repository_id, hit.node_id, hit.content_hash)
+            summary = await self._get_node_summary(
+                repository_id, hit.node_id, hit.content_hash
+            )
 
             relationships = []
             if query.include_relationships:
@@ -266,8 +297,10 @@ class CodeMeshReadStore:
         search_text = query.query.casefold()
 
         filtered_nodes = [
-            node for node in nodes
-            if _matches_filters(node, query.filters) and _matches_repository(node, query.repository_id)
+            node
+            for node in nodes
+            if _matches_filters(node, query.filters)
+            and _matches_repository(node, query.repository_id)
         ]
         scored_nodes = sorted(
             (
@@ -278,7 +311,11 @@ class CodeMeshReadStore:
                 )
                 for node in filtered_nodes
             ),
-            key=lambda item: (item[1], _kind_weight(item[0]), -_int(item[0].get("startLine"))),
+            key=lambda item: (
+                item[1],
+                _kind_weight(item[0]),
+                -_int(item[0].get("startLine")),
+            ),
             reverse=True,
         )
 
@@ -286,8 +323,12 @@ class CodeMeshReadStore:
         for node, score, score_components in scored_nodes[: max(0, query.limit)]:
             declaration = None
             if query.include_declarations:
-                declaration_node = await self._get_primary_declaration_node(node, query.repository_id)
-                declaration = _normalize_node(declaration_node) if declaration_node else None
+                declaration_node = await self._get_primary_declaration_node(
+                    node, query.repository_id
+                )
+                declaration = (
+                    _normalize_node(declaration_node) if declaration_node else None
+                )
 
             symbols.append(
                 SymbolSearchHit(
@@ -315,17 +356,19 @@ class CodeMeshReadStore:
             content = await self._get_content(content_hash)
 
         if lookup.include_neighbors:
-            relationships = await self._get_relationships(lookup.node_id, lookup.repository_id, depth=1)
+            relationships = await self._get_relationships(
+                lookup.node_id, lookup.repository_id, depth=1
+            )
 
-        return NodeResponse(node=normalized_node, content=content, relationships=relationships)
+        return NodeResponse(
+            node=normalized_node, content=content, relationships=relationships
+        )
 
     async def get_neighbors(self, query: NeighborQuery) -> NodeResponse:
         query = await self._resolve_neighbor_query_repository(query)
         relationships = await self._get_relationships(
-            query.node_id,
-            query.repository_id,
-            query.depth,
-            query.relationship_kinds)
+            query.node_id, query.repository_id, query.depth, query.relationship_kinds
+        )
         return NodeResponse(relationships=relationships)
 
     async def list_repositories(self, limit: int = 50) -> RepositoryListResponse:
@@ -364,9 +407,13 @@ class CodeMeshReadStore:
             summaries_cleaned=summaries_cleaned,
         )
 
-    async def get_summary_coverage(self, repository_id: str) -> NodeSummaryCoverageResponse:
+    async def get_summary_coverage(
+        self, repository_id: str
+    ) -> NodeSummaryCoverageResponse:
         resolved_repository_id = await self._resolve_repository_id(repository_id)
-        coverage = await self._summaries.summary_coverage(resolved_repository_id or repository_id)
+        coverage = await self._summaries.summary_coverage(
+            resolved_repository_id or repository_id
+        )
         return NodeSummaryCoverageResponse(**coverage)
 
     async def list_ingestion_runs(
@@ -376,7 +423,9 @@ class CodeMeshReadStore:
     ) -> IngestionRunListResponse:
         return await self._content.list_ingestion_runs(repository_id, limit)
 
-    async def get_repository_status(self, repository_id: str) -> RepositoryStatusResponse:
+    async def get_repository_status(
+        self, repository_id: str
+    ) -> RepositoryStatusResponse:
         repository = await self.get_repository(repository_id)
         if repository is None:
             return RepositoryStatusResponse(
@@ -410,25 +459,51 @@ class CodeMeshReadStore:
             freshness=freshness,
         )
 
-    async def _resolve_context_query_repository(self, query: ContextQuery) -> ContextQuery:
+    async def _resolve_context_query_repository(
+        self, query: ContextQuery
+    ) -> ContextQuery:
         repository_id = await self._resolve_repository_id(query.repository_id)
-        return query if repository_id == query.repository_id else query.model_copy(update={"repository_id": repository_id})
+        return (
+            query
+            if repository_id == query.repository_id
+            else query.model_copy(update={"repository_id": repository_id})
+        )
 
-    async def _resolve_package_query_repository(self, query: ContextPackageQuery) -> ContextPackageQuery:
+    async def _resolve_package_query_repository(
+        self, query: ContextPackageQuery
+    ) -> ContextPackageQuery:
         repository_id = await self._resolve_repository_id(query.repository_id)
-        return query if repository_id == query.repository_id else query.model_copy(update={"repository_id": repository_id})
+        return (
+            query
+            if repository_id == query.repository_id
+            else query.model_copy(update={"repository_id": repository_id})
+        )
 
     async def _resolve_symbol_query_repository(self, query: SymbolQuery) -> SymbolQuery:
         repository_id = await self._resolve_repository_id(query.repository_id)
-        return query if repository_id == query.repository_id else query.model_copy(update={"repository_id": repository_id})
+        return (
+            query
+            if repository_id == query.repository_id
+            else query.model_copy(update={"repository_id": repository_id})
+        )
 
     async def _resolve_node_lookup_repository(self, lookup: NodeLookup) -> NodeLookup:
         repository_id = await self._resolve_repository_id(lookup.repository_id)
-        return lookup if repository_id == lookup.repository_id else lookup.model_copy(update={"repository_id": repository_id})
+        return (
+            lookup
+            if repository_id == lookup.repository_id
+            else lookup.model_copy(update={"repository_id": repository_id})
+        )
 
-    async def _resolve_neighbor_query_repository(self, query: NeighborQuery) -> NeighborQuery:
+    async def _resolve_neighbor_query_repository(
+        self, query: NeighborQuery
+    ) -> NeighborQuery:
         repository_id = await self._resolve_repository_id(query.repository_id)
-        return query if repository_id == query.repository_id else query.model_copy(update={"repository_id": repository_id})
+        return (
+            query
+            if repository_id == query.repository_id
+            else query.model_copy(update={"repository_id": repository_id})
+        )
 
     async def _resolve_repository_id(self, repository_id: str | None) -> str | None:
         if not repository_id:
@@ -441,7 +516,9 @@ class CodeMeshReadStore:
 
         return repository.repository_id if repository else repository_id
 
-    async def _get_node_properties(self, node_id: str, repository_id: str | None = None) -> dict[str, Any] | None:
+    async def _get_node_properties(
+        self, node_id: str, repository_id: str | None = None
+    ) -> dict[str, Any] | None:
         return await self._graph.get_node_properties(node_id, repository_id)
 
     async def _search_symbol_nodes(self, query: SymbolQuery) -> list[dict[str, Any]]:
@@ -451,7 +528,9 @@ class CodeMeshReadStore:
             return []
 
         limit = min(max(query.limit * 4, 24), 300)
-        return await self._graph.search_symbol_nodes(search_text, kinds, query.repository_id, limit)
+        return await self._graph.search_symbol_nodes(
+            search_text, kinds, query.repository_id, limit
+        )
 
     async def _get_relationships(
         self,
@@ -461,12 +540,18 @@ class CodeMeshReadStore:
         relationship_kinds: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         kinds = {kind.casefold() for kind in relationship_kinds or []}
-        records = await self._graph.get_relationship_properties(node_id, repository_id, depth)
+        records = await self._graph.get_relationship_properties(
+            node_id, repository_id, depth
+        )
         relationships = [_normalize_relationship(record) for record in records]
         if not kinds:
             return relationships
 
-        return [item for item in relationships if str(item.get("kind", "")).casefold() in kinds]
+        return [
+            item
+            for item in relationships
+            if str(item.get("kind", "")).casefold() in kinds
+        ]
 
     async def _get_context_candidates(
         self,
@@ -502,7 +587,9 @@ class CodeMeshReadStore:
 
         clamped_limit = min(max(limit, 1), 50)
         selection_limit = min(max(clamped_limit * 8, 80), 500)
-        records = await self._graph.get_context_relationship_records(node_id, repository_id, selection_limit)
+        records = await self._graph.get_context_relationship_records(
+            node_id, repository_id, selection_limit
+        )
 
         summaries = []
         for record in records:
@@ -532,7 +619,9 @@ class CodeMeshReadStore:
         node_id: str,
         content_hash: str | None = None,
     ) -> dict[str, Any] | None:
-        return await self._summaries.get_node_summary(repository_id, node_id, content_hash)
+        return await self._summaries.get_node_summary(
+            repository_id, node_id, content_hash
+        )
 
     async def _select_context_node(
         self,
@@ -548,7 +637,9 @@ class CodeMeshReadStore:
         if not expand_context:
             return node, "self"
 
-        candidates = await self._get_context_candidates(node_id, repository_id, context_depth)
+        candidates = await self._get_context_candidates(
+            node_id, repository_id, context_depth
+        )
         if not _needs_context_expansion(node) and not candidates:
             return node, "self"
 
@@ -581,12 +672,19 @@ class CodeMeshReadStore:
         declaration = await self._get_primary_declaration_node(selected, repository_id)
 
         content_node = declaration or selected
-        content_hash = str(content_node.get("contentHash") or selected.get("contentHash") or source.get("contentHash") or "")
+        content_hash = str(
+            content_node.get("contentHash")
+            or selected.get("contentHash")
+            or source.get("contentHash")
+            or ""
+        )
         content = await self._get_content(content_hash)
         selected_id = str(selected.get("id") or "")
         source_id = str(source.get("id") or "")
         declaration_id = str(declaration.get("id") or "") if declaration else ""
-        selected_own_preview = preview if selected_id == source_id and not declaration else None
+        selected_own_preview = (
+            preview if selected_id == source_id and not declaration else None
+        )
         kind_weight = _kind_weight(selected)
         expansion_bonus = _expansion_bonus(source, selected, declaration)
         adjusted_score = _adjust_score(raw_score, kind_weight, expansion_bonus)
@@ -635,10 +733,14 @@ class CodeMeshReadStore:
         limit = min(max(query.limit * 4, 16), 200)
         repository_id = query.repository_id
 
-        nodes = await self._graph.search_context_nodes(search_text, kinds, repository_id, limit)
+        nodes = await self._graph.search_context_nodes(
+            search_text, kinds, repository_id, limit
+        )
         nodes = [
-            node for node in nodes
-            if _matches_filters(node, query.filters) and _matches_repository(node, query.repository_id)
+            node
+            for node in nodes
+            if _matches_filters(node, query.filters)
+            and _matches_repository(node, query.repository_id)
         ]
         nodes.sort(key=lambda node: _lexical_score(node, search_text), reverse=True)
 
@@ -659,14 +761,20 @@ class CodeMeshReadStore:
 
         return hits
 
-    async def _search_vector_context(self, query: ContextQuery, vector: list[float]) -> list[ContextHit]:
-        qdrant_hits = await self._vectors.search(vector, _candidate_limit(query.limit), _effective_filters(query))
+    async def _search_vector_context(
+        self, query: ContextQuery, vector: list[float]
+    ) -> list[ContextHit]:
+        qdrant_hits = await self._vectors.search(
+            vector, _candidate_limit(query.limit), _effective_filters(query)
+        )
         hits: list[ContextHit] = []
 
         for item in qdrant_hits:
             node_id = str(item.get("nodeId") or "")
             content_hash = str(item.get("contentHash") or "")
-            repository_id = query.repository_id or str(item.get("repositoryId") or "") or None
+            repository_id = (
+                query.repository_id or str(item.get("repositoryId") or "") or None
+            )
             node = await self._get_node_properties(node_id, repository_id)
 
             if node is None:
@@ -714,12 +822,16 @@ class CodeMeshReadStore:
             if not node_id:
                 continue
 
-            repository_id = query.repository_id or str(summary.get("repository_id") or "") or None
+            repository_id = (
+                query.repository_id or str(summary.get("repository_id") or "") or None
+            )
             node = await self._get_node_properties(node_id, repository_id)
             if node is None:
                 node = _node_from_summary(summary)
 
-            if not _matches_filters(node, query.filters) or not _matches_repository(node, query.repository_id):
+            if not _matches_filters(node, query.filters) or not _matches_repository(
+                node, query.repository_id
+            ):
                 continue
 
             hits.append(
@@ -740,11 +852,18 @@ class CodeMeshReadStore:
 
 
 def _component_ok(component: Any) -> bool:
-    return isinstance(component, dict) and component.get("status") in {"healthy", "configured"}
+    return isinstance(component, dict) and component.get("status") in {
+        "healthy",
+        "configured",
+    }
 
 
 def _repository_freshness(repository: RepositorySummary) -> dict[str, Any]:
-    indexed_commit = repository.commit or repository.metadata.get("commit") or repository.metadata.get("repositoryCommit")
+    indexed_commit = (
+        repository.commit
+        or repository.metadata.get("commit")
+        or repository.metadata.get("repositoryCommit")
+    )
     root_path = repository.root_path
     git = _git_snapshot(root_path)
 
@@ -754,7 +873,11 @@ def _repository_freshness(repository: RepositorySummary) -> dict[str, Any]:
         if indexed_commit:
             is_stale = indexed_commit != current_commit or is_dirty
             status = "stale" if is_stale else "fresh"
-            detail = "Indexed commit differs from the local checkout or the working tree has uncommitted changes." if is_stale else "Indexed commit matches the local checkout and the working tree is clean."
+            detail = (
+                "Indexed commit differs from the local checkout or the working tree has uncommitted changes."
+                if is_stale
+                else "Indexed commit matches the local checkout and the working tree is clean."
+            )
         else:
             is_stale = None
             status = "unknown"
@@ -773,7 +896,8 @@ def _repository_freshness(repository: RepositorySummary) -> dict[str, Any]:
         "indexed_commit": indexed_commit,
         "is_stale": None,
         "status": "unknown",
-        "detail": git.get("detail") or "Local git state is unavailable for this repository path.",
+        "detail": git.get("detail")
+        or "Local git state is unavailable for this repository path.",
     }
 
 
@@ -915,7 +1039,9 @@ def _prioritize_context_relationships(
     return selected
 
 
-def _context_relationship_sort_key(relationship: dict[str, Any]) -> tuple[int, int, str, str, str]:
+def _context_relationship_sort_key(
+    relationship: dict[str, Any],
+) -> tuple[int, int, str, str, str]:
     other = relationship.get("other")
     if not isinstance(other, dict):
         other = {}
@@ -980,7 +1106,9 @@ def _relationship_group_name(relationship: dict[str, Any]) -> str | None:
     return None
 
 
-def _group_relationships(relationships: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+def _group_relationships(
+    relationships: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
     groups: dict[str, list[dict[str, Any]]] = {
         "callers": [],
         "callees": [],
@@ -999,7 +1127,9 @@ def _group_relationships(relationships: list[dict[str, Any]]) -> dict[str, list[
     return groups
 
 
-def _snippet_for_hit(content: dict[str, Any], hit: ContextHit, max_characters: int) -> str | None:
+def _snippet_for_hit(
+    content: dict[str, Any], hit: ContextHit, max_characters: int
+) -> str | None:
     if max_characters <= 0:
         return None
 
@@ -1061,7 +1191,9 @@ def _context_hit_for_node(
         end_line=span["span"]["end_line"],
         score=score,
         repository_id=normalized["repository_id"] or None,
-        content_hash=str(content.get("hash") or normalized["content_hash"] or "") if content else normalized["content_hash"] or None,
+        content_hash=str(content.get("hash") or normalized["content_hash"] or "")
+        if content
+        else normalized["content_hash"] or None,
         score_components=score_components or {},
         expanded_context=expanded_context,
         preview=preview or _preview(text),
@@ -1089,7 +1221,9 @@ def _ranked_unique_hits(hits: list[ContextHit], limit: int) -> list[ContextHit]:
     )[:limit]
 
 
-def _merge_hit_score_components(primary: ContextHit, secondary: ContextHit) -> ContextHit:
+def _merge_hit_score_components(
+    primary: ContextHit, secondary: ContextHit
+) -> ContextHit:
     return primary.model_copy(
         update={
             "score_components": {
@@ -1104,8 +1238,14 @@ def _source_hit_count(hits: list[ContextHit], score_component: str) -> int:
     return sum(1 for hit in hits if score_component in hit.score_components)
 
 
-def _search_mode(vector_hit_count: int, lexical_hit_count: int, summary_hit_count: int) -> str:
-    active = sum(1 for count in [vector_hit_count, lexical_hit_count, summary_hit_count] if count > 0)
+def _search_mode(
+    vector_hit_count: int, lexical_hit_count: int, summary_hit_count: int
+) -> str:
+    active = sum(
+        1
+        for count in [vector_hit_count, lexical_hit_count, summary_hit_count]
+        if count > 0
+    )
     if active > 1:
         return "hybrid"
     if vector_hit_count:
@@ -1133,11 +1273,7 @@ def _symbol_kind_filter(kinds: list[str]) -> list[str]:
         return sorted(_SYMBOL_KINDS)
 
     return sorted(
-        {
-            kind.casefold()
-            for kind in kinds
-            if kind and kind.casefold() in _SYMBOL_KINDS
-        }
+        {kind.casefold() for kind in kinds if kind and kind.casefold() in _SYMBOL_KINDS}
     )
 
 
@@ -1161,7 +1297,11 @@ def _choose_context_candidate(
     if not _needs_context_expansion(source):
         choices.append({"node": source, "distance": 0, "reason": "self"})
 
-    preferred = [choice for choice in choices if _kind(choice.get("node") or {}) in _PREFERRED_CONTEXT_KINDS]
+    preferred = [
+        choice
+        for choice in choices
+        if _kind(choice.get("node") or {}) in _PREFERRED_CONTEXT_KINDS
+    ]
     pool = preferred or choices
     if not pool:
         return None
@@ -1198,7 +1338,9 @@ def _expansion_bonus(
     return bonus
 
 
-def _adjust_score(raw_score: float, kind_weight: float, expansion_bonus: float) -> float:
+def _adjust_score(
+    raw_score: float, kind_weight: float, expansion_bonus: float
+) -> float:
     return max(0.0, min(1.0, (raw_score * kind_weight) + expansion_bonus))
 
 
@@ -1209,11 +1351,7 @@ def _summary_score(summary: dict[str, Any], search_text: str) -> float:
     summary_text = str(summary.get("summary") or "").casefold()
     name = str(summary.get("name") or "").casefold()
     stable_key = str(summary.get("stable_key") or "").casefold()
-    tags = [
-        str(tag).casefold()
-        for tag in summary.get("tags", [])
-        if str(tag).strip()
-    ]
+    tags = [str(tag).casefold() for tag in summary.get("tags", []) if str(tag).strip()]
 
     if search_text == name or search_text in tags:
         return 0.92
@@ -1232,7 +1370,9 @@ def _summary_score(summary: dict[str, Any], search_text: str) -> float:
 
 
 def _node_from_summary(summary: dict[str, Any]) -> dict[str, Any]:
-    metadata = summary.get("metadata") if isinstance(summary.get("metadata"), dict) else {}
+    metadata = (
+        summary.get("metadata") if isinstance(summary.get("metadata"), dict) else {}
+    )
     return {
         "id": str(summary.get("node_id") or ""),
         "stableKey": str(summary.get("stable_key") or summary.get("node_id") or ""),
@@ -1309,7 +1449,9 @@ def _symbol_score(node: dict[str, Any], search_text: str) -> float:
     return max(0.0, min(1.0, lexical_score * _kind_weight(node)))
 
 
-def _symbol_score_components(node: dict[str, Any], search_text: str) -> dict[str, float]:
+def _symbol_score_components(
+    node: dict[str, Any], search_text: str
+) -> dict[str, float]:
     return {
         "lexical_score": _symbol_lexical_score(node, search_text),
         "kind_weight": _kind_weight(node),

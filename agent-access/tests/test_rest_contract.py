@@ -148,7 +148,9 @@ def test_rest_symbols_node_neighbors_and_registry_shapes() -> None:
         repository_status = client.get("/repositories/sample_repo/status")
         repository_with_path_chars = client.get("/repositories/sample%20repo%2Fid")
         delete_repository = client.delete("/repositories/sample_repo")
-        runs = client.get("/ingestion-runs", params={"repository_id": "sample_repo", "limit": 2})
+        runs = client.get(
+            "/ingestion-runs", params={"repository_id": "sample_repo", "limit": 2}
+        )
 
     assert symbols.status_code == 200
     assert symbols.json()["symbols"][0]["node"]["id"] == "node:download"
@@ -205,7 +207,9 @@ def test_rest_ui_routes_render_existing_store_state() -> None:
         repositories = client.get("/ui/repositories")
         repository = client.get("/ui/repositories/sample_repo")
         runs = client.get("/ui/runs", params={"repository_id": "sample_repo"})
-        search = client.get("/ui/search", params={"query": "download", "repository_id": "repo:test"})
+        search = client.get(
+            "/ui/search", params={"query": "download", "repository_id": "repo:test"}
+        )
 
     assert dashboard.status_code == 200
     assert "CodeMesh" in dashboard.text
@@ -377,7 +381,9 @@ class FakeRestStore:
             summaries_cleaned=True,
         )
 
-    async def get_summary_coverage(self, repository_id: str) -> NodeSummaryCoverageResponse:
+    async def get_summary_coverage(
+        self, repository_id: str
+    ) -> NodeSummaryCoverageResponse:
         self.summary_repository_ids.append(repository_id)
         return NodeSummaryCoverageResponse(
             repository_id="repo:test",
@@ -386,7 +392,9 @@ class FakeRestStore:
             failed_count=1,
             status_counts={"completed": 3, "failed": 1},
             kind_counts={"Method": 2, "Class": 1},
-            provider_model_counts={"lmstudio/qwen/qwen2.5-coder-14b/node-summary-v1": 4},
+            provider_model_counts={
+                "lmstudio/qwen/qwen2.5-coder-14b/node-summary-v1": 4
+            },
             provider_model_count_details=[
                 {
                     "provider": "lmstudio",
@@ -398,7 +406,9 @@ class FakeRestStore:
             recent_failures=[{"node_id": "node:failed", "error": "model failed"}],
         )
 
-    async def get_repository_status(self, repository_id: str) -> RepositoryStatusResponse:
+    async def get_repository_status(
+        self, repository_id: str
+    ) -> RepositoryStatusResponse:
         self.status_repository_ids.append(repository_id)
         return RepositoryStatusResponse(
             repository_id="repo:test",
@@ -411,7 +421,12 @@ class FakeRestStore:
                 content_count=13,
                 embedding_count=17,
             ),
-            counts={"graph_nodes": 17, "relationships": 28, "content_documents": 13, "vectors": 17},
+            counts={
+                "graph_nodes": 17,
+                "relationships": 28,
+                "content_documents": 13,
+                "vectors": 17,
+            },
             freshness={"status": "unknown", "is_stale": None},
         )
 

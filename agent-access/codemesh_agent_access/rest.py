@@ -103,7 +103,10 @@ async def list_repositories(
     return await store.list_repositories(limit=limit)
 
 
-@app.get("/repositories/{repository_id}/summaries", response_model=NodeSummaryCoverageResponse)
+@app.get(
+    "/repositories/{repository_id}/summaries",
+    response_model=NodeSummaryCoverageResponse,
+)
 async def get_repository_summary_coverage(
     repository_id: str,
     store: CodeMeshReadStore = Depends(get_store),
@@ -111,7 +114,9 @@ async def get_repository_summary_coverage(
     return await store.get_summary_coverage(repository_id)
 
 
-@app.get("/repositories/{repository_id}/status", response_model=RepositoryStatusResponse)
+@app.get(
+    "/repositories/{repository_id}/status", response_model=RepositoryStatusResponse
+)
 async def get_repository_status(
     repository_id: str,
     store: CodeMeshReadStore = Depends(get_store),
@@ -127,7 +132,9 @@ async def get_repository(
     return await store.get_repository(repository_id)
 
 
-@app.delete("/repositories/{repository_id:path}", response_model=RepositoryDeleteResponse)
+@app.delete(
+    "/repositories/{repository_id:path}", response_model=RepositoryDeleteResponse
+)
 async def delete_repository(
     repository_id: str,
     store: CodeMeshReadStore = Depends(get_store),

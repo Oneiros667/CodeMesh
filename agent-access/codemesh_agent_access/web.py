@@ -75,7 +75,7 @@ async def repository_detail(
 
     if repository is None:
         heading = _value(status.repository_id)
-        repository_panel = "<p class=\"empty\">Repository metadata is not available.</p>"
+        repository_panel = '<p class="empty">Repository metadata is not available.</p>'
     else:
         heading = _value(repository.alias or repository.repository_id)
         repository_panel = f"""
@@ -95,7 +95,7 @@ async def repository_detail(
                 <h1>{heading}</h1>
                 <p class="muted">Repository status and recent ingestion history.</p>
             </div>
-            <a class="button-link" href="/repositories/{quote(repository_id, safe='')}">JSON</a>
+            <a class="button-link" href="/repositories/{quote(repository_id, safe="")}">JSON</a>
         </section>
         <section class="grid">
             <div class="panel">
@@ -311,15 +311,19 @@ def _repository_table(repositories: list, *, detailed: bool = False) -> str:
     if not repositories:
         return '<p class="empty">No repositories have been indexed.</p>'
 
-    optional_heading = "<th class=\"optional\">Root</th>" if detailed else ""
+    optional_heading = '<th class="optional">Root</th>' if detailed else ""
     rows = []
     for repository in repositories:
         identity = repository.alias or repository.repository_id
         href = f"/ui/repositories/{quote(repository.repository_id, safe='')}"
-        optional_cell = f"<td class=\"optional\">{_value(repository.root_path)}</td>" if detailed else ""
+        optional_cell = (
+            f'<td class="optional">{_value(repository.root_path)}</td>'
+            if detailed
+            else ""
+        )
         rows.append(
             "<tr>"
-            f"<td><a href=\"{href}\">{_value(identity)}</a><br><span class=\"muted\">{_value(repository.repository_id)}</span></td>"
+            f'<td><a href="{href}">{_value(identity)}</a><br><span class="muted">{_value(repository.repository_id)}</span></td>'
             f"<td>{_value(repository.node_count)}</td>"
             f"<td>{_value(repository.relationship_count)}</td>"
             f"<td>{_value(repository.content_count)}</td>"
@@ -342,20 +346,20 @@ def _run_table(runs: list) -> str:
         repo_href = f"/ui/repositories/{quote(run.repository_id, safe='')}"
         rows.append(
             "<tr>"
-            f"<td>{_value(run.run_id)}<br><span class=\"muted\">{_value(run.language)} / {_value(run.parser_name)}</span></td>"
-            f"<td><a href=\"{repo_href}\">{_value(run.repository_id)}</a></td>"
+            f'<td>{_value(run.run_id)}<br><span class="muted">{_value(run.language)} / {_value(run.parser_name)}</span></td>'
+            f'<td><a href="{repo_href}">{_value(run.repository_id)}</a></td>'
             f"<td>{_badge(run.stage)}</td>"
             f"<td>{_value(run.node_count)}</td>"
             f"<td>{_value(run.relationship_count)}</td>"
             f"<td>{_value(run.content_count)}</td>"
-            f"<td class=\"optional\">{_value(run.started_at)}</td>"
-            f"<td class=\"optional\">{_value(run.finished_at)}</td>"
+            f'<td class="optional">{_value(run.started_at)}</td>'
+            f'<td class="optional">{_value(run.finished_at)}</td>'
             "</tr>"
         )
     return (
         "<table><thead><tr><th>Run</th><th>Repository</th><th>Stage</th><th>Nodes</th>"
-        "<th>Edges</th><th>Content</th><th class=\"optional\">Started</th>"
-        f"<th class=\"optional\">Finished</th></tr></thead><tbody>{''.join(rows)}</tbody></table>"
+        '<th>Edges</th><th>Content</th><th class="optional">Started</th>'
+        f'<th class="optional">Finished</th></tr></thead><tbody>{"".join(rows)}</tbody></table>'
     )
 
 
@@ -381,17 +385,17 @@ def _search_results(results: object | None) -> str:
     items = []
     for hit in hits:
         location = f"{hit.file_path}:{hit.start_line}-{hit.end_line}"
-        preview = f"<p class=\"preview\">{_value(hit.preview)}</p>" if hit.preview else ""
+        preview = f'<p class="preview">{_value(hit.preview)}</p>' if hit.preview else ""
         items.append(
-            "<article class=\"result\">"
-            "<div class=\"result-title\">"
-            f"<div><strong>{_value(location)}</strong><br><span class=\"muted\">{_value(hit.node_id)}</span></div>"
-            f"<div>{_badge(hit.kind)} <span class=\"muted\">{hit.score:.3f}</span></div>"
+            '<article class="result">'
+            '<div class="result-title">'
+            f'<div><strong>{_value(location)}</strong><br><span class="muted">{_value(hit.node_id)}</span></div>'
+            f'<div>{_badge(hit.kind)} <span class="muted">{hit.score:.3f}</span></div>'
             "</div>"
             f"{preview}"
             "</article>"
         )
-    return f"<div class=\"result-list\">{''.join(items)}</div>"
+    return f'<div class="result-list">{"".join(items)}</div>'
 
 
 def _badge(value: object | None) -> str:

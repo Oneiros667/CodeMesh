@@ -37,7 +37,9 @@ class QueryEmbeddingProvider:
                 response.raise_for_status()
                 payload = response.json()
 
-            if self._settings.embedding_model not in _listed_model_ids(provider, payload):
+            if self._settings.embedding_model not in _listed_model_ids(
+                provider, payload
+            ):
                 return {
                     "provider": provider,
                     "url": self._base_url(provider),
@@ -52,7 +54,10 @@ class QueryEmbeddingProvider:
                 "embedding_model": self._settings.embedding_model,
                 "status": "healthy",
             }
-        except (httpx.HTTPError, ValueError) as exc:  # pragma: no cover - depends on local model service state
+        except (
+            httpx.HTTPError,
+            ValueError,
+        ) as exc:  # pragma: no cover - depends on local model service state
             return {
                 "provider": provider,
                 "url": self._base_url(provider),
@@ -79,7 +84,9 @@ class QueryEmbeddingProvider:
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(f"{self._ollama_url()}/api/embed", json=body)
+                response = await client.post(
+                    f"{self._ollama_url()}/api/embed", json=body
+                )
                 if response.status_code in {404, 405}:
                     return await self._embed_ollama_legacy(query, client)
                 response.raise_for_status()
@@ -101,7 +108,9 @@ class QueryEmbeddingProvider:
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(f"{self._lm_studio_url()}/embeddings", json=body)
+                response = await client.post(
+                    f"{self._lm_studio_url()}/embeddings", json=body
+                )
                 response.raise_for_status()
                 payload = response.json()
         except httpx.HTTPError:
@@ -114,7 +123,9 @@ class QueryEmbeddingProvider:
         first = min(data, key=lambda item: int(item.get("index") or 0))
         return [float(value) for value in first.get("embedding") or []]
 
-    async def _embed_ollama_legacy(self, query: str, client: httpx.AsyncClient) -> list[float]:
+    async def _embed_ollama_legacy(
+        self, query: str, client: httpx.AsyncClient
+    ) -> list[float]:
         try:
             response = await client.post(
                 f"{self._ollama_url()}/api/embeddings",

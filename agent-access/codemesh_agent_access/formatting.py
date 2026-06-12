@@ -14,10 +14,20 @@ _RELATIONSHIP_GROUP_LABELS = {
 }
 
 
-def format_context_package_for_agent(package: dict[str, Any], max_characters: int | None = None) -> str:
+def format_context_package_for_agent(
+    package: dict[str, Any], max_characters: int | None = None
+) -> str:
     query = package.get("query") if isinstance(package.get("query"), dict) else {}
-    repository = package.get("repository") if isinstance(package.get("repository"), dict) else None
-    latest_run = package.get("latest_run") if isinstance(package.get("latest_run"), dict) else None
+    repository = (
+        package.get("repository")
+        if isinstance(package.get("repository"), dict)
+        else None
+    )
+    latest_run = (
+        package.get("latest_run")
+        if isinstance(package.get("latest_run"), dict)
+        else None
+    )
     items = package.get("items") if isinstance(package.get("items"), list) else []
 
     lines = [
@@ -25,9 +35,13 @@ def format_context_package_for_agent(package: dict[str, Any], max_characters: in
         f"Query: {_value(query.get('query'))}",
     ]
     if repository:
-        lines.append(f"Repository: {_value(repository.get('repository_id'))} ({_value(repository.get('root_path'))})")
+        lines.append(
+            f"Repository: {_value(repository.get('repository_id'))} ({_value(repository.get('root_path'))})"
+        )
     if latest_run:
-        lines.append(f"Latest run: {_value(latest_run.get('run_id'))} {_value(latest_run.get('stage'))}")
+        lines.append(
+            f"Latest run: {_value(latest_run.get('run_id'))} {_value(latest_run.get('stage'))}"
+        )
     lines.append(f"Items: {len(items)}")
 
     for index, item in enumerate(items, start=1):
@@ -37,7 +51,9 @@ def format_context_package_for_agent(package: dict[str, Any], max_characters: in
         hit = item.get("hit") if isinstance(item.get("hit"), dict) else {}
         node = item.get("node") if isinstance(item.get("node"), dict) else {}
         span = node.get("span") if isinstance(node.get("span"), dict) else {}
-        rationale = item.get("rationale") if isinstance(item.get("rationale"), dict) else {}
+        rationale = (
+            item.get("rationale") if isinstance(item.get("rationale"), dict) else {}
+        )
 
         lines.extend(
             [
@@ -52,7 +68,9 @@ def format_context_package_for_agent(package: dict[str, Any], max_characters: in
         )
 
         content = item.get("content") if isinstance(item.get("content"), dict) else None
-        content_hash = hit.get("content_hash") or (content.get("hash") if content else None)
+        content_hash = hit.get("content_hash") or (
+            content.get("hash") if content else None
+        )
         lines.append(f"   Content hash: {_value(content_hash)}")
 
         rationale_line = _rationale_line(rationale)
@@ -103,7 +121,11 @@ def _relationship_lines(groups: Any) -> list[str]:
         if not isinstance(relationships, list) or not relationships:
             continue
 
-        refs = [_relationship_ref(relationship) for relationship in relationships if isinstance(relationship, dict)]
+        refs = [
+            _relationship_ref(relationship)
+            for relationship in relationships
+            if isinstance(relationship, dict)
+        ]
         refs = [ref for ref in refs if ref]
         if refs:
             lines.append(f"     {label}: {'; '.join(refs)}")
@@ -112,7 +134,9 @@ def _relationship_lines(groups: Any) -> list[str]:
 
 
 def _relationship_ref(relationship: dict[str, Any]) -> str:
-    other = relationship.get("other") if isinstance(relationship.get("other"), dict) else {}
+    other = (
+        relationship.get("other") if isinstance(relationship.get("other"), dict) else {}
+    )
     name = _value(other.get("name") or other.get("node_id"))
     kind = _value(other.get("kind"))
     location = _relationship_location(other)
@@ -139,7 +163,9 @@ def _rationale_line(rationale: dict[str, Any]) -> str:
     score_components = rationale.get("score_components")
     if isinstance(score_components, dict) and score_components:
         components = sorted(score_components.items(), key=lambda item: item[0])
-        component_text = ", ".join(f"{key}={_score(value)}" for key, value in components[:5])
+        component_text = ", ".join(
+            f"{key}={_score(value)}" for key, value in components[:5]
+        )
         parts.append(f"score_components[{component_text}]")
 
     return "; ".join(parts)

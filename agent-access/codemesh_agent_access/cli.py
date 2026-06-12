@@ -16,28 +16,42 @@ def main() -> None:
     subcommands = parser.add_subparsers(dest="command", required=True)
     subcommands.add_parser("rest", help="Run the REST API.")
     subcommands.add_parser("mcp", help="Run the MCP server over stdio.")
-    subcommands.add_parser("mcp-manifest", help="Print the MCP tool contract manifest JSON.")
+    subcommands.add_parser(
+        "mcp-manifest", help="Print the MCP tool contract manifest JSON."
+    )
     subcommands.add_parser("status", help="Print Agent Access status JSON.")
-    guidance_parser = subcommands.add_parser("tool-guidance", help="Recommend CodeMesh tools for a task.")
-    guidance_parser.add_argument("task", nargs="?", help="Optional natural-language task to rank guidance.")
-    search_parser = subcommands.add_parser("search", help="Search stored CodeMesh context.")
+    guidance_parser = subcommands.add_parser(
+        "tool-guidance", help="Recommend CodeMesh tools for a task."
+    )
+    guidance_parser.add_argument(
+        "task", nargs="?", help="Optional natural-language task to rank guidance."
+    )
+    search_parser = subcommands.add_parser(
+        "search", help="Search stored CodeMesh context."
+    )
     search_parser.add_argument("query")
     search_parser.add_argument("--repository-id")
     search_parser.add_argument("--limit", type=int, default=8)
     search_parser.add_argument("--kind", action="append", default=[])
-    search_parser.add_argument("--filter", action="append", default=[], metavar="KEY=VALUE")
+    search_parser.add_argument(
+        "--filter", action="append", default=[], metavar="KEY=VALUE"
+    )
     search_parser.add_argument("--no-expand-context", action="store_true")
     search_parser.add_argument("--context-depth", type=int, default=4)
     search_parser.add_argument("--include-context-relationships", action="store_true")
     search_parser.add_argument("--context-relationship-limit", type=int, default=8)
 
-    package_parser = subcommands.add_parser("package", help="Build an agent-ready context package.")
+    package_parser = subcommands.add_parser(
+        "package", help="Build an agent-ready context package."
+    )
     package_parser.add_argument("query")
     package_parser.add_argument("--repository-id")
     package_parser.add_argument("--limit", type=int, default=8)
     package_parser.add_argument("--max-characters", type=int, default=12000)
     package_parser.add_argument("--kind", action="append", default=[])
-    package_parser.add_argument("--filter", action="append", default=[], metavar="KEY=VALUE")
+    package_parser.add_argument(
+        "--filter", action="append", default=[], metavar="KEY=VALUE"
+    )
     package_parser.add_argument("--context-depth", type=int, default=4)
     package_parser.add_argument("--no-content", action="store_true")
     package_parser.add_argument("--no-relationships", action="store_true")
@@ -52,39 +66,57 @@ def main() -> None:
     package_parser.add_argument("--uses-type-limit", type=int)
     package_parser.add_argument("--output", choices=["json", "agent"], default="json")
 
-    symbols_parser = subcommands.add_parser("symbols", help="Search indexed CodeMesh symbols.")
+    symbols_parser = subcommands.add_parser(
+        "symbols", help="Search indexed CodeMesh symbols."
+    )
     symbols_parser.add_argument("query")
     symbols_parser.add_argument("--repository-id")
     symbols_parser.add_argument("--limit", type=int, default=20)
     symbols_parser.add_argument("--kind", action="append", default=[])
-    symbols_parser.add_argument("--filter", action="append", default=[], metavar="KEY=VALUE")
+    symbols_parser.add_argument(
+        "--filter", action="append", default=[], metavar="KEY=VALUE"
+    )
     symbols_parser.add_argument("--no-declarations", action="store_true")
 
-    node_parser = subcommands.add_parser("get-node", help="Fetch a stored CodeMesh node.")
+    node_parser = subcommands.add_parser(
+        "get-node", help="Fetch a stored CodeMesh node."
+    )
     node_parser.add_argument("node_id")
     node_parser.add_argument("--repository-id")
     node_parser.add_argument("--no-content", action="store_true")
     node_parser.add_argument("--no-neighbors", action="store_true")
 
-    neighbors_parser = subcommands.add_parser("neighbors", help="Fetch relationships around a stored CodeMesh node.")
+    neighbors_parser = subcommands.add_parser(
+        "neighbors", help="Fetch relationships around a stored CodeMesh node."
+    )
     neighbors_parser.add_argument("node_id")
     neighbors_parser.add_argument("--repository-id")
     neighbors_parser.add_argument("--depth", type=int, default=1)
     neighbors_parser.add_argument("--relationship-kind", action="append", default=[])
 
-    repos_parser = subcommands.add_parser("repos", help="List indexed CodeMesh repositories.")
+    repos_parser = subcommands.add_parser(
+        "repos", help="List indexed CodeMesh repositories."
+    )
     repos_parser.add_argument("--limit", type=int, default=50)
 
-    repo_parser = subcommands.add_parser("repo", help="Fetch an indexed CodeMesh repository.")
+    repo_parser = subcommands.add_parser(
+        "repo", help="Fetch an indexed CodeMesh repository."
+    )
     repo_parser.add_argument("repository_id")
 
-    repo_status_parser = subcommands.add_parser("repo-status", help="Fetch repository status and freshness diagnostics.")
+    repo_status_parser = subcommands.add_parser(
+        "repo-status", help="Fetch repository status and freshness diagnostics."
+    )
     repo_status_parser.add_argument("repository_id")
 
-    delete_repo_parser = subcommands.add_parser("delete-repo", help="Delete an indexed CodeMesh repository from all stores.")
+    delete_repo_parser = subcommands.add_parser(
+        "delete-repo", help="Delete an indexed CodeMesh repository from all stores."
+    )
     delete_repo_parser.add_argument("repository_id")
 
-    summaries_parser = subcommands.add_parser("summaries", help="Fetch generated node summary coverage.")
+    summaries_parser = subcommands.add_parser(
+        "summaries", help="Fetch generated node summary coverage."
+    )
     summaries_parser.add_argument("repository_id")
 
     runs_parser = subcommands.add_parser("runs", help="List CodeMesh ingestion runs.")
@@ -95,7 +127,9 @@ def main() -> None:
     settings = Settings.from_env()
 
     if args.command == "rest":
-        uvicorn.run("codemesh_agent_access.rest:app", host=settings.host, port=settings.port)
+        uvicorn.run(
+            "codemesh_agent_access.rest:app", host=settings.host, port=settings.port
+        )
         return
 
     if args.command == "mcp":
@@ -157,7 +191,11 @@ def main() -> None:
             )
         )
         if args.output == "agent":
-            print(format_context_package_for_agent(result.data, max_characters=args.max_characters))
+            print(
+                format_context_package_for_agent(
+                    result.data, max_characters=args.max_characters
+                )
+            )
             return
         print(json.dumps(result.model_dump(mode="json"), indent=2))
         return
@@ -226,7 +264,11 @@ def main() -> None:
         return
 
     if args.command == "runs":
-        result = asyncio.run(tools.list_ingestion_runs(repository_id=args.repository_id, limit=args.limit))
+        result = asyncio.run(
+            tools.list_ingestion_runs(
+                repository_id=args.repository_id, limit=args.limit
+            )
+        )
         print(json.dumps(result.model_dump(mode="json"), indent=2))
         return
 

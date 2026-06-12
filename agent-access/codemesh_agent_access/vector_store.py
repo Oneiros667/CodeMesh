@@ -22,7 +22,9 @@ class QdrantSearchClient:
                 "collection": self._settings.qdrant_collection,
                 "status": "healthy",
             }
-        except httpx.HTTPError as exc:  # pragma: no cover - depends on local store state
+        except (
+            httpx.HTTPError
+        ) as exc:  # pragma: no cover - depends on local store state
             return {
                 "url": self._settings.qdrant_url,
                 "collection": self._settings.qdrant_collection,

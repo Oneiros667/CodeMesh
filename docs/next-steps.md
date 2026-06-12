@@ -4,6 +4,33 @@ CodeMesh already has an Agent Access surface with REST, MCP tools, CLI commands,
 
 This document prioritizes the features that would make CodeMesh effective as an MCP service used by AI agents, including agents analyzing CodeMesh itself.
 
+## Current Project State Review
+
+Review date: 2026-06-12.
+
+Recent completed work:
+
+- Local-first MCP readiness: self-ingestion, MCP setup docs, repository freshness/status, redaction, Python parsing, and Markdown parsing are implemented.
+- Human inspection: Agent Access serves a local read-only UI at `/ui` for service health, repositories, repository status, ingestion runs, and context search.
+- Agent packaging: `agent_text` context packages include stable item metadata, rationale, snippets before relationships, and budget-aware truncation.
+- Agent guidance: `codemesh_get_tool_guidance` and `uv run python -m codemesh_agent_access tool-guidance "<task>"` recommend tool workflows for common agent tasks.
+- Incremental ingestion internals exist for graph, content, vectors, and summaries, including skipped unchanged records and stale cleanup.
+
+Current state:
+
+- P0 baseline items are implemented enough for dependable local MCP use.
+- P1 agent-usefulness items are implemented enough for active dogfooding, though Python and Markdown relationship richness can still improve.
+- The largest remaining gap is operational freshness: agents can check stale status, and ingestion is incremental internally, but there is not yet a simple refresh/watch workflow that keeps the current repository current during normal development.
+
+Current priority judgment:
+
+1. Build an agent-friendly refresh workflow on top of existing incremental ingestion internals.
+2. Start runtime/deployment artifact ingestion with Dockerfile and Docker Compose before Helm.
+3. Add test and validation context so context packages can recommend relevant checks.
+4. Add an MCP evaluation suite to prevent regressions in search, packages, freshness, and redaction.
+5. Deepen parser relationships for Python imports/routes/MCP handlers and Markdown cross-links.
+6. Strengthen secret-file exclusion and configurable allow/deny policy before broad SDLC artifact ingestion.
+
 ## P0 - Required For A Dependable MCP Baseline
 
 ### 1. Self-Ingestion Workflow
@@ -209,9 +236,17 @@ MCP tools are most effective when agents can select them without trial and error
 
 Add a convenient way to keep an indexed repository close to current.
 
+Current implementation:
+
+- Ingestion already performs incremental graph, content, vector, and summary writes where supported.
+- Existing tests cover unchanged-record skips, forced embedding rebuilds, unchanged-summary skips, and stale cleanup.
+- Ingestion result stats report parsed, written, skipped, and summary counts.
+- There is no first-class `refresh` command, watch loop, or Agent Access-visible refresh activity state yet.
+
 Expected outcome:
 
-- A watch command or cheap refresh command for the current repository.
+- A cheap `refresh` command for the current repository that reuses existing incremental ingestion behavior.
+- A watch command after refresh semantics are stable.
 - Incremental parse/write behavior that is fast enough for normal development loops.
 - Status diagnostics showing when a refresh is running, completed, failed, or skipped.
 
@@ -223,9 +258,15 @@ Agents work against changing files. Manual full ingestion before every useful qu
 
 Implement the first slice of the SDLC roadmap for production-aware context.
 
+Current implementation:
+
+- `docs/sdlc-roadmap.md` defines target runtime/deployment artifacts and graph concepts.
+- CodeMesh has Docker Compose and Dockerfile assets for its own runtime, but they are not yet parsed as first-class graph nodes.
+- Existing Markdown ingestion can index deployment docs structurally, but it does not extract Docker, Compose, Kubernetes, or Helm semantics.
+
 Expected outcome:
 
-- Structured ingestion for Dockerfiles, Docker Compose, and Helm charts.
+- Structured ingestion for Dockerfiles and Docker Compose first, then Helm charts and Kubernetes manifests.
 - Nodes and relationships for images, services, ports, environment variables, volumes, deployments, services, ingress, and dependencies.
 - Agent queries that connect code to runtime configuration and deployment files.
 
@@ -236,6 +277,12 @@ Many agent tasks involve changing behavior that is controlled by container, envi
 ### 12. Test And Validation Context
 
 Connect implementation nodes to the tests and commands that validate them.
+
+Current implementation:
+
+- `docs/testing.md` documents the main .NET, Python, and smoke verification commands.
+- The repository has broad .NET and Python tests, but test files and validation commands are not represented as graph context.
+- Context packages do not yet recommend validation commands for touched code.
 
 Expected outcome:
 
@@ -250,6 +297,11 @@ Agents should not only modify code; they should know how to verify the change.
 ### 13. Evaluation Suite For MCP Use Cases
 
 Add repeatable scenarios that measure whether CodeMesh helps agents.
+
+Current implementation:
+
+- Unit and contract tests cover store behavior, ranking, MCP contracts, REST contracts, CLI output, parsers, redaction, and ingestion.
+- There is no small benchmark set that asserts minimum useful results for representative agent tasks against CodeMesh itself.
 
 Expected outcome:
 
@@ -304,13 +356,13 @@ Useful agents need to follow local engineering process, not only compile code.
 
 ## Near-Term Recommended Order
 
-1. Build the self-ingestion workflow and MCP setup guide.
-2. Add MCP freshness diagnostics and secret redaction.
-3. Add Python parser support for `agent-access`.
-4. Add Markdown documentation ingestion.
-5. Add the local web inspection UI for human validation of ingestion state.
-6. Harden context package output and tool descriptions.
-7. Add incremental refresh support.
-8. Start runtime/deployment ingestion with Dockerfile, Docker Compose, and Helm.
+1. Add a `refresh` command or documented preset for the current repository using existing incremental ingestion internals.
+2. Surface refresh activity and last refresh outcome through repository status and the local UI.
+3. Start runtime/deployment ingestion with Dockerfile and Docker Compose.
+4. Add test and validation context, including graph nodes for test files/cases and context-package validation recommendations.
+5. Add an MCP evaluation suite with representative self-analysis scenarios and minimum useful-result assertions.
+6. Deepen Python and Markdown relationship extraction where it improves self-analysis and MCP packages.
+7. Add configurable sensitive-file exclusion and allow/deny policy before broadening SDLC artifact ingestion.
+8. Continue runtime/deployment ingestion into Helm and Kubernetes manifests.
 
-This order makes CodeMesh useful as an MCP service before expanding the SDLC graph too broadly.
+This order keeps CodeMesh useful as a local MCP service while moving from basic context access toward production-aware, validation-aware agent workflows.

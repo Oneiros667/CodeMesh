@@ -27,7 +27,11 @@ _TOOL_NAMES = [
 
 _SEARCH_CONTEXT_ARGUMENTS: dict[str, dict[str, Any]] = {
     "query": {"type": "string", "required": True},
-    "repository_id": {"type": "string|null", "default": None, "description": "Repository hash id or alias."},
+    "repository_id": {
+        "type": "string|null",
+        "default": None,
+        "description": "Repository hash id or alias.",
+    },
     "limit": {"type": "integer", "default": 8},
     "kinds": {"type": "string[]|null", "default": None},
     "filters": {"type": "object|null", "default": None},
@@ -48,7 +52,11 @@ _TOOL_GUIDANCE_ARGUMENTS: dict[str, dict[str, Any]] = {
 
 _CONTEXT_PACKAGE_ARGUMENTS: dict[str, dict[str, Any]] = {
     "query": {"type": "string", "required": True},
-    "repository_id": {"type": "string|null", "default": None, "description": "Repository hash id or alias."},
+    "repository_id": {
+        "type": "string|null",
+        "default": None,
+        "description": "Repository hash id or alias.",
+    },
     "limit": {"type": "integer", "default": 8},
     "max_characters": {"type": "integer", "default": 12000},
     "kinds": {"type": "string[]|null", "default": None},
@@ -71,7 +79,11 @@ _CONTEXT_PACKAGE_ARGUMENTS: dict[str, dict[str, Any]] = {
 
 _SYMBOL_SEARCH_ARGUMENTS: dict[str, dict[str, Any]] = {
     "query": {"type": "string", "required": True},
-    "repository_id": {"type": "string|null", "default": None, "description": "Repository hash id or alias."},
+    "repository_id": {
+        "type": "string|null",
+        "default": None,
+        "description": "Repository hash id or alias.",
+    },
     "limit": {"type": "integer", "default": 20},
     "kinds": {"type": "string[]|null", "default": None},
     "filters": {"type": "object|null", "default": None},
@@ -80,14 +92,22 @@ _SYMBOL_SEARCH_ARGUMENTS: dict[str, dict[str, Any]] = {
 
 _NODE_ARGUMENTS: dict[str, dict[str, Any]] = {
     "node_id": {"type": "string", "required": True},
-    "repository_id": {"type": "string|null", "default": None, "description": "Repository hash id or alias."},
+    "repository_id": {
+        "type": "string|null",
+        "default": None,
+        "description": "Repository hash id or alias.",
+    },
     "include_content": {"type": "boolean", "default": True},
     "include_neighbors": {"type": "boolean", "default": True},
 }
 
 _NEIGHBOR_ARGUMENTS: dict[str, dict[str, Any]] = {
     "node_id": {"type": "string", "required": True},
-    "repository_id": {"type": "string|null", "default": None, "description": "Repository hash id or alias."},
+    "repository_id": {
+        "type": "string|null",
+        "default": None,
+        "description": "Repository hash id or alias.",
+    },
     "depth": {"type": "integer", "default": 1},
     "relationship_kinds": {"type": "string[]|null", "default": None},
 }
@@ -97,24 +117,48 @@ _LIST_REPOSITORIES_ARGUMENTS: dict[str, dict[str, Any]] = {
 }
 
 _GET_REPOSITORY_ARGUMENTS: dict[str, dict[str, Any]] = {
-    "repository_id": {"type": "string", "required": True, "description": "Repository hash id or alias."},
+    "repository_id": {
+        "type": "string",
+        "required": True,
+        "description": "Repository hash id or alias.",
+    },
 }
 
 _GET_REPOSITORY_STATUS_ARGUMENTS: dict[str, dict[str, Any]] = {
-    "repository_id": {"type": "string", "required": True, "description": "Repository hash id or alias."},
+    "repository_id": {
+        "type": "string",
+        "required": True,
+        "description": "Repository hash id or alias.",
+    },
 }
 
 _DELETE_REPOSITORY_ARGUMENTS: dict[str, dict[str, Any]] = {
-    "repository_id": {"type": "string", "required": True, "description": "Repository hash id or alias."},
-    "confirm": {"type": "boolean", "default": False, "description": "Must be true to delete indexed repository data."},
+    "repository_id": {
+        "type": "string",
+        "required": True,
+        "description": "Repository hash id or alias.",
+    },
+    "confirm": {
+        "type": "boolean",
+        "default": False,
+        "description": "Must be true to delete indexed repository data.",
+    },
 }
 
 _SUMMARY_COVERAGE_ARGUMENTS: dict[str, dict[str, Any]] = {
-    "repository_id": {"type": "string", "required": True, "description": "Repository hash id or alias."},
+    "repository_id": {
+        "type": "string",
+        "required": True,
+        "description": "Repository hash id or alias.",
+    },
 }
 
 _LIST_RUNS_ARGUMENTS: dict[str, dict[str, Any]] = {
-    "repository_id": {"type": "string|null", "default": None, "description": "Repository hash id or alias."},
+    "repository_id": {
+        "type": "string|null",
+        "default": None,
+        "description": "Repository hash id or alias.",
+    },
     "limit": {"type": "integer", "default": 50},
 }
 
@@ -263,7 +307,9 @@ def build_server() -> Any:
     try:
         from mcp.server.fastmcp import FastMCP
     except ImportError as exc:
-        raise RuntimeError("The `mcp` package is required to run the CodeMesh MCP server.") from exc
+        raise RuntimeError(
+            "The `mcp` package is required to run the CodeMesh MCP server."
+        ) from exc
 
     server = FastMCP("codemesh-agent-access")
 
@@ -353,7 +399,9 @@ def build_server() -> Any:
         )
         payload = result.model_dump(mode="json")
         if output_format == "agent":
-            payload["agent_text"] = format_context_package_for_agent(result.data, max_characters=max_characters)
+            payload["agent_text"] = format_context_package_for_agent(
+                result.data, max_characters=max_characters
+            )
         return payload
 
     @server.tool()
@@ -424,10 +472,14 @@ def build_server() -> Any:
     @server.tool()
     async def codemesh_get_repository_status(repository_id: str) -> dict[str, Any]:
         """Fetch repository status, counts, latest run, summary coverage, and freshness diagnostics."""
-        return (await tools.get_repository_status(repository_id)).model_dump(mode="json")
+        return (await tools.get_repository_status(repository_id)).model_dump(
+            mode="json"
+        )
 
     @server.tool()
-    async def codemesh_delete_repository(repository_id: str, confirm: bool = False) -> dict[str, Any]:
+    async def codemesh_delete_repository(
+        repository_id: str, confirm: bool = False
+    ) -> dict[str, Any]:
         """Delete one indexed CodeMesh repository. Requires confirm=true."""
         if not confirm:
             return {
@@ -449,7 +501,9 @@ def build_server() -> Any:
         limit: int = 50,
     ) -> dict[str, Any]:
         """List CodeMesh ingestion runs, optionally scoped to a repository."""
-        return (await tools.list_ingestion_runs(repository_id=repository_id, limit=limit)).model_dump(mode="json")
+        return (
+            await tools.list_ingestion_runs(repository_id=repository_id, limit=limit)
+        ).model_dump(mode="json")
 
     return server
 

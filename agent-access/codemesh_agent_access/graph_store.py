@@ -31,7 +31,9 @@ class Neo4jGraphStore:
 
         try:
             driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
+            async with driver.session(
+                database=self._settings.neo4j_database
+            ) as session:
                 result = await session.run("RETURN 1 AS ok")
                 await result.consume()
 
@@ -48,13 +50,17 @@ class Neo4jGraphStore:
                 "detail": str(exc),
             }
 
-    async def get_node_properties(self, node_id: str, repository_id: str | None = None) -> dict[str, Any] | None:
+    async def get_node_properties(
+        self, node_id: str, repository_id: str | None = None
+    ) -> dict[str, Any] | None:
         if _load_async_graph_database() is None:
             return None
 
         try:
             driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
+            async with driver.session(
+                database=self._settings.neo4j_database
+            ) as session:
                 if repository_id:
                     result = await session.run(
                         "MATCH (n:CodeMeshNode {storageKey: $storage_key}) RETURN properties(n) AS node LIMIT 1",
@@ -88,7 +94,9 @@ class Neo4jGraphStore:
 
         try:
             driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
+            async with driver.session(
+                database=self._settings.neo4j_database
+            ) as session:
                 result = await session.run(
                     """
                     MATCH (n:CodeMeshNode)
@@ -144,7 +152,9 @@ class Neo4jGraphStore:
 
         try:
             driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
+            async with driver.session(
+                database=self._settings.neo4j_database
+            ) as session:
                 result = await session.run(query, **parameters)
                 records = await result.data()
         except Exception:
@@ -191,7 +201,9 @@ class Neo4jGraphStore:
 
         try:
             driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
+            async with driver.session(
+                database=self._settings.neo4j_database
+            ) as session:
                 result = await session.run(query, **parameters)
                 records = await result.data()
         except Exception:
@@ -233,7 +245,9 @@ class Neo4jGraphStore:
 
         try:
             driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
+            async with driver.session(
+                database=self._settings.neo4j_database
+            ) as session:
                 result = await session.run(query, **parameters)
                 record = await result.single()
         except Exception:
@@ -285,7 +299,9 @@ class Neo4jGraphStore:
 
         try:
             driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
+            async with driver.session(
+                database=self._settings.neo4j_database
+            ) as session:
                 result = await session.run(query, **parameters)
                 records = await result.data()
         except Exception:
@@ -311,7 +327,9 @@ class Neo4jGraphStore:
 
         try:
             driver = self._neo4j()
-            async with driver.session(database=self._settings.neo4j_database) as session:
+            async with driver.session(
+                database=self._settings.neo4j_database
+            ) as session:
                 result = await session.run(
                     """
                     MATCH (n:CodeMeshNode)
@@ -388,7 +406,9 @@ def _load_async_graph_database() -> Any | None:
             return _load_async_graph_database_without_windows_wmi()
 
         from neo4j import AsyncGraphDatabase as loaded
-    except ImportError:  # pragma: no cover - exercised only when dependencies are missing
+    except (
+        ImportError
+    ):  # pragma: no cover - exercised only when dependencies are missing
         AsyncGraphDatabase = None
     else:
         AsyncGraphDatabase = loaded
@@ -407,7 +427,9 @@ def _load_async_graph_database_without_windows_wmi() -> Any | None:
         platform.release = lambda: "unknown"
         platform.machine = lambda: "unknown"
         from neo4j import AsyncGraphDatabase as loaded
-    except ImportError:  # pragma: no cover - exercised only when dependencies are missing
+    except (
+        ImportError
+    ):  # pragma: no cover - exercised only when dependencies are missing
         return None
     finally:
         platform.system = original_system

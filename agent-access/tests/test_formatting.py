@@ -104,7 +104,10 @@ def test_format_context_package_for_agent_emits_compact_brief() -> None:
     assert "Repository ID: repo:test" in text
     assert "Score: 0.812; rank 1" in text
     assert "Content hash: method-body" in text
-    assert "Rationale: expanded=true; score_components[kind_weight=0.100, vector_score=0.700]" in text
+    assert (
+        "Rationale: expanded=true; score_components[kind_weight=0.100, vector_score=0.700]"
+        in text
+    )
     assert "Summary: Downloads subtitles for a video URL." in text
     assert "Callers: Main (Method, in, Program.cs:8-16)" in text
     assert "Callees: Normalize (Method, out, Downloader.cs:26-28)" in text
@@ -113,7 +116,9 @@ def test_format_context_package_for_agent_emits_compact_brief() -> None:
 
 
 def test_format_context_package_for_agent_handles_empty_packages() -> None:
-    text = format_context_package_for_agent({"query": {"query": "missing"}, "items": []})
+    text = format_context_package_for_agent(
+        {"query": {"query": "missing"}, "items": []}
+    )
 
     assert text == "CodeMesh context package\nQuery: missing\nItems: 0"
 
