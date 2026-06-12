@@ -152,7 +152,30 @@ Why it matters:
 
 Search is useful for discovery, but agents need packaged context that can be trusted and pasted into reasoning without manual cleanup.
 
-### 8. Query Planning And Tool Guidance
+### 8. Local Web Inspection UI
+
+Add a local, read-only web interface for humans to inspect CodeMesh state without switching between CLI, REST JSON, and MCP clients.
+
+Current implementation:
+
+- `/ui` shows service health, repository summaries, recent ingestion runs, and a search form.
+- `/ui/repositories` lists indexed repositories.
+- `/ui/repositories/{repository_id}` shows repository freshness, counts, metadata, and recent runs.
+- `/ui/runs` shows ingestion history with optional repository filtering.
+- `/ui/search` provides read-only context search over the existing Agent Access store.
+
+Expected outcome:
+
+- A local-first dashboard served by the Agent Access FastAPI service.
+- Clear visibility into ingestion state, freshness, repository counts, and recent failures.
+- Search and inspection workflows that help humans validate what agents will see through MCP.
+- Future write actions, such as triggering ingestion or deleting repositories, gated behind explicit local controls and stronger access rules if exposed remotely.
+
+Why it matters:
+
+Agents need reliable context, and humans need a quick way to audit whether that context is fresh, complete, and safe before delegating work.
+
+### 9. Query Planning And Tool Guidance
 
 Help agents choose the right CodeMesh tool for a task.
 
@@ -168,7 +191,7 @@ MCP tools are most effective when agents can select them without trial and error
 
 ## P2 - Production-Grade MCP Reliability
 
-### 9. Watch Or Incremental Refresh Mode
+### 10. Watch Or Incremental Refresh Mode
 
 Add a convenient way to keep an indexed repository close to current.
 
@@ -182,7 +205,7 @@ Why it matters:
 
 Agents work against changing files. Manual full ingestion before every useful query is too heavy.
 
-### 10. Runtime And Deployment Artifact Ingestion
+### 11. Runtime And Deployment Artifact Ingestion
 
 Implement the first slice of the SDLC roadmap for production-aware context.
 
@@ -196,7 +219,7 @@ Why it matters:
 
 Many agent tasks involve changing behavior that is controlled by container, environment, or deployment configuration.
 
-### 11. Test And Validation Context
+### 12. Test And Validation Context
 
 Connect implementation nodes to the tests and commands that validate them.
 
@@ -210,7 +233,7 @@ Why it matters:
 
 Agents should not only modify code; they should know how to verify the change.
 
-### 12. Evaluation Suite For MCP Use Cases
+### 13. Evaluation Suite For MCP Use Cases
 
 Add repeatable scenarios that measure whether CodeMesh helps agents.
 
@@ -226,7 +249,7 @@ Agent usefulness is easy to degrade accidentally. Evaluation keeps the MCP servi
 
 ## P3 - Broader SDLC Intelligence
 
-### 13. API Contract And Database Migration Ingestion
+### 14. API Contract And Database Migration Ingestion
 
 Add structured parsers for compatibility-critical artifacts.
 
@@ -239,7 +262,7 @@ Why it matters:
 
 Agents need to understand compatibility boundaries before changing public APIs or persisted data.
 
-### 14. Observability And Runbook Context
+### 15. Observability And Runbook Context
 
 Index operational diagnostics and support artifacts.
 
@@ -252,7 +275,7 @@ Why it matters:
 
 Production-aware agents should know how a change is monitored and how failures are diagnosed.
 
-### 15. Ownership And Review Metadata
+### 16. Ownership And Review Metadata
 
 Index collaboration rules that shape safe changes.
 
@@ -271,8 +294,9 @@ Useful agents need to follow local engineering process, not only compile code.
 2. Add MCP freshness diagnostics and secret redaction.
 3. Add Python parser support for `agent-access`.
 4. Add Markdown documentation ingestion.
-5. Harden context package output and tool descriptions.
-6. Add incremental refresh support.
-7. Start runtime/deployment ingestion with Dockerfile, Docker Compose, and Helm.
+5. Add the local web inspection UI for human validation of ingestion state.
+6. Harden context package output and tool descriptions.
+7. Add incremental refresh support.
+8. Start runtime/deployment ingestion with Dockerfile, Docker Compose, and Helm.
 
 This order makes CodeMesh useful as an MCP service before expanding the SDLC graph too broadly.

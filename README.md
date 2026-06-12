@@ -249,6 +249,7 @@ CODEMESH_EMBEDDING_MODEL=text-embedding-nomic-embed-text-v2-moe
 ## Service Endpoints
 
 - Agent Access REST: `http://localhost:8088`
+- Agent Access local UI: `http://localhost:8088/ui`
 - C# parser worker: `http://localhost:8091`
 - Neo4j browser: `http://localhost:7474`
 - Qdrant HTTP: `http://127.0.0.1:6333`
@@ -271,6 +272,14 @@ REST endpoints:
 - `GET /repositories/{repository_id}/status`
 - `DELETE /repositories/{repository_id}`
 - `GET /ingestion-runs`
+
+Human-facing local UI routes:
+
+- `GET /ui`
+- `GET /ui/repositories`
+- `GET /ui/repositories/{repository_id}`
+- `GET /ui/runs`
+- `GET /ui/search`
 
 MCP tools:
 

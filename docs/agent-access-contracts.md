@@ -2,10 +2,13 @@
 
 Agent Access exposes the same read surface through REST, MCP tools, and the typed .NET client in `CodeMesh.Control.AgentAccess.AgentAccessClient`.
 
+It also serves a local read-only web UI at `/ui` for humans to inspect service health, repositories, repository freshness, ingestion runs, and context search results. The UI reuses the REST read store and is not a separate write surface.
+
 Source-of-truth implementations:
 
 - REST models: `agent-access/codemesh_agent_access/models.py`
 - REST routes: `agent-access/codemesh_agent_access/rest.py`
+- Local UI routes: `agent-access/codemesh_agent_access/web.py`
 - MCP manifest: `agent-access/codemesh_agent_access/mcp.py`
 - .NET contracts: `src/CodeMesh.Domain/Contracts/AgentAccessContracts.cs`
 
@@ -32,6 +35,18 @@ Filters are exact-match string filters. They can match top-level node fields or 
 | `GET` | `/repositories/{repository_id}/status` | route value | `RepositoryStatusResponse` | `GetRepositoryStatusAsync` |
 | `DELETE` | `/repositories/{repository_id:path}` | route value | `RepositoryDeleteResponse` | `DeleteRepositoryAsync` |
 | `GET` | `/ingestion-runs?repository_id=&limit=50` | query string | `IngestionRunListResponse` | `ListIngestionRunsAsync` |
+
+## Local Web UI
+
+These routes return HTML for human inspection and reuse the same read paths as the REST API:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/ui` | Dashboard with service health, repository summaries, recent runs, and search controls. |
+| `GET` | `/ui/repositories` | Repository list. |
+| `GET` | `/ui/repositories/{repository_id:path}` | Repository freshness, counts, metadata, and recent runs. |
+| `GET` | `/ui/runs?repository_id=` | Ingestion run history with optional repository filtering. |
+| `GET` | `/ui/search?query=&repository_id=&limit=12` | Read-only context search results. |
 
 ## Context Search
 

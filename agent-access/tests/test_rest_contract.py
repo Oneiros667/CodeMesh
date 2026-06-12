@@ -197,6 +197,42 @@ def test_rest_symbols_node_neighbors_and_registry_shapes() -> None:
     assert store.runs_limit == 2
 
 
+def test_rest_ui_routes_render_existing_store_state() -> None:
+    store = FakeRestStore()
+
+    with rest_client(store) as client:
+        dashboard = client.get("/ui")
+        repositories = client.get("/ui/repositories")
+        repository = client.get("/ui/repositories/sample_repo")
+        runs = client.get("/ui/runs", params={"repository_id": "sample_repo"})
+        search = client.get("/ui/search", params={"query": "download", "repository_id": "repo:test"})
+
+    assert dashboard.status_code == 200
+    assert "CodeMesh" in dashboard.text
+    assert "Recent Ingestion Runs" in dashboard.text
+
+    assert repositories.status_code == 200
+    assert "sample_repo" in repositories.text
+    assert "repo:test" in repositories.text
+
+    assert repository.status_code == 200
+    assert "Freshness" in repository.text
+    assert "graph_nodes" in repository.text
+    assert "run:test" in repository.text
+    assert store.status_repository_ids == ["sample_repo"]
+
+    assert runs.status_code == 200
+    assert "run:test" in runs.text
+    assert store.runs_repository_id == "sample_repo"
+
+    assert search.status_code == 200
+    assert "Downloader.cs:10-20" in search.text
+    assert "node:download" in search.text
+    assert store.context_query is not None
+    assert store.context_query.expand_context is False
+    assert store.context_query.repository_id == "repo:test"
+
+
 def rest_client(store: "FakeRestStore") -> TestClient:
     app.dependency_overrides[get_store] = lambda: store
     return RestClient(app)

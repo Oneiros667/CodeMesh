@@ -25,6 +25,7 @@ from .models import (
 )
 from .store import CodeMeshReadStore
 from .dependencies import close_store, get_store
+from .web import router as web_router
 
 
 @asynccontextmanager
@@ -41,6 +42,7 @@ app = FastAPI(
     description="REST API for AI agents to read CodeMesh graph, content, and vector intelligence.",
     lifespan=lifespan,
 )
+app.include_router(web_router)
 
 
 @app.get("/health", response_model=HealthResponse)
