@@ -11,6 +11,7 @@ from .formatting import format_context_package_for_agent
 
 _TOOL_NAMES = [
     "codemesh_status",
+    "codemesh_get_tool_guidance",
     "codemesh_search_context",
     "codemesh_get_context_package",
     "codemesh_search_symbols",
@@ -35,6 +36,14 @@ _SEARCH_CONTEXT_ARGUMENTS: dict[str, dict[str, Any]] = {
     "context_depth": {"type": "integer", "default": 4},
     "include_context_relationships": {"type": "boolean", "default": False},
     "context_relationship_limit": {"type": "integer", "default": 8},
+}
+
+_TOOL_GUIDANCE_ARGUMENTS: dict[str, dict[str, Any]] = {
+    "task": {
+        "type": "string|null",
+        "default": None,
+        "description": "Optional natural-language task to rank CodeMesh tool workflows.",
+    },
 }
 
 _CONTEXT_PACKAGE_ARGUMENTS: dict[str, dict[str, Any]] = {
@@ -124,8 +133,20 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
         "description": "Return CodeMesh Agent Access health and configured read endpoints.",
         "arguments": {},
     },
+    "codemesh_get_tool_guidance": {
+        "description": "Recommend which CodeMesh MCP tools to use for a natural-language agent task.",
+        "arguments": _TOOL_GUIDANCE_ARGUMENTS,
+        "response": {
+            "fields": [
+                "task",
+                "recommended_workflows",
+                "available_tools",
+                "default_start",
+            ],
+        },
+    },
     "codemesh_search_context": {
-        "description": "Search CodeMesh context for code relevant to an agent task.",
+        "description": "Use for natural-language discovery of relevant code, docs, summaries, and indexed content before packaging context.",
         "arguments": _SEARCH_CONTEXT_ARGUMENTS,
         "response": {
             "diagnostics": [
@@ -146,7 +167,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
         },
     },
     "codemesh_get_context_package": {
-        "description": "Build an agent-ready context package with snippets, relationships, and repository metadata.",
+        "description": "Use before implementation work to build an agent-ready package with snippets, relationships, repository metadata, and rationale.",
         "arguments": _CONTEXT_PACKAGE_ARGUMENTS,
         "response": {
             "relationship_groups": list(_RELATIONSHIP_GROUPS),
@@ -154,19 +175,19 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
         },
     },
     "codemesh_search_symbols": {
-        "description": "Search indexed CodeMesh symbols by name, id, display signature, namespace, or file path.",
+        "description": "Use when a class, method, function, file, endpoint, or symbol-like name is known.",
         "arguments": _SYMBOL_SEARCH_ARGUMENTS,
     },
     "codemesh_get_node": {
-        "description": "Fetch a CodeMesh node with optional content and immediate relationships.",
+        "description": "Use after search or symbol lookup when the exact node id is known and content or immediate relationships are needed.",
         "arguments": _NODE_ARGUMENTS,
     },
     "codemesh_get_neighbors": {
-        "description": "Fetch relationships around a CodeMesh node.",
+        "description": "Use to inspect callers, callees, reads, writes, containment, and other relationships around a known node.",
         "arguments": _NEIGHBOR_ARGUMENTS,
     },
     "codemesh_list_repositories": {
-        "description": "List repositories indexed by CodeMesh.",
+        "description": "Use first when the repository id or generated alias is unknown.",
         "arguments": _LIST_REPOSITORIES_ARGUMENTS,
     },
     "codemesh_get_repository": {
@@ -174,7 +195,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
         "arguments": _GET_REPOSITORY_ARGUMENTS,
     },
     "codemesh_get_repository_status": {
-        "description": "Fetch repository status, counts, latest ingestion run, summary coverage, and local git freshness diagnostics.",
+        "description": "Use before trusting context to check counts, latest ingestion run, summary coverage, and local git freshness.",
         "arguments": _GET_REPOSITORY_STATUS_ARGUMENTS,
         "response": {
             "fields": [
@@ -250,6 +271,11 @@ def build_server() -> Any:
     async def codemesh_status() -> dict[str, Any]:
         """Return CodeMesh Agent Access health and configured read endpoints."""
         return (await tools.status()).model_dump(mode="json")
+
+    @server.tool()
+    async def codemesh_get_tool_guidance(task: str | None = None) -> dict[str, Any]:
+        """Recommend which CodeMesh MCP tools to use for a natural-language agent task."""
+        return (await tools.tool_guidance(task=task)).model_dump(mode="json")
 
     @server.tool()
     async def codemesh_search_context(

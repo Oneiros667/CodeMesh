@@ -2,11 +2,16 @@ from __future__ import annotations
 
 from .dependencies import get_store
 from .models import ContextPackageQuery, ContextQuery, NeighborQuery, NodeLookup, SymbolQuery, ToolResult
+from .tool_guidance import get_tool_guidance
 
 
 async def status() -> ToolResult:
     health = await get_store().health()
     return ToolResult(data=health.model_dump(mode="json"))
+
+
+async def tool_guidance(task: str | None = None) -> ToolResult:
+    return ToolResult(data=get_tool_guidance(task))
 
 
 async def search_context(

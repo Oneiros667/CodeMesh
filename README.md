@@ -284,6 +284,7 @@ Human-facing local UI routes:
 MCP tools:
 
 - `codemesh_status`
+- `codemesh_get_tool_guidance`
 - `codemesh_search_context`
 - `codemesh_get_context_package`
 - `codemesh_search_symbols`
@@ -296,7 +297,7 @@ MCP tools:
 - `codemesh_get_summary_coverage`
 - `codemesh_list_ingestion_runs`
 
-`codemesh_search_context` and `codemesh_get_context_package` accept the same core query controls as REST: `repository_id`, `kinds`, `filters`, explicit `vector` values, and context expansion limits. `codemesh_get_context_package` also accepts `output_format = "agent"` to include an `agent_text` brief alongside the structured package. `codemesh_search_symbols` searches indexed symbols by name, id, display signature, namespace, or file path, and can include each symbol's primary declaration node. `codemesh_get_neighbors` accepts `relationship_kinds` when callers need to limit the relationship types returned.
+`codemesh_get_tool_guidance` recommends which CodeMesh tools to use for common agent tasks such as freshness checks, implementation discovery, symbol lookup, relationship inspection, and package building. `codemesh_search_context` and `codemesh_get_context_package` accept the same core query controls as REST: `repository_id`, `kinds`, `filters`, explicit `vector` values, and context expansion limits. `codemesh_get_context_package` also accepts `output_format = "agent"` to include an `agent_text` brief alongside the structured package. `codemesh_search_symbols` searches indexed symbols by name, id, display signature, namespace, or file path, and can include each symbol's primary declaration node. `codemesh_get_neighbors` accepts `relationship_kinds` when callers need to limit the relationship types returned.
 
 See [Agent Access Contracts](docs/agent-access-contracts.md) for the REST, MCP, and .NET client contract reference.
 

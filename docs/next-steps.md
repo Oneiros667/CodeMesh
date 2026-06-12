@@ -186,6 +186,13 @@ Agents need reliable context, and humans need a quick way to audit whether that 
 
 Help agents choose the right CodeMesh tool for a task.
 
+Current implementation:
+
+- `codemesh_get_tool_guidance` recommends tool workflows for optional natural-language task text.
+- `uv run python -m codemesh_agent_access tool-guidance "<task>"` exposes the same guidance through the Python CLI.
+- The MCP manifest descriptions now say when to use search, context packages, symbol search, node lookup, neighbors, repository listing, freshness status, and ingestion runs.
+- Current guidance covers freshness checks, implementation discovery, symbol lookup, relationship inspection, agent context package preparation, operational checks, and explicit repository deletion.
+
 Expected outcome:
 
 - A lightweight MCP tool or doc section that describes when to use context search, context package, symbol search, node lookup, neighbors, repository list, and ingestion runs.

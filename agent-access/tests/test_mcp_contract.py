@@ -94,6 +94,14 @@ def test_mcp_manifest_matches_registered_tools() -> None:
         "generated_at",
     ]
 
+    guidance_contract = manifest["contracts"]["codemesh_get_tool_guidance"]
+    assert guidance_contract["response"]["fields"] == [
+        "task",
+        "recommended_workflows",
+        "available_tools",
+        "default_start",
+    ]
+
 
 def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
     captured: dict[str, Any] = {}
@@ -143,6 +151,22 @@ def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
     assert captured["include_repository"] is False
     assert structured["data"]["arguments"]["read_limit"] == 0
     assert structured["agent_text"].startswith("CodeMesh context package\n")
+
+
+def test_mcp_tool_guidance_ranks_task_workflows() -> None:
+    server = mcp.build_server()
+    _content, structured = asyncio.run(
+        server.call_tool(
+            "codemesh_get_tool_guidance",
+            {"task": "check whether the repository index is stale before editing"},
+        )
+    )
+
+    data = structured["data"]
+    assert data["task"] == "check whether the repository index is stale before editing"
+    assert data["recommended_workflows"][0]["id"] == "check_freshness"
+    assert data["recommended_workflows"][0]["steps"][0]["tool"] == "codemesh_list_repositories"
+    assert "codemesh_get_tool_guidance" in data["available_tools"]
 
 
 def test_mcp_search_and_neighbors_forward_query_controls(monkeypatch: Any) -> None:

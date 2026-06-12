@@ -18,6 +18,8 @@ def main() -> None:
     subcommands.add_parser("mcp", help="Run the MCP server over stdio.")
     subcommands.add_parser("mcp-manifest", help="Print the MCP tool contract manifest JSON.")
     subcommands.add_parser("status", help="Print Agent Access status JSON.")
+    guidance_parser = subcommands.add_parser("tool-guidance", help="Recommend CodeMesh tools for a task.")
+    guidance_parser.add_argument("task", nargs="?", help="Optional natural-language task to rank guidance.")
     search_parser = subcommands.add_parser("search", help="Search stored CodeMesh context.")
     search_parser.add_argument("query")
     search_parser.add_argument("--repository-id")
@@ -106,6 +108,11 @@ def main() -> None:
 
     if args.command == "status":
         result = asyncio.run(tools.status())
+        print(json.dumps(result.model_dump(mode="json"), indent=2))
+        return
+
+    if args.command == "tool-guidance":
+        result = asyncio.run(tools.tool_guidance(task=args.task))
         print(json.dumps(result.model_dump(mode="json"), indent=2))
         return
 

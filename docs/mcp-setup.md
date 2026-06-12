@@ -160,6 +160,7 @@ When Agent Access runs inside Docker, use the `CODEMESH_AGENT_*` values from `.e
 ## Useful MCP Tools
 
 - `codemesh_status`: check service and store health.
+- `codemesh_get_tool_guidance`: recommend which CodeMesh tools to use for a natural-language agent task.
 - `codemesh_list_repositories`: find indexed repositories and aliases.
 - `codemesh_get_repository_status`: inspect latest run, counts, summary coverage, and freshness diagnostics.
 - `codemesh_search_context`: search for relevant implementation context.

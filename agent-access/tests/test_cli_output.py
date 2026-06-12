@@ -81,6 +81,26 @@ def test_search_cli_still_outputs_json(monkeypatch: Any, capsys: Any) -> None:
     assert payload["data"] == {"query": "download", "hits": []}
 
 
+def test_tool_guidance_cli_outputs_ranked_guidance(monkeypatch: Any, capsys: Any) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "codemesh-agent-access",
+            "tool-guidance",
+            "find callers before changing code",
+        ],
+    )
+
+    cli.main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["data"]["task"] == "find callers before changing code"
+    assert payload["data"]["recommended_workflows"][0]["id"] == "inspect_relationships"
+    assert payload["data"]["recommended_workflows"][0]["steps"][0]["tool"] == "codemesh_get_neighbors"
+
+
 def test_symbols_cli_outputs_json(monkeypatch: Any, capsys: Any) -> None:
     captured: dict[str, Any] = {}
 

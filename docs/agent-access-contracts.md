@@ -212,6 +212,7 @@ MCP `codemesh_get_context_package` also accepts `output_format = "agent"`. In th
 MCP tool names:
 
 - `codemesh_status`
+- `codemesh_get_tool_guidance`
 - `codemesh_search_context`
 - `codemesh_get_context_package`
 - `codemesh_search_symbols`
@@ -223,6 +224,8 @@ MCP tool names:
 - `codemesh_delete_repository`
 - `codemesh_get_summary_coverage`
 - `codemesh_list_ingestion_runs`
+
+`codemesh_get_tool_guidance` accepts optional `task` text and returns ranked workflows with recommended tool steps. Use it when an agent has not yet decided whether to search context, inspect freshness, look up a symbol, fetch neighbors, or build a package.
 
 `codemesh_delete_repository` requires `repository_id` and a deliberate `confirm = true` argument before it will call the destructive cleanup path. Without confirmation it returns a failed tool result and leaves stores unchanged.
 
