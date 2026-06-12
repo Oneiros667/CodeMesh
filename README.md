@@ -34,6 +34,7 @@ dotnet run --project src/CodeMesh.Cli -- status
 dotnet run --project src/CodeMesh.Cli -- ingest --root D:\source\repos\YoutubeDownloader --solution D:\source\repos\YoutubeDownloader\YoutubeDownloader.slnx --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- ingest --root . --language markdown --dry-run --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- ingest --root .\agent-access --language python --dry-run --skip-embeddings
+dotnet run --project src/CodeMesh.Cli -- refresh --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- self ingest --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- self smoke --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- repos list
@@ -131,6 +132,15 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
 Summaries are stored in MongoDB `node_summaries` by default and are keyed by repository, node, content hash, summary kind, provider, model, and prompt version. Incremental ingestion skips unchanged completed summaries; use `--force-summaries` to regenerate summaries for unchanged code.
 
 Each successful ingestion run stamps graph, content, vector, and summary records with a repository id and ingestion run id. CodeMesh also writes repository/run registry records to MongoDB so users and agents can discover indexed repositories and recent ingestion history. Repository registry records include a generated alias, for example `YoutubeDownloader` becomes `youtube_downloader`, and read commands accept either the hash id or alias. Incremental ingestion skips unchanged graph/content/vector/summary writes after parsing, then removes stale records from the same repository that were not seen in the current run. If `--skip-embeddings` is used, vector cleanup is skipped so existing embeddings are left untouched.
+
+Use `refresh` during normal development to re-run the same incremental ingestion path for the current repository:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- refresh --skip-embeddings
+dotnet run --project src/CodeMesh.Cli -- refresh --include-summaries --skip-embeddings
+```
+
+`refresh` resolves the current CodeMesh workspace root when run from a nested directory, auto-selects a top-level C# solution when one is unambiguous, and accepts the same ingestion store, embedding, summary, language, project, and output options as `ingest`.
 
 Query the registry:
 

@@ -62,6 +62,21 @@ switch (command)
         }
     }
 
+    case "refresh":
+    {
+        try
+        {
+            var result = await RunRefreshAsync(args).ConfigureAwait(false);
+            PrintIngestionResult(result, json);
+            return HasErrorDiagnostics(result) ? 1 : 0;
+        }
+        catch (Exception exception)
+        {
+            PrintException(exception, json);
+            return 1;
+        }
+    }
+
     case "self":
     {
         try
@@ -300,6 +315,17 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
         summaryProvider);
 
     return await orchestrator.IngestAsync(request).ConfigureAwait(false);
+}
+
+static async Task<IngestionResult> RunRefreshAsync(string[] args)
+{
+    var target = CodeMeshRefreshWorkflow.ResolveTarget(
+        ReadAnyOption(args, "--root", "--repository-root"),
+        ReadAnyOption(args, "--solution", "--solution-path"),
+        ReadAnyOption(args, "--project", "--project-path"),
+        ReadOption(args, "--language"));
+
+    return await RunIngestAsync(CodeMeshRefreshWorkflow.BuildRefreshIngestArgs(args, target)).ConfigureAwait(false);
 }
 
 static async Task<IngestionResult> RunSelfIngestAsync(string[] args)
@@ -1168,6 +1194,7 @@ static void PrintHelp()
     Console.WriteLine("  codemesh doctor [--root <path>] [--json]");
     Console.WriteLine("  codemesh status [--root <path>] [--json]");
     Console.WriteLine("  codemesh ingest [--root <path>] [--solution <path>] [--project <path>] [--language <csharp|markdown|python>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
+    Console.WriteLine("  codemesh refresh [--root <path>] [--solution <path>] [--project <path>] [--language <csharp|markdown|python>] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh self ingest [--dry-run] [--skip-embeddings] [--include-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh self smoke [--agent-access-url <url>] [--skip-embeddings] [--query <text>] [--json]");
     Console.WriteLine("  codemesh embeddings verify <repository-id-or-alias> [--embedding-provider <provider>] [--embedding-model <model>] [--json]");

@@ -24,6 +24,8 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("sha256 helper is deterministic", TestHash),
     ("environment file loader fills missing variables", TestEnvironmentFileLoaderFillsMissingVariables),
+    ("refresh workflow resolves repository root", TestRefreshWorkflowResolvesRepositoryRoot),
+    ("refresh workflow normalizes ingest arguments", TestRefreshWorkflowNormalizesIngestArguments),
     ("self workflow resolves repository root", TestSelfWorkflowResolvesRepositoryRoot),
     ("self workflow normalizes ingest arguments", TestSelfWorkflowNormalizesIngestArguments),
     ("self workflow rejects invalid roots", TestSelfWorkflowRejectsInvalidRoots),
@@ -138,6 +140,78 @@ static Task TestEnvironmentFileLoaderFillsMissingVariables()
         Environment.SetEnvironmentVariable(quotedKey, null);
         Environment.SetEnvironmentVariable(existingKey, null);
 
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    return Task.CompletedTask;
+}
+
+static Task TestRefreshWorkflowResolvesRepositoryRoot()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-refresh-root-test-{Guid.NewGuid():N}");
+    var nested = Path.Combine(root, "src", "Nested");
+    var solution = Path.Combine(root, "Sample.sln");
+
+    try
+    {
+        Directory.CreateDirectory(nested);
+        File.WriteAllText(solution, string.Empty);
+
+        var target = CodeMeshRefreshWorkflow.ResolveTarget(nested);
+
+        Equal(root, target.RootPath, "Refresh workflow did not walk up to the repository root.");
+        Equal(solution, target.SolutionPath ?? string.Empty, "Refresh workflow did not default to the repository solution.");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    return Task.CompletedTask;
+}
+
+static Task TestRefreshWorkflowNormalizesIngestArguments()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-refresh-args-test-{Guid.NewGuid():N}");
+    var solution = Path.Combine(root, "Sample.sln");
+
+    try
+    {
+        Directory.CreateDirectory(root);
+        File.WriteAllText(solution, string.Empty);
+
+        var target = CodeMeshRefreshWorkflow.ResolveTarget(root);
+        var args = CodeMeshRefreshWorkflow.BuildRefreshIngestArgs(
+            [
+                "refresh",
+                "--root",
+                "ignored",
+                "--solution",
+                "ignored.sln",
+                "--skip-embeddings",
+                "--force-embeddings",
+                "--include-summaries",
+                "--json"
+            ],
+            target);
+
+        Equal("ingest", args[0], "Refresh workflow did not normalize to the ingest command.");
+        Equal(false, args.Contains("refresh"), "Refresh workflow leaked the refresh command into ingest args.");
+        Equal(true, args.Contains("--skip-embeddings"), "Refresh workflow removed an ingestion flag.");
+        Equal(true, args.Contains("--force-embeddings"), "Refresh workflow removed an embedding flag.");
+        Equal(true, args.Contains("--include-summaries"), "Refresh workflow removed a summary flag.");
+        Equal(true, args.Contains("--json"), "Refresh workflow removed json output flag.");
+        Equal(root, args[Array.LastIndexOf(args, "--root") + 1], "Refresh workflow did not inject the resolved root.");
+        Equal(solution, args[Array.LastIndexOf(args, "--solution") + 1], "Refresh workflow did not inject the resolved solution.");
+    }
+    finally
+    {
         if (Directory.Exists(root))
         {
             Directory.Delete(root, recursive: true);

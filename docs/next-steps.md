@@ -15,16 +15,17 @@ Recent completed work:
 - Agent packaging: `agent_text` context packages include stable item metadata, rationale, snippets before relationships, and budget-aware truncation.
 - Agent guidance: `codemesh_get_tool_guidance` and `uv run python -m codemesh_agent_access tool-guidance "<task>"` recommend tool workflows for common agent tasks.
 - Incremental ingestion internals exist for graph, content, vectors, and summaries, including skipped unchanged records and stale cleanup.
+- `codemesh refresh` provides a first-class local command over the existing incremental ingestion path for the current repository.
 
 Current state:
 
 - P0 baseline items are implemented enough for dependable local MCP use.
 - P1 agent-usefulness items are implemented enough for active dogfooding, though Python and Markdown relationship richness can still improve.
-- The largest remaining gap is operational freshness: agents can check stale status, and ingestion is incremental internally, but there is not yet a simple refresh/watch workflow that keeps the current repository current during normal development.
+- The largest remaining gap is operational freshness: agents can manually refresh the current repository, but there is not yet a watch workflow or Agent Access-visible refresh activity state.
 
 Current priority judgment:
 
-1. Build an agent-friendly refresh workflow on top of existing incremental ingestion internals.
+1. Surface refresh activity and last refresh outcome through repository status and the local UI.
 2. Start runtime/deployment artifact ingestion with Dockerfile and Docker Compose before Helm.
 3. Add test and validation context so context packages can recommend relevant checks.
 4. Add an MCP evaluation suite to prevent regressions in search, packages, freshness, and redaction.
@@ -241,7 +242,9 @@ Current implementation:
 - Ingestion already performs incremental graph, content, vector, and summary writes where supported.
 - Existing tests cover unchanged-record skips, forced embedding rebuilds, unchanged-summary skips, and stale cleanup.
 - Ingestion result stats report parsed, written, skipped, and summary counts.
-- There is no first-class `refresh` command, watch loop, or Agent Access-visible refresh activity state yet.
+- `dotnet run --project src/CodeMesh.Cli -- refresh --skip-embeddings` reuses the incremental ingestion path for the current repository.
+- `refresh` resolves the current CodeMesh workspace root when run from nested directories and auto-selects a top-level C# solution when one is unambiguous.
+- There is not yet a watch loop or Agent Access-visible refresh activity state.
 
 Expected outcome:
 
@@ -356,8 +359,8 @@ Useful agents need to follow local engineering process, not only compile code.
 
 ## Near-Term Recommended Order
 
-1. Add a `refresh` command or documented preset for the current repository using existing incremental ingestion internals.
-2. Surface refresh activity and last refresh outcome through repository status and the local UI.
+1. Surface refresh activity and last refresh outcome through repository status and the local UI.
+2. Add a watch command after refresh semantics are stable.
 3. Start runtime/deployment ingestion with Dockerfile and Docker Compose.
 4. Add test and validation context, including graph nodes for test files/cases and context-package validation recommendations.
 5. Add an MCP evaluation suite with representative self-analysis scenarios and minimum useful-result assertions.

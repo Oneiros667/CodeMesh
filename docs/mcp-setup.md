@@ -33,6 +33,12 @@ For CodeMesh itself:
 dotnet run --project src/CodeMesh.Cli -- self ingest --skip-embeddings
 ```
 
+After the first ingestion, refresh the current repository during normal development with:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- refresh --skip-embeddings
+```
+
 For the configured sample:
 
 ```powershell
