@@ -31,6 +31,14 @@ Run a dry-run parse without writing stores:
 dotnet run --project src/CodeMesh.Cli -- self ingest --dry-run --skip-embeddings
 ```
 
+Keep the local CodeMesh index close to current during development:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- watch --skip-embeddings
+```
+
+Use `--run-once` or `--max-runs <count>` when a bounded refresh loop is needed for automation.
+
 Index CodeMesh runtime/deployment artifacts:
 
 ```powershell

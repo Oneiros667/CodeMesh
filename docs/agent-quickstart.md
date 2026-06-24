@@ -25,7 +25,7 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. It i
 - `src/CodeMesh.Parser.Markdown`: local Markdown parser for documents, sections, anchors, and heading containment.
 - `src/CodeMesh.Parser.Python`: local Python parser for files, classes, functions, async functions, and containment.
 - `src/CodeMesh.Storage`: Neo4j, MongoDB, Qdrant, and in-memory storage adapters.
-- `src/CodeMesh.Control`: status checks, environment loading, and Agent Access .NET client.
+- `src/CodeMesh.Control`: status checks, environment loading, refresh/watch workflow helpers, and Agent Access .NET client.
 - `src/CodeMesh.Cli`: command-line entry point.
 - `agent-access`: Python REST, MCP, CLI, ranking, formatting, and store read paths.
 - `tests/CodeMesh.Tests`: .NET integration and contract test harness.

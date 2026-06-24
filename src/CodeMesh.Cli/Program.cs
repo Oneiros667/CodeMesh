@@ -78,6 +78,19 @@ switch (command)
         }
     }
 
+    case "watch":
+    {
+        try
+        {
+            return await RunWatchAsync(args, json).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            PrintException(exception, json);
+            return 1;
+        }
+    }
+
     case "self":
     {
         try
@@ -327,6 +340,59 @@ static async Task<IngestionResult> RunRefreshAsync(string[] args)
         ReadOption(args, "--language"));
 
     return await RunIngestAsync(CodeMeshRefreshWorkflow.BuildRefreshIngestArgs(args, target)).ConfigureAwait(false);
+}
+
+static async Task<int> RunWatchAsync(string[] args, bool json)
+{
+    var target = CodeMeshRefreshWorkflow.ResolveTarget(
+        ReadAnyOption(args, "--root", "--repository-root"),
+        ReadAnyOption(args, "--solution", "--solution-path"),
+        ReadAnyOption(args, "--project", "--project-path"),
+        ReadOption(args, "--language"));
+    var ingestArgs = CodeMeshWatchWorkflow.BuildWatchRefreshArgs(args, target);
+    var pollSeconds = Math.Max(1, ReadIntOption(args, "--poll-seconds", 2));
+    var maxRuns = ReadOptionalIntOption(args, "--max-runs");
+    var runOnce = HasFlag(args, "--run-once");
+    var runCount = 0;
+    var hasError = false;
+
+    if (!json)
+    {
+        Console.WriteLine($"Watching {target.RootPath}");
+        Console.WriteLine($"Polling every {pollSeconds} second(s). Press Ctrl+C to stop.");
+    }
+
+    var snapshot = CodeMeshWatchWorkflow.CreateSnapshot(target.RootPath);
+    while (true)
+    {
+        var result = await RunIngestAsync(ingestArgs).ConfigureAwait(false);
+        PrintIngestionResult(result, json);
+        hasError = hasError || HasErrorDiagnostics(result);
+        runCount++;
+
+        if (runOnce || (maxRuns.HasValue && runCount >= maxRuns.Value))
+        {
+            return hasError ? 1 : 0;
+        }
+
+        while (true)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(pollSeconds)).ConfigureAwait(false);
+            var current = CodeMeshWatchWorkflow.CreateSnapshot(target.RootPath);
+            if (!CodeMeshWatchWorkflow.HasChanges(snapshot, current))
+            {
+                continue;
+            }
+
+            snapshot = current;
+            if (!json)
+            {
+                Console.WriteLine("Change detected. Refreshing index...");
+            }
+
+            break;
+        }
+    }
 }
 
 static async Task<IngestionResult> RunSelfIngestAsync(string[] args)
@@ -770,6 +836,12 @@ static int ReadIntOption(string[] args, string name, int defaultValue)
     return int.TryParse(value, out var parsed) ? parsed : defaultValue;
 }
 
+static int? ReadOptionalIntOption(string[] args, string name)
+{
+    var value = ReadOption(args, name);
+    return int.TryParse(value, out var parsed) ? parsed : null;
+}
+
 static (string User, string Password) ReadNeo4jCredentials(string[] args)
 {
     var user = ReadOption(args, "--neo4j-user") ?? Environment.GetEnvironmentVariable("CODEMESH_NEO4J_USER");
@@ -1198,6 +1270,7 @@ static void PrintHelp()
     Console.WriteLine("  codemesh status [--root <path>] [--json]");
     Console.WriteLine("  codemesh ingest [--root <path>] [--solution <path>] [--project <path>] [--language <csharp|deployment|markdown|python>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh refresh [--root <path>] [--solution <path>] [--project <path>] [--language <csharp|deployment|markdown|python>] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
+    Console.WriteLine("  codemesh watch [--root <path>] [--solution <path>] [--project <path>] [--language <csharp|deployment|markdown|python>] [--poll-seconds <seconds>] [--max-runs <count>] [--run-once] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh self ingest [--dry-run] [--skip-embeddings] [--include-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh self smoke [--agent-access-url <url>] [--skip-embeddings] [--query <text>] [--json]");
     Console.WriteLine("  codemesh embeddings verify <repository-id-or-alias> [--embedding-provider <provider>] [--embedding-model <model>] [--json]");

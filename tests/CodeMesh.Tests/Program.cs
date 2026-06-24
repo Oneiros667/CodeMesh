@@ -27,6 +27,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("environment file loader fills missing variables", TestEnvironmentFileLoaderFillsMissingVariables),
     ("refresh workflow resolves repository root", TestRefreshWorkflowResolvesRepositoryRoot),
     ("refresh workflow normalizes ingest arguments", TestRefreshWorkflowNormalizesIngestArguments),
+    ("watch workflow normalizes refresh arguments", TestWatchWorkflowNormalizesRefreshArguments),
+    ("watch workflow detects file changes", TestWatchWorkflowDetectsFileChanges),
     ("self workflow resolves repository root", TestSelfWorkflowResolvesRepositoryRoot),
     ("self workflow normalizes ingest arguments", TestSelfWorkflowNormalizesIngestArguments),
     ("self workflow rejects invalid roots", TestSelfWorkflowRejectsInvalidRoots),
@@ -212,6 +214,93 @@ static Task TestRefreshWorkflowNormalizesIngestArguments()
         Equal(true, args.Contains("--json"), "Refresh workflow removed json output flag.");
         Equal(root, args[Array.LastIndexOf(args, "--root") + 1], "Refresh workflow did not inject the resolved root.");
         Equal(solution, args[Array.LastIndexOf(args, "--solution") + 1], "Refresh workflow did not inject the resolved solution.");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    return Task.CompletedTask;
+}
+
+static Task TestWatchWorkflowNormalizesRefreshArguments()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-watch-args-test-{Guid.NewGuid():N}");
+    var solution = Path.Combine(root, "Sample.sln");
+
+    try
+    {
+        Directory.CreateDirectory(root);
+        File.WriteAllText(solution, string.Empty);
+
+        var target = CodeMeshRefreshWorkflow.ResolveTarget(root);
+        var args = CodeMeshWatchWorkflow.BuildWatchRefreshArgs(
+            [
+                "watch",
+                "--root",
+                "ignored",
+                "--solution",
+                "ignored.sln",
+                "--poll-seconds",
+                "1",
+                "--max-runs",
+                "2",
+                "--run-once",
+                "--skip-embeddings",
+                "--include-summaries",
+                "--json"
+            ],
+            target);
+
+        Equal("ingest", args[0], "Watch workflow did not normalize to the ingest command.");
+        Equal(false, args.Contains("watch"), "Watch workflow leaked the watch command into ingest args.");
+        Equal(false, args.Contains("--poll-seconds"), "Watch workflow leaked poll configuration into ingest args.");
+        Equal(false, args.Contains("--max-runs"), "Watch workflow leaked run limit configuration into ingest args.");
+        Equal(false, args.Contains("--run-once"), "Watch workflow leaked run-once configuration into ingest args.");
+        Equal(true, args.Contains("--skip-embeddings"), "Watch workflow removed an ingestion flag.");
+        Equal(true, args.Contains("--include-summaries"), "Watch workflow removed a summary flag.");
+        Equal(true, args.Contains("--json"), "Watch workflow removed json output flag.");
+        Equal(root, args[Array.LastIndexOf(args, "--root") + 1], "Watch workflow did not inject the resolved root.");
+        Equal(solution, args[Array.LastIndexOf(args, "--solution") + 1], "Watch workflow did not inject the resolved solution.");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    return Task.CompletedTask;
+}
+
+static Task TestWatchWorkflowDetectsFileChanges()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-watch-snapshot-test-{Guid.NewGuid():N}");
+    var file = Path.Combine(root, "src", "Sample.cs");
+    var ignoredDirectory = Path.Combine(root, "bin");
+
+    try
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+        Directory.CreateDirectory(ignoredDirectory);
+        File.WriteAllText(file, "one");
+
+        var first = CodeMeshWatchWorkflow.CreateSnapshot(root);
+        var unchanged = CodeMeshWatchWorkflow.CreateSnapshot(root);
+
+        File.WriteAllText(file, "one two");
+        var changed = CodeMeshWatchWorkflow.CreateSnapshot(root);
+
+        File.WriteAllText(Path.Combine(ignoredDirectory, "Generated.cs"), "ignored");
+        var ignoredChange = CodeMeshWatchWorkflow.CreateSnapshot(root);
+
+        Equal(false, CodeMeshWatchWorkflow.HasChanges(first, unchanged), "Watch workflow reported changes for identical snapshots.");
+        Equal(true, CodeMeshWatchWorkflow.HasChanges(first, changed), "Watch workflow did not detect a changed file.");
+        Equal(false, CodeMeshWatchWorkflow.HasChanges(changed, ignoredChange), "Watch workflow did not ignore generated directories.");
     }
     finally
     {

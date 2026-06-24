@@ -16,6 +16,7 @@ Recent completed work:
 - Agent guidance: `codemesh_get_tool_guidance` and `uv run python -m codemesh_agent_access tool-guidance "<task>"` recommend tool workflows for common agent tasks.
 - Incremental ingestion internals exist for graph, content, vectors, and summaries, including skipped unchanged records and stale cleanup.
 - `codemesh refresh` provides a first-class local command over the existing incremental ingestion path for the current repository.
+- `codemesh watch` runs an initial refresh, polls the repository for file changes, and refreshes again when source files change.
 - Repository status and the local repository detail UI show a derived latest refresh outcome, including skipped, completed, failed, dry-run, running, no-run, and recommended-action states.
 - `src/CodeMesh.Parser.Deployment` provides first-slice Dockerfile and Docker Compose ingestion for stages, services, ports, environment keys, volumes, and service dependencies.
 - Context packages include validation recommendations inferred from packaged file paths, covering .NET tests, Agent Access Python tests/lint, deployment dry-runs, smoke checks, and Markdown dry-runs.
@@ -24,16 +25,16 @@ Current state:
 
 - P0 baseline items are implemented enough for dependable local MCP use.
 - P1 agent-usefulness items are implemented enough for active dogfooding, though Python and Markdown relationship richness can still improve.
-- The largest remaining gap is operational freshness automation: agents can manually refresh the current repository and inspect the latest outcome, but there is not yet a watch workflow.
+- Operational freshness is covered for local development by manual refresh and a local watch command. The largest remaining gap is now a repeatable MCP evaluation suite that protects search, context packaging, freshness, and redaction behavior from regressions.
 
 Current priority judgment:
 
-1. Add a watch command after refresh semantics are stable.
-2. Add an MCP evaluation suite to prevent regressions in search, packages, freshness, and redaction.
-3. Deepen test and validation context with first-class test files/cases and relationships to implementation nodes.
-4. Deepen deployment ingestion with Kubernetes/Helm and code-to-runtime links.
-5. Deepen parser relationships for Python imports/routes/MCP handlers and Markdown cross-links.
-6. Strengthen secret-file exclusion and configurable allow/deny policy before broad SDLC artifact ingestion.
+1. Add an MCP evaluation suite to prevent regressions in search, packages, freshness, and redaction.
+2. Deepen test and validation context with first-class test files/cases and relationships to implementation nodes.
+3. Deepen deployment ingestion with Kubernetes/Helm and code-to-runtime links.
+4. Deepen parser relationships for Python imports/routes/MCP handlers and Markdown cross-links.
+5. Strengthen secret-file exclusion and configurable allow/deny policy before broad SDLC artifact ingestion.
+6. Improve watch ergonomics with optional native file-system events and UI visibility for active watches.
 
 ## P0 - Required For A Dependable MCP Baseline
 
@@ -247,13 +248,15 @@ Current implementation:
 - Ingestion result stats report parsed, written, skipped, and summary counts.
 - `dotnet run --project src/CodeMesh.Cli -- refresh --skip-embeddings` reuses the incremental ingestion path for the current repository.
 - `refresh` resolves the current CodeMesh workspace root when run from nested directories and auto-selects a top-level C# solution when one is unambiguous.
+- `dotnet run --project src/CodeMesh.Cli -- watch --skip-embeddings` runs an initial refresh and then refreshes again after repository file changes.
+- `watch` supports `--poll-seconds`, `--max-runs`, and `--run-once` for local use and bounded automation.
 - `GET /repositories/{repository_id}/status`, `codemesh_get_repository_status`, and `/ui/repositories/{repository_id}` show a derived `refresh` block for the latest run.
-- There is not yet a watch loop.
+- The current watch loop is CLI-local and polling-based; native file-system events and UI visibility remain future improvements.
 
 Expected outcome:
 
 - A cheap `refresh` command for the current repository that reuses existing incremental ingestion behavior.
-- A watch command after refresh semantics are stable.
+- A local watch command after refresh semantics are stable.
 - Incremental parse/write behavior that is fast enough for normal development loops.
 - Status diagnostics showing when a refresh is running, completed, failed, or skipped.
 
@@ -368,11 +371,11 @@ Useful agents need to follow local engineering process, not only compile code.
 
 ## Near-Term Recommended Order
 
-1. Add a watch command after refresh semantics are stable.
-2. Add an MCP evaluation suite with representative self-analysis scenarios and minimum useful-result assertions.
-3. Deepen test and validation context with first-class test files/cases and relationships to implementation nodes.
-4. Deepen deployment ingestion into Kubernetes manifests, Helm charts, CI/CD workflows, and code-to-runtime links.
-5. Deepen Python and Markdown relationship extraction where it improves self-analysis and MCP packages.
-6. Add configurable sensitive-file exclusion and allow/deny policy before broadening SDLC artifact ingestion.
+1. Add an MCP evaluation suite with representative self-analysis scenarios and minimum useful-result assertions.
+2. Deepen test and validation context with first-class test files/cases and relationships to implementation nodes.
+3. Deepen deployment ingestion into Kubernetes manifests, Helm charts, CI/CD workflows, and code-to-runtime links.
+4. Deepen Python and Markdown relationship extraction where it improves self-analysis and MCP packages.
+5. Add configurable sensitive-file exclusion and allow/deny policy before broadening SDLC artifact ingestion.
+6. Improve watch ergonomics with optional native file-system events and local UI visibility.
 
 This order keeps CodeMesh useful as a local MCP service while moving from basic context access toward production-aware, validation-aware agent workflows.

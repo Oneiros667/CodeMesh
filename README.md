@@ -37,6 +37,7 @@ dotnet run --project src/CodeMesh.Cli -- ingest --root . --language deployment -
 dotnet run --project src/CodeMesh.Cli -- ingest --root . --language markdown --dry-run --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- ingest --root .\agent-access --language python --dry-run --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- refresh --skip-embeddings
+dotnet run --project src/CodeMesh.Cli -- watch --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- self ingest --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- self smoke --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- repos list
@@ -143,6 +144,16 @@ dotnet run --project src/CodeMesh.Cli -- refresh --include-summaries --skip-embe
 ```
 
 `refresh` resolves the current CodeMesh workspace root when run from a nested directory, auto-selects a top-level C# solution when one is unambiguous, and accepts the same ingestion store, embedding, summary, language, project, and output options as `ingest`.
+
+Use `watch` when you want CodeMesh to run an initial refresh and then refresh again after repository file changes:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- watch --skip-embeddings
+dotnet run --project src/CodeMesh.Cli -- watch --skip-embeddings --poll-seconds 2 --max-runs 3
+dotnet run --project src/CodeMesh.Cli -- watch --dry-run --skip-embeddings --run-once
+```
+
+`watch` uses the same target resolution and ingestion options as `refresh`. It ignores common generated directories such as `.git`, `bin`, `obj`, `node_modules`, `.venv`, `dist`, and `build` when checking for file changes. Use `--run-once` or `--max-runs` for bounded automation.
 
 Index runtime/deployment artifacts with:
 
