@@ -169,6 +169,7 @@ Each `IngestionRunSummary` includes:
 - `repository`: repository metadata when requested and available.
 - `latest_run`: latest ingestion run metadata when requested and available.
 - `items`: package items built from context hits.
+- `validation_recommendations`: local validation commands inferred from packaged file paths.
 - `total_snippet_characters`: total emitted snippet characters.
 
 Each package item includes:
@@ -182,7 +183,9 @@ Each package item includes:
 - `relationship_groups`: grouped summaries for `callers`, `callees`, `reads`, `writes`, `contains`, `defines`, and `uses_types`.
 - `rationale`: ranking and expansion metadata.
 
-MCP `codemesh_get_context_package` also accepts `output_format = "agent"`. In that mode the tool response includes `agent_text`, a concise text brief generated from the structured package. The brief includes each item's file span, node id, stable key, repository id, content hash, score, rank, and rationale details. It uses the package `max_characters` budget and adds a truncation marker when capped.
+Validation recommendations currently cover the .NET harness, Agent Access Python tests/lint, deployment parser dry-runs, end-to-end smoke checks for Docker/service changes, and Markdown dry-runs.
+
+MCP `codemesh_get_context_package` also accepts `output_format = "agent"`. In that mode the tool response includes `agent_text`, a concise text brief generated from the structured package. The brief includes validation recommendations plus each item's file span, node id, stable key, repository id, content hash, score, rank, and rationale details. It uses the package `max_characters` budget and adds a truncation marker when capped.
 
 ## Symbols, Nodes, And Neighbors
 

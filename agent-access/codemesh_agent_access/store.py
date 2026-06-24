@@ -288,6 +288,7 @@ class CodeMeshReadStore:
             repository=repository,
             latest_run=latest_run,
             items=items,
+            validation_recommendations=_validation_recommendations(items),
             total_snippet_characters=total_snippet_characters,
         )
 
@@ -1047,6 +1048,144 @@ def _refresh_changed(stats: dict[str, Any]) -> bool | None:
     if any(_int(stats.get(key)) > 0 for key in parsed_keys):
         return False
     return None
+
+
+def _validation_recommendations(
+    items: list[ContextPackageItem],
+) -> list[dict[str, Any]]:
+    file_paths = sorted(
+        {_normalized_file_path(item) for item in items if _normalized_file_path(item)},
+        key=str.casefold,
+    )
+    if not file_paths:
+        return []
+
+    recommendations: list[dict[str, Any]] = []
+
+    if any(_is_dotnet_path(path) for path in file_paths):
+        recommendations.append(
+            _validation_command(
+                "dotnet-tests",
+                "dotnet run --project tests/CodeMesh.Tests",
+                "Run after .NET parser, ingestion, storage, CLI, or contract changes.",
+                file_paths,
+            )
+        )
+
+    if any(_is_agent_access_path(path) for path in file_paths):
+        recommendations.append(
+            _validation_command(
+                "agent-access-tests",
+                "cd agent-access; uv run pytest",
+                "Run after Agent Access REST, MCP, CLI, ranking, formatting, or store read-path changes.",
+                file_paths,
+            )
+        )
+        recommendations.append(
+            _validation_command(
+                "agent-access-lint",
+                "cd agent-access; uv run ruff check .; uv run ruff format --check .",
+                "Run after Python Agent Access changes to verify linting and formatting.",
+                file_paths,
+            )
+        )
+
+    if any(_is_deployment_path(path) for path in file_paths):
+        recommendations.append(
+            _validation_command(
+                "deployment-dry-run",
+                "dotnet run --project src/CodeMesh.Cli -- ingest --root . --language deployment --dry-run --skip-embeddings",
+                "Run after Dockerfile or Docker Compose changes to validate deployment artifact parsing.",
+                file_paths,
+            )
+        )
+        recommendations.append(
+            _validation_command(
+                "e2e-smoke",
+                ".\\scripts\\e2e-smoke.ps1",
+                "Run when changes affect Docker services, live store wiring, repository lifecycle, cleanup, REST, or Agent Access integration.",
+                file_paths,
+            )
+        )
+
+    if any(_is_markdown_path(path) for path in file_paths):
+        recommendations.append(
+            _validation_command(
+                "markdown-dry-run",
+                "dotnet run --project src/CodeMesh.Cli -- ingest --root . --language markdown --dry-run --skip-embeddings",
+                "Run after documentation changes when Markdown ingestion shape matters.",
+                file_paths,
+            )
+        )
+
+    return recommendations
+
+
+def _validation_command(
+    identifier: str,
+    command: str,
+    reason: str,
+    file_paths: list[str],
+) -> dict[str, Any]:
+    return {
+        "id": identifier,
+        "command": command,
+        "reason": reason,
+        "applies_to": [
+            path for path in file_paths if _validation_applies(identifier, path)
+        ][:8],
+    }
+
+
+def _validation_applies(identifier: str, path: str) -> bool:
+    return (
+        (identifier == "dotnet-tests" and _is_dotnet_path(path))
+        or (
+            identifier in {"agent-access-tests", "agent-access-lint"}
+            and _is_agent_access_path(path)
+        )
+        or (
+            identifier in {"deployment-dry-run", "e2e-smoke"}
+            and _is_deployment_path(path)
+        )
+        or (identifier == "markdown-dry-run" and _is_markdown_path(path))
+    )
+
+
+def _normalized_file_path(item: ContextPackageItem) -> str:
+    file_path = item.hit.file_path
+    if not file_path and item.node:
+        span = item.node.get("span")
+        if isinstance(span, dict):
+            file_path = str(span.get("file_path") or "")
+
+    return file_path.replace("\\", "/").strip()
+
+
+def _is_dotnet_path(path: str) -> bool:
+    lower = path.casefold()
+    return lower.endswith(".cs") or lower.endswith(".csproj") or lower.endswith(".sln")
+
+
+def _is_agent_access_path(path: str) -> bool:
+    lower = path.casefold()
+    return lower.startswith("agent-access/") or lower.endswith(".py")
+
+
+def _is_deployment_path(path: str) -> bool:
+    lower = path.casefold()
+    name = lower.rsplit("/", 1)[-1]
+    return (
+        name == "dockerfile"
+        or name.endswith(".dockerfile")
+        or name
+        in {"docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}
+    )
+
+
+def _is_markdown_path(path: str) -> bool:
+    lower = path.casefold()
+    return lower.endswith(".md") or lower.endswith(".markdown")
 
 
 def _normalize_node(node: dict[str, Any]) -> dict[str, Any]:

@@ -14,6 +14,14 @@ def test_format_context_package_for_agent_emits_compact_brief() -> None:
             "run_id": "run:test",
             "stage": "Completed",
         },
+        "validation_recommendations": [
+            {
+                "id": "dotnet-tests",
+                "command": "dotnet run --project tests/CodeMesh.Tests",
+                "reason": "Run after .NET parser, ingestion, storage, CLI, or contract changes.",
+                "applies_to": ["Downloader.cs"],
+            }
+        ],
         "items": [
             {
                 "hit": {
@@ -98,6 +106,9 @@ def test_format_context_package_for_agent_emits_compact_brief() -> None:
     assert "CodeMesh context package" in text
     assert "Query: download video subtitles" in text
     assert "Repository: repo:test (C:/sample)" in text
+    assert "Validation:" in text
+    assert "dotnet run --project tests/CodeMesh.Tests" in text
+    assert "applies to Downloader.cs" in text
     assert "1. Method DownloadAsync" in text
     assert "File: Downloader.cs:10-24" in text
     assert "Stable key: Sample.Downloader.DownloadAsync" in text

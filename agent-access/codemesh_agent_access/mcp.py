@@ -215,6 +215,15 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
         "arguments": _CONTEXT_PACKAGE_ARGUMENTS,
         "response": {
             "relationship_groups": list(_RELATIONSHIP_GROUPS),
+            "fields": [
+                "query",
+                "repository",
+                "latest_run",
+                "items",
+                "validation_recommendations",
+                "total_snippet_characters",
+                "generated_at",
+            ],
             "output_formats": ["json", "agent"],
         },
     },

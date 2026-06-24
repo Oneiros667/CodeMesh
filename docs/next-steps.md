@@ -18,6 +18,7 @@ Recent completed work:
 - `codemesh refresh` provides a first-class local command over the existing incremental ingestion path for the current repository.
 - Repository status and the local repository detail UI show a derived latest refresh outcome, including skipped, completed, failed, dry-run, running, no-run, and recommended-action states.
 - `src/CodeMesh.Parser.Deployment` provides first-slice Dockerfile and Docker Compose ingestion for stages, services, ports, environment keys, volumes, and service dependencies.
+- Context packages include validation recommendations inferred from packaged file paths, covering .NET tests, Agent Access Python tests/lint, deployment dry-runs, smoke checks, and Markdown dry-runs.
 
 Current state:
 
@@ -27,9 +28,9 @@ Current state:
 
 Current priority judgment:
 
-1. Add test and validation context so context packages can recommend relevant checks.
-2. Add a watch command after refresh semantics are stable.
-3. Add an MCP evaluation suite to prevent regressions in search, packages, freshness, and redaction.
+1. Add a watch command after refresh semantics are stable.
+2. Add an MCP evaluation suite to prevent regressions in search, packages, freshness, and redaction.
+3. Deepen test and validation context with first-class test files/cases and relationships to implementation nodes.
 4. Deepen deployment ingestion with Kubernetes/Helm and code-to-runtime links.
 5. Deepen parser relationships for Python imports/routes/MCP handlers and Markdown cross-links.
 6. Strengthen secret-file exclusion and configurable allow/deny policy before broad SDLC artifact ingestion.
@@ -290,8 +291,10 @@ Connect implementation nodes to the tests and commands that validate them.
 Current implementation:
 
 - `docs/testing.md` documents the main .NET, Python, and smoke verification commands.
+- Context package responses include `validation_recommendations` inferred from packaged file paths.
+- MCP `output_format = "agent"` includes those recommendations in the agent text brief.
 - The repository has broad .NET and Python tests, but test files and validation commands are not represented as graph context.
-- Context packages do not yet recommend validation commands for touched code.
+- Test files and test cases are not yet represented as first-class graph context or linked to implementation nodes.
 
 Expected outcome:
 
@@ -365,9 +368,9 @@ Useful agents need to follow local engineering process, not only compile code.
 
 ## Near-Term Recommended Order
 
-1. Add test and validation context, including graph nodes for test files/cases and context-package validation recommendations.
-2. Add a watch command after refresh semantics are stable.
-3. Add an MCP evaluation suite with representative self-analysis scenarios and minimum useful-result assertions.
+1. Add a watch command after refresh semantics are stable.
+2. Add an MCP evaluation suite with representative self-analysis scenarios and minimum useful-result assertions.
+3. Deepen test and validation context with first-class test files/cases and relationships to implementation nodes.
 4. Deepen deployment ingestion into Kubernetes manifests, Helm charts, CI/CD workflows, and code-to-runtime links.
 5. Deepen Python and Markdown relationship extraction where it improves self-analysis and MCP packages.
 6. Add configurable sensitive-file exclusion and allow/deny policy before broadening SDLC artifact ingestion.

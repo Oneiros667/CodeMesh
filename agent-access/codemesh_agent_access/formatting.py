@@ -29,6 +29,11 @@ def format_context_package_for_agent(
         else None
     )
     items = package.get("items") if isinstance(package.get("items"), list) else []
+    validation_recommendations = (
+        package.get("validation_recommendations")
+        if isinstance(package.get("validation_recommendations"), list)
+        else []
+    )
 
     lines = [
         "CodeMesh context package",
@@ -42,6 +47,10 @@ def format_context_package_for_agent(
         lines.append(
             f"Latest run: {_value(latest_run.get('run_id'))} {_value(latest_run.get('stage'))}"
         )
+    validation_lines = _validation_lines(validation_recommendations)
+    if validation_lines:
+        lines.append("Validation:")
+        lines.extend(validation_lines)
     lines.append(f"Items: {len(items)}")
 
     for index, item in enumerate(items, start=1):
@@ -92,6 +101,24 @@ def format_context_package_for_agent(
             lines.extend(group_lines)
 
     return _apply_character_budget(lines, max_characters)
+
+
+def _validation_lines(recommendations: list[Any]) -> list[str]:
+    lines = []
+    for recommendation in recommendations:
+        if not isinstance(recommendation, dict):
+            continue
+
+        command = _value(recommendation.get("command"))
+        reason = _value(recommendation.get("reason"))
+        applies_to = recommendation.get("applies_to")
+        if isinstance(applies_to, list) and applies_to:
+            applies = ", ".join(_value(item) for item in applies_to[:4])
+            lines.append(f"  - {command} ({reason}; applies to {applies})")
+        else:
+            lines.append(f"  - {command} ({reason})")
+
+    return lines
 
 
 def _node_title(hit: dict[str, Any], node: dict[str, Any]) -> str:

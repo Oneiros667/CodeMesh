@@ -272,6 +272,14 @@ def test_context_package_includes_snippet_relationships_and_registry_metadata() 
     assert package.repository["repository_id"] == "repo:test"
     assert package.latest_run is not None
     assert package.latest_run["run_id"] == "run:test"
+    assert package.validation_recommendations == [
+        {
+            "id": "dotnet-tests",
+            "command": "dotnet run --project tests/CodeMesh.Tests",
+            "reason": "Run after .NET parser, ingestion, storage, CLI, or contract changes.",
+            "applies_to": ["Downloader.cs"],
+        }
+    ]
     assert package.total_snippet_characters <= 48
     assert len(package.items) == 1
 

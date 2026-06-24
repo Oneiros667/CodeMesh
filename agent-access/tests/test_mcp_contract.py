@@ -50,6 +50,15 @@ def test_mcp_manifest_matches_registered_tools() -> None:
     ]
 
     package_contract = manifest["contracts"]["codemesh_get_context_package"]
+    assert package_contract["response"]["fields"] == [
+        "query",
+        "repository",
+        "latest_run",
+        "items",
+        "validation_recommendations",
+        "total_snippet_characters",
+        "generated_at",
+    ]
     assert package_contract["response"]["relationship_groups"] == [
         "callers",
         "callees",

@@ -95,6 +95,7 @@ public sealed record AgentContextPackageResult(
     [property: JsonPropertyName("repository")] IReadOnlyDictionary<string, JsonElement>? Repository,
     [property: JsonPropertyName("latest_run")] IReadOnlyDictionary<string, JsonElement>? LatestRun,
     [property: JsonPropertyName("items")] IReadOnlyList<AgentContextPackageItem> Items,
+    [property: JsonPropertyName("validation_recommendations")] IReadOnlyList<IReadOnlyDictionary<string, JsonElement>>? ValidationRecommendations,
     [property: JsonPropertyName("total_snippet_characters")] int TotalSnippetCharacters,
     [property: JsonPropertyName("generated_at")] DateTimeOffset GeneratedAt);
 

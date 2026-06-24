@@ -478,6 +478,14 @@ static Task TestAgentAccessContractsMapRestJson()
               "rationale": {"rank": 1, "expanded": true}
             }
           ],
+          "validation_recommendations": [
+            {
+              "id": "dotnet-tests",
+              "command": "dotnet run --project tests/CodeMesh.Tests",
+              "reason": "Run after .NET changes.",
+              "applies_to": ["Downloader.cs"]
+            }
+          ],
           "total_snippet_characters": 26,
           "generated_at": "2026-06-06T10:00:00Z"
         }
@@ -489,6 +497,7 @@ static Task TestAgentAccessContractsMapRestJson()
     Equal(0, package.Query.UsesTypeLimit ?? -1, "Agent context package uses type limit did not deserialize.");
     Equal("sample_repo", package.Repository!["alias"].GetString() ?? string.Empty, "Agent context package repository metadata did not deserialize.");
     Equal("lmstudio", package.LatestRun!["embedding_provider"].GetString() ?? string.Empty, "Agent context package latest run did not deserialize.");
+    Equal("dotnet run --project tests/CodeMesh.Tests", package.ValidationRecommendations![0]["command"].GetString() ?? string.Empty, "Agent context package validation recommendations did not deserialize.");
     Equal("Downloads subtitles for a video URL.", package.Items[0].Summary!["summary"].GetString() ?? string.Empty, "Agent context package summary did not deserialize.");
     Equal("return Task.CompletedTask;", package.Items[0].Snippet ?? string.Empty, "Agent context package snippet did not deserialize.");
     Equal("node:callee", package.Items[0].RelationshipGroups!["callees"][0]["target_node_id"].GetString() ?? string.Empty, "Agent context package relationship groups did not deserialize.");
@@ -3441,6 +3450,14 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                       "relationships": [],
                       "relationship_groups": {},
                       "rationale": {"rank": 1}
+                    }
+                  ],
+                  "validation_recommendations": [
+                    {
+                      "id": "dotnet-tests",
+                      "command": "dotnet run --project tests/CodeMesh.Tests",
+                      "reason": "Run after .NET changes.",
+                      "applies_to": ["Downloader.cs"]
                     }
                   ],
                   "total_snippet_characters": 26,

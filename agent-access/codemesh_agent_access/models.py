@@ -86,6 +86,7 @@ class ContextPackageResponse(BaseModel):
     repository: dict[str, Any] | None = None
     latest_run: dict[str, Any] | None = None
     items: list[ContextPackageItem] = Field(default_factory=list)
+    validation_recommendations: list[dict[str, Any]] = Field(default_factory=list)
     total_snippet_characters: int = 0
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
