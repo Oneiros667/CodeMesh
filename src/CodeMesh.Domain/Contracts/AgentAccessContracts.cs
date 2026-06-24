@@ -176,6 +176,7 @@ public sealed record AgentRepositoryStatusResult(
     [property: JsonPropertyName("summary_coverage")] AgentNodeSummaryCoverageResult? SummaryCoverage,
     [property: JsonPropertyName("counts")] IReadOnlyDictionary<string, JsonElement> Counts,
     [property: JsonPropertyName("freshness")] IReadOnlyDictionary<string, JsonElement> Freshness,
+    [property: JsonPropertyName("refresh")] IReadOnlyDictionary<string, JsonElement> Refresh,
     [property: JsonPropertyName("generated_at")] DateTimeOffset GeneratedAt);
 
 public sealed record AgentNodeSummaryProviderModelCount(

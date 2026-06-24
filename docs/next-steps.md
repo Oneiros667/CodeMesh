@@ -16,17 +16,18 @@ Recent completed work:
 - Agent guidance: `codemesh_get_tool_guidance` and `uv run python -m codemesh_agent_access tool-guidance "<task>"` recommend tool workflows for common agent tasks.
 - Incremental ingestion internals exist for graph, content, vectors, and summaries, including skipped unchanged records and stale cleanup.
 - `codemesh refresh` provides a first-class local command over the existing incremental ingestion path for the current repository.
+- Repository status and the local repository detail UI show a derived latest refresh outcome, including skipped, completed, failed, dry-run, running, no-run, and recommended-action states.
 
 Current state:
 
 - P0 baseline items are implemented enough for dependable local MCP use.
 - P1 agent-usefulness items are implemented enough for active dogfooding, though Python and Markdown relationship richness can still improve.
-- The largest remaining gap is operational freshness: agents can manually refresh the current repository, but there is not yet a watch workflow or Agent Access-visible refresh activity state.
+- The largest remaining gap is operational freshness automation: agents can manually refresh the current repository and inspect the latest outcome, but there is not yet a watch workflow.
 
 Current priority judgment:
 
-1. Surface refresh activity and last refresh outcome through repository status and the local UI.
-2. Start runtime/deployment artifact ingestion with Dockerfile and Docker Compose before Helm.
+1. Start runtime/deployment artifact ingestion with Dockerfile and Docker Compose before Helm.
+2. Add a watch command after refresh semantics are stable.
 3. Add test and validation context so context packages can recommend relevant checks.
 4. Add an MCP evaluation suite to prevent regressions in search, packages, freshness, and redaction.
 5. Deepen parser relationships for Python imports/routes/MCP handlers and Markdown cross-links.
@@ -244,7 +245,8 @@ Current implementation:
 - Ingestion result stats report parsed, written, skipped, and summary counts.
 - `dotnet run --project src/CodeMesh.Cli -- refresh --skip-embeddings` reuses the incremental ingestion path for the current repository.
 - `refresh` resolves the current CodeMesh workspace root when run from nested directories and auto-selects a top-level C# solution when one is unambiguous.
-- There is not yet a watch loop or Agent Access-visible refresh activity state.
+- `GET /repositories/{repository_id}/status`, `codemesh_get_repository_status`, and `/ui/repositories/{repository_id}` show a derived `refresh` block for the latest run.
+- There is not yet a watch loop.
 
 Expected outcome:
 
@@ -359,13 +361,12 @@ Useful agents need to follow local engineering process, not only compile code.
 
 ## Near-Term Recommended Order
 
-1. Surface refresh activity and last refresh outcome through repository status and the local UI.
+1. Start runtime/deployment ingestion with Dockerfile and Docker Compose.
 2. Add a watch command after refresh semantics are stable.
-3. Start runtime/deployment ingestion with Dockerfile and Docker Compose.
-4. Add test and validation context, including graph nodes for test files/cases and context-package validation recommendations.
-5. Add an MCP evaluation suite with representative self-analysis scenarios and minimum useful-result assertions.
-6. Deepen Python and Markdown relationship extraction where it improves self-analysis and MCP packages.
-7. Add configurable sensitive-file exclusion and allow/deny policy before broadening SDLC artifact ingestion.
-8. Continue runtime/deployment ingestion into Helm and Kubernetes manifests.
+3. Add test and validation context, including graph nodes for test files/cases and context-package validation recommendations.
+4. Add an MCP evaluation suite with representative self-analysis scenarios and minimum useful-result assertions.
+5. Deepen Python and Markdown relationship extraction where it improves self-analysis and MCP packages.
+6. Add configurable sensitive-file exclusion and allow/deny policy before broadening SDLC artifact ingestion.
+7. Continue runtime/deployment ingestion into Helm and Kubernetes manifests.
 
 This order keeps CodeMesh useful as a local MCP service while moving from basic context access toward production-aware, validation-aware agent workflows.

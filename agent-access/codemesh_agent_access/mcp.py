@@ -249,6 +249,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
                 "summary_coverage",
                 "counts",
                 "freshness",
+                "refresh",
                 "generated_at",
             ],
         },

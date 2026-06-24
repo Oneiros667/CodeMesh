@@ -589,6 +589,8 @@ static async Task TestAgentAccessClientCallsRestEndpoints()
     Equal("repositories/sample%20repo%2Fid/status", handler.Requests[9].Path, "Agent Access repository status path did not escape id.");
     Equal("repo:test", repositoryStatus.RepositoryId, "Agent Access repository status did not deserialize.");
     Equal("fresh", repositoryStatus.Freshness["status"].GetString() ?? string.Empty, "Agent Access repository freshness did not deserialize.");
+    Equal("completed", repositoryStatus.Refresh["status"].GetString() ?? string.Empty, "Agent Access repository refresh status did not deserialize.");
+    Equal("run:test", repositoryStatus.Refresh["latest_run_id"].GetString() ?? string.Empty, "Agent Access repository refresh run id did not deserialize.");
     Equal(17, repositoryStatus.Counts["graph_nodes"].GetInt32(), "Agent Access repository status counts did not deserialize.");
 
     var coverage = await client.GetSummaryCoverageAsync("sample repo/id");
@@ -3439,6 +3441,7 @@ sealed class FakeAgentAccessHandler : HttpMessageHandler
                   "summary_coverage": null,
                   "counts": {"graph_nodes": 17, "relationships": 28, "content_documents": 13, "vectors": 17},
                   "freshness": {"status": "fresh", "is_stale": false, "indexed_commit": "abc123", "current_commit": "abc123"},
+                  "refresh": {"status": "completed", "latest_run_id": "run:test", "changed": true, "is_running": false},
                   "generated_at": "2026-06-06T10:10:00Z"
                 }
                 """,

@@ -112,6 +112,18 @@ async def repository_detail(
             </div>
         </section>
         <section class="panel">
+            <h2>Refresh</h2>
+            <dl class="metrics metrics-wide">
+                <div><dt>Status</dt><dd>{_badge(status.refresh.get("status"))}</dd></div>
+                <div><dt>Changed</dt><dd>{_value(status.refresh.get("changed"))}</dd></div>
+                <div><dt>Latest Run</dt><dd>{_value(status.refresh.get("latest_run_id"))}</dd></div>
+                <div><dt>Finished</dt><dd>{_value(status.refresh.get("finished_at"))}</dd></div>
+                <div><dt>Diagnostics</dt><dd>{_value(status.refresh.get("diagnostic_count"))}</dd></div>
+                <div><dt>Action</dt><dd>{_value(status.refresh.get("recommended_action"))}</dd></div>
+            </dl>
+            <p class="muted">{_value(status.refresh.get("detail"))}</p>
+        </section>
+        <section class="panel">
             <h2>Counts</h2>
             {_count_table(status.counts)}
         </section>

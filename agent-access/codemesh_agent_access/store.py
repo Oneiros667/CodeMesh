@@ -435,6 +435,7 @@ class CodeMeshReadStore:
                     "is_stale": None,
                     "detail": "Repository was not found in the CodeMesh registry.",
                 },
+                refresh=_refresh_status(None),
             )
 
         runs = await self.list_ingestion_runs(repository.repository_id, limit=1)
@@ -457,6 +458,7 @@ class CodeMeshReadStore:
                 "summaries_failed": summary_coverage.failed_count,
             },
             freshness=freshness,
+            refresh=_refresh_status(latest_run, freshness),
         )
 
     async def _resolve_context_query_repository(
@@ -944,6 +946,107 @@ def _run_git(root_path: str, *args: str) -> str | None:
         return None
 
     return result.stdout.strip()
+
+
+def _refresh_status(
+    latest_run: Any | None, freshness: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    if latest_run is None:
+        return {
+            "status": "no_run",
+            "is_running": False,
+            "changed": None,
+            "latest_run_id": None,
+            "detail": "No ingestion run is available for this repository.",
+            "recommended_action": "Run `codemesh refresh` for the repository.",
+        }
+
+    stage = str(getattr(latest_run, "stage", "") or "")
+    stage_key = stage.casefold()
+    stats = getattr(latest_run, "stats", None) or {}
+    changed = _refresh_changed(stats)
+    is_stale = (freshness or {}).get("is_stale")
+
+    if stage_key in {"accepted", "parsing", "persisting", "embedding"}:
+        status = "running"
+        detail = "A repository ingestion run is currently in progress."
+    elif (
+        stage_key == "failed"
+        or int(getattr(latest_run, "error_diagnostic_count", 0)) > 0
+    ):
+        status = "failed"
+        detail = (
+            "The latest repository ingestion run failed or emitted error diagnostics."
+        )
+    elif bool(getattr(latest_run, "dry_run", False)):
+        status = "dry_run"
+        detail = "The latest run was a dry run and did not update persisted context."
+    elif stage_key == "completed" and changed is False:
+        status = "skipped"
+        detail = "The latest refresh found no persisted graph, content, vector, or summary changes."
+    elif stage_key == "completed":
+        status = "completed"
+        detail = "The latest refresh completed and updated persisted context."
+    else:
+        status = "unknown"
+        detail = (
+            "The latest repository ingestion stage is not recognized by Agent Access."
+        )
+
+    recommended_action = "None."
+    if status in {"no_run", "failed", "dry_run", "unknown"}:
+        recommended_action = "Run `codemesh refresh` and inspect recent ingestion runs."
+    elif is_stale is True:
+        recommended_action = (
+            "Run `codemesh refresh`; local git freshness indicates stale context."
+        )
+
+    return {
+        "status": status,
+        "is_running": status == "running",
+        "changed": changed,
+        "latest_run_id": getattr(latest_run, "run_id", None),
+        "stage": stage or None,
+        "started_at": getattr(latest_run, "started_at", None),
+        "finished_at": getattr(latest_run, "finished_at", None),
+        "message": getattr(latest_run, "message", None),
+        "dry_run": bool(getattr(latest_run, "dry_run", False)),
+        "skip_embeddings": bool(getattr(latest_run, "skip_embeddings", True)),
+        "language": getattr(latest_run, "language", None),
+        "parser_name": getattr(latest_run, "parser_name", None),
+        "diagnostic_count": int(getattr(latest_run, "diagnostic_count", 0)),
+        "error_diagnostic_count": int(getattr(latest_run, "error_diagnostic_count", 0)),
+        "warning_diagnostic_count": int(
+            getattr(latest_run, "warning_diagnostic_count", 0)
+        ),
+        "stats": stats,
+        "detail": detail,
+        "recommended_action": recommended_action,
+    }
+
+
+def _refresh_changed(stats: dict[str, Any]) -> bool | None:
+    if not stats:
+        return None
+
+    write_keys = [
+        "written_node_count",
+        "written_relationship_count",
+        "written_content_count",
+        "written_embedding_count",
+        "written_summary_count",
+    ]
+    parsed_keys = [
+        "parsed_node_count",
+        "parsed_relationship_count",
+        "parsed_content_count",
+        "summary_candidate_count",
+    ]
+    if any(_int(stats.get(key)) > 0 for key in write_keys):
+        return True
+    if any(_int(stats.get(key)) > 0 for key in parsed_keys):
+        return False
+    return None
 
 
 def _normalize_node(node: dict[str, Any]) -> dict[str, Any]:

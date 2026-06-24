@@ -97,6 +97,7 @@ def test_mcp_manifest_matches_registered_tools() -> None:
         "summary_coverage",
         "counts",
         "freshness",
+        "refresh",
         "generated_at",
     ]
 

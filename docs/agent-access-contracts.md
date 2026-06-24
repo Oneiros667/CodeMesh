@@ -109,8 +109,11 @@ Agent Access merges vector hits, lexical graph hits, and MongoDB generated-summa
 - `summary_coverage`: summary coverage for the repository.
 - `counts`: graph node, relationship, content document, vector, and summary counts.
 - `freshness`: local git diagnostics when the repository path is accessible to Agent Access.
+- `refresh`: derived latest-refresh activity and outcome from the latest ingestion run.
 
 Freshness fields include `indexed_commit`, `current_commit`, `current_branch`, `working_tree_dirty`, `is_stale`, `status`, and `detail` when available. If ingestion has not stored an indexed commit yet, `status` is `unknown` and `is_stale` is `null`; agents should treat the response as a useful warning rather than proof that the index is fresh.
+
+Refresh fields include `status`, `is_running`, `changed`, `latest_run_id`, `stage`, `started_at`, `finished_at`, `diagnostic_count`, `error_diagnostic_count`, `warning_diagnostic_count`, `stats`, `detail`, and `recommended_action` when available. `status` is derived from the latest ingestion run and can be `no_run`, `running`, `completed`, `skipped`, `failed`, `dry_run`, or `unknown`.
 
 `NodeSummaryCoverageResponse` fields:
 

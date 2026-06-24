@@ -17,7 +17,8 @@ from codemesh_agent_access.embeddings import (
     model_provider,
 )
 from codemesh_agent_access.graph_store import Neo4jGraphStore, storage_key
-from codemesh_agent_access.store import CodeMeshReadStore
+from codemesh_agent_access.models import IngestionRunSummary
+from codemesh_agent_access.store import CodeMeshReadStore, _refresh_status
 from codemesh_agent_access.summary_store import (
     MongoNodeSummaryStore,
     normalize_node_summary,
@@ -170,6 +171,64 @@ def test_content_store_normalizers_preserve_registry_fields() -> None:
         "skipped_summary_count": 1,
         "failed_summary_count": 1,
     }
+
+
+def test_refresh_status_reports_skipped_completed_and_failed_runs() -> None:
+    skipped = _refresh_status(
+        IngestionRunSummary(
+            run_id="run:skipped",
+            repository_id="repo:test",
+            repository_root="C:/sample",
+            stage="Completed",
+            language="csharp",
+            parser_name="test",
+            embedding_provider="none",
+            embedding_model="none",
+            stats={
+                "parsed_node_count": 4,
+                "written_node_count": 0,
+                "written_relationship_count": 0,
+                "written_content_count": 0,
+                "written_embedding_count": 0,
+                "written_summary_count": 0,
+            },
+        )
+    )
+    assert skipped["status"] == "skipped"
+    assert skipped["changed"] is False
+    assert skipped["latest_run_id"] == "run:skipped"
+
+    completed = _refresh_status(
+        IngestionRunSummary(
+            run_id="run:completed",
+            repository_id="repo:test",
+            repository_root="C:/sample",
+            stage="Completed",
+            language="csharp",
+            parser_name="test",
+            embedding_provider="none",
+            embedding_model="none",
+            stats={"parsed_node_count": 4, "written_node_count": 1},
+        )
+    )
+    assert completed["status"] == "completed"
+    assert completed["changed"] is True
+
+    failed = _refresh_status(
+        IngestionRunSummary(
+            run_id="run:failed",
+            repository_id="repo:test",
+            repository_root="C:/sample",
+            stage="Failed",
+            language="csharp",
+            parser_name="test",
+            embedding_provider="none",
+            embedding_model="none",
+            error_diagnostic_count=1,
+        )
+    )
+    assert failed["status"] == "failed"
+    assert "codemesh refresh" in failed["recommended_action"]
 
 
 def test_graph_storage_key_uses_repository_prefix() -> None:

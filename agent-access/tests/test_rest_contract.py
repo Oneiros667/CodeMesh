@@ -182,6 +182,8 @@ def test_rest_symbols_node_neighbors_and_registry_shapes() -> None:
 
     assert repository_status.status_code == 200
     assert repository_status.json()["freshness"]["status"] == "unknown"
+    assert repository_status.json()["refresh"]["status"] == "skipped"
+    assert repository_status.json()["refresh"]["latest_run_id"] == "run:test"
     assert repository_status.json()["counts"]["graph_nodes"] == 17
     assert store.status_repository_ids == ["sample_repo"]
 
@@ -221,6 +223,8 @@ def test_rest_ui_routes_render_existing_store_state() -> None:
 
     assert repository.status_code == 200
     assert "Freshness" in repository.text
+    assert "Refresh" in repository.text
+    assert "skipped" in repository.text
     assert "graph_nodes" in repository.text
     assert "run:test" in repository.text
     assert store.status_repository_ids == ["sample_repo"]
@@ -428,6 +432,14 @@ class FakeRestStore:
                 "vectors": 17,
             },
             freshness={"status": "unknown", "is_stale": None},
+            refresh={
+                "status": "skipped",
+                "changed": False,
+                "latest_run_id": "run:test",
+                "diagnostic_count": 0,
+                "recommended_action": "None.",
+                "detail": "The latest refresh found no persisted changes.",
+            },
         )
 
     async def list_ingestion_runs(

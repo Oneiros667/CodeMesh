@@ -216,6 +216,7 @@ class RepositoryStatusResponse(BaseModel):
     summary_coverage: NodeSummaryCoverageResponse | None = None
     counts: dict[str, int | None] = Field(default_factory=dict)
     freshness: dict[str, Any] = Field(default_factory=dict)
+    refresh: dict[str, Any] = Field(default_factory=dict)
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
