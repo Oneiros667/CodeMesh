@@ -7,7 +7,7 @@ import json
 import uvicorn
 
 from .config import Settings
-from . import mcp, tools
+from . import evaluation, mcp, tools
 from .formatting import format_context_package_for_agent
 
 
@@ -19,6 +19,7 @@ def main() -> None:
     subcommands.add_parser(
         "mcp-manifest", help="Print the MCP tool contract manifest JSON."
     )
+    subcommands.add_parser("eval", help="Run deterministic MCP evaluation scenarios.")
     subcommands.add_parser("status", help="Print Agent Access status JSON.")
     guidance_parser = subcommands.add_parser(
         "tool-guidance", help="Recommend CodeMesh tools for a task."
@@ -139,6 +140,11 @@ def main() -> None:
     if args.command == "mcp-manifest":
         print(json.dumps(mcp.tool_manifest(), indent=2))
         return
+
+    if args.command == "eval":
+        report = asyncio.run(evaluation.run_mcp_evaluations())
+        print(json.dumps(report.to_dict(), indent=2))
+        raise SystemExit(0 if report.passed else 1)
 
     if args.command == "status":
         result = asyncio.run(tools.status())

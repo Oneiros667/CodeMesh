@@ -41,12 +41,25 @@ The Python tests under `agent-access/tests` cover:
 
 - CLI output.
 - Context ranking.
+- MCP evaluation scenarios.
 - Formatting.
 - MCP contracts.
 - REST contracts.
 - Store read components.
 
 Use these tests when changing `agent-access/codemesh_agent_access`.
+
+Run the deterministic MCP evaluation suite directly when changing tool guidance,
+context search, context packages, freshness, or redaction behavior:
+
+```powershell
+cd agent-access
+uv run python -m codemesh_agent_access eval
+```
+
+The current evaluation suite uses an in-process fixture store, so it does not
+require Docker services or a model provider. Use the end-to-end smoke script for
+live-store lifecycle checks.
 
 ## End-To-End Smoke
 

@@ -20,17 +20,20 @@ Recent completed work:
 - Repository status and the local repository detail UI show a derived latest refresh outcome, including skipped, completed, failed, dry-run, running, no-run, and recommended-action states.
 - `src/CodeMesh.Parser.Deployment` provides first-slice Dockerfile and Docker Compose ingestion for stages, services, ports, environment keys, volumes, and service dependencies.
 - Context packages include validation recommendations inferred from packaged file paths, covering .NET tests, Agent Access Python tests/lint, deployment dry-runs, smoke checks, and Markdown dry-runs.
+- `uv run python -m codemesh_agent_access eval` runs deterministic MCP fixture evaluations for tool guidance, search diagnostics, context packages, freshness, and redaction leakage.
 
 Current state:
 
 - P0 baseline items are implemented enough for dependable local MCP use.
 - P1 agent-usefulness items are implemented enough for active dogfooding, though Python and Markdown relationship richness can still improve.
-- Operational freshness is covered for local development by manual refresh and a local watch command. The largest remaining gap is now a repeatable MCP evaluation suite that protects search, context packaging, freshness, and redaction behavior from regressions.
+- Operational freshness is covered for local development by manual refresh and a local watch command.
+- The first MCP evaluation suite is fixture-based and deterministic; live-store and self-analysis golden scenarios remain future evaluation depth.
+- The largest remaining gap is now deeper validation intelligence: first-class test files/cases and implementation-to-test relationships.
 
 Current priority judgment:
 
-1. Add an MCP evaluation suite to prevent regressions in search, packages, freshness, and redaction.
-2. Deepen test and validation context with first-class test files/cases and relationships to implementation nodes.
+1. Deepen test and validation context with first-class test files/cases and relationships to implementation nodes.
+2. Add live-store MCP evaluation scenarios using indexed self-analysis data.
 3. Deepen deployment ingestion with Kubernetes/Helm and code-to-runtime links.
 4. Deepen parser relationships for Python imports/routes/MCP handlers and Markdown cross-links.
 5. Strengthen secret-file exclusion and configurable allow/deny policy before broad SDLC artifact ingestion.
@@ -316,11 +319,14 @@ Add repeatable scenarios that measure whether CodeMesh helps agents.
 Current implementation:
 
 - Unit and contract tests cover store behavior, ranking, MCP contracts, REST contracts, CLI output, parsers, redaction, and ingestion.
-- There is no small benchmark set that asserts minimum useful results for representative agent tasks against CodeMesh itself.
+- `uv run python -m codemesh_agent_access eval` runs deterministic MCP fixture scenarios through the same `FastMCP` tool-call path used by contract tests.
+- Current fixture scenarios assert minimum behavior for tool guidance, search diagnostics, context package metadata, freshness guidance, and redaction leakage.
+- There is not yet a live-store benchmark set that asserts minimum useful results against indexed CodeMesh self-analysis data.
 
 Expected outcome:
 
-- A small set of benchmark queries against CodeMesh itself and one sample repository.
+- A deterministic fixture suite for MCP tool behavior that runs without stores or model providers.
+- A small set of live benchmark queries against CodeMesh itself and one sample repository.
 - Expected tool behavior and minimum useful results for each scenario.
 - Regression tests for search ranking, package content, freshness diagnostics, and redaction.
 

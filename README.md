@@ -43,6 +43,7 @@ dotnet run --project src/CodeMesh.Cli -- self smoke --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- repos list
 dotnet run --project src/CodeMesh.Cli -- runs list --limit 5
 dotnet run --project tests/CodeMesh.Tests
+cd agent-access; uv run python -m codemesh_agent_access eval
 ```
 
 ## Sample Project
@@ -188,6 +189,13 @@ Run the end-to-end smoke script against live stores and Agent Access:
 
 ```powershell
 .\scripts\e2e-smoke.ps1
+```
+
+Run deterministic MCP tool evaluations without live stores:
+
+```powershell
+cd agent-access
+uv run python -m codemesh_agent_access eval
 ```
 
 By default the script creates a tiny C# fixture repository under a unique `.codemesh-smoke` run directory, starts Neo4j, MongoDB, Qdrant, and Agent Access, ingests the fixture without embeddings, verifies `/repositories`, `/context/search`, `/symbols/search`, and `/context/package`, then deletes the indexed fixture through `DELETE /repositories/{repository_id}` and verifies the registry, runs, summaries, and search hits are gone. The context search check also validates response diagnostics, including search mode, vector hit count, and fallback status. To include embeddings, start your local model provider first and run, for example:
