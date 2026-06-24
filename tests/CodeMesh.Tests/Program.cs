@@ -13,6 +13,7 @@ using CodeMesh.Ingestion;
 using CodeMesh.Ingestion.Embedding;
 using CodeMesh.Ingestion.Summary;
 using CodeMesh.Parser.CSharp;
+using CodeMesh.Parser.Deployment;
 using CodeMesh.Parser.Markdown;
 using CodeMesh.Parser.Python;
 using CodeMesh.Storage.Memory;
@@ -56,6 +57,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("csharp parser emits invocation and member access relationships", TestCSharpParserEmitsInvocationAndMemberAccessRelationships),
     ("csharp parser separates partial declarations from symbols", TestCSharpParserSeparatesPartialDeclarations),
     ("csharp parser honors project compile items", TestCSharpParserHonorsProjectCompileItems),
+    ("deployment parser emits Dockerfile and Compose nodes", TestDeploymentParserEmitsDockerfileAndComposeNodes),
+    ("deployment parser parses repository runtime artifacts", TestDeploymentParserParsesRepositoryRuntimeArtifacts),
     ("markdown parser emits documents sections and containment", TestMarkdownParserEmitsDocumentsSectionsAndContainment),
     ("markdown parser parses repository docs", TestMarkdownParserParsesRepositoryDocs),
     ("python parser emits classes functions and containment", TestPythonParserEmitsClassesFunctionsAndContainment),
@@ -2417,6 +2420,114 @@ static async Task TestCSharpParserHonorsProjectCompileItems()
     {
         Directory.Delete(root, recursive: true);
     }
+}
+
+static async Task TestDeploymentParserEmitsDockerfileAndComposeNodes()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-deployment-parser-test-{Guid.NewGuid():N}");
+
+    try
+    {
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "Dockerfile"),
+            """
+            FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+            WORKDIR /src
+            COPY . .
+            RUN dotnet publish -o /app/publish
+
+            FROM mcr.microsoft.com/dotnet/aspnet:10.0
+            WORKDIR /app
+            COPY --from=build /app/publish ./
+            ENV ASPNETCORE_URLS=http://+:8080
+            EXPOSE 8080
+            ENTRYPOINT ["dotnet", "Sample.dll"]
+            """);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "docker-compose.yml"),
+            """
+            services:
+              api:
+                build:
+                  context: .
+                  dockerfile: Dockerfile
+                ports:
+                  - "8080:8080"
+                environment:
+                  ASPNETCORE_ENVIRONMENT: Development
+                depends_on:
+                  - db
+
+              db:
+                image: postgres:16
+                ports:
+                  - "5432:5432"
+            """);
+
+        var parser = new DeploymentParseService();
+        var result = await parser.ParseAsync(new ParseRequest(
+            root,
+            null,
+            null,
+            "deployment",
+            new Dictionary<string, string>()));
+
+        Equal("codemesh-parser-deployment", result.ParserName, "Deployment parser name changed.");
+        Equal("deployment", result.Language, "Deployment parser language changed.");
+        Equal(0, result.Diagnostics.Count(diagnostic => diagnostic.Severity == "error"), "Deployment parser returned errors.");
+
+        var nodeIds = result.Nodes.Select(node => node.Id).ToArray();
+        Equal(true, nodeIds.Contains("deployment:dockerfile:Dockerfile"), "Deployment parser did not emit Dockerfile node.");
+        Equal(true, nodeIds.Contains("deployment:dockerfile-stage:Dockerfile#build"), "Deployment parser did not emit build stage node.");
+        Equal(true, nodeIds.Contains("deployment:dockerfile-stage:Dockerfile#stage-2"), "Deployment parser did not emit runtime stage node.");
+        Equal(true, nodeIds.Contains("deployment:compose:docker-compose.yml"), "Deployment parser did not emit Compose file node.");
+        Equal(true, nodeIds.Contains("deployment:compose-service:docker-compose.yml#api"), "Deployment parser did not emit api service node.");
+        Equal(true, nodeIds.Contains("deployment:compose-service:docker-compose.yml#db"), "Deployment parser did not emit db service node.");
+
+        var runtimeStage = result.Nodes.Single(node => node.Id == "deployment:dockerfile-stage:Dockerfile#stage-2");
+        Equal(CodeNodeKind.DockerfileStage, runtimeStage.Kind, "Deployment parser did not use DockerfileStage node kind.");
+        Equal("mcr.microsoft.com/dotnet/aspnet:10.0", runtimeStage.Metadata["baseImage"], "Deployment parser did not capture runtime base image.");
+        Equal("8080", runtimeStage.Metadata["exposedPorts"], "Deployment parser did not capture exposed ports.");
+
+        var api = result.Nodes.Single(node => node.Id == "deployment:compose-service:docker-compose.yml#api");
+        Equal(CodeNodeKind.ComposeService, api.Kind, "Deployment parser did not use ComposeService node kind.");
+        Equal(".", api.Metadata["build"], "Deployment parser did not capture build context.");
+        Equal("8080:8080", api.Metadata["ports"], "Deployment parser did not capture service ports.");
+        Equal("ASPNETCORE_ENVIRONMENT", api.Metadata["environmentKeys"], "Deployment parser did not capture environment keys.");
+        Equal("db", api.Metadata["dependsOn"], "Deployment parser did not capture service dependencies.");
+
+        var dependency = result.Relationships.SingleOrDefault(relationship =>
+            relationship.SourceNodeId == "deployment:compose-service:docker-compose.yml#api" &&
+            relationship.TargetNodeId == "deployment:compose-service:docker-compose.yml#db" &&
+            relationship.Label == "depends_on");
+        NotNull(dependency, "Deployment parser did not emit Compose service dependency relationship.");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static async Task TestDeploymentParserParsesRepositoryRuntimeArtifacts()
+{
+    var parser = new DeploymentParseService();
+    var result = await parser.ParseAsync(new ParseRequest(
+        Directory.GetCurrentDirectory(),
+        null,
+        null,
+        "deployment",
+        new Dictionary<string, string>()));
+
+    Equal(0, result.Diagnostics.Count(diagnostic => diagnostic.Severity == "error"), "Deployment parser returned errors for repository runtime artifacts.");
+    var nodeIds = result.Nodes.Select(node => node.Id).ToArray();
+    Equal(true, nodeIds.Contains("deployment:compose:docker-compose.yml"), "Deployment parser did not emit repository Compose file node.");
+    Equal(true, nodeIds.Contains("deployment:compose-service:docker-compose.yml#agent-access"), "Deployment parser did not emit agent-access service node.");
+    Equal(true, nodeIds.Contains("deployment:compose-service:docker-compose.yml#csharp-parser"), "Deployment parser did not emit csharp-parser service node.");
+    Equal(true, nodeIds.Contains("deployment:dockerfile:src/CodeMesh.Parser.CSharp/Dockerfile"), "Deployment parser did not emit C# parser Dockerfile node.");
 }
 
 static async Task TestMarkdownParserEmitsDocumentsSectionsAndContainment()

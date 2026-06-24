@@ -17,6 +17,7 @@ Recent completed work:
 - Incremental ingestion internals exist for graph, content, vectors, and summaries, including skipped unchanged records and stale cleanup.
 - `codemesh refresh` provides a first-class local command over the existing incremental ingestion path for the current repository.
 - Repository status and the local repository detail UI show a derived latest refresh outcome, including skipped, completed, failed, dry-run, running, no-run, and recommended-action states.
+- `src/CodeMesh.Parser.Deployment` provides first-slice Dockerfile and Docker Compose ingestion for stages, services, ports, environment keys, volumes, and service dependencies.
 
 Current state:
 
@@ -26,10 +27,10 @@ Current state:
 
 Current priority judgment:
 
-1. Start runtime/deployment artifact ingestion with Dockerfile and Docker Compose before Helm.
+1. Add test and validation context so context packages can recommend relevant checks.
 2. Add a watch command after refresh semantics are stable.
-3. Add test and validation context so context packages can recommend relevant checks.
-4. Add an MCP evaluation suite to prevent regressions in search, packages, freshness, and redaction.
+3. Add an MCP evaluation suite to prevent regressions in search, packages, freshness, and redaction.
+4. Deepen deployment ingestion with Kubernetes/Helm and code-to-runtime links.
 5. Deepen parser relationships for Python imports/routes/MCP handlers and Markdown cross-links.
 6. Strengthen secret-file exclusion and configurable allow/deny policy before broad SDLC artifact ingestion.
 
@@ -266,8 +267,11 @@ Implement the first slice of the SDLC roadmap for production-aware context.
 Current implementation:
 
 - `docs/sdlc-roadmap.md` defines target runtime/deployment artifacts and graph concepts.
-- CodeMesh has Docker Compose and Dockerfile assets for its own runtime, but they are not yet parsed as first-class graph nodes.
-- Existing Markdown ingestion can index deployment docs structurally, but it does not extract Docker, Compose, Kubernetes, or Helm semantics.
+- CodeMesh has Docker Compose and Dockerfile assets for its own runtime.
+- `src/CodeMesh.Parser.Deployment` parses Dockerfiles and common Docker Compose file names as first-class graph nodes.
+- `dotnet run --project src/CodeMesh.Cli -- ingest --root . --language deployment --dry-run --skip-embeddings` validates deployment parsing for the repository.
+- Current deployment parser scope covers Dockerfile stages, base images, selected Dockerfile instructions, Compose services, images/build contexts, ports, environment keys, volumes, and `depends_on` relationships.
+- Existing Markdown ingestion can index deployment docs structurally, but it does not extract Kubernetes, Helm, CI/CD, or code-to-runtime semantics.
 
 Expected outcome:
 
@@ -361,12 +365,11 @@ Useful agents need to follow local engineering process, not only compile code.
 
 ## Near-Term Recommended Order
 
-1. Start runtime/deployment ingestion with Dockerfile and Docker Compose.
+1. Add test and validation context, including graph nodes for test files/cases and context-package validation recommendations.
 2. Add a watch command after refresh semantics are stable.
-3. Add test and validation context, including graph nodes for test files/cases and context-package validation recommendations.
-4. Add an MCP evaluation suite with representative self-analysis scenarios and minimum useful-result assertions.
+3. Add an MCP evaluation suite with representative self-analysis scenarios and minimum useful-result assertions.
+4. Deepen deployment ingestion into Kubernetes manifests, Helm charts, CI/CD workflows, and code-to-runtime links.
 5. Deepen Python and Markdown relationship extraction where it improves self-analysis and MCP packages.
 6. Add configurable sensitive-file exclusion and allow/deny policy before broadening SDLC artifact ingestion.
-7. Continue runtime/deployment ingestion into Helm and Kubernetes manifests.
 
 This order keeps CodeMesh useful as a local MCP service while moving from basic context access toward production-aware, validation-aware agent workflows.

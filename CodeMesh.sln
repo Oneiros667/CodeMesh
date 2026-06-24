@@ -25,6 +25,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeMesh.Parser.Python", "s
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeMesh.Parser.Markdown", "src\CodeMesh.Parser.Markdown\CodeMesh.Parser.Markdown.csproj", "{2A78BC09-E879-45FC-BA76-F0A72ADC423F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeMesh.Parser.Deployment", "src\CodeMesh.Parser.Deployment\CodeMesh.Parser.Deployment.csproj", "{E30BC1B7-F5D4-4C39-B3F1-1AC6544071FD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -143,6 +145,18 @@ Global
 		{2A78BC09-E879-45FC-BA76-F0A72ADC423F}.Release|x64.Build.0 = Release|Any CPU
 		{2A78BC09-E879-45FC-BA76-F0A72ADC423F}.Release|x86.ActiveCfg = Release|Any CPU
 		{2A78BC09-E879-45FC-BA76-F0A72ADC423F}.Release|x86.Build.0 = Release|Any CPU
+		{E30BC1B7-F5D4-4C39-B3F1-1AC6544071FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E30BC1B7-F5D4-4C39-B3F1-1AC6544071FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E30BC1B7-F5D4-4C39-B3F1-1AC6544071FD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E30BC1B7-F5D4-4C39-B3F1-1AC6544071FD}.Debug|x64.Build.0 = Debug|Any CPU
+		{E30BC1B7-F5D4-4C39-B3F1-1AC6544071FD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E30BC1B7-F5D4-4C39-B3F1-1AC6544071FD}.Debug|x86.Build.0 = Debug|Any CPU
+		{E30BC1B7-F5D4-4C39-B3F1-1AC6544071FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E30BC1B7-F5D4-4C39-B3F1-1AC6544071FD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E30BC1B7-F5D4-4C39-B3F1-1AC6544071FD}.Release|x64.ActiveCfg = Release|Any CPU
+		{E30BC1B7-F5D4-4C39-B3F1-1AC6544071FD}.Release|x64.Build.0 = Release|Any CPU
+		{E30BC1B7-F5D4-4C39-B3F1-1AC6544071FD}.Release|x86.ActiveCfg = Release|Any CPU
+		{E30BC1B7-F5D4-4C39-B3F1-1AC6544071FD}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -157,5 +171,6 @@ Global
 		{F6E289BC-AF8D-4067-945F-531EDFEA3641} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{0D23D644-B1F7-427B-A090-8954529A058F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{2A78BC09-E879-45FC-BA76-F0A72ADC423F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{E30BC1B7-F5D4-4C39-B3F1-1AC6544071FD} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

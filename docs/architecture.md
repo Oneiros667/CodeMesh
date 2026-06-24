@@ -52,6 +52,14 @@ CodeMesh is organized around a write-side ingestion pipeline and a read-side Age
 - Excludes common generated/cache directories such as `.venv`, `__pycache__`, `.pytest_cache`, and build output.
 - Does not yet emit Python call/import/type relationships.
 
+`src/CodeMesh.Parser.Deployment` is the local deployment artifact parser:
+
+- Parses Dockerfiles and Docker Compose files from a repository root.
+- Emits Dockerfile, Dockerfile stage, Compose file, and Compose service nodes.
+- Captures runtime metadata such as base images, build contexts, ports, environment keys, volumes, and service dependencies.
+- Emits containment relationships and `depends_on` service relationships.
+- Does not yet parse Kubernetes manifests, Helm charts, CI/CD workflows, or Compose override merge semantics.
+
 `src/CodeMesh.Parser.Markdown` is the local Markdown parser:
 
 - Parses `.md` and `.markdown` files from a repository root.

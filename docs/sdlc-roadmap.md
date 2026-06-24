@@ -18,8 +18,8 @@ Deployment artifacts connect source code to running systems.
 
 Candidate inputs:
 
-- `Dockerfile` and container build files.
-- `docker-compose.yml` and compose overrides.
+- `Dockerfile` and container build files. Initial parser support exists for Dockerfile stages and selected stage metadata.
+- `docker-compose.yml` and compose overrides. Initial parser support exists for Compose services and selected service metadata.
 - Helm charts and Kubernetes manifests.
 - Deployment environment overlays and values files.
 - CI/CD deployment jobs where they directly build or release services.
@@ -56,6 +56,13 @@ Useful agent questions:
 - What runtime configuration must change with this code change?
 - Which Kubernetes resources run this component?
 - What local compose services are required to reproduce this behavior?
+
+Current implementation:
+
+- `src/CodeMesh.Parser.Deployment` parses Dockerfiles and common Compose file names.
+- It emits `Dockerfile`, `DockerfileStage`, `ComposeFile`, and `ComposeService` nodes.
+- It captures base images, build contexts, Dockerfile references, ports, environment keys, volumes, and Compose `depends_on` relationships.
+- Helm, Kubernetes, CI/CD workflows, environment overlays, secret references, image build lineage, and code-to-runtime links remain future work.
 
 ### 2. API And Integration Contracts
 

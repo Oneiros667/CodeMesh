@@ -4,10 +4,11 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. Code
 
 ## Current Scaffold
 
-- `.NET 10` solution with `CodeMesh.Domain`, `CodeMesh.Ingestion`, `CodeMesh.Control`, `CodeMesh.Parser.CSharp`, `CodeMesh.Storage`, and `CodeMesh.Cli`.
+- `.NET 10` solution with `CodeMesh.Domain`, `CodeMesh.Ingestion`, `CodeMesh.Control`, parser projects, `CodeMesh.Storage`, and `CodeMesh.Cli`.
 - Shared records for code nodes, relationships, parser results, ingestion runs, agent context, and health checks.
 - Ingestion orchestration with incremental graph/content/vector/summary writes and repository/run registry records.
 - C# parser worker API with `/health`, `/capabilities`, and `/parse`.
+- Local deployment parser support for Dockerfiles, Docker Compose files, Dockerfile stages, Compose services, service ports, environment keys, volumes, and service dependencies.
 - Local Markdown parser support for documents, headings, sections, anchors, and containment relationships.
 - Local Python parser support for files, classes, functions, async functions, and containment relationships.
 - Python Agent Access REST endpoints and MCP tools backed by Neo4j, MongoDB, and Qdrant read paths.
@@ -32,6 +33,7 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. Code
 dotnet run --project src/CodeMesh.Cli -- doctor
 dotnet run --project src/CodeMesh.Cli -- status
 dotnet run --project src/CodeMesh.Cli -- ingest --root D:\source\repos\YoutubeDownloader --solution D:\source\repos\YoutubeDownloader\YoutubeDownloader.slnx --skip-embeddings
+dotnet run --project src/CodeMesh.Cli -- ingest --root . --language deployment --dry-run --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- ingest --root . --language markdown --dry-run --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- ingest --root .\agent-access --language python --dry-run --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- refresh --skip-embeddings
@@ -141,6 +143,14 @@ dotnet run --project src/CodeMesh.Cli -- refresh --include-summaries --skip-embe
 ```
 
 `refresh` resolves the current CodeMesh workspace root when run from a nested directory, auto-selects a top-level C# solution when one is unambiguous, and accepts the same ingestion store, embedding, summary, language, project, and output options as `ingest`.
+
+Index runtime/deployment artifacts with:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- ingest --root . --language deployment --skip-embeddings
+```
+
+The deployment parser currently handles `Dockerfile`, `*.Dockerfile`, `.dockerfile`, `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, and `compose.yaml`. It emits `Dockerfile`, `DockerfileStage`, `ComposeFile`, and `ComposeService` graph nodes with metadata for images/build contexts, ports, environment keys, volumes, and `depends_on` service relationships.
 
 Query the registry:
 

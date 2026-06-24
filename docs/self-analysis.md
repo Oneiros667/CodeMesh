@@ -31,6 +31,12 @@ Run a dry-run parse without writing stores:
 dotnet run --project src/CodeMesh.Cli -- self ingest --dry-run --skip-embeddings
 ```
 
+Index CodeMesh runtime/deployment artifacts:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- ingest --root . --language deployment --skip-embeddings
+```
+
 Run the self-ingestion smoke check after Agent Access is available:
 
 ```powershell
@@ -72,7 +78,8 @@ See `docs/mcp-setup.md` for MCP client configuration.
 - Structured C# parsing is richer than Python parsing.
 - The Python `agent-access` implementation can be ingested with `--language python`, but current Python support is limited to file, class, function, async function, and containment relationships.
 - Markdown documents can be ingested with `--language markdown`, but current support is limited to document, section, anchor, heading-level, and containment structure.
-- Freshness diagnostics should be checked manually with `repos list`, `runs list`, and current git state until dedicated MCP freshness reporting exists.
+- Deployment artifacts can be ingested with `--language deployment`, but current support is limited to Dockerfiles, Docker Compose files, stages, services, selected runtime metadata, and Compose service dependencies.
+- Freshness and latest refresh outcome should be checked through `codemesh_get_repository_status`, `GET /repositories/{repository_id}/status`, or the local repository detail UI.
 
 ## Expected Dogfooding Improvements
 
@@ -84,4 +91,5 @@ The highest-value improvements are tracked in `docs/next-steps.md`:
 - Secret redaction.
 - Python parser support.
 - Markdown documentation ingestion.
+- Runtime/deployment artifact ingestion.
 - Context package quality gates.

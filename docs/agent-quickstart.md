@@ -21,6 +21,7 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. It i
 - `src/CodeMesh.Domain`: shared contracts, graph types, health contracts, and utility records.
 - `src/CodeMesh.Ingestion`: parsing orchestration, repository cleanup, embedding, and summary generation.
 - `src/CodeMesh.Parser.CSharp`: C# parser worker backed by Roslyn.
+- `src/CodeMesh.Parser.Deployment`: local deployment parser for Dockerfiles, Compose files, stages, services, and service dependencies.
 - `src/CodeMesh.Parser.Markdown`: local Markdown parser for documents, sections, anchors, and heading containment.
 - `src/CodeMesh.Parser.Python`: local Python parser for files, classes, functions, async functions, and containment.
 - `src/CodeMesh.Storage`: Neo4j, MongoDB, Qdrant, and in-memory storage adapters.
@@ -57,5 +58,6 @@ Use `.\scripts\e2e-smoke.ps1` when a change affects live store wiring, Docker se
 - .NET Agent Access client contracts: start in `src/CodeMesh.Domain/Contracts` and `src/CodeMesh.Control/AgentAccess`.
 - Ingestion behavior: start in `src/CodeMesh.Ingestion`.
 - C# parse graph behavior: start in `src/CodeMesh.Parser.CSharp`.
+- Dockerfile and Compose parse graph behavior: start in `src/CodeMesh.Parser.Deployment`.
 - Store writes and cleanup: start in `src/CodeMesh.Storage`.
 - Product direction or future features: start in `docs/next-steps.md` and `docs/sdlc-roadmap.md`.
