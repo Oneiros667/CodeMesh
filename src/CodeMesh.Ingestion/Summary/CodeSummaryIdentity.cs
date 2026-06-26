@@ -9,12 +9,14 @@ internal static class CodeSummaryIdentity
     {
         return node.Kind is
             CodeNodeKind.File or
+            CodeNodeKind.TestFile or
             CodeNodeKind.Class or
             CodeNodeKind.Interface or
             CodeNodeKind.Struct or
             CodeNodeKind.Enum or
             CodeNodeKind.Delegate or
             CodeNodeKind.Method or
+            CodeNodeKind.TestCase or
             CodeNodeKind.Constructor or
             CodeNodeKind.Property or
             CodeNodeKind.Event;
@@ -22,7 +24,7 @@ internal static class CodeSummaryIdentity
 
     public static string SummaryKind(CodeNode node)
     {
-        return node.Kind == CodeNodeKind.File ? "file" : "symbol";
+        return node.Kind is CodeNodeKind.File or CodeNodeKind.TestFile ? "file" : "symbol";
     }
 
     public static string LookupKey(string nodeId, string contentHash, string summaryKind)

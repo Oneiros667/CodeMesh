@@ -21,6 +21,7 @@ Recent completed work:
 - `src/CodeMesh.Parser.Deployment` provides first-slice Dockerfile and Docker Compose ingestion for stages, services, ports, environment keys, volumes, and service dependencies.
 - Context packages include validation recommendations inferred from packaged file paths, covering .NET tests, Agent Access Python tests/lint, deployment dry-runs, smoke checks, and Markdown dry-runs.
 - `uv run python -m codemesh_agent_access eval` runs deterministic MCP fixture evaluations for tool guidance, search diagnostics, context packages, freshness, and redaction leakage.
+- C# ingestion emits first-class `TestFile` and `TestCase` nodes for common .NET test attributes and convention-based CodeMesh test methods.
 
 Current state:
 
@@ -28,11 +29,11 @@ Current state:
 - P1 agent-usefulness items are implemented enough for active dogfooding, though Python and Markdown relationship richness can still improve.
 - Operational freshness is covered for local development by manual refresh and a local watch command.
 - The first MCP evaluation suite is fixture-based and deterministic; live-store and self-analysis golden scenarios remain future evaluation depth.
-- The largest remaining gap is now deeper validation intelligence: first-class test files/cases and implementation-to-test relationships.
+- The largest remaining gap is now deeper validation intelligence: linking first-class test cases to implementation nodes and validation commands.
 
 Current priority judgment:
 
-1. Deepen test and validation context with first-class test files/cases and relationships to implementation nodes.
+1. Deepen test and validation context with implementation-to-test relationships and validation command nodes.
 2. Add live-store MCP evaluation scenarios using indexed self-analysis data.
 3. Deepen deployment ingestion with Kubernetes/Helm and code-to-runtime links.
 4. Deepen parser relationships for Python imports/routes/MCP handlers and Markdown cross-links.
@@ -299,8 +300,10 @@ Current implementation:
 - `docs/testing.md` documents the main .NET, Python, and smoke verification commands.
 - Context package responses include `validation_recommendations` inferred from packaged file paths.
 - MCP `output_format = "agent"` includes those recommendations in the agent text brief.
-- The repository has broad .NET and Python tests, but test files and validation commands are not represented as graph context.
-- Test files and test cases are not yet represented as first-class graph context or linked to implementation nodes.
+- The repository has broad .NET and Python tests.
+- C# ingestion emits `TestFile` nodes for test files and `TestCase` nodes for methods with common .NET test attributes or CodeMesh-style `Test...` naming in test files.
+- Validation commands are not yet represented as graph context.
+- Test cases are not yet linked to implementation nodes.
 
 Expected outcome:
 

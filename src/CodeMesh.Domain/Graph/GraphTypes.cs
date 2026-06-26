@@ -14,6 +14,7 @@ public enum CodeNodeKind
     Assembly,
     Namespace,
     File,
+    TestFile,
     Declaration,
     Class,
     Interface,
@@ -25,6 +26,7 @@ public enum CodeNodeKind
     Property,
     Field,
     Event,
+    TestCase,
     Parameter,
     Lambda,
     Unknown

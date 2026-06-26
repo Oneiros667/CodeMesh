@@ -16,7 +16,7 @@ Source-of-truth implementations:
 
 Most read calls accept `repository_id`. This can be either the repository hash id or the generated alias. Agent Access resolves aliases before querying stores. Repository lookup accepts URL-encoded path characters in `repository_id`; generated aliases remain slash-free.
 
-Filters are exact-match string filters. They can match top-level node fields or metadata fields. `kinds` filters by CodeMesh node kind names such as `Method`, `Class`, `File`, or `Declaration`.
+Filters are exact-match string filters. They can match top-level node fields or metadata fields. `kinds` filters by CodeMesh node kind names such as `Method`, `Class`, `File`, `TestFile`, `TestCase`, or `Declaration`.
 
 ## REST Endpoints
 

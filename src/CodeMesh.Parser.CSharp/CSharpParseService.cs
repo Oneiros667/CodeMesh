@@ -13,6 +13,21 @@ namespace CodeMesh.Parser.CSharp;
 public sealed class CSharpParseService
 {
     private static readonly object MSBuildRegistrationLock = new();
+    private static readonly HashSet<string> TestAttributeNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Fact",
+        "FactAttribute",
+        "Theory",
+        "TheoryAttribute",
+        "Test",
+        "TestAttribute",
+        "TestCase",
+        "TestCaseAttribute",
+        "TestMethod",
+        "TestMethodAttribute",
+        "DataTestMethod",
+        "DataTestMethodAttribute"
+    };
 
     private static readonly SymbolDisplayFormat FullyQualifiedTypeFormat = new(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
@@ -467,6 +482,7 @@ public sealed class CSharpParseService
         var text = sourceText.ToString();
         var relativePath = Path.GetRelativePath(repositoryRoot, fullPath).Replace('\\', '/');
         var contentHash = CodeMeshHash.Sha256Hex(text);
+        var isTestFile = IsTestFilePath(relativePath);
 
         return new FileParseContext(
             fullPath,
@@ -474,7 +490,8 @@ public sealed class CSharpParseService
             text,
             contentHash,
             FileNodeId(relativePath),
-            syntaxTree);
+            syntaxTree,
+            isTestFile);
     }
 
     private static void EmitFileNode(
@@ -493,7 +510,7 @@ public sealed class CSharpParseService
         nodes.Add(new CodeNode(
             context.FileNodeId,
             context.FileNodeId,
-            CodeNodeKind.File,
+            context.IsTestFile ? CodeNodeKind.TestFile : CodeNodeKind.File,
             Path.GetFileName(context.FullPath),
             "csharp",
             projectName,
@@ -502,7 +519,8 @@ public sealed class CSharpParseService
             new Dictionary<string, string>
             {
                 ["parser"] = "codemesh-parser-csharp",
-                ["extraction"] = "file"
+                ["extraction"] = "file",
+                ["isTestFile"] = context.IsTestFile.ToString().ToLowerInvariant()
             }));
 
         contents.Add(new CodeContent(
@@ -552,7 +570,7 @@ public sealed class CSharpParseService
                 continue;
             }
 
-            var kind = ToNodeKind(symbol, declaration);
+            var kind = ToNodeKind(symbol, declaration, context);
             var span = ToSourceSpan(declaration, context.RelativePath);
             var source = declaration.ToFullString();
             var contentHash = CodeMeshHash.Sha256Hex(source);
@@ -574,7 +592,7 @@ public sealed class CSharpParseService
                     projectName,
                     SourceSpan.Unknown(context.RelativePath),
                     symbolContentHash,
-                    BuildSymbolMetadata(symbol, declaration)));
+                    BuildSymbolMetadata(symbol, declaration, context)));
 
                 contents.Add(new CodeContent(
                     symbolContentHash,
@@ -1093,6 +1111,7 @@ public sealed class CSharpParseService
             INamedTypeSymbol { TypeKind: TypeKind.Enum } => CodeNodeKind.Enum,
             INamedTypeSymbol { TypeKind: TypeKind.Delegate } => CodeNodeKind.Delegate,
             IMethodSymbol { MethodKind: MethodKind.Constructor } => CodeNodeKind.Constructor,
+            IMethodSymbol methodSymbol when IsTestCase(methodSymbol, declaration) => CodeNodeKind.TestCase,
             IMethodSymbol => CodeNodeKind.Method,
             IPropertySymbol => CodeNodeKind.Property,
             IFieldSymbol => declaration is EventFieldDeclarationSyntax ? CodeNodeKind.Event : CodeNodeKind.Field,
@@ -1113,7 +1132,20 @@ public sealed class CSharpParseService
             lineSpan.EndLinePosition.Character + 1);
     }
 
-    private static IReadOnlyDictionary<string, string> BuildSymbolMetadata(ISymbol symbol, SyntaxNode declaration)
+    private static CodeNodeKind ToNodeKind(ISymbol symbol, SyntaxNode declaration, FileParseContext context)
+    {
+        if (symbol is IMethodSymbol methodSymbol && IsTestCase(methodSymbol, declaration, context))
+        {
+            return CodeNodeKind.TestCase;
+        }
+
+        return ToNodeKind(symbol, declaration);
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildSymbolMetadata(
+        ISymbol symbol,
+        SyntaxNode declaration,
+        FileParseContext context)
     {
         var metadata = new Dictionary<string, string>
         {
@@ -1121,7 +1153,8 @@ public sealed class CSharpParseService
             ["extraction"] = "roslyn",
             ["nodeRole"] = "symbol",
             ["symbolKind"] = symbol.Kind.ToString(),
-            ["display"] = symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)
+            ["display"] = symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+            ["isTestFile"] = context.IsTestFile.ToString().ToLowerInvariant()
         };
 
         if (symbol.ContainingNamespace is { IsGlobalNamespace: false } containingNamespace)
@@ -1139,7 +1172,76 @@ public sealed class CSharpParseService
             metadata["modifiers"] = string.Join(" ", memberDeclaration.Modifiers.Select(modifier => modifier.Text));
         }
 
+        if (symbol is IMethodSymbol methodSymbol && IsTestCase(methodSymbol, declaration, context))
+        {
+            metadata["testRole"] = "case";
+            metadata["testFramework"] = TestFramework(declaration) ?? "convention";
+        }
+
         return metadata;
+    }
+
+    private static bool IsTestCase(IMethodSymbol methodSymbol, SyntaxNode declaration)
+    {
+        return IsTestCase(methodSymbol, declaration, null);
+    }
+
+    private static bool IsTestCase(IMethodSymbol methodSymbol, SyntaxNode declaration, FileParseContext? context)
+    {
+        if (methodSymbol.MethodKind != MethodKind.Ordinary)
+        {
+            return false;
+        }
+
+        if (HasTestAttribute(declaration))
+        {
+            return true;
+        }
+
+        return context?.IsTestFile == true &&
+            methodSymbol.Name.StartsWith("Test", StringComparison.Ordinal);
+    }
+
+    private static string? TestFramework(SyntaxNode declaration)
+    {
+        foreach (var name in AttributeNames(declaration))
+        {
+            if (name is "Fact" or "FactAttribute" or "Theory" or "TheoryAttribute")
+            {
+                return "xunit";
+            }
+
+            if (name is "Test" or "TestAttribute" or "TestCase" or "TestCaseAttribute")
+            {
+                return "nunit";
+            }
+
+            if (name is "TestMethod" or "TestMethodAttribute" or "DataTestMethod" or "DataTestMethodAttribute")
+            {
+                return "mstest";
+            }
+        }
+
+        return null;
+    }
+
+    private static bool HasTestAttribute(SyntaxNode declaration)
+    {
+        return AttributeNames(declaration).Any(name => TestAttributeNames.Contains(name));
+    }
+
+    private static IEnumerable<string> AttributeNames(SyntaxNode declaration)
+    {
+        return declaration switch
+        {
+            MemberDeclarationSyntax memberDeclaration => memberDeclaration.AttributeLists
+                .SelectMany(list => list.Attributes)
+                .Select(attribute => attribute.Name.ToString().Split('.').Last()),
+            LocalFunctionStatementSyntax localFunction => localFunction.AttributeLists
+                .SelectMany(list => list.Attributes)
+                .Select(attribute => attribute.Name.ToString().Split('.').Last()),
+            _ => []
+        };
     }
 
     private static IReadOnlyDictionary<string, string> BuildDeclarationMetadata(
@@ -1337,6 +1439,23 @@ public sealed class CSharpParseService
                string.Equals(candidate, root, StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsTestFilePath(string relativePath)
+    {
+        var fileName = Path.GetFileName(relativePath);
+        if (fileName.EndsWith("Tests.cs", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith("Test.cs", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith("Spec.cs", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith("Specs.cs", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var segments = relativePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return segments.Any(segment =>
+            string.Equals(segment, "test", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(segment, "tests", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static string ResolveProjectName(ParseRequest request, string repositoryRoot)
     {
         if (!string.IsNullOrWhiteSpace(request.ProjectPath))
@@ -1380,7 +1499,8 @@ public sealed class CSharpParseService
         string Text,
         string ContentHash,
         string FileNodeId,
-        SyntaxTree SyntaxTree);
+        SyntaxTree SyntaxTree,
+        bool IsTestFile);
 
     private sealed record ProjectParseContext(
         string ProjectName,

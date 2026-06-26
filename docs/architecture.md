@@ -40,8 +40,9 @@ CodeMesh is organized around a write-side ingestion pipeline and a read-side Age
 
 - Exposes `/health`, `/capabilities`, and `/parse`.
 - Uses Roslyn to parse solutions and projects.
-- Emits file, namespace, declaration, type, member, and relationship nodes.
+- Emits file, test file, namespace, declaration, type, member, test case, and relationship nodes.
 - Represents partial types as logical symbols plus declaration nodes.
+- Detects common .NET test attributes and CodeMesh-style `Test...` methods in test files as `TestCase` nodes.
 - Emits local semantic relationships such as `Invokes`, `Reads`, and `Writes`.
 
 `src/CodeMesh.Parser.Python` is the local Python parser:

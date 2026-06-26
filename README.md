@@ -425,4 +425,4 @@ Symbol search is for precise code navigation before requesting a full package. U
 
 The old HelioGraph repository is reference-only. CodeMesh starts with clean contracts and intentionally thin adapters so the graph, content, vector, parser, and agent-access boundaries can harden independently.
 
-The C# parser emits file, namespace, declaration, type, member, and relationship nodes using Roslyn. Partial types are represented as one logical symbol node plus separate declaration nodes. Method and member bodies also emit local semantic relationships such as `Invokes`, `Reads`, and `Writes` when the target symbol is part of the indexed code graph.
+The C# parser emits file, test file, namespace, declaration, type, member, test case, and relationship nodes using Roslyn. Partial types are represented as one logical symbol node plus separate declaration nodes. Method and member bodies also emit local semantic relationships such as `Invokes`, `Reads`, and `Writes` when the target symbol is part of the indexed code graph. Common .NET test attributes and CodeMesh-style `Test...` methods in test files are represented as `TestCase` nodes.

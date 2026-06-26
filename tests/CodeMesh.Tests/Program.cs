@@ -56,6 +56,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("neo4j graph store round-trips graph", TestNeo4jGraphStoreRoundTripsGraph),
     ("qdrant vector store round-trips embeddings", TestQdrantVectorStoreRoundTripsEmbeddings),
     ("csharp parser emits Roslyn symbols", TestCSharpParserEmitsRoslynSymbols),
+    ("csharp parser emits test files and cases", TestCSharpParserEmitsTestFilesAndCases),
     ("csharp parser emits invocation and member access relationships", TestCSharpParserEmitsInvocationAndMemberAccessRelationships),
     ("csharp parser separates partial declarations from symbols", TestCSharpParserSeparatesPartialDeclarations),
     ("csharp parser honors project compile items", TestCSharpParserHonorsProjectCompileItems),
@@ -2310,6 +2311,83 @@ static async Task TestCSharpParserEmitsRoslynSymbols()
             result,
             "csharp:type:Sample.DemoWorker",
             "csharp:method:Sample.DemoWorker.Create(Sample.Demo,System.Int32)",
+            CodeRelationshipKind.Contains);
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+static async Task TestCSharpParserEmitsTestFilesAndCases()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-parser-tests-test-{Guid.NewGuid():N}");
+    var testsDirectory = Path.Combine(root, "tests", "Sample.Tests");
+    Directory.CreateDirectory(testsDirectory);
+
+    try
+    {
+        await File.WriteAllTextAsync(
+            Path.Combine(testsDirectory, "WorkerTests.cs"),
+            """
+            namespace Sample.Tests;
+
+            public sealed class WorkerTests
+            {
+                [Fact]
+                public void Parses_named_test_attribute()
+                {
+                }
+
+                public void TestConventionBasedHarnessCase()
+                {
+                }
+
+                public void Helper()
+                {
+                }
+            }
+            """);
+
+        var parser = new CSharpParseService();
+        var result = await parser.ParseAsync(new ParseRequest(
+            root,
+            null,
+            null,
+            "csharp",
+            new Dictionary<string, string>()));
+
+        var errors = result.Diagnostics
+            .Where(diagnostic => string.Equals(diagnostic.Severity, "error", StringComparison.OrdinalIgnoreCase))
+            .Select(diagnostic => diagnostic.Message)
+            .ToArray();
+
+        if (errors.Length > 0)
+        {
+            throw new InvalidOperationException($"Parser returned errors: {string.Join("; ", errors)}");
+        }
+
+        HasNode(result, CodeNodeKind.TestFile, "WorkerTests.cs");
+        HasNode(result, CodeNodeKind.TestCase, "Parses_named_test_attribute");
+        HasNode(result, CodeNodeKind.TestCase, "TestConventionBasedHarnessCase");
+        HasNode(result, CodeNodeKind.Method, "Helper");
+
+        var attributedTest = result.Nodes.Single(node =>
+            node.Kind == CodeNodeKind.TestCase &&
+            string.Equals(node.Name, "Parses_named_test_attribute", StringComparison.Ordinal));
+        Equal("case", attributedTest.Metadata["testRole"], "C# parser did not tag attributed test case role.");
+        Equal("xunit", attributedTest.Metadata["testFramework"], "C# parser did not infer xUnit test framework.");
+
+        var conventionTest = result.Nodes.Single(node =>
+            node.Kind == CodeNodeKind.TestCase &&
+            string.Equals(node.Name, "TestConventionBasedHarnessCase", StringComparison.Ordinal));
+        Equal("case", conventionTest.Metadata["testRole"], "C# parser did not tag convention test case role.");
+        Equal("convention", conventionTest.Metadata["testFramework"], "C# parser did not tag convention-based test framework.");
+
+        HasRelationshipBetween(
+            result,
+            "csharp:type:Sample.Tests.WorkerTests",
+            "csharp:method:Sample.Tests.WorkerTests.Parses_named_test_attribute()",
             CodeRelationshipKind.Contains);
     }
     finally
