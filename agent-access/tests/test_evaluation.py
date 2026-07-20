@@ -37,3 +37,51 @@ def test_cli_eval_prints_report_and_exits_success(
     payload = json.loads(capsys.readouterr().out)
     assert payload["suite"] == "mcp-fixture"
     assert payload["passed"] is True
+
+
+def test_cli_eval_fixture_alias_preserves_report(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "eval", "fixture"])
+
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+
+    assert exc.value.code == 0
+    assert json.loads(capsys.readouterr().out)["suite"] == "mcp-fixture"
+
+
+def test_cli_eval_schema_and_validate_are_non_running_commands(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        sys, "argv", ["codemesh-agent-access", "eval", "schema", "live"]
+    )
+    cli.main()
+    assert json.loads(capsys.readouterr().out)["title"] == "LiveSuite"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["codemesh-agent-access", "eval", "validate", "codemesh-agent"],
+    )
+    cli.main()
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["valid"] is True
+    assert payload["kind"] == "agent"
+
+
+def test_cli_eval_invalid_suite_exits_with_infrastructure_code(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["codemesh-agent-access", "eval", "validate", "missing-suite"],
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+
+    assert exc.value.code == 2
+    assert json.loads(capsys.readouterr().err)["ok"] is False

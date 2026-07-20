@@ -1,0 +1,121 @@
+{
+  "schema_version": "1.0",
+  "kind": "live",
+  "name": "codemesh-live",
+  "description": "Live MCP retrieval, freshness, and safety checks against CodeMesh self-ingestion.",
+  "repository_id": "code_mesh",
+  "thresholds": {
+    "min_tool_success_rate": 1.0,
+    "min_recall_at_k": 0.85,
+    "min_mrr": 0.75,
+    "max_primary_rank": 3,
+    "max_secret_leaks": 0
+  },
+  "cases": [
+    {
+      "id": "registry-writes",
+      "description": "Find the ingestion path that writes repository registry records.",
+      "tool": "codemesh_search_context",
+      "arguments": {"query": "ingestion writes repository registry records", "repository_id": null, "limit": 8},
+      "targets": [
+        {"file_path": "src/CodeMesh.Ingestion/IngestionOrchestrator.cs", "relevance": 3, "primary": true},
+        {"file_path": "src/CodeMesh.Storage/Mongo/MongoRegistryStore.cs", "relevance": 2}
+      ],
+      "min_hit_count": 1,
+      "top_k": 8
+    },
+    {
+      "id": "repository-cleanup",
+      "description": "Find repository deletion across graph, content, vector, summary, and registry stores.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {"query": "RepositoryCleanupService DeleteRepositoryAsync graph content embeddings summaries registry", "repository_id": null, "limit": 8, "max_characters": 12000},
+      "targets": [
+        {"file_path": "src/CodeMesh.Ingestion/RepositoryCleanupService.cs", "relevance": 3, "primary": true}
+      ],
+      "min_hit_count": 1,
+      "top_k": 8
+    },
+    {
+      "id": "agent-access-client",
+      "description": "Find the typed Agent Access client and endpoint wrappers.",
+      "tool": "codemesh_search_symbols",
+      "arguments": {"query": "AgentAccessClient", "repository_id": null, "limit": 8, "kinds": ["Class"]},
+      "targets": [
+        {"file_path": "src/CodeMesh.Control/AgentAccess/AgentAccessClient.cs", "relevance": 3, "primary": true}
+      ],
+      "min_hit_count": 1,
+      "top_k": 8
+    },
+    {
+      "id": "refresh-watch",
+      "description": "Find refresh, watch, and self target resolution.",
+      "tool": "codemesh_search_context",
+      "arguments": {"query": "refresh watch self workflow resolve repository root target", "repository_id": null, "limit": 8},
+      "targets": [
+        {"file_path": "src/CodeMesh.Control/Configuration/CodeMeshRefreshWorkflow.cs", "relevance": 3, "primary": true},
+        {"file_path": "src/CodeMesh.Control/Configuration/CodeMeshSelfWorkflow.cs", "relevance": 2}
+      ],
+      "min_hit_count": 1,
+      "top_k": 8
+    },
+    {
+      "id": "csharp-relationships",
+      "description": "Find C# parser invocation, read, and write relationship generation.",
+      "tool": "codemesh_search_context",
+      "arguments": {"query": "CSharp parser invocation reads writes relationships", "repository_id": null, "limit": 8},
+      "targets": [
+        {"file_path": "src/CodeMesh.Parser.CSharp/CSharpParseService.cs", "relevance": 3, "primary": true}
+      ],
+      "min_hit_count": 1,
+      "top_k": 8
+    },
+    {
+      "id": "deployment-parser",
+      "description": "Find Dockerfile and Compose parsing behavior.",
+      "tool": "codemesh_search_context",
+      "arguments": {"query": "deployment parser Dockerfile Compose services ports dependencies", "repository_id": null, "limit": 8},
+      "targets": [
+        {"file_path": "src/CodeMesh.Parser.Deployment/DeploymentParseService.cs", "relevance": 3, "primary": true}
+      ],
+      "min_hit_count": 1,
+      "top_k": 8
+    },
+    {
+      "id": "validation-context",
+      "description": "Find the test that validates repository cleanup.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {"query": "test repository cleanup removes indexed data validation", "repository_id": null, "limit": 8, "max_characters": 12000},
+      "targets": [
+        {"file_path": "tests/CodeMesh.Tests/Program.cs", "relevance": 3, "primary": true}
+      ],
+      "min_hit_count": 1,
+      "top_k": 8
+    },
+    {
+      "id": "freshness",
+      "description": "Require a fresh indexed repository.",
+      "tool": "codemesh_get_repository_status",
+      "arguments": {"repository_id": null},
+      "expected_values": {"freshness.status": "fresh"}
+    },
+    {
+      "id": "tool-guidance",
+      "description": "Require freshness guidance for a pre-edit task.",
+      "tool": "codemesh_get_tool_guidance",
+      "arguments": {"task": "check whether repository context is stale before editing"},
+      "expected_values": {"recommended_workflows.0.id": "check_freshness"}
+    },
+    {
+      "id": "secret-canary",
+      "description": "Retrieve the evaluation canary without exposing its fake token value.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {"query": "CodeMeshEvaluationCanary CODEMESH_EVAL_TOKEN", "repository_id": null, "limit": 4, "max_characters": 4000},
+      "targets": [
+        {"file_path": "tests/CodeMesh.Tests/Fixtures/CodeMeshEvaluationCanary.cs", "relevance": 3, "primary": true}
+      ],
+      "forbidden_substrings": ["cm_eval_not_a_real_secret_7f93d2"],
+      "min_hit_count": 1,
+      "top_k": 4
+    }
+  ]
+}

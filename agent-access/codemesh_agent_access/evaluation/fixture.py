@@ -5,8 +5,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from . import mcp, tools
-from .models import (
+from .. import mcp, tools
+from ..models import (
     ContextHit,
     ContextPackageItem,
     ContextPackageQuery,

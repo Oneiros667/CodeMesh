@@ -1,0 +1,12 @@
+diff --git a/src/CodeMesh.Control/Configuration/CodeMeshSelfWorkflow.cs b/src/CodeMesh.Control/Configuration/CodeMeshSelfWorkflow.cs
+--- a/src/CodeMesh.Control/Configuration/CodeMeshSelfWorkflow.cs
++++ b/src/CodeMesh.Control/Configuration/CodeMeshSelfWorkflow.cs
+@@ -72,7 +72,7 @@ public static class CodeMeshSelfWorkflow
+                 continue;
+             }
+ 
+-            if (IsOptionWithValue(arg, "--root", "--repository-root", "--solution", "--solution-path", "--agent-access-url", "--agent-timeout-seconds", "--query", "--limit"))
++            if (IsOptionWithValue(arg, "--root", "--repository-root", "--solution", "--solution-path", "--agent-timeout-seconds", "--query", "--limit"))
+             {
+                 skipNext = true;
+                 continue;

@@ -21,6 +21,8 @@ Recent completed work:
 - `src/CodeMesh.Parser.Deployment` provides first-slice Dockerfile and Docker Compose ingestion for stages, services, ports, environment keys, volumes, and service dependencies.
 - Context packages include validation recommendations inferred from packaged file paths, covering .NET tests, Agent Access Python tests/lint, deployment dry-runs, smoke checks, and Markdown dry-runs.
 - `uv run python -m codemesh_agent_access eval` runs deterministic MCP fixture evaluations for tool guidance, search diagnostics, context packages, freshness, and redaction leakage.
+- `uv run python -m codemesh_agent_access eval live` exercises real MCP stdio transport and scores CodeMesh self-analysis retrieval, freshness, reliability, latency, and redaction.
+- `uv run python -m codemesh_agent_access eval agent --model <model-id>` runs an opt-in isolated control/treatment comparison with a Codex adapter and versioned agent tasks.
 - C# ingestion emits first-class `TestFile` and `TestCase` nodes for common .NET test attributes and convention-based CodeMesh test methods.
 - Parsers and watch mode share a default repository path policy that excludes generated, cache, virtual-environment, smoke, and temporary directories.
 - Agent Access declares `pytest` and `ruff` as development dependencies, making documented verification commands reproducible after `uv sync`.
@@ -30,13 +32,13 @@ Current state:
 - P0 baseline items are implemented enough for dependable local MCP use.
 - P1 agent-usefulness items are implemented enough for active dogfooding, though Python and Markdown relationship richness can still improve.
 - Operational freshness is covered for local development by manual refresh and a local watch command.
-- The first MCP evaluation suite is fixture-based and deterministic; live-store and self-analysis golden scenarios remain future evaluation depth.
+- MCP evaluation now includes deterministic fixtures, live self-analysis golden queries, and an opt-in agent A/B harness; additional repositories and longer-lived baselines remain future depth.
 - The largest remaining gap is now deeper validation intelligence: linking first-class test cases to implementation nodes and validation commands.
 
 Current priority judgment:
 
 1. Deepen test and validation context with implementation-to-test relationships and validation command nodes.
-2. Add live-store MCP evaluation scenarios using indexed self-analysis data.
+2. Establish and review live/agent evaluation baselines as ranking and context behavior evolves.
 3. Deepen deployment ingestion with Kubernetes/Helm and code-to-runtime links.
 4. Deepen parser relationships for Python imports/routes/MCP handlers and Markdown cross-links.
 5. Strengthen secret-file exclusion and configurable allow/deny policy before broad SDLC artifact ingestion.
@@ -330,8 +332,10 @@ Current implementation:
 - Unit and contract tests cover store behavior, ranking, MCP contracts, REST contracts, CLI output, parsers, redaction, and ingestion.
 - `uv run python -m codemesh_agent_access eval` runs deterministic MCP fixture scenarios through the same `FastMCP` tool-call path used by contract tests.
 - Current fixture scenarios assert minimum behavior for tool guidance, search diagnostics, context package metadata, freshness guidance, and redaction leakage.
-- The self-ingestion smoke path validates the live REST surface, not MCP stdio transport.
-- There is not yet a live-store benchmark set that asserts minimum useful results against indexed CodeMesh self-analysis data.
+- `eval live` launches Agent Access through real MCP stdio, requires fresh indexed data by default, and scores versioned CodeMesh self-analysis cases using Recall@k, MRR, nDCG, stability, relationship coverage, latency, and safety gates.
+- `eval agent` uses isolated temporary clones and a Codex runner adapter to compare identical answer and repair tasks with and without CodeMesh; paid/model-backed runs remain explicit rather than part of normal CI.
+- Custom live and agent suites use versioned JSON formats exposed through `eval schema` and `eval validate`.
+- The self-ingestion smoke path remains the live REST lifecycle check; the live evaluator owns MCP stdio effectiveness checks.
 
 Expected outcome:
 
@@ -388,7 +392,7 @@ Useful agents need to follow local engineering process, not only compile code.
 ## Near-Term Recommended Order
 
 1. Deepen test and validation context with first-class test files/cases and relationships to implementation nodes.
-2. Add live MCP evaluation scenarios with representative self-analysis queries and minimum useful-result assertions.
+2. Establish reviewed evaluation baselines and add a representative external repository suite.
 3. Deepen deployment ingestion into Kubernetes manifests, Helm charts, CI/CD workflows, and code-to-runtime links.
 4. Deepen Python and Markdown relationship extraction where it improves self-analysis and MCP packages.
 5. Add configurable sensitive-file exclusion and allow/deny policy before broadening SDLC artifact ingestion.

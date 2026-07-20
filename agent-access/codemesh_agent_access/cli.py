@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import sys
 
 import uvicorn
 
@@ -19,7 +20,44 @@ def main() -> None:
     subcommands.add_parser(
         "mcp-manifest", help="Print the MCP tool contract manifest JSON."
     )
-    subcommands.add_parser("eval", help="Run deterministic MCP evaluation scenarios.")
+    eval_parser = subcommands.add_parser(
+        "eval", help="Run deterministic, live, or agent effectiveness evaluations."
+    )
+    eval_modes = eval_parser.add_subparsers(dest="eval_mode")
+    eval_modes.add_parser("fixture", help="Run deterministic fixture scenarios.")
+
+    live_eval_parser = eval_modes.add_parser(
+        "live", help="Run a live MCP stdio retrieval benchmark."
+    )
+    live_eval_parser.add_argument("--suite", default="codemesh-live")
+    live_eval_parser.add_argument("--repository-id")
+    live_eval_parser.add_argument("--repetitions", type=int, default=3)
+    live_eval_parser.add_argument("--warmup", type=int, default=1)
+    live_eval_parser.add_argument("--allow-stale", action="store_true")
+    live_eval_parser.add_argument("--keep-raw-traces", action="store_true")
+
+    agent_eval_parser = eval_modes.add_parser(
+        "agent", help="Run paired agent tasks with and without CodeMesh."
+    )
+    agent_eval_parser.add_argument("--suite", default="codemesh-agent")
+    agent_eval_parser.add_argument("--model", required=True)
+    agent_eval_parser.add_argument("--reasoning-effort", default="medium")
+    agent_eval_parser.add_argument("--repetitions", type=int, default=3)
+    agent_eval_parser.add_argument("--seed", type=int, default=42)
+    agent_eval_parser.add_argument("--repository-root")
+    agent_eval_parser.add_argument("--repository-id")
+    agent_eval_parser.add_argument("--output-dir")
+    agent_eval_parser.add_argument("--keep-raw-traces", action="store_true")
+    agent_eval_parser.add_argument("--keep-workspaces", action="store_true")
+
+    validate_eval_parser = eval_modes.add_parser(
+        "validate", help="Validate an evaluation suite JSON file."
+    )
+    validate_eval_parser.add_argument("suite")
+    schema_eval_parser = eval_modes.add_parser(
+        "schema", help="Print an evaluation suite JSON Schema."
+    )
+    schema_eval_parser.add_argument("kind", choices=["live", "agent"])
     subcommands.add_parser("status", help="Print Agent Access status JSON.")
     guidance_parser = subcommands.add_parser(
         "tool-guidance", help="Recommend CodeMesh tools for a task."
@@ -142,9 +180,78 @@ def main() -> None:
         return
 
     if args.command == "eval":
-        report = asyncio.run(evaluation.run_mcp_evaluations())
-        print(json.dumps(report.to_dict(), indent=2))
-        raise SystemExit(0 if report.passed else 1)
+        try:
+            if args.eval_mode in {None, "fixture"}:
+                report = asyncio.run(evaluation.run_mcp_evaluations())
+                print(json.dumps(report.to_dict(), indent=2))
+                raise SystemExit(0 if report.passed else 1)
+
+            if args.eval_mode == "schema":
+                print(json.dumps(evaluation.suite_json_schema(args.kind), indent=2))
+                return
+
+            if args.eval_mode == "validate":
+                suite, suite_path = evaluation.load_suite(args.suite)
+                print(
+                    json.dumps(
+                        {
+                            "valid": True,
+                            "kind": suite.kind,
+                            "name": suite.name,
+                            "schema_version": suite.schema_version,
+                            "path": str(suite_path),
+                        },
+                        indent=2,
+                    )
+                )
+                return
+
+            if args.eval_mode == "live":
+                suite, _suite_path = evaluation.load_suite(args.suite, "live")
+                report = asyncio.run(
+                    evaluation.run_live_evaluation(
+                        suite,
+                        repository_id=args.repository_id,
+                        repetitions=args.repetitions,
+                        warmup=args.warmup,
+                        allow_stale=args.allow_stale,
+                        keep_raw_traces=args.keep_raw_traces,
+                    )
+                )
+                print(json.dumps(report.model_dump(mode="json"), indent=2))
+                raise SystemExit(0 if report.passed else 1)
+
+            if args.eval_mode == "agent":
+                suite, suite_path = evaluation.load_suite(args.suite, "agent")
+                report = asyncio.run(
+                    evaluation.run_agent_evaluation(
+                        suite,
+                        suite_path,
+                        model=args.model,
+                        reasoning_effort=args.reasoning_effort,
+                        repetitions=args.repetitions,
+                        seed=args.seed,
+                        repository_root=args.repository_root,
+                        repository_id=args.repository_id,
+                        output_dir=args.output_dir,
+                        keep_raw_traces=args.keep_raw_traces,
+                        keep_workspaces=args.keep_workspaces,
+                    )
+                )
+                print(json.dumps(report.model_dump(mode="json"), indent=2))
+                raise SystemExit(0 if report.passed else 1)
+        except (ValueError, OSError, evaluation.EvaluationInfrastructureError) as exc:
+            print(
+                json.dumps(
+                    {
+                        "ok": False,
+                        "error": f"{type(exc).__name__}: {exc}",
+                    },
+                    indent=2,
+                ),
+                file=sys.stderr,
+            )
+            raise SystemExit(2) from exc
 
     if args.command == "status":
         result = asyncio.run(tools.status())

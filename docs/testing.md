@@ -73,6 +73,23 @@ The current evaluation suite uses an in-process fixture store, so it does not
 require Docker services or a model provider. Use the end-to-end smoke script for
 live-store lifecycle checks.
 
+Run the live MCP stdio benchmark after self-ingesting a clean CodeMesh checkout:
+
+```powershell
+cd agent-access
+uv run python -m codemesh_agent_access eval live
+```
+
+Run the opt-in Codex A/B benchmark only when live stores, a fresh index, Codex
+authentication, time, and model budget are available:
+
+```powershell
+uv run python -m codemesh_agent_access eval agent --model <model-id>
+```
+
+These commands are intentionally excluded from normal `pytest` execution. See
+`docs/evaluation.md` for metrics, suite formats, artifact handling, and exit codes.
+
 ## End-To-End Smoke
 
 Use the smoke script when a change affects live service wiring, Docker Compose behavior, repository lifecycle, cleanup, REST endpoints, or Agent Access integration.

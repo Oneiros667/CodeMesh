@@ -1,0 +1,12 @@
+diff --git a/src/CodeMesh.Control/AgentAccess/AgentAccessClient.cs b/src/CodeMesh.Control/AgentAccess/AgentAccessClient.cs
+--- a/src/CodeMesh.Control/AgentAccess/AgentAccessClient.cs
++++ b/src/CodeMesh.Control/AgentAccess/AgentAccessClient.cs
+@@ -77,7 +77,7 @@ public sealed class AgentAccessClient : IAgentAccessClient, IDisposable
+     public Task<AgentContextPackageResult> GetContextPackageAsync(
+         AgentContextPackageQuery query,
+         CancellationToken cancellationToken = default)
+-        => PostAsync<AgentContextPackageQuery, AgentContextPackageResult>("context/package", query, cancellationToken);
++        => PostAsync<AgentContextPackageQuery, AgentContextPackageResult>("context/search", query, cancellationToken);
+ 
+     public Task<AgentSymbolSearchResult> SearchSymbolsAsync(
+         AgentSymbolQuery query,

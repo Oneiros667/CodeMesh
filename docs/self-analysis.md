@@ -51,7 +51,25 @@ Run the self-ingestion smoke check after Agent Access is available:
 dotnet run --project src/CodeMesh.Cli -- self smoke --skip-embeddings
 ```
 
-The smoke command indexes CodeMesh, uses the typed .NET REST client to check that Agent Access can list the repository and recent runs, then verifies that a context query returns hits. It does not validate MCP stdio transport; live MCP scenarios remain part of the evaluation backlog.
+The smoke command indexes CodeMesh, uses the typed .NET REST client to check that Agent Access can list the repository and recent runs, then verifies that a context query returns hits. It does not validate MCP stdio transport; use the live evaluator below for that path.
+
+After self-ingesting a clean commit, validate the real MCP stdio path and the
+built-in CodeMesh golden queries with:
+
+```powershell
+cd agent-access
+uv run python -m codemesh_agent_access eval live
+```
+
+For an opt-in paired Codex comparison using isolated temporary clones:
+
+```powershell
+uv run python -m codemesh_agent_access eval agent --model <model-id>
+```
+
+See `docs/evaluation.md` for freshness requirements, metrics, costs, and trace
+sensitivity. The REST-based `self smoke` remains the lifecycle smoke path; the
+live evaluator owns MCP stdio quality checks.
 
 Verify registry and runs manually:
 

@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "kind": "agent",
+  "name": "codemesh-agent",
+  "description": "Paired CodeMesh control/treatment tasks for Codex and compatible agents.",
+  "repository_id": "code_mesh",
+  "thresholds": {"efficiency_delta": 0.10, "minimum_completed_pairs": 3},
+  "tasks": [
+    {
+      "id": "answer-registry-writes",
+      "description": "Explain repository registry persistence.",
+      "task_type": "answer",
+      "prompt": "Explain how ingestion writes and updates repository registry records. Cite the implementation files and exact line ranges that support the answer.",
+      "targets": [
+        {"file_path": "src/CodeMesh.Ingestion/IngestionOrchestrator.cs"},
+        {"file_path": "src/CodeMesh.Storage/Mongo/MongoRegistryStore.cs"}
+      ]
+    },
+    {
+      "id": "answer-cleanup",
+      "description": "Explain repository cleanup.",
+      "task_type": "answer",
+      "prompt": "Explain how deleting an indexed repository cleans graph, content, embeddings, summaries, runs, and registry data. Cite the implementation files and exact line ranges.",
+      "targets": [{"file_path": "src/CodeMesh.Ingestion/RepositoryCleanupService.cs"}]
+    },
+    {
+      "id": "answer-refresh",
+      "description": "Explain refresh and self target resolution.",
+      "task_type": "answer",
+      "prompt": "Explain how CodeMesh resolves repository roots and targets for refresh and self-ingestion. Cite the implementation files and exact line ranges.",
+      "targets": [
+        {"file_path": "src/CodeMesh.Control/Configuration/CodeMeshRefreshWorkflow.cs"},
+        {"file_path": "src/CodeMesh.Control/Configuration/CodeMeshSelfWorkflow.cs"}
+      ]
+    },
+    {
+      "id": "repair-agent-access-endpoint",
+      "description": "Repair an incorrect Agent Access context-package endpoint.",
+      "task_type": "change",
+      "prompt": "The typed Agent Access client sends context-package requests to the wrong endpoint. Diagnose and make the smallest correction, then run the relevant validation.",
+      "setup_patch": "patches/agent-access-endpoint.patch",
+      "validation": [{"argv": ["dotnet", "run", "--project", "tests/CodeMesh.Tests"], "timeout_seconds": 600}],
+      "required_changed_paths": ["src/CodeMesh.Control/AgentAccess/AgentAccessClient.cs"],
+      "allowed_changed_paths": ["src/CodeMesh.Control/AgentAccess/AgentAccessClient.cs"]
+    },
+    {
+      "id": "repair-self-arguments",
+      "description": "Repair self-ingest argument normalization.",
+      "task_type": "change",
+      "prompt": "Self-ingestion is leaking a smoke-only Agent Access URL option into normalized ingestion arguments. Diagnose and make the smallest correction, then run the relevant validation.",
+      "setup_patch": "patches/self-arguments.patch",
+      "validation": [{"argv": ["dotnet", "run", "--project", "tests/CodeMesh.Tests"], "timeout_seconds": 600}],
+      "required_changed_paths": ["src/CodeMesh.Control/Configuration/CodeMeshSelfWorkflow.cs"],
+      "allowed_changed_paths": ["src/CodeMesh.Control/Configuration/CodeMeshSelfWorkflow.cs"]
+    },
+    {
+      "id": "repair-cleanup-report",
+      "description": "Repair summary cleanup reporting.",
+      "task_type": "change",
+      "prompt": "Repository deletion removes summaries but incorrectly reports that summary cleanup did not complete. Diagnose and make the smallest correction, then run the relevant validation.",
+      "setup_patch": "patches/cleanup-report.patch",
+      "validation": [{"argv": ["dotnet", "run", "--project", "tests/CodeMesh.Tests"], "timeout_seconds": 600}],
+      "required_changed_paths": ["src/CodeMesh.Ingestion/RepositoryCleanupService.cs"],
+      "allowed_changed_paths": ["src/CodeMesh.Ingestion/RepositoryCleanupService.cs"]
+    }
+  ]
+}
