@@ -285,6 +285,12 @@ def test_codex_arguments_only_enable_codemesh_for_treatment(tmp_path: Path) -> N
     assert "--ephemeral" in treatment
     assert "--ignore-user-config" in treatment
 
+    local = runner._arguments(
+        AgentRunRequest(condition="control", local_provider="lmstudio", **common)
+    )
+    assert local[local.index("--local-provider") + 1] == "lmstudio"
+    assert "--oss" in local
+
 
 def test_agent_classifier_prioritizes_correctness_and_safety() -> None:
     suite = AgentSuite(
@@ -400,6 +406,7 @@ def test_change_task_runs_in_an_isolated_clone(tmp_path: Path) -> None:
             root=repository,
             base_commit=base_commit,
             model="test",
+            local_provider=None,
             reasoning_effort="medium",
             mcp_cwd=tmp_path,
             keep_raw_traces=False,

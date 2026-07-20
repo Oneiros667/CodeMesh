@@ -29,6 +29,7 @@ class AgentRunRequest:
     sandbox: Literal["read-only", "workspace-write"]
     timeout_seconds: int
     mcp_cwd: Path
+    local_provider: Literal["lmstudio", "ollama"] | None = None
     output_schema: Path | None = None
     keep_raw_traces: bool = False
 
@@ -115,6 +116,8 @@ class CodexRunner:
             "-c",
             mcp_config,
         ]
+        if request.local_provider is not None:
+            arguments.extend(["--oss", "--local-provider", request.local_provider])
         if request.output_schema is not None:
             arguments.extend(["--output-schema", str(request.output_schema)])
         arguments.append(request.prompt)

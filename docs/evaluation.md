@@ -80,6 +80,15 @@ uv run python -m codemesh_agent_access eval agent `
   --output-dir ..\.codemesh-evals\manual-run
 ```
 
+To evaluate a model served locally by LM Studio or Ollama, select the local
+provider explicitly. The same provider and model are used for both conditions:
+
+```powershell
+uv run python -m codemesh_agent_access eval agent `
+  --model <local-model-id> `
+  --local-provider lmstudio
+```
+
 Each control and treatment run receives the same task prompt, model, reasoning effort, sandbox, and isolated temporary clone. The control has an empty MCP server map. The treatment adds CodeMesh as a required stdio MCP server. The treatment prompt does not force MCP use, so the report can measure CodeMesh adoption as well as outcomes.
 
 The treatment configuration allowlists CodeMesh read tools and does not expose repository deletion to the benchmark agent.

@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from statistics import median
 from time import perf_counter
-from typing import Any
+from typing import Any, Literal
 
 from .codex import AgentRunRequest, AgentRunner, CodexRunner, sanitize_text
 from .live import EvaluationInfrastructureError, get_repository_preflight
@@ -54,6 +54,7 @@ async def run_agent_evaluation(
     suite_path: Path,
     *,
     model: str,
+    local_provider: Literal["lmstudio", "ollama"] | None = None,
     reasoning_effort: str = "medium",
     repetitions: int = 3,
     seed: int = 42,
@@ -109,6 +110,7 @@ async def run_agent_evaluation(
                     root=root,
                     base_commit=base_commit,
                     model=model,
+                    local_provider=local_provider,
                     reasoning_effort=reasoning_effort,
                     mcp_cwd=mcp_cwd,
                     keep_raw_traces=keep_raw_traces,
@@ -132,6 +134,7 @@ async def run_agent_evaluation(
         metadata={
             "repository_id": preflight.get("repository_id") or resolved_repository,
             "base_commit": base_commit,
+            "model_provider": local_provider or "default",
             "current_branch": freshness.get("current_branch"),
             "raw_traces_retained": keep_raw_traces,
             "source_checkout_modified": False,
@@ -155,6 +158,7 @@ async def _run_task_condition(
     root: Path,
     base_commit: str,
     model: str,
+    local_provider: Literal["lmstudio", "ollama"] | None,
     reasoning_effort: str,
     mcp_cwd: Path,
     keep_raw_traces: bool,
@@ -247,6 +251,7 @@ async def _run_task_condition(
                 cwd=workspace,
                 condition=condition,
                 model=model,
+                local_provider=local_provider,
                 reasoning_effort=reasoning_effort,
                 sandbox="read-only"
                 if task.task_type == "answer"
