@@ -23,9 +23,15 @@ public sealed class IngestionOrchestrator(
     {
         var startedAt = DateTimeOffset.UtcNow;
         var repositoryRoot = Path.GetFullPath(request.RepositoryRoot);
+        var git = await RepositoryGitSnapshot
+            .CaptureAsync(repositoryRoot, cancellationToken)
+            .ConfigureAwait(false);
         var repository = new RepositoryRef(
             CodeMeshHash.StableId(repositoryRoot),
-            repositoryRoot);
+            repositoryRoot,
+            git.RemoteUrl,
+            git.Branch,
+            git.Commit);
         var ingestionRunId = CodeMeshHash.StableId(repository.Id, startedAt.ToString("O"));
         var seenAt = DateTimeOffset.UtcNow;
 

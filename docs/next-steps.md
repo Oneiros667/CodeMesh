@@ -98,11 +98,11 @@ Current implementation:
 - `codemesh_get_repository_status` exposes the same status bundle through MCP.
 - `uv run python -m codemesh_agent_access repo-status <repository-id-or-alias>` exposes it through the Python CLI.
 - `AgentAccessClient.GetRepositoryStatusAsync` exposes it to .NET callers.
-- Current freshness is conservative: when ingestion has not stored an indexed commit, status is `unknown` even if local git state is readable.
+- Ingestion stamps the current Git commit, branch, and origin URL into repository registry records when the source root is a Git checkout. Older records without a commit remain `unknown` until they are re-ingested.
 
 Expected outcome:
 
-- A tool or status field that reports latest ingestion run, indexed commit SHA when available, current working tree commit when available, and whether the index appears stale.
+- Repository status reports the latest ingestion run, indexed commit SHA when available, current working tree commit when available, and whether the index appears stale.
 - Repository-level counts for graph nodes, content documents, vectors, and summaries.
 - Clear diagnostics when vectors or summaries are missing for a repository.
 

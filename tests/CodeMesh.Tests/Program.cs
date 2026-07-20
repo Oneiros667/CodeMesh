@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -45,6 +46,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("embedding verifier reports missing and stale vectors", TestEmbeddingVerifierReportsMissingAndStaleVectors),
     ("repository cleanup removes indexed data", TestRepositoryCleanupRemovesIndexedData),
     ("repository aliases are generated and resolved", TestRepositoryAliasesAreGeneratedAndResolved),
+    ("ingestion stamps git repository metadata", TestIngestionStampsGitRepositoryMetadata),
     ("ingestion writes repository registry records", TestIngestionWritesRepositoryRegistryRecords),
     ("status uses configured ollama endpoint", TestStatusUsesConfiguredOllamaEndpoint),
     ("status retries transient ollama failures", TestStatusRetriesTransientOllamaFailures),
@@ -1335,6 +1337,52 @@ static async Task TestIngestionWritesRepositoryRegistryRecords()
         Equal("fake-parser", runs[0].ParserName, "Registry parser name changed.");
         Equal("none", runs[0].EmbeddingProvider, "Registry embedding provider changed.");
         Equal(1, runs[0].Stats?.ParsedNodeCount ?? 0, "Registry stats changed.");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+static async Task TestIngestionStampsGitRepositoryMetadata()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-git-metadata-test-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+
+    try
+    {
+        RunGit(root, "init", "--initial-branch", "evaluation");
+        RunGit(root, "config", "user.email", "codemesh@example.invalid");
+        RunGit(root, "config", "user.name", "CodeMesh Tests");
+        File.WriteAllText(Path.Combine(root, "sample.txt"), "indexed content");
+        RunGit(root, "add", "sample.txt");
+        RunGit(root, "commit", "-m", "test commit");
+        RunGit(root, "remote", "add", "origin", "https://example.invalid/codemesh.git");
+        var expectedCommit = RunGit(root, "rev-parse", "HEAD");
+
+        var store = new InMemoryCodeMeshStore();
+        var orchestrator = new IngestionOrchestrator(
+            new FakeParserClient(),
+            store,
+            store,
+            store,
+            new NoEmbeddingProvider(),
+            store);
+
+        var result = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            DryRun: false,
+            SkipEmbeddings: true));
+
+        Equal(expectedCommit, result.Repository.Commit ?? string.Empty, "Ingestion did not stamp the Git commit.");
+        Equal("evaluation", result.Repository.Branch ?? string.Empty, "Ingestion did not stamp the Git branch.");
+        Equal("https://example.invalid/codemesh.git", result.Repository.RemoteUrl ?? string.Empty, "Ingestion did not stamp the Git remote.");
+
+        var repository = await store.GetRepositoryAsync(result.Repository.Id);
+        NotNull(repository, "Registry did not retain Git repository metadata.");
+        Equal(expectedCommit, repository!.Commit ?? string.Empty, "Registry did not retain the Git commit.");
+        Equal("evaluation", repository.Branch ?? string.Empty, "Registry did not retain the Git branch.");
+        Equal("https://example.invalid/codemesh.git", repository.RemoteUrl ?? string.Empty, "Registry did not retain the Git remote.");
     }
     finally
     {
@@ -2944,6 +2992,35 @@ static async Task TestYoutubeDownloaderSampleParser()
     {
         throw new InvalidOperationException("Parser did not include the expected VideoDownloader.cs sample file.");
     }
+}
+
+static string RunGit(string workingDirectory, params string[] arguments)
+{
+    var startInfo = new ProcessStartInfo
+    {
+        FileName = "git",
+        WorkingDirectory = workingDirectory,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false,
+        CreateNoWindow = true
+    };
+    foreach (var argument in arguments)
+    {
+        startInfo.ArgumentList.Add(argument);
+    }
+
+    using var process = Process.Start(startInfo)
+        ?? throw new InvalidOperationException("Could not start Git for test setup.");
+    var standardOutput = process.StandardOutput.ReadToEnd();
+    var standardError = process.StandardError.ReadToEnd();
+    process.WaitForExit();
+    if (process.ExitCode != 0)
+    {
+        throw new InvalidOperationException($"Git test setup failed: {standardError.Trim()}");
+    }
+
+    return standardOutput.Trim();
 }
 
 static void HasNode(ParseResult result, CodeNodeKind kind, string name)
