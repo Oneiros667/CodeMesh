@@ -371,10 +371,6 @@ class Neo4jGraphStore:
 
         return [dict(record["node"]) for record in records]
 
-
-def lexical_terms(search_text: str) -> list[str]:
-    return list(dict.fromkeys(re.findall(r"[a-z0-9]+", search_text.casefold())))
-
     async def delete_repository(self, repository_id: str) -> None:
         if _load_async_graph_database() is None or not repository_id:
             return
@@ -412,6 +408,10 @@ def lexical_terms(search_text: str) -> list[str]:
             )
 
         return self._neo4j_driver
+
+
+def lexical_terms(search_text: str) -> list[str]:
+    return list(dict.fromkeys(re.findall(r"[a-z0-9]+", search_text.casefold())))
 
 
 def _load_async_graph_database() -> Any | None:

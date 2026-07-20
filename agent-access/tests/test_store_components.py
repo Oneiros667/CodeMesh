@@ -245,6 +245,7 @@ def test_lexical_terms_normalizes_and_deduplicates_query_words() -> None:
         "cleanup",
         "records",
     ]
+    assert callable(Neo4jGraphStore.delete_repository)
 
 
 def test_node_summary_normalizer_preserves_generated_metadata() -> None:
