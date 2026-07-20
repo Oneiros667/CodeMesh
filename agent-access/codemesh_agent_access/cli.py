@@ -42,6 +42,7 @@ def main() -> None:
     agent_eval_parser.add_argument("--suite", default="codemesh-agent")
     agent_eval_parser.add_argument("--model", required=True)
     agent_eval_parser.add_argument("--local-provider", choices=["lmstudio", "ollama"])
+    agent_eval_parser.add_argument("--codex-executable", default="codex")
     agent_eval_parser.add_argument("--reasoning-effort", default="medium")
     agent_eval_parser.add_argument("--repetitions", type=int, default=3)
     agent_eval_parser.add_argument("--seed", type=int, default=42)
@@ -230,6 +231,7 @@ def main() -> None:
                         suite_path,
                         model=args.model,
                         local_provider=args.local_provider,
+                        codex_executable=args.codex_executable,
                         reasoning_effort=args.reasoning_effort,
                         repetitions=args.repetitions,
                         seed=args.seed,

@@ -55,6 +55,7 @@ async def run_agent_evaluation(
     *,
     model: str,
     local_provider: Literal["lmstudio", "ollama"] | None = None,
+    codex_executable: str = "codex",
     reasoning_effort: str = "medium",
     repetitions: int = 3,
     seed: int = 42,
@@ -85,7 +86,7 @@ async def run_agent_evaluation(
             "The CodeMesh indexed commit, repository checkout, and benchmark base commit must match."
         )
 
-    codex_runner = runner or CodexRunner()
+    codex_runner = runner or CodexRunner(codex_executable)
     rng = random.Random(seed)
     mcp_cwd = Path(__file__).resolve().parents[2]
     destination = (
@@ -135,6 +136,7 @@ async def run_agent_evaluation(
             "repository_id": preflight.get("repository_id") or resolved_repository,
             "base_commit": base_commit,
             "model_provider": local_provider or "default",
+            "codex_executable": codex_executable,
             "current_branch": freshness.get("current_branch"),
             "raw_traces_retained": keep_raw_traces,
             "source_checkout_modified": False,

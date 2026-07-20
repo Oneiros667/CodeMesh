@@ -5,6 +5,8 @@ import json
 import os
 import re
 import signal
+import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter
@@ -53,34 +55,59 @@ class AgentRunner(Protocol):
 
 
 class CodexRunner:
-    def __init__(self, executable: str = "codex") -> None:
+    def __init__(
+        self,
+        executable: str = "codex",
+        *,
+        supports_ignore_user_config: bool | None = None,
+    ) -> None:
         self.executable = executable
+        self._supports_ignore_user_config = supports_ignore_user_config
 
     async def run(self, request: AgentRunRequest) -> AgentRunResult:
-        arguments = self._arguments(request)
-        started = perf_counter()
-        process = await asyncio.create_subprocess_exec(
-            self.executable,
-            *arguments,
-            cwd=request.cwd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            start_new_session=os.name != "nt",
+        supports_ignore_user_config = self._detect_ignore_user_config()
+        arguments = self._arguments(
+            request, supports_ignore_user_config=supports_ignore_user_config
         )
+        isolated_home: tempfile.TemporaryDirectory[str] | None = None
+        environment: dict[str, str] | None = None
+        if not supports_ignore_user_config:
+            if request.local_provider is None:
+                raise RuntimeError(
+                    "The selected Codex executable lacks --ignore-user-config; "
+                    "legacy isolation is supported only with a local provider."
+                )
+            isolated_home = tempfile.TemporaryDirectory(prefix="codemesh-codex-home-")
+            environment = os.environ.copy()
+            environment["CODEX_HOME"] = isolated_home.name
+        started = perf_counter()
         try:
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=request.timeout_seconds
+            process = await asyncio.create_subprocess_exec(
+                self.executable,
+                *arguments,
+                cwd=request.cwd,
+                env=environment,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                start_new_session=os.name != "nt",
             )
-        except TimeoutError:
-            _kill_process(process)
-            stdout, stderr = await process.communicate()
-            parsed = parse_codex_jsonl(stdout.decode("utf-8", errors="replace"))
-            parsed.completed = False
-            parsed.failures.append(
-                f"Codex timed out after {request.timeout_seconds} seconds."
-            )
-        else:
-            parsed = parse_codex_jsonl(stdout.decode("utf-8", errors="replace"))
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(), timeout=request.timeout_seconds
+                )
+            except TimeoutError:
+                _kill_process(process)
+                stdout, stderr = await process.communicate()
+                parsed = parse_codex_jsonl(stdout.decode("utf-8", errors="replace"))
+                parsed.completed = False
+                parsed.failures.append(
+                    f"Codex timed out after {request.timeout_seconds} seconds."
+                )
+            else:
+                parsed = parse_codex_jsonl(stdout.decode("utf-8", errors="replace"))
+        finally:
+            if isolated_home is not None:
+                isolated_home.cleanup()
 
         parsed.exit_code = process.returncode if process.returncode is not None else -1
         parsed.duration_ms = round((perf_counter() - started) * 1000, 3)
@@ -94,17 +121,21 @@ class CodexRunner:
             parsed.raw_events = []
         return parsed
 
-    def _arguments(self, request: AgentRunRequest) -> list[str]:
+    def _arguments(
+        self,
+        request: AgentRunRequest,
+        *,
+        supports_ignore_user_config: bool | None = None,
+    ) -> list[str]:
         mcp_config = (
             _codemesh_mcp_config(request.mcp_cwd)
             if request.condition == "treatment"
-            else "mcp_servers={}"
+            else ["mcp_servers={}"]
         )
         arguments = [
             "exec",
             "--ephemeral",
             "--json",
-            "--ignore-user-config",
             "--model",
             request.model,
             "--sandbox",
@@ -113,15 +144,31 @@ class CodexRunner:
             str(request.cwd),
             "-c",
             f"model_reasoning_effort={json.dumps(request.reasoning_effort)}",
-            "-c",
-            mcp_config,
         ]
+        if supports_ignore_user_config is not False:
+            arguments.insert(3, "--ignore-user-config")
+        for override in mcp_config:
+            arguments.extend(["-c", override])
         if request.local_provider is not None:
             arguments.extend(["--oss", "--local-provider", request.local_provider])
         if request.output_schema is not None:
             arguments.extend(["--output-schema", str(request.output_schema)])
         arguments.append(request.prompt)
         return arguments
+
+    def _detect_ignore_user_config(self) -> bool:
+        if self._supports_ignore_user_config is None:
+            result = subprocess.run(
+                [self.executable, "exec", "--help"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            self._supports_ignore_user_config = (
+                result.returncode == 0 and "--ignore-user-config" in result.stdout
+            )
+        return self._supports_ignore_user_config
 
 
 def parse_codex_jsonl(text: str) -> AgentRunResult:
@@ -193,31 +240,31 @@ def sanitize_text(value: str) -> str:
     return sanitized
 
 
-def _codemesh_mcp_config(cwd: Path) -> str:
-    command = json.dumps("uv")
-    args = json.dumps(["run", "python", "-m", "codemesh_agent_access", "mcp"])
-    path = json.dumps(str(cwd))
-    enabled_tools = json.dumps(
-        [
-            "codemesh_status",
-            "codemesh_get_tool_guidance",
-            "codemesh_search_context",
-            "codemesh_get_context_package",
-            "codemesh_search_symbols",
-            "codemesh_get_node",
-            "codemesh_get_neighbors",
-            "codemesh_list_repositories",
-            "codemesh_get_repository",
-            "codemesh_get_repository_status",
-            "codemesh_get_summary_coverage",
-            "codemesh_list_ingestion_runs",
-        ]
-    )
-    return (
-        "mcp_servers={codemesh={"
-        f"command={command},args={args},cwd={path},required=true,"
-        f"startup_timeout_sec=30,tool_timeout_sec=60,enabled_tools={enabled_tools}}}"
-    )
+def _codemesh_mcp_config(cwd: Path) -> list[str]:
+    enabled_tools = [
+        "codemesh_status",
+        "codemesh_get_tool_guidance",
+        "codemesh_search_context",
+        "codemesh_get_context_package",
+        "codemesh_search_symbols",
+        "codemesh_get_node",
+        "codemesh_get_neighbors",
+        "codemesh_list_repositories",
+        "codemesh_get_repository",
+        "codemesh_get_repository_status",
+        "codemesh_get_summary_coverage",
+        "codemesh_list_ingestion_runs",
+    ]
+    prefix = "mcp_servers.codemesh"
+    return [
+        f"{prefix}.command={json.dumps('uv')}",
+        f"{prefix}.args={json.dumps(['run', 'python', '-m', 'codemesh_agent_access', 'mcp'])}",
+        f"{prefix}.cwd={json.dumps(str(cwd))}",
+        f"{prefix}.required=true",
+        f"{prefix}.startup_timeout_sec=30",
+        f"{prefix}.tool_timeout_sec=60",
+        f"{prefix}.enabled_tools={json.dumps(enabled_tools)}",
+    ]
 
 
 def _kill_process(process: asyncio.subprocess.Process) -> None:

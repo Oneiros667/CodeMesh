@@ -89,6 +89,13 @@ uv run python -m codemesh_agent_access eval agent `
   --local-provider lmstudio
 ```
 
+Some Codex/local-provider combinations expose MCP tools through Responses API
+namespace extensions that the local model server does not support. Use
+`--codex-executable <path>` to select a compatible Codex build when validating
+that combination. The runner detects older builds that lack
+`--ignore-user-config` and gives local-provider runs a temporary isolated
+`CODEX_HOME`; it never reads the user's Codex configuration in that mode.
+
 Each control and treatment run receives the same task prompt, model, reasoning effort, sandbox, and isolated temporary clone. The control has an empty MCP server map. The treatment adds CodeMesh as a required stdio MCP server. The treatment prompt does not force MCP use, so the report can measure CodeMesh adoption as well as outcomes.
 
 The treatment configuration allowlists CodeMesh read tools and does not expose repository deletion to the benchmark agent.
