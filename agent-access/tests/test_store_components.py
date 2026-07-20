@@ -16,7 +16,11 @@ from codemesh_agent_access.embeddings import (
     _listed_model_ids,
     model_provider,
 )
-from codemesh_agent_access.graph_store import Neo4jGraphStore, storage_key
+from codemesh_agent_access.graph_store import (
+    Neo4jGraphStore,
+    lexical_terms,
+    storage_key,
+)
 from codemesh_agent_access.models import IngestionRunSummary
 from codemesh_agent_access.store import CodeMeshReadStore, _refresh_status
 from codemesh_agent_access.summary_store import (
@@ -233,6 +237,14 @@ def test_refresh_status_reports_skipped_completed_and_failed_runs() -> None:
 
 def test_graph_storage_key_uses_repository_prefix() -> None:
     assert storage_key("repo:test", "node:one") == "repo:test:node:one"
+
+
+def test_lexical_terms_normalizes_and_deduplicates_query_words() -> None:
+    assert lexical_terms("Repository cleanup, repository records") == [
+        "repository",
+        "cleanup",
+        "records",
+    ]
 
 
 def test_node_summary_normalizer_preserves_generated_metadata() -> None:

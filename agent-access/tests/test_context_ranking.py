@@ -14,6 +14,7 @@ from codemesh_agent_access.models import (
 )
 from codemesh_agent_access.store import (
     CodeMeshReadStore,
+    _lexical_score,
     _prioritize_context_relationships,
     _ranked_unique_hits,
 )
@@ -194,6 +195,24 @@ def test_ranked_unique_hits_keeps_best_expanded_context() -> None:
     )
 
     assert _ranked_unique_hits([lower, higher], 5) == [higher]
+
+
+def test_lexical_score_ranks_multi_term_coverage() -> None:
+    query = "repository cleanup removes indexed data"
+    primary = {
+        "id": "csharp:method:RepositoryCleanupService.DeleteRepositoryAsync",
+        "stableKey": "csharp:method:RepositoryCleanupService.DeleteRepositoryAsync",
+        "name": "DeleteRepositoryAsync",
+        "filePath": "src/CodeMesh.Ingestion/RepositoryCleanupService.cs",
+    }
+    partial = {
+        "id": "csharp:type:RepositoryIndexRecord",
+        "stableKey": "csharp:type:RepositoryIndexRecord",
+        "name": "RepositoryIndexRecord",
+        "filePath": "src/CodeMesh.Domain/IngestionContracts.cs",
+    }
+
+    assert _lexical_score(primary, query) > _lexical_score(partial, query)
 
 
 def test_context_relationship_prioritization_prefers_agent_useful_edges() -> None:

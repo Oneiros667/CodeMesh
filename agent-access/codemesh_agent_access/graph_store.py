@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 from typing import Any
 
@@ -325,6 +326,8 @@ class Neo4jGraphStore:
         if _load_async_graph_database() is None:
             return []
 
+        search_terms = lexical_terms(search_text)
+
         try:
             driver = self._neo4j()
             async with driver.session(
@@ -333,18 +336,31 @@ class Neo4jGraphStore:
                 result = await session.run(
                     """
                     MATCH (n:CodeMeshNode)
+                    WITH n,
+                         [term IN $search_terms WHERE any(value IN [
+                             toLower(coalesce(n.id, "")),
+                             toLower(coalesce(n.stableKey, "")),
+                             toLower(coalesce(n.name, "")),
+                             toLower(coalesce(n.filePath, ""))
+                         ] WHERE value CONTAINS term)] AS matched_terms
                     WHERE
-                        ($search_text = "" OR
-                         toLower(coalesce(n.id, "")) CONTAINS $search_text OR
-                         toLower(coalesce(n.stableKey, "")) CONTAINS $search_text OR
-                         toLower(coalesce(n.name, "")) CONTAINS $search_text OR
-                         toLower(coalesce(n.filePath, "")) CONTAINS $search_text)
+                        (size($search_terms) = 0 OR size(matched_terms) > 0)
                         AND (size($kinds) = 0 OR toLower(coalesce(n.kind, "")) IN $kinds)
                         AND ($repository_id IS NULL OR n.repositoryId = $repository_id)
                     RETURN properties(n) AS node
+                    ORDER BY size(matched_terms) DESC,
+                             CASE
+                                 WHEN toLower(coalesce(n.name, "")) = $search_text THEN 0
+                                 WHEN toLower(coalesce(n.name, "")) CONTAINS $search_text THEN 1
+                                 WHEN toLower(coalesce(n.filePath, "")) CONTAINS $search_text THEN 2
+                                 ELSE 3
+                             END,
+                             toLower(coalesce(n.filePath, "")),
+                             toLower(coalesce(n.name, n.id, ""))
                     LIMIT $limit
                     """,
                     search_text=search_text,
+                    search_terms=search_terms,
                     kinds=kinds,
                     repository_id=repository_id,
                     limit=limit,
@@ -354,6 +370,10 @@ class Neo4jGraphStore:
             return []
 
         return [dict(record["node"]) for record in records]
+
+
+def lexical_terms(search_text: str) -> list[str]:
+    return list(dict.fromkeys(re.findall(r"[a-z0-9]+", search_text.casefold())))
 
     async def delete_repository(self, repository_id: str) -> None:
         if _load_async_graph_database() is None or not repository_id:

@@ -9,7 +9,7 @@ from typing import Any
 from .config import Settings
 from .content_store import MongoContentStore, PyMongoError
 from .embeddings import QueryEmbeddingProvider
-from .graph_store import Neo4jGraphStore
+from .graph_store import Neo4jGraphStore, lexical_terms
 from .models import (
     ContextHit,
     ContextPackageItem,
@@ -1688,7 +1688,17 @@ def _lexical_score(node: dict[str, Any], search_text: str) -> float:
     if any(search_text in field for field in fields):
         return 0.65
 
-    return 0.25
+    terms = lexical_terms(search_text)
+    if not terms:
+        return 0.0
+
+    matched_terms = sum(1 for term in terms if any(term in field for field in fields))
+    coverage = matched_terms / len(terms)
+    best_field_coverage = max(
+        (sum(1 for term in terms if term in field) / len(terms) for field in fields),
+        default=0.0,
+    )
+    return min(0.95, 0.15 + (coverage * 0.65) + (best_field_coverage * 0.15))
 
 
 def _symbol_score(node: dict[str, Any], search_text: str) -> float:
