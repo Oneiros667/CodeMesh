@@ -1,24 +1,11 @@
+using CodeMesh.Domain.Utilities;
+
 namespace CodeMesh.Control.Configuration;
 
 public sealed record CodeMeshWatchSnapshot(IReadOnlyDictionary<string, string> Files);
 
 public static class CodeMeshWatchWorkflow
 {
-    private static readonly HashSet<string> IgnoredDirectories = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".git",
-        ".idea",
-        ".vs",
-        ".venv",
-        ".pytest_cache",
-        ".ruff_cache",
-        "bin",
-        "build",
-        "dist",
-        "node_modules",
-        "obj"
-    };
-
     public static string[] BuildWatchRefreshArgs(string[] args, CodeMeshRefreshTarget target)
     {
         var refreshArgs = new List<string> { "refresh" };
@@ -98,7 +85,7 @@ public static class CodeMeshWatchWorkflow
 
             foreach (var child in Directory.EnumerateDirectories(directory))
             {
-                if (!IgnoredDirectories.Contains(Path.GetFileName(child)))
+                if (!RepositoryPathPolicy.IsIgnoredPath(rootPath, child))
                 {
                     pending.Push(child);
                 }

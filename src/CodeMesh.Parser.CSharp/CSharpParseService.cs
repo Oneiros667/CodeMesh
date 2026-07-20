@@ -1422,13 +1422,7 @@ public sealed class CSharpParseService
 
     private static bool IsGeneratedOutputPath(string repositoryRoot, string file)
     {
-        var relative = Path.GetRelativePath(repositoryRoot, file);
-        var segments = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-        return segments.Any(segment =>
-            string.Equals(segment, "bin", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(segment, "obj", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(segment, ".git", StringComparison.OrdinalIgnoreCase));
+        return RepositoryPathPolicy.IsIgnoredPath(repositoryRoot, file);
     }
 
     private static bool IsUnderDirectory(string rootPath, string candidatePath)

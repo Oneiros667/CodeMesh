@@ -7,19 +7,6 @@ namespace CodeMesh.Parser.Markdown;
 
 public sealed partial class MarkdownParseService
 {
-    private static readonly HashSet<string> ExcludedDirectories = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".git",
-        ".idea",
-        ".pytest_cache",
-        ".ruff_cache",
-        "bin",
-        "build",
-        "dist",
-        "node_modules",
-        "obj"
-    };
-
     public static ParserCapability Capability { get; } = new(
         "codemesh-parser-markdown",
         "markdown",
@@ -198,10 +185,7 @@ public sealed partial class MarkdownParseService
 
     private static bool IsExcluded(string repositoryRoot, string file)
     {
-        var relativePath = Path.GetRelativePath(repositoryRoot, file);
-        return relativePath
-            .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            .Any(segment => ExcludedDirectories.Contains(segment));
+        return RepositoryPathPolicy.IsIgnoredPath(repositoryRoot, file);
     }
 
     private static string AnchorFor(string title)

@@ -6,7 +6,7 @@ This document prioritizes the features that would make CodeMesh effective as an 
 
 ## Current Project State Review
 
-Review date: 2026-06-12.
+Review date: 2026-07-20.
 
 Recent completed work:
 
@@ -22,6 +22,8 @@ Recent completed work:
 - Context packages include validation recommendations inferred from packaged file paths, covering .NET tests, Agent Access Python tests/lint, deployment dry-runs, smoke checks, and Markdown dry-runs.
 - `uv run python -m codemesh_agent_access eval` runs deterministic MCP fixture evaluations for tool guidance, search diagnostics, context packages, freshness, and redaction leakage.
 - C# ingestion emits first-class `TestFile` and `TestCase` nodes for common .NET test attributes and convention-based CodeMesh test methods.
+- Parsers and watch mode share a default repository path policy that excludes generated, cache, virtual-environment, smoke, and temporary directories.
+- Agent Access declares `pytest` and `ruff` as development dependencies, making documented verification commands reproducible after `uv sync`.
 
 Current state:
 
@@ -51,13 +53,14 @@ Current implementation:
 - `dotnet run --project src/CodeMesh.Cli -- self ingest --skip-embeddings`
 - `dotnet run --project src/CodeMesh.Cli -- self ingest --dry-run --skip-embeddings`
 - `dotnet run --project src/CodeMesh.Cli -- self smoke --skip-embeddings`
+- `self smoke` validates live Agent Access through the typed .NET REST client; it does not validate MCP stdio transport.
 
 Expected outcome:
 
 - A repeatable `codemesh self ingest` or equivalent documented command.
 - Defaults for `D:\source\repos\CodeMesh` and `CodeMesh.sln` when run from the repository root.
 - Clear support for dry-run, no-embedding, embedding, and summary modes.
-- A smoke check that verifies CodeMesh appears in `repos list` and can answer at least one MCP context query.
+- A smoke check that verifies CodeMesh appears in `repos list` and can answer at least one Agent Access context query.
 
 Why it matters:
 
@@ -114,6 +117,7 @@ Current implementation:
 - Ingestion redacts sensitive-looking values before persistence, embeddings, and summaries.
 - Redacted content is stored under a new content hash, and graph nodes are remapped to that hash.
 - Ingestion emits `CMSEC001` when redaction changes content.
+- Supported parsers share default exclusions for generated, cache, virtual-environment, smoke, and temporary directories.
 - Current redaction covers private key blocks, environment-style key/value secrets, JSON secret values, C# string assignments with sensitive names, and connection-string password fragments.
 - Known secret-file exclusion and configurable allow/deny lists remain future work, especially for Markdown, deployment, and SDLC artifact ingestion.
 
@@ -159,6 +163,7 @@ Current implementation:
 
 - `src/CodeMesh.Parser.Markdown` parses `.md` and `.markdown` files locally.
 - It emits `Document` and `Section` nodes, heading anchors, heading levels, source spans, and `Contains` relationships.
+- It uses the shared repository path policy to avoid indexing generated and vendored documentation under directories such as `.venv` and `.tmp`.
 - `dotnet run --project src/CodeMesh.Cli -- ingest --root . --language markdown --dry-run --skip-embeddings` validates repository documentation parsing.
 - Current parser scope is Markdown structure only; cross-links from docs to commands, endpoints, tools, source files, and projects remain future work.
 
@@ -254,6 +259,7 @@ Current implementation:
 - `refresh` resolves the current CodeMesh workspace root when run from nested directories and auto-selects a top-level C# solution when one is unambiguous.
 - `dotnet run --project src/CodeMesh.Cli -- watch --skip-embeddings` runs an initial refresh and then refreshes again after repository file changes.
 - `watch` supports `--poll-seconds`, `--max-runs`, and `--run-once` for local use and bounded automation.
+- Watch snapshots use the same generated/cache directory exclusions as parser enumeration.
 - `GET /repositories/{repository_id}/status`, `codemesh_get_repository_status`, and `/ui/repositories/{repository_id}` show a derived `refresh` block for the latest run.
 - The current watch loop is CLI-local and polling-based; native file-system events and UI visibility remain future improvements.
 
@@ -324,6 +330,7 @@ Current implementation:
 - Unit and contract tests cover store behavior, ranking, MCP contracts, REST contracts, CLI output, parsers, redaction, and ingestion.
 - `uv run python -m codemesh_agent_access eval` runs deterministic MCP fixture scenarios through the same `FastMCP` tool-call path used by contract tests.
 - Current fixture scenarios assert minimum behavior for tool guidance, search diagnostics, context package metadata, freshness guidance, and redaction leakage.
+- The self-ingestion smoke path validates the live REST surface, not MCP stdio transport.
 - There is not yet a live-store benchmark set that asserts minimum useful results against indexed CodeMesh self-analysis data.
 
 Expected outcome:
@@ -380,8 +387,8 @@ Useful agents need to follow local engineering process, not only compile code.
 
 ## Near-Term Recommended Order
 
-1. Add an MCP evaluation suite with representative self-analysis scenarios and minimum useful-result assertions.
-2. Deepen test and validation context with first-class test files/cases and relationships to implementation nodes.
+1. Deepen test and validation context with first-class test files/cases and relationships to implementation nodes.
+2. Add live MCP evaluation scenarios with representative self-analysis queries and minimum useful-result assertions.
 3. Deepen deployment ingestion into Kubernetes manifests, Helm charts, CI/CD workflows, and code-to-runtime links.
 4. Deepen Python and Markdown relationship extraction where it improves self-analysis and MCP packages.
 5. Add configurable sensitive-file exclusion and allow/deny policy before broadening SDLC artifact ingestion.

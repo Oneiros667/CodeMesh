@@ -7,19 +7,6 @@ namespace CodeMesh.Parser.Deployment;
 
 public sealed partial class DeploymentParseService
 {
-    private static readonly HashSet<string> ExcludedDirectories = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".git",
-        ".idea",
-        ".pytest_cache",
-        ".ruff_cache",
-        "bin",
-        "build",
-        "dist",
-        "node_modules",
-        "obj"
-    };
-
     public static ParserCapability Capability { get; } = new(
         "codemesh-parser-deployment",
         "deployment",
@@ -550,10 +537,7 @@ public sealed partial class DeploymentParseService
 
     private static bool IsExcluded(string repositoryRoot, string file)
     {
-        var relativePath = Path.GetRelativePath(repositoryRoot, file);
-        return relativePath
-            .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            .Any(segment => ExcludedDirectories.Contains(segment));
+        return RepositoryPathPolicy.IsIgnoredPath(repositoryRoot, file);
     }
 
     private static void AddJoined(Dictionary<string, string> metadata, string key, IEnumerable<string> values)

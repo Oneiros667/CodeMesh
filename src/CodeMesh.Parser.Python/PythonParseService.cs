@@ -7,24 +7,6 @@ namespace CodeMesh.Parser.Python;
 
 public sealed partial class PythonParseService
 {
-    private static readonly HashSet<string> ExcludedDirectories = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".git",
-        ".idea",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        ".tox",
-        ".venv",
-        "__pycache__",
-        "bin",
-        "build",
-        "dist",
-        "node_modules",
-        "obj",
-        "venv"
-    };
-
     public static ParserCapability Capability { get; } = new(
         "codemesh-parser-python",
         "python",
@@ -187,10 +169,7 @@ public sealed partial class PythonParseService
 
     private static bool IsExcluded(string repositoryRoot, string file)
     {
-        var relativePath = Path.GetRelativePath(repositoryRoot, file);
-        return relativePath
-            .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            .Any(segment => ExcludedDirectories.Contains(segment));
+        return RepositoryPathPolicy.IsIgnoredPath(repositoryRoot, file);
     }
 
     private static string ExtractBlock(string[] lines, int startIndex, int indent)

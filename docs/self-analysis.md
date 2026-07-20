@@ -51,7 +51,7 @@ Run the self-ingestion smoke check after Agent Access is available:
 dotnet run --project src/CodeMesh.Cli -- self smoke --skip-embeddings
 ```
 
-The smoke command indexes CodeMesh, checks that Agent Access can list the repository and recent runs, then verifies that a context query returns hits.
+The smoke command indexes CodeMesh, uses the typed .NET REST client to check that Agent Access can list the repository and recent runs, then verifies that a context query returns hits. It does not validate MCP stdio transport; live MCP scenarios remain part of the evaluation backlog.
 
 Verify registry and runs manually:
 

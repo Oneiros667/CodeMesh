@@ -28,6 +28,7 @@ The current local-first ingestion path redacts sensitive-looking values before c
 
 Current behavior:
 
+- A shared repository path policy excludes generated, cache, virtual-environment, smoke, and temporary directories before supported parsers enumerate files.
 - Private key blocks are replaced with `<redacted>`.
 - Environment-style assignments with names containing `SECRET`, `PASSWORD`, `PASSWD`, `TOKEN`, `API_KEY`, `PRIVATE_KEY`, or `CONNECTION_STRING` are redacted.
 - JSON string values with sensitive-looking key names are redacted.
@@ -39,7 +40,7 @@ Current behavior:
 The following behavior remains a priority in `docs/next-steps.md`:
 
 - Configurable allowlists and denylists for ingestion.
-- Default exclusion for known secret files once non-code document/artifact ingestion is added.
+- Default exclusion for known secret files in addition to the current generated-directory exclusions.
 - Broader tests for additional secret formats and false-positive control.
 
 ## Redaction Principles

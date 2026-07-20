@@ -13,6 +13,12 @@ dependencies = [
   "mcp>=1.2"
 ]
 
+[dependency-groups]
+dev = [
+  "pytest>=9.0,<10",
+  "ruff>=0.15,<0.16"
+]
+
 [project.scripts]
 codemesh-agent-access = "codemesh_agent_access.cli:main"
 

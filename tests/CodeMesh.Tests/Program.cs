@@ -24,6 +24,7 @@ using CodeMesh.Storage.Qdrant;
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("sha256 helper is deterministic", TestHash),
+    ("repository path policy ignores generated directories", TestRepositoryPathPolicyIgnoresGeneratedDirectories),
     ("environment file loader fills missing variables", TestEnvironmentFileLoaderFillsMissingVariables),
     ("refresh workflow resolves repository root", TestRefreshWorkflowResolvesRepositoryRoot),
     ("refresh workflow normalizes ingest arguments", TestRefreshWorkflowNormalizesIngestArguments),
@@ -106,6 +107,17 @@ static Task TestHash()
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
         CodeMeshHash.Sha256Hex("abc"),
         "SHA-256 output changed.");
+
+    return Task.CompletedTask;
+}
+
+static Task TestRepositoryPathPolicyIgnoresGeneratedDirectories()
+{
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("agent-access/.venv/lib/package.md"), "Repository path policy did not ignore .venv content.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath(".tmp/fixture/package.md"), "Repository path policy did not ignore temporary content.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath(".codemesh-smoke/run/Fixture.cs"), "Repository path policy did not ignore smoke output.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("package.egg-info/PKG-INFO"), "Repository path policy did not ignore Python package metadata.");
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("docs/testing.md"), "Repository path policy ignored repository documentation.");
 
     return Task.CompletedTask;
 }
@@ -283,11 +295,15 @@ static Task TestWatchWorkflowDetectsFileChanges()
     var root = Path.Combine(Path.GetTempPath(), $"codemesh-watch-snapshot-test-{Guid.NewGuid():N}");
     var file = Path.Combine(root, "src", "Sample.cs");
     var ignoredDirectory = Path.Combine(root, "bin");
+    var ignoredTemporaryDirectory = Path.Combine(root, ".tmp");
+    var ignoredSmokeDirectory = Path.Combine(root, ".codemesh-smoke");
 
     try
     {
         Directory.CreateDirectory(Path.GetDirectoryName(file)!);
         Directory.CreateDirectory(ignoredDirectory);
+        Directory.CreateDirectory(ignoredTemporaryDirectory);
+        Directory.CreateDirectory(ignoredSmokeDirectory);
         File.WriteAllText(file, "one");
 
         var first = CodeMeshWatchWorkflow.CreateSnapshot(root);
@@ -297,6 +313,8 @@ static Task TestWatchWorkflowDetectsFileChanges()
         var changed = CodeMeshWatchWorkflow.CreateSnapshot(root);
 
         File.WriteAllText(Path.Combine(ignoredDirectory, "Generated.cs"), "ignored");
+        File.WriteAllText(Path.Combine(ignoredTemporaryDirectory, "Temporary.cs"), "ignored");
+        File.WriteAllText(Path.Combine(ignoredSmokeDirectory, "Fixture.cs"), "ignored");
         var ignoredChange = CodeMeshWatchWorkflow.CreateSnapshot(root);
 
         Equal(false, CodeMeshWatchWorkflow.HasChanges(first, unchanged), "Watch workflow reported changes for identical snapshots.");
@@ -2712,6 +2730,14 @@ static async Task TestMarkdownParserEmitsDocumentsSectionsAndContainment()
     try
     {
         Directory.CreateDirectory(root);
+        var ignoredDirectories = new[] { ".venv", ".tmp", ".codemesh-smoke" };
+        foreach (var ignoredDirectory in ignoredDirectories)
+        {
+            var ignoredPath = Path.Combine(root, ignoredDirectory);
+            Directory.CreateDirectory(ignoredPath);
+            await File.WriteAllTextAsync(Path.Combine(ignoredPath, "Generated.md"), "# Generated");
+        }
+
         await File.WriteAllTextAsync(
             Path.Combine(root, "README.md"),
             """
@@ -2742,6 +2768,11 @@ static async Task TestMarkdownParserEmitsDocumentsSectionsAndContainment()
         HasNode(result, CodeNodeKind.Section, "Product");
         HasNode(result, CodeNodeKind.Section, "Setup");
         HasNode(result, CodeNodeKind.Section, "Local");
+        Equal(
+            false,
+            result.Nodes.Any(node => ignoredDirectories.Any(directory =>
+                node.Span.FilePath.StartsWith($"{directory}/", StringComparison.OrdinalIgnoreCase))),
+            "Markdown parser indexed generated or temporary documentation.");
         HasRelationshipBetween(
             result,
             "markdown:document:README.md",

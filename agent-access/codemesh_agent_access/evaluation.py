@@ -121,12 +121,12 @@ async def _evaluate_tool_guidance(server: Any) -> None:
     data = structured["data"]
 
     assert data["recommended_workflows"], "No workflows were recommended."
-    assert (
-        data["recommended_workflows"][0]["id"] == "check_freshness"
-    ), "Freshness workflow was not ranked first."
-    assert (
-        "codemesh_get_repository_status" in data["available_tools"]
-    ), "Repository status tool is missing from guidance."
+    assert data["recommended_workflows"][0]["id"] == "check_freshness", (
+        "Freshness workflow was not ranked first."
+    )
+    assert "codemesh_get_repository_status" in data["available_tools"], (
+        "Repository status tool is missing from guidance."
+    )
 
 
 async def _evaluate_context_search(server: Any) -> None:
@@ -142,13 +142,13 @@ async def _evaluate_context_search(server: Any) -> None:
     data = structured["data"]
 
     assert data["hits"], "Search returned no hits."
-    assert (
-        data["hits"][0]["stable_key"] == "CodeMeshRefreshWorkflow.ResolveTarget"
-    ), "Expected refresh workflow hit was not ranked first."
+    assert data["hits"][0]["stable_key"] == "CodeMeshRefreshWorkflow.ResolveTarget", (
+        "Expected refresh workflow hit was not ranked first."
+    )
     assert data["diagnostics"]["hit_count"] == 1, "Unexpected search hit count."
-    assert (
-        data["diagnostics"]["lexical_fallback"] is False
-    ), "Search incorrectly reported lexical fallback."
+    assert data["diagnostics"]["lexical_fallback"] is False, (
+        "Search incorrectly reported lexical fallback."
+    )
 
 
 async def _evaluate_context_package(server: Any) -> None:
@@ -167,12 +167,12 @@ async def _evaluate_context_package(server: Any) -> None:
 
     assert data["items"], "Context package returned no items."
     assert data["items"][0]["hit"]["content_hash"], "Package item lacks content hash."
-    assert (
-        data["items"][0]["relationship_groups"]["contains"]
-    ), "Package item lacks grouped relationships."
-    assert (
-        data["validation_recommendations"]
-    ), "Package lacks validation recommendations."
+    assert data["items"][0]["relationship_groups"]["contains"], (
+        "Package item lacks grouped relationships."
+    )
+    assert data["validation_recommendations"], (
+        "Package lacks validation recommendations."
+    )
     assert "Validation:" in agent_text, "Agent text omits validation guidance."
     assert "Stable key:" in agent_text, "Agent text omits stable keys."
     assert "Snippet:" in agent_text, "Agent text omits snippets."
@@ -185,12 +185,14 @@ async def _evaluate_repository_status(server: Any) -> None:
     )
     data = structured["data"]
 
-    assert data["repository_id"] == "repo:codemesh", "Repository alias was not resolved."
+    assert data["repository_id"] == "repo:codemesh", (
+        "Repository alias was not resolved."
+    )
     assert data["freshness"]["is_stale"] is True, "Fixture should report stale context."
     assert data["refresh"]["status"] == "completed", "Latest refresh status changed."
-    assert (
-        "codemesh refresh" in data["refresh"]["recommended_action"]
-    ), "Refresh guidance is missing."
+    assert "codemesh refresh" in data["refresh"]["recommended_action"], (
+        "Refresh guidance is missing."
+    )
 
 
 async def _evaluate_secret_redaction(server: Any) -> None:
@@ -381,7 +383,9 @@ class FixtureEvaluationStore:
     ) -> IngestionRunListResponse:
         return IngestionRunListResponse(runs=[self.latest_run][:limit])
 
-    async def get_repository_status(self, repository_id: str) -> RepositoryStatusResponse:
+    async def get_repository_status(
+        self, repository_id: str
+    ) -> RepositoryStatusResponse:
         return RepositoryStatusResponse(
             repository_id="repo:codemesh",
             repository=self.repository,
@@ -418,7 +422,9 @@ def _fixture_hit(repository_id: str) -> ContextHit:
         start_line=5,
         end_line=18,
         score=0.98,
-        repository_id="repo:codemesh" if repository_id == "code_mesh" else repository_id,
+        repository_id="repo:codemesh"
+        if repository_id == "code_mesh"
+        else repository_id,
         content_hash="content:refresh-workflow",
         score_components={"lexical_score": 0.98},
         preview="Resolve the repository root and default solution for refresh.",

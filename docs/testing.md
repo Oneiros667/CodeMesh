@@ -13,6 +13,7 @@ dotnet run --project tests/CodeMesh.Tests
 From `agent-access`:
 
 ```powershell
+uv sync
 uv run pytest
 ```
 
@@ -48,6 +49,17 @@ The Python tests under `agent-access/tests` cover:
 - Store read components.
 
 Use these tests when changing `agent-access/codemesh_agent_access`.
+
+The Agent Access development dependency group includes `pytest` and `ruff`, so
+`uv sync` is sufficient for a clean checkout. No global Python test or lint
+packages are required.
+
+Run lint and formatting checks after Python changes:
+
+```powershell
+uv run ruff check .
+uv run ruff format --check .
+```
 
 Run the deterministic MCP evaluation suite directly when changing tool guidance,
 context search, context packages, freshness, or redaction behavior:

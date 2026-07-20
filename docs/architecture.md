@@ -22,6 +22,7 @@ CodeMesh is organized around a write-side ingestion pipeline and a read-side Age
 - Graph types.
 - Health contracts.
 - Hashing, fingerprinting, and repository alias utilities.
+- A shared repository path policy for excluding generated, cache, virtual-environment, smoke, and temporary directories.
 
 ### Ingestion
 
@@ -50,7 +51,7 @@ CodeMesh is organized around a write-side ingestion pipeline and a read-side Age
 - Parses `.py` files from a repository root.
 - Emits file, class, function, and async function nodes.
 - Emits containment relationships based on indentation.
-- Excludes common generated/cache directories such as `.venv`, `__pycache__`, `.pytest_cache`, and build output.
+- Uses the shared repository path policy to exclude generated/cache directories such as `.venv`, `.tmp`, `__pycache__`, `.pytest_cache`, smoke output, and build output.
 - Does not yet emit Python call/import/type relationships.
 
 `src/CodeMesh.Parser.Deployment` is the local deployment artifact parser:
@@ -59,6 +60,7 @@ CodeMesh is organized around a write-side ingestion pipeline and a read-side Age
 - Emits Dockerfile, Dockerfile stage, Compose file, and Compose service nodes.
 - Captures runtime metadata such as base images, build contexts, ports, environment keys, volumes, and service dependencies.
 - Emits containment relationships and `depends_on` service relationships.
+- Uses the shared repository path policy to avoid generated, cache, virtual-environment, smoke, and temporary directories.
 - Does not yet parse Kubernetes manifests, Helm charts, CI/CD workflows, or Compose override merge semantics.
 
 `src/CodeMesh.Parser.Markdown` is the local Markdown parser:
@@ -67,7 +69,7 @@ CodeMesh is organized around a write-side ingestion pipeline and a read-side Age
 - Emits document and section nodes.
 - Emits containment relationships from documents to headings and from parent headings to child headings.
 - Stores heading level, anchor, file path, and document kind metadata.
-- Excludes common generated/cache directories.
+- Uses the shared repository path policy to exclude generated, cache, virtual-environment, smoke, and temporary directories.
 
 ### Storage
 

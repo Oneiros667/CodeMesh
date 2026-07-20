@@ -38,6 +38,7 @@ Run these after implementation changes unless the task is documentation-only:
 ```powershell
 dotnet run --project tests/CodeMesh.Tests
 cd agent-access
+uv sync
 uv run pytest
 ```
 
