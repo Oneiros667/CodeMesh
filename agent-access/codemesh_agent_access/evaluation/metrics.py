@@ -62,23 +62,26 @@ def ranking_metrics(
 
     ranks = target_ranks(candidates, targets)
     matched = sum(rank is not None and rank <= k for rank in ranks)
-    relevant_candidates = sum(
-        any(target_matches(candidate, target) for target in targets)
-        for candidate in candidates[:k]
-    )
     first_rank = min((rank for rank in ranks if rank is not None), default=None)
 
     gains = []
+    matched_target_indexes: set[int] = set()
     for candidate in candidates[:k]:
-        relevance = max(
-            (
-                target.relevance
-                for target in targets
-                if target_matches(candidate, target)
-            ),
-            default=0,
-        )
+        eligible_targets = [
+            (index, target)
+            for index, target in enumerate(targets)
+            if index not in matched_target_indexes and target_matches(candidate, target)
+        ]
+        if eligible_targets:
+            target_index, matched_target = max(
+                eligible_targets, key=lambda item: item[1].relevance
+            )
+            matched_target_indexes.add(target_index)
+            relevance = matched_target.relevance
+        else:
+            relevance = 0
         gains.append((2**relevance - 1))
+    relevant_candidates = sum(gain > 0 for gain in gains)
     dcg = sum(gain / math.log2(index + 2) for index, gain in enumerate(gains))
     ideal = sorted((2**target.relevance - 1 for target in targets), reverse=True)[:k]
     idcg = sum(gain / math.log2(index + 2) for index, gain in enumerate(ideal))

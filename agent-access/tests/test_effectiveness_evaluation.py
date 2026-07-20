@@ -109,6 +109,20 @@ def test_ranking_metrics_and_stability_are_deterministic() -> None:
     assert percentile([10, 20, 30, 40], 0.95) == 40
 
 
+def test_ranking_metrics_count_a_file_target_only_once() -> None:
+    candidates = [
+        CandidateRecord(file_path="src/Target.cs", node_id="node:one"),
+        CandidateRecord(file_path="src/Target.cs", node_id="node:two"),
+    ]
+    targets = [RetrievalTarget(file_path="src/Target.cs", relevance=3)]
+
+    metrics = ranking_metrics(candidates, targets, 2)
+
+    assert metrics["precision_at_k"] == 0.5
+    assert metrics["recall_at_k"] == 1
+    assert metrics["ndcg_at_k"] == 1
+
+
 def test_mcp_client_accepts_structured_payload_and_rejects_non_json() -> None:
     class FakeSession:
         def __init__(self, result: Any) -> None:

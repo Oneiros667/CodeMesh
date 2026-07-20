@@ -811,6 +811,15 @@ static async Task TestIngestionRedactsSensitiveContentBeforeStoresAndEmbeddings(
     }
 
     Equal(node.ContentHash, content.Hash, "Node content hash was not remapped to the redacted content hash.");
+
+    const string embeddedSecret = "cm_eval_not_a_real_secret_7f93d2";
+    var embedded = ContentRedactor.RedactText(
+        $"public const string Example = \"CODEMESH_EVAL_TOKEN={embeddedSecret}\";");
+    if (embedded.Contains(embeddedSecret, StringComparison.Ordinal) ||
+        !embedded.Contains("CODEMESH_EVAL_TOKEN=<redacted>", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("A sensitive key/value embedded in a quoted string was not redacted.");
+    }
 }
 
 static async Task TestDryRunSkipsStores()

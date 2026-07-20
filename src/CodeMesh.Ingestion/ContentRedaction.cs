@@ -61,6 +61,8 @@ public static partial class ContentRedactor
             $"{match.Groups["prefix"].Value}{RedactedValue}{match.Groups["quote"].Value}");
         redacted = CSharpAssignmentRegex().Replace(redacted, match =>
             $"{match.Groups["prefix"].Value}{RedactedValue}{match.Groups["quote"].Value}");
+        redacted = QuotedKeyValueRegex().Replace(redacted, match =>
+            $"{match.Groups["prefix"].Value}{RedactedValue}{match.Groups["quote"].Value}");
         redacted = ConnectionStringPasswordRegex().Replace(redacted, match =>
             $"{match.Groups["prefix"].Value}{RedactedValue}");
 
@@ -98,6 +100,11 @@ public static partial class ContentRedactor
         @"(?i)(?<prefix>\b(?:[A-Za-z0-9_]*?(?:secret|password|passwd|token|apiKey|api_key|privateKey|private_key|connectionString|connection_string)[A-Za-z0-9_]*)\b\s*=\s*(?<quote>[""']))[^""'\r\n]*(?<end>\k<quote>)",
         RegexOptions.Compiled)]
     private static partial Regex CSharpAssignmentRegex();
+
+    [GeneratedRegex(
+        @"(?i)(?<prefix>[""'][^""'\r\n]*\b[A-Z0-9_]*?(?:SECRET|PASSWORD|PASSWD|TOKEN|API[_-]?KEY|PRIVATE[_-]?KEY|CONNECTION[_-]?STRING)[A-Z0-9_]*?\s*[:=]\s*)[^""'\r\n]*(?<quote>[""'])",
+        RegexOptions.Compiled)]
+    private static partial Regex QuotedKeyValueRegex();
 
     [GeneratedRegex(
         @"(?i)(?<prefix>\b(?:Password|Pwd)\s*=\s*)[^;\r\n]+",

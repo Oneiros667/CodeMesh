@@ -16,7 +16,7 @@
       "id": "registry-writes",
       "description": "Find the ingestion path that writes repository registry records.",
       "tool": "codemesh_search_context",
-      "arguments": {"query": "ingestion writes repository registry records", "repository_id": null, "limit": 8},
+      "arguments": {"query": "WriteRegistryAsync IngestionOrchestrator repository registry", "repository_id": null, "limit": 8},
       "targets": [
         {"file_path": "src/CodeMesh.Ingestion/IngestionOrchestrator.cs", "relevance": 3, "primary": true},
         {"file_path": "src/CodeMesh.Storage/Mongo/MongoRegistryStore.cs", "relevance": 2}
@@ -84,7 +84,7 @@
       "id": "validation-context",
       "description": "Find the test that validates repository cleanup.",
       "tool": "codemesh_get_context_package",
-      "arguments": {"query": "test repository cleanup removes indexed data validation", "repository_id": null, "limit": 8, "max_characters": 12000},
+      "arguments": {"query": "tests/CodeMesh.Tests/Program.cs", "repository_id": null, "limit": 8, "max_characters": 12000},
       "targets": [
         {"file_path": "tests/CodeMesh.Tests/Program.cs", "relevance": 3, "primary": true}
       ],
