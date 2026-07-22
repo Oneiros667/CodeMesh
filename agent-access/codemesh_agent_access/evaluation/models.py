@@ -8,6 +8,9 @@ from pydantic import BaseModel, Field, model_validator
 
 
 SCHEMA_VERSION = "1.0"
+MODEL_BENCHMARK_SCHEMA_VERSION = "1.0"
+
+Difficulty = Literal["easy", "medium", "hard"]
 
 
 class RetrievalTarget(BaseModel):
@@ -76,6 +79,19 @@ class ValidationCommand(BaseModel):
     timeout_seconds: int = Field(default=300, ge=1)
 
 
+class CommandPolicy(BaseModel):
+    max_commands: int = Field(default=50, ge=0)
+    forbidden_substrings: list[str] = Field(
+        default_factory=lambda: [
+            "rm -rf",
+            "git reset --hard",
+            "git clean -",
+            "sudo ",
+            ".env",
+        ]
+    )
+
+
 class AgentTask(BaseModel):
     id: str
     description: str
@@ -87,6 +103,7 @@ class AgentTask(BaseModel):
     required_changed_paths: list[str] = Field(default_factory=list)
     allowed_changed_paths: list[str] = Field(default_factory=list)
     forbidden_changed_paths: list[str] = Field(default_factory=list)
+    command_policy: CommandPolicy | None = None
     timeout_seconds: int = Field(default=900, ge=1)
 
     @model_validator(mode="after")
@@ -113,6 +130,120 @@ class AgentSuite(BaseModel):
     repository_id: str = "code_mesh"
     tasks: list[AgentTask]
     thresholds: AgentThresholds = Field(default_factory=AgentThresholds)
+
+
+class CriterionWeights(BaseModel):
+    accuracy: int = Field(default=35, ge=0, le=100)
+    instruction_following: int = Field(default=15, ge=0, le=100)
+    tool_use: int = Field(default=15, ge=0, le=100)
+    safety: int = Field(default=10, ge=0, le=100)
+    insight: int = Field(default=10, ge=0, le=100)
+    reliability: int = Field(default=5, ge=0, le=100)
+    token_efficiency: int = Field(default=5, ge=0, le=100)
+    speed: int = Field(default=5, ge=0, le=100)
+
+    @model_validator(mode="after")
+    def require_total(self) -> "CriterionWeights":
+        if sum(self.model_dump().values()) != 100:
+            raise ValueError("Model benchmark criterion weights must total 100.")
+        return self
+
+
+class ToolPolicy(BaseModel):
+    allowed_tools: list[str] = Field(min_length=1)
+    max_calls: int = Field(ge=1)
+    required_sequence: list[str] = Field(default_factory=list)
+    per_tool_limits: dict[str, int] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_policy(self) -> "ToolPolicy":
+        allowed = set(self.allowed_tools)
+        if any(tool not in allowed for tool in self.required_sequence):
+            raise ValueError("Required tool sequence contains a non-allowed tool.")
+        if any(tool not in allowed for tool in self.per_tool_limits):
+            raise ValueError("Per-tool limits contain a non-allowed tool.")
+        if any(limit < 1 for limit in self.per_tool_limits.values()):
+            raise ValueError("Per-tool limits must be positive.")
+        if len(self.required_sequence) > self.max_calls:
+            raise ValueError("Required tool sequence exceeds max_calls.")
+        return self
+
+
+class HumanRubric(BaseModel):
+    invariants: str
+    edge_cases: str
+    uncertainty: str
+    implications: str
+
+
+class BenchmarkQuestion(BaseModel):
+    id: str
+    family_id: str
+    difficulty: Difficulty
+    description: str
+    prompt: str
+    targets: list[RetrievalTarget] = Field(min_length=1)
+    expected_facts: dict[str, Any] = Field(min_length=1)
+    forbidden_substrings: list[str] = Field(default_factory=list)
+    tool_policy: ToolPolicy
+    human_rubric: HumanRubric
+    timeout_seconds: int = Field(default=900, ge=1)
+
+
+class BenchmarkChangeScenario(BaseModel):
+    id: str
+    family_id: str
+    difficulty: Difficulty
+    description: str
+    prompt: str
+    setup_patch: str
+    validation: list[ValidationCommand] = Field(min_length=1)
+    required_changed_paths: list[str] = Field(min_length=1)
+    allowed_changed_paths: list[str] = Field(min_length=1)
+    forbidden_changed_paths: list[str] = Field(default_factory=list)
+    command_policy: CommandPolicy = Field(default_factory=CommandPolicy)
+    expected_facts: dict[str, Any] = Field(min_length=1)
+    tool_policy: ToolPolicy
+    human_rubric: HumanRubric
+    timeout_seconds: int = Field(default=900, ge=1)
+
+
+class ModelBenchmarkThresholds(BaseModel):
+    query_score: float = Field(default=75, ge=0, le=100)
+    change_score: float = Field(default=70, ge=0, le=100)
+    query_minimums: dict[Difficulty, int] = Field(
+        default_factory=lambda: {"easy": 7, "medium": 6, "hard": 4}
+    )
+    change_minimums: dict[Difficulty, int] = Field(
+        default_factory=lambda: {"easy": 2, "medium": 2, "hard": 2}
+    )
+    minimum_repetitions: int = Field(default=3, ge=3)
+
+
+class ModelBenchmarkSuite(BaseModel):
+    schema_version: Literal["1.0"] = MODEL_BENCHMARK_SCHEMA_VERSION
+    kind: Literal["model-benchmark"] = "model-benchmark"
+    name: str
+    description: str = ""
+    repository_id: str = "code_mesh"
+    weights: CriterionWeights = Field(default_factory=CriterionWeights)
+    thresholds: ModelBenchmarkThresholds = Field(
+        default_factory=ModelBenchmarkThresholds
+    )
+    questions: list[BenchmarkQuestion]
+    change_scenarios: list[BenchmarkChangeScenario]
+
+    @model_validator(mode="after")
+    def validate_matrix(self) -> "ModelBenchmarkSuite":
+        _require_difficulty_matrix(self.questions, family_count=8, label="question")
+        _require_difficulty_matrix(
+            self.change_scenarios, family_count=3, label="change scenario"
+        )
+        if len(self.questions) != 24:
+            raise ValueError("Model benchmark requires exactly 24 query questions.")
+        if len(self.change_scenarios) != 9:
+            raise ValueError("Model benchmark requires exactly 9 change scenarios.")
+        return self
 
 
 class CandidateRecord(BaseModel):
@@ -174,7 +305,10 @@ class AgentExecutionReport(BaseModel):
     output_tokens: int = 0
     reasoning_output_tokens: int = 0
     mcp_calls: list[str] = Field(default_factory=list)
+    mcp_call_attempts: list[str] = Field(default_factory=list)
+    mcp_failed_calls: list[str] = Field(default_factory=list)
     command_count: int = 0
+    command_policy_violations: list[str] = Field(default_factory=list)
     file_change_count: int = 0
     changed_paths: list[str] = Field(default_factory=list)
     validation: list[dict[str, Any]] = Field(default_factory=list)
@@ -202,7 +336,85 @@ class AgentReport(BaseModel):
     failures: list[str] = Field(default_factory=list)
 
 
-Suite = LiveSuite | AgentSuite
+class BenchmarkCitation(BaseModel):
+    file_path: str
+    start_line: int = Field(ge=1)
+    end_line: int = Field(ge=1)
+    stable_key: str | None = None
+
+
+class BenchmarkRunReport(BaseModel):
+    scenario_id: str
+    family_id: str
+    difficulty: Difficulty
+    tier: Literal["query", "change"]
+    repetition: int
+    condition: Literal["control", "treatment"]
+    completed: bool
+    passed: bool
+    safety_violation: bool = False
+    duration_ms: float = 0
+    input_tokens: int = 0
+    cached_input_tokens: int = 0
+    output_tokens: int = 0
+    tool_calls: list[str] = Field(default_factory=list)
+    blocked_tool_calls: list[str] = Field(default_factory=list)
+    answer: str | None = None
+    facts: dict[str, Any] = Field(default_factory=dict)
+    citations: list[BenchmarkCitation] = Field(default_factory=list)
+    changed_paths: list[str] = Field(default_factory=list)
+    validation: list[dict[str, Any]] = Field(default_factory=list)
+    sanitized_diff: str | None = None
+    criterion_scores: dict[str, float | None] = Field(default_factory=dict)
+    weighted_score: float | None = None
+    failures: list[str] = Field(default_factory=list)
+    raw_events: list[dict[str, Any]] | None = None
+
+
+class ModelBenchmarkReport(BaseModel):
+    schema_version: Literal["1.0"] = MODEL_BENCHMARK_SCHEMA_VERSION
+    kind: Literal["model-benchmark-report"] = "model-benchmark-report"
+    suite: str
+    model: str
+    tier: Literal["query", "change", "all"]
+    seed: int
+    repetitions: int
+    generated_at: str
+    status: Literal["provisional", "reviewed", "compared"] = "provisional"
+    qualified: bool = False
+    certified: bool = False
+    comparable: bool = True
+    query_score: float | None = None
+    change_score: float | None = None
+    final_score: float | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    summary: dict[str, Any] = Field(default_factory=dict)
+    runs: list[BenchmarkRunReport] = Field(default_factory=list)
+    failures: list[str] = Field(default_factory=list)
+
+
+class InsightReview(BaseModel):
+    anonymous_id: str
+    score: float = Field(ge=0, le=4)
+    reviewer_id: str
+    notes: str = ""
+
+
+class ReviewFile(BaseModel):
+    schema_version: Literal["1.0"] = MODEL_BENCHMARK_SCHEMA_VERSION
+    reviews: list[InsightReview]
+
+
+class ModelComparisonReport(BaseModel):
+    schema_version: Literal["1.0"] = MODEL_BENCHMARK_SCHEMA_VERSION
+    kind: Literal["model-comparison-report"] = "model-comparison-report"
+    generated_at: str
+    comparable: bool
+    rankings: list[dict[str, Any]]
+    failures: list[str] = Field(default_factory=list)
+
+
+Suite = LiveSuite | AgentSuite | ModelBenchmarkSuite
 
 
 def built_in_suite_path(name: str) -> Path:
@@ -229,9 +441,42 @@ def load_suite(
         return LiveSuite.model_validate(payload), path
     if kind == "agent":
         return AgentSuite.model_validate(payload), path
+    if kind == "model-benchmark":
+        return ModelBenchmarkSuite.model_validate(payload), path
     raise ValueError(f"Evaluation suite '{path}' has unsupported kind '{kind}'.")
 
 
-def suite_json_schema(kind: Literal["live", "agent"]) -> dict[str, Any]:
-    model = LiveSuite if kind == "live" else AgentSuite
+def suite_json_schema(kind: Literal["live", "agent", "model"]) -> dict[str, Any]:
+    model = (
+        LiveSuite
+        if kind == "live"
+        else AgentSuite
+        if kind == "agent"
+        else ModelBenchmarkSuite
+    )
     return model.model_json_schema()
+
+
+def _require_difficulty_matrix(
+    items: list[Any], *, family_count: int, label: str
+) -> None:
+    families: dict[str, set[str]] = {}
+    for item in items:
+        family = families.setdefault(item.family_id, set())
+        if item.difficulty in family:
+            raise ValueError(
+                f"Duplicate {label} difficulty '{item.difficulty}' in family '{item.family_id}'."
+            )
+        family.add(item.difficulty)
+    if len(families) != family_count:
+        raise ValueError(
+            f"Model benchmark requires exactly {family_count} {label} families."
+        )
+    expected = {"easy", "medium", "hard"}
+    incomplete = [
+        name for name, difficulties in families.items() if difficulties != expected
+    ]
+    if incomplete:
+        raise ValueError(
+            f"Every {label} family requires easy, medium, and hard variants: {', '.join(sorted(incomplete))}."
+        )

@@ -1,0 +1,25 @@
+diff --git a/src/CodeMesh.Ingestion/RepositoryCleanupService.cs b/src/CodeMesh.Ingestion/RepositoryCleanupService.cs
+--- a/src/CodeMesh.Ingestion/RepositoryCleanupService.cs
++++ b/src/CodeMesh.Ingestion/RepositoryCleanupService.cs
+@@ -24,6 +24,10 @@ public sealed class RepositoryCleanupService(
+     {
+         ArgumentException.ThrowIfNullOrWhiteSpace(repositoryId);
+ 
++        await registryStore
++            .DeleteRepositoryAsync(repositoryId, cancellationToken)
++            .ConfigureAwait(false);
++
+         var registryEntryExisted = await registryStore
+             .GetRepositoryAsync(repositoryId, cancellationToken)
+             .ConfigureAwait(false) is not null;
+@@ -81,10 +85,6 @@ public sealed class RepositoryCleanupService(
+             }
+         }
+ 
+-        await registryStore
+-            .DeleteRepositoryAsync(repositoryId, cancellationToken)
+-            .ConfigureAwait(false);
+-
+         return new RepositoryCleanupResult(
+             repositoryId,
+             registryEntryExisted,

@@ -67,6 +67,17 @@ For an opt-in paired Codex comparison using isolated temporary clones:
 uv run python -m codemesh_agent_access eval agent --model <model-id>
 ```
 
+To qualify a model against the full graded CodeMesh question set after the live
+suite passes:
+
+```powershell
+uv run python -m codemesh_agent_access eval model --model <model-id> --tier query
+```
+
+Run `--tier change` only for qualifying models, or use `--tier all` for the full
+126-execution benchmark. The runner uses isolated clones and writes reports and
+review packets below `.codemesh-evals/`.
+
 See `docs/evaluation.md` for freshness requirements, metrics, costs, and trace
 sensitivity. The REST-based `self smoke` remains the lifecycle smoke path; the
 live evaluator owns MCP stdio quality checks.

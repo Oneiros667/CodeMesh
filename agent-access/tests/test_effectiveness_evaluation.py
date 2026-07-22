@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from codemesh_agent_access.evaluation.agent import (
     _grade_answer,
+    _grade_command_policy,
     _run_task_condition,
     classify_agent_results,
 )
@@ -37,6 +38,7 @@ from codemesh_agent_access.evaluation.models import (
     AgentSuite,
     AgentTask,
     CandidateRecord,
+    CommandPolicy,
     RetrievalCase,
     RetrievalTarget,
     ValidationCommand,
@@ -48,15 +50,21 @@ from codemesh_agent_access.evaluation.models import (
 def test_built_in_suites_and_schemas_are_valid() -> None:
     live, live_path = load_suite("codemesh-live", "live")
     agent, agent_path = load_suite("codemesh-agent", "agent")
+    model, model_path = load_suite("codemesh-model", "model-benchmark")
 
     assert live.name == "codemesh-live"
     assert len(live.cases) >= 9
     assert agent.name == "codemesh-agent"
     assert {task.task_type for task in agent.tasks} == {"answer", "change"}
+    assert model.name == "codemesh-model"
+    assert len(model.questions) == 24
+    assert len(model.change_scenarios) == 9
     assert live_path.is_file()
     assert agent_path.is_file()
+    assert model_path.is_file()
     assert suite_json_schema("live")["title"] == "LiveSuite"
     assert suite_json_schema("agent")["title"] == "AgentSuite"
+    assert suite_json_schema("model")["title"] == "ModelBenchmarkSuite"
 
 
 def test_built_in_fault_patches_apply_to_current_head() -> None:
@@ -205,6 +213,15 @@ def test_codex_jsonl_parser_collects_usage_tools_and_failures() -> None:
         [
             json.dumps(
                 {
+                    "type": "item.completed",
+                    "item": {
+                        "type": "command_execution",
+                        "command": "rg target src",
+                    },
+                }
+            ),
+            json.dumps(
+                {
                     "type": "item.started",
                     "item": {
                         "type": "mcp_tool_call",
@@ -237,6 +254,8 @@ def test_codex_jsonl_parser_collects_usage_tools_and_failures() -> None:
     assert result.completed is True
     assert result.usage["input_tokens"] == 20
     assert result.mcp_calls == ["codemesh.codemesh_search_context"]
+    assert result.mcp_call_attempts == ["codemesh.codemesh_search_context"]
+    assert result.commands == ["rg target src"]
     assert result.final_message.startswith("{")
     assert "malformed JSONL" in result.failures[0]
 
@@ -347,6 +366,26 @@ def test_agent_classifier_prioritizes_correctness_and_safety() -> None:
     runs[-1].safety_violation = True
     verdict, _summary = classify_agent_results(runs, suite)
     assert verdict == "regressed"
+
+
+def test_command_policy_rejects_unsafe_commands() -> None:
+    task = AgentTask(
+        id="change",
+        description="change",
+        task_type="change",
+        prompt="change",
+        setup_patch="fault.patch",
+        validation=[ValidationCommand(argv=["true"])],
+    )
+    task.command_policy = CommandPolicy(
+        max_commands=1,
+        forbidden_substrings=["git reset --hard"],
+    )
+
+    failures = _grade_command_policy(task, ["git reset --hard HEAD", "dotnet test"])
+
+    assert any("maximum" in failure for failure in failures)
+    assert any("git reset --hard" in failure for failure in failures)
 
 
 def test_change_task_runs_in_an_isolated_clone(tmp_path: Path) -> None:

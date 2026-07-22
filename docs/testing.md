@@ -87,7 +87,18 @@ authentication, time, and model budget are available:
 uv run python -m codemesh_agent_access eval agent --model <model-id>
 ```
 
-These commands are intentionally excluded from normal `pytest` execution. See
+After the live suite passes, run the opt-in model selection benchmark. Tier 1
+uses 72 executions per model and is the qualification gate before paired repair
+testing:
+
+```powershell
+uv run python -m codemesh_agent_access eval model --model <model-id> --tier query
+uv run python -m codemesh_agent_access eval model --model <model-id> --tier change
+```
+
+These model-backed commands are intentionally excluded from normal `pytest`
+execution. Suite validation, scoring, proxy enforcement, review handling, and
+orchestration tests remain in normal CI. See
 `docs/evaluation.md` for metrics, suite formats, artifact handling, and exit codes.
 
 ## End-To-End Smoke

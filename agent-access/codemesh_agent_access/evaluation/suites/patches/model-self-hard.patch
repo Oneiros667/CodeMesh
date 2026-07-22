@@ -1,0 +1,29 @@
+diff --git a/src/CodeMesh.Control/Configuration/CodeMeshRefreshWorkflow.cs b/src/CodeMesh.Control/Configuration/CodeMeshRefreshWorkflow.cs
+--- a/src/CodeMesh.Control/Configuration/CodeMeshRefreshWorkflow.cs
++++ b/src/CodeMesh.Control/Configuration/CodeMeshRefreshWorkflow.cs
+@@ -92,11 +92,7 @@ public static class CodeMeshRefreshWorkflow
+ 
+     private static bool IsRepositoryRoot(string path)
+     {
+-        return Directory.Exists(Path.Combine(path, ".git")) ||
+-            File.Exists(Path.Combine(path, CodeMeshSelfWorkflow.MarkerFileName)) ||
+-            File.Exists(Path.Combine(path, CodeMeshSelfWorkflow.SolutionFileName)) ||
+-            Directory.EnumerateFiles(path, "*.sln", SearchOption.TopDirectoryOnly).Any() ||
+-            Directory.EnumerateFiles(path, "*.slnx", SearchOption.TopDirectoryOnly).Any();
++        return Directory.Exists(Path.Combine(path, ".git"));
+     }
+ 
+     private static string? FindDefaultSolution(string rootPath)
+diff --git a/src/CodeMesh.Control/Configuration/CodeMeshWatchWorkflow.cs b/src/CodeMesh.Control/Configuration/CodeMeshWatchWorkflow.cs
+--- a/src/CodeMesh.Control/Configuration/CodeMeshWatchWorkflow.cs
++++ b/src/CodeMesh.Control/Configuration/CodeMeshWatchWorkflow.cs
+@@ -100,8 +100,7 @@ public static class CodeMeshWatchWorkflow
+ 
+     private static bool IsWatchOptionWithValue(string arg)
+     {
+-        return string.Equals(arg, "--poll-seconds", StringComparison.OrdinalIgnoreCase) ||
+-            string.Equals(arg, "--max-runs", StringComparison.OrdinalIgnoreCase);
++        return string.Equals(arg, "--poll-seconds", StringComparison.OrdinalIgnoreCase);
+     }
+ 
+     private static bool IsWatchFlag(string arg)

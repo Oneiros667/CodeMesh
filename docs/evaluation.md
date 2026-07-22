@@ -1,10 +1,11 @@
 # MCP Effectiveness Evaluation
 
-CodeMesh has three evaluation levels:
+CodeMesh has four evaluation levels:
 
 1. The deterministic fixture suite checks MCP behavior without stores or a model provider.
 2. The live suite starts CodeMesh through MCP stdio and measures retrieval quality, freshness, safety, reliability, and latency against indexed data.
 3. The agent suite runs paired control/treatment tasks with CodeMesh unavailable or available to the agent.
+4. The model benchmark measures query-answering capability and, for qualifying models, paired repair capability.
 
 Normal tests never start live stores or invoke a paid agent.
 
@@ -106,15 +107,109 @@ The result is `improved`, `regressed`, `neutral`, or `insufficient`. Correctness
 
 Default artifacts are written under `.codemesh-evals/` and contain the report, validation summaries, changed paths, and secret-scrubbed diffs. `--keep-raw-traces` additionally retains exact Codex JSONL, final messages, full diffs, and raw MCP output; treat that option as sensitive.
 
+## Model Benchmark
+
+The built-in `codemesh-model` suite compares models on repository work rather
+than general conversation. It contains 24 query questions across eight
+capability families and nine trusted repair scenarios across three families.
+Every family has easy, medium, and hard variants. Difficulty increases through
+reasoning depth, state transitions, failure behavior, and ambiguity rather than
+prompt length.
+
+Run Tier 1 first. Three repetitions produce 72 model executions:
+
+```powershell
+cd agent-access
+uv run python -m codemesh_agent_access eval model --model <model-id> --tier query
+```
+
+Only models meeting the Tier 1 gates should proceed to the paired change tier.
+Three repetitions of nine scenarios in control and treatment produce 54 more
+executions. `--tier all` runs all 126 executions:
+
+```powershell
+uv run python -m codemesh_agent_access eval model --model <model-id> --tier change
+uv run python -m codemesh_agent_access eval model --model <model-id> --tier all
+```
+
+The live retrieval benchmark runs first and must pass. The source checkout and
+indexed commit must be clean and identical. Query runs use a read-only isolated
+clone. Change runs apply a trusted fault patch in a separate temporary clone,
+prove validation fails before the model runs, and never modify the source
+checkout.
+
+For a local LM Studio run, record the complete serving configuration so later
+cohort comparisons can reject incompatible reports:
+
+```powershell
+uv run python -m codemesh_agent_access eval model `
+  --model unsloth/ornith-1.0-9b@q6_k `
+  --local-provider lmstudio `
+  --tier query `
+  --temperature 0.2 `
+  --seed 137 `
+  --top-p 0.95 `
+  --top-k 20 `
+  --context-length 262144 `
+  --quantization Q6_K `
+  --chat-template-hash <sha256>
+```
+
+The runner uses a response-tool submission pattern. CodeMesh investigation
+remains available before the model calls `submit_benchmark_answer` exactly once.
+An evaluation MCP proxy enforces each question's tool allowlist, required
+ordering, per-tool limits, and total call budget. Blocked attempts are recorded
+as failures without retaining argument values.
+
+Each run receives 0–4 for accuracy/grounding, instruction following, tool use,
+safety/scope, insight/completeness, reliability, token efficiency, and speed.
+The weights are 35/15/15/10/10/5/5/5 percent respectively. A safety violation
+fails the run, and accuracy and instruction following must both reach 3. A
+scenario passes when at least two of three repetitions pass. Efficiency is
+provisional until multiple reviewed reports establish passing-run cohort
+medians; correctness always takes precedence.
+
+The initial report includes a blinded `review-packet.json`. A reviewer scores
+only insight and completeness against the supplied rubric. Create a review file
+matching the `ReviewFile` schema, then finalize it:
+
+```powershell
+uv run python -m codemesh_agent_access eval model finalize `
+  ..\.codemesh-evals\<run>\report.json `
+  --reviews review.json
+```
+
+One deterministic representative passing run is reviewed for each question.
+Objectively failed runs receive zero insight automatically. Ten percent of
+items require two reviewers; disagreements greater than one point must be
+resolved before finalization.
+
+Compare at least two reviewed reports to calculate cohort-relative token and
+speed bands and rank models. Final ranking is 60% Tier 1 and 40% Tier 2
+treatment score; CodeMesh control/treatment uplift is reported separately.
+
+```powershell
+uv run python -m codemesh_agent_access eval compare `
+  model-a-reviewed.json model-b-reviewed.json --output comparison.json
+```
+
+Model-backed runs can be costly: Tier 1 is 72 executions and the full benchmark
+is 126. Keep temperature, top-p, top-k, context length, seed, reasoning effort,
+chat template, provider, and host fixed within a comparison. Reports retain
+these settings, the model and quantization identifiers, indexed commit, and host
+description. They do not retain credentials or MCP payloads by default.
+
 ## Custom Suites
 
-Built-in suites are named `codemesh-live` and `codemesh-agent`. A custom JSON path can be passed to `--suite`.
+Built-in suites are named `codemesh-live`, `codemesh-agent`, and
+`codemesh-model`. A custom JSON path can be passed to `--suite`.
 
 Inspect or validate the versioned formats with:
 
 ```powershell
 uv run python -m codemesh_agent_access eval schema live
 uv run python -m codemesh_agent_access eval schema agent
+uv run python -m codemesh_agent_access eval schema model
 uv run python -m codemesh_agent_access eval validate path/to/suite.json
 ```
 
@@ -122,8 +217,8 @@ Retrieval targets use one or more exact selectors: `stable_key`, normalized repo
 
 ## Exit Codes And Automation
 
-- `0`: the fixture/live gates passed, or the completed agent comparison was not a regression.
-- `1`: evaluation gates failed or the agent treatment regressed.
+- `0`: evaluation gates passed or the requested model tier qualified/certified.
+- `1`: evaluation gates failed, the agent treatment regressed, or model thresholds were not met.
 - `2`: the suite, environment, freshness preflight, transport, or agent infrastructure was invalid.
 
 Keep fixture tests in normal CI. Run live and agent evaluations only in explicit local or self-hosted jobs with their required stores and credentials.

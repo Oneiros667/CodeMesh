@@ -1,8 +1,19 @@
 from .agent import run_agent_evaluation
+from .benchmark import (
+    compare_model_reports,
+    finalize_model_report,
+    run_model_benchmark,
+)
 from .codex import AgentRunner, AgentRunRequest, AgentRunResult, CodexRunner
 from .fixture import EvaluationCaseResult, EvaluationReport, run_mcp_evaluations
 from .live import EvaluationInfrastructureError, run_live_evaluation
-from .models import AgentSuite, LiveSuite, load_suite, suite_json_schema
+from .models import (
+    AgentSuite,
+    LiveSuite,
+    ModelBenchmarkSuite,
+    load_suite,
+    suite_json_schema,
+)
 
 __all__ = [
     "AgentSuite",
@@ -14,9 +25,13 @@ __all__ = [
     "EvaluationReport",
     "EvaluationInfrastructureError",
     "LiveSuite",
+    "ModelBenchmarkSuite",
+    "compare_model_reports",
+    "finalize_model_report",
     "load_suite",
     "run_agent_evaluation",
     "run_live_evaluation",
+    "run_model_benchmark",
     "run_mcp_evaluations",
     "suite_json_schema",
 ]

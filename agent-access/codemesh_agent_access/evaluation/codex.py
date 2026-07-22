@@ -34,6 +34,7 @@ class AgentRunRequest:
     local_provider: Literal["lmstudio", "ollama"] | None = None
     output_schema: Path | None = None
     keep_raw_traces: bool = False
+    mcp_config: tuple[str, ...] | None = None
 
 
 @dataclass
@@ -44,7 +45,10 @@ class AgentRunResult:
     final_message: str = ""
     usage: dict[str, int] = field(default_factory=dict)
     mcp_calls: list[str] = field(default_factory=list)
+    mcp_call_attempts: list[str] = field(default_factory=list)
+    mcp_failed_calls: list[str] = field(default_factory=list)
     command_count: int = 0
+    commands: list[str] = field(default_factory=list)
     file_change_count: int = 0
     failures: list[str] = field(default_factory=list)
     raw_events: list[dict[str, Any]] = field(default_factory=list)
@@ -128,7 +132,9 @@ class CodexRunner:
         supports_ignore_user_config: bool | None = None,
     ) -> list[str]:
         mcp_config = (
-            _codemesh_mcp_config(request.mcp_cwd)
+            list(request.mcp_config)
+            if request.mcp_config is not None
+            else _codemesh_mcp_config(request.mcp_cwd)
             if request.condition == "treatment"
             else ["mcp_servers={}"]
         )
@@ -209,6 +215,11 @@ def parse_codex_jsonl(text: str) -> AgentRunResult:
             and event_type == "item.completed"
         ):
             result.command_count += 1
+            command = item.get("command") or ""
+            if isinstance(command, list):
+                command = " ".join(str(part) for part in command)
+            if command:
+                result.commands.append(str(command))
         if (
             item_type in {"file_change", "file_changes"}
             and event_type == "item.completed"
@@ -223,8 +234,17 @@ def parse_codex_jsonl(text: str) -> AgentRunResult:
                 item.get("tool") or item.get("tool_name") or item.get("name") or ""
             )
             call = f"{server}.{tool}".strip(".")
+            if call and event_type == "item.started":
+                result.mcp_call_attempts.append(call)
             if call and call not in result.mcp_calls:
                 result.mcp_calls.append(call)
+            if (
+                call
+                and event_type == "item.completed"
+                and (item.get("error") or item.get("status") in {"failed", "error"})
+                and call not in result.mcp_failed_calls
+            ):
+                result.mcp_failed_calls.append(call)
     return result
 
 

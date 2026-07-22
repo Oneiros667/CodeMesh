@@ -52,6 +52,46 @@ def main() -> None:
     agent_eval_parser.add_argument("--keep-raw-traces", action="store_true")
     agent_eval_parser.add_argument("--keep-workspaces", action="store_true")
 
+    model_eval_parser = eval_modes.add_parser(
+        "model", help="Benchmark a model on CodeMesh query and change scenarios."
+    )
+    model_actions = model_eval_parser.add_subparsers(dest="model_action")
+    finalize_model_parser = model_actions.add_parser(
+        "finalize", help="Apply blinded insight reviews to a model report."
+    )
+    finalize_model_parser.add_argument("report")
+    finalize_model_parser.add_argument("--reviews", required=True)
+    finalize_model_parser.add_argument("--output")
+    model_eval_parser.add_argument("--suite", default="codemesh-model")
+    model_eval_parser.add_argument("--model")
+    model_eval_parser.add_argument(
+        "--tier", choices=["query", "change", "all"], default="query"
+    )
+    model_eval_parser.add_argument("--local-provider", choices=["lmstudio", "ollama"])
+    model_eval_parser.add_argument("--codex-executable", default="codex")
+    model_eval_parser.add_argument("--reasoning-effort", default="medium")
+    model_eval_parser.add_argument("--repetitions", type=int, default=3)
+    model_eval_parser.add_argument("--seed", type=int, default=137)
+    model_eval_parser.add_argument("--repository-root")
+    model_eval_parser.add_argument("--repository-id")
+    model_eval_parser.add_argument("--output-dir")
+    model_eval_parser.add_argument("--temperature", type=float)
+    model_eval_parser.add_argument("--top-p", type=float)
+    model_eval_parser.add_argument("--top-k", type=int)
+    model_eval_parser.add_argument("--context-length", type=int)
+    model_eval_parser.add_argument("--chat-template-hash")
+    model_eval_parser.add_argument("--quantization")
+    model_eval_parser.add_argument("--hardware")
+    model_eval_parser.add_argument("--provider")
+    model_eval_parser.add_argument("--keep-raw-traces", action="store_true")
+    model_eval_parser.add_argument("--keep-workspaces", action="store_true")
+
+    compare_eval_parser = eval_modes.add_parser(
+        "compare", help="Compare two or more reviewed model reports."
+    )
+    compare_eval_parser.add_argument("reports", nargs="+")
+    compare_eval_parser.add_argument("--output")
+
     validate_eval_parser = eval_modes.add_parser(
         "validate", help="Validate an evaluation suite JSON file."
     )
@@ -59,7 +99,7 @@ def main() -> None:
     schema_eval_parser = eval_modes.add_parser(
         "schema", help="Print an evaluation suite JSON Schema."
     )
-    schema_eval_parser.add_argument("kind", choices=["live", "agent"])
+    schema_eval_parser.add_argument("kind", choices=["live", "agent", "model"])
     subcommands.add_parser("status", help="Print Agent Access status JSON.")
     guidance_parser = subcommands.add_parser(
         "tool-guidance", help="Recommend CodeMesh tools for a task."
@@ -244,6 +284,64 @@ def main() -> None:
                 )
                 print(json.dumps(report.model_dump(mode="json"), indent=2))
                 raise SystemExit(0 if report.passed else 1)
+
+            if args.eval_mode == "model":
+                if args.model_action == "finalize":
+                    report = evaluation.finalize_model_report(
+                        args.report,
+                        args.reviews,
+                        output_path=args.output,
+                    )
+                    print(json.dumps(report.model_dump(mode="json"), indent=2))
+                    raise SystemExit(0 if report.status == "reviewed" else 2)
+                if not args.model:
+                    raise ValueError("eval model requires --model <id>.")
+                suite, suite_path = evaluation.load_suite(args.suite, "model-benchmark")
+                report = asyncio.run(
+                    evaluation.run_model_benchmark(
+                        suite,
+                        suite_path,
+                        model=args.model,
+                        tier=args.tier,
+                        local_provider=args.local_provider,
+                        codex_executable=args.codex_executable,
+                        reasoning_effort=args.reasoning_effort,
+                        repetitions=args.repetitions,
+                        seed=args.seed,
+                        repository_root=args.repository_root,
+                        repository_id=args.repository_id,
+                        output_dir=args.output_dir,
+                        keep_raw_traces=args.keep_raw_traces,
+                        keep_workspaces=args.keep_workspaces,
+                        temperature=args.temperature,
+                        top_p=args.top_p,
+                        top_k=args.top_k,
+                        context_length=args.context_length,
+                        chat_template_hash=args.chat_template_hash,
+                        quantization=args.quantization,
+                        hardware=args.hardware,
+                        provider=args.provider,
+                    )
+                )
+                print(json.dumps(report.model_dump(mode="json"), indent=2))
+                passed = (
+                    report.qualified
+                    if args.tier == "query"
+                    else report.certified
+                    if args.tier == "change"
+                    else report.qualified and report.certified
+                )
+                raise SystemExit(0 if passed else 1)
+
+            if args.eval_mode == "compare":
+                report = evaluation.compare_model_reports(args.reports)
+                payload = json.dumps(report.model_dump(mode="json"), indent=2)
+                if args.output:
+                    from pathlib import Path
+
+                    Path(args.output).write_text(payload, encoding="utf-8")
+                print(payload)
+                raise SystemExit(0 if report.comparable else 2)
         except (ValueError, OSError, evaluation.EvaluationInfrastructureError) as exc:
             print(
                 json.dumps(

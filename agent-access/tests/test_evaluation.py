@@ -70,6 +70,12 @@ def test_cli_eval_schema_and_validate_are_non_running_commands(
     assert payload["valid"] is True
     assert payload["kind"] == "agent"
 
+    monkeypatch.setattr(
+        sys, "argv", ["codemesh-agent-access", "eval", "schema", "model"]
+    )
+    cli.main()
+    assert json.loads(capsys.readouterr().out)["title"] == "ModelBenchmarkSuite"
+
 
 def test_cli_eval_invalid_suite_exits_with_infrastructure_code(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]

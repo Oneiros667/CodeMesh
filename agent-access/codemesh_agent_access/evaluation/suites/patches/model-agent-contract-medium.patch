@@ -1,0 +1,12 @@
+diff --git a/src/CodeMesh.Domain/Contracts/AgentAccessContracts.cs b/src/CodeMesh.Domain/Contracts/AgentAccessContracts.cs
+--- a/src/CodeMesh.Domain/Contracts/AgentAccessContracts.cs
++++ b/src/CodeMesh.Domain/Contracts/AgentAccessContracts.cs
+@@ -12,7 +12,7 @@ public sealed record AgentHealthResult(
+ 
+ public sealed record AgentContextQuery(
+     [property: JsonPropertyName("query")] string Query,
+-    [property: JsonPropertyName("repository_id")] string? RepositoryId = null,
++    [property: JsonPropertyName("repository")] string? RepositoryId = null,
+     [property: JsonPropertyName("limit")] int Limit = 8,
+     [property: JsonPropertyName("kinds")] IReadOnlyList<string>? Kinds = null,
+     [property: JsonPropertyName("filters")] IReadOnlyDictionary<string, string>? Filters = null,

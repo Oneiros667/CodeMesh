@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from copy import deepcopy
 import json
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 from . import tools
 from .formatting import format_context_package_for_agent
@@ -313,7 +313,9 @@ def tool_manifest() -> dict[str, Any]:
     }
 
 
-def build_server() -> Any:
+def build_server(
+    call_guard: Callable[[str, dict[str, Any]], None] | None = None,
+) -> Any:
     try:
         from mcp.server.fastmcp import FastMCP
     except ImportError as exc:
@@ -323,14 +325,20 @@ def build_server() -> Any:
 
     server = FastMCP("codemesh-agent-access")
 
+    def check(name: str, arguments: dict[str, Any]) -> None:
+        if call_guard is not None:
+            call_guard(name, arguments)
+
     @server.tool()
     async def codemesh_status() -> dict[str, Any]:
         """Return CodeMesh Agent Access health and configured read endpoints."""
+        check("codemesh_status", {})
         return (await tools.status()).model_dump(mode="json")
 
     @server.tool()
     async def codemesh_get_tool_guidance(task: str | None = None) -> dict[str, Any]:
         """Recommend which CodeMesh MCP tools to use for a natural-language agent task."""
+        check("codemesh_get_tool_guidance", {"task": task})
         return (await tools.tool_guidance(task=task)).model_dump(mode="json")
 
     @server.tool()
@@ -347,6 +355,10 @@ def build_server() -> Any:
         context_relationship_limit: int = 8,
     ) -> dict[str, Any]:
         """Search CodeMesh context for code relevant to an agent task."""
+        check(
+            "codemesh_search_context",
+            {"query": query, "repository_id": repository_id, "limit": limit},
+        )
         return (
             await tools.search_context(
                 query,
@@ -386,6 +398,10 @@ def build_server() -> Any:
         output_format: Literal["json", "agent"] = "json",
     ) -> dict[str, Any]:
         """Build an agent-ready context package with snippets, relationships, and repository metadata."""
+        check(
+            "codemesh_get_context_package",
+            {"query": query, "repository_id": repository_id, "limit": limit},
+        )
         result = await tools.get_context_package(
             query,
             repository_id=repository_id,
@@ -424,6 +440,10 @@ def build_server() -> Any:
         include_declarations: bool = True,
     ) -> dict[str, Any]:
         """Search indexed CodeMesh symbols by name, id, display signature, namespace, or file path."""
+        check(
+            "codemesh_search_symbols",
+            {"query": query, "repository_id": repository_id, "limit": limit},
+        )
         return (
             await tools.search_symbols(
                 query,
@@ -443,6 +463,10 @@ def build_server() -> Any:
         include_neighbors: bool = True,
     ) -> dict[str, Any]:
         """Fetch a CodeMesh node with optional content and immediate relationships."""
+        check(
+            "codemesh_get_node",
+            {"node_id": node_id, "repository_id": repository_id},
+        )
         return (
             await tools.get_node(
                 node_id,
@@ -460,6 +484,10 @@ def build_server() -> Any:
         relationship_kinds: list[str] | None = None,
     ) -> dict[str, Any]:
         """Fetch relationships around a CodeMesh node."""
+        check(
+            "codemesh_get_neighbors",
+            {"node_id": node_id, "repository_id": repository_id, "depth": depth},
+        )
         return (
             await tools.get_neighbors(
                 node_id,
@@ -472,16 +500,19 @@ def build_server() -> Any:
     @server.tool()
     async def codemesh_list_repositories(limit: int = 50) -> dict[str, Any]:
         """List repositories indexed by CodeMesh."""
+        check("codemesh_list_repositories", {"limit": limit})
         return (await tools.list_repositories(limit=limit)).model_dump(mode="json")
 
     @server.tool()
     async def codemesh_get_repository(repository_id: str) -> dict[str, Any]:
         """Fetch one indexed CodeMesh repository by id."""
+        check("codemesh_get_repository", {"repository_id": repository_id})
         return (await tools.get_repository(repository_id)).model_dump(mode="json")
 
     @server.tool()
     async def codemesh_get_repository_status(repository_id: str) -> dict[str, Any]:
         """Fetch repository status, counts, latest run, summary coverage, and freshness diagnostics."""
+        check("codemesh_get_repository_status", {"repository_id": repository_id})
         return (await tools.get_repository_status(repository_id)).model_dump(
             mode="json"
         )
@@ -491,6 +522,10 @@ def build_server() -> Any:
         repository_id: str, confirm: bool = False
     ) -> dict[str, Any]:
         """Delete one indexed CodeMesh repository. Requires confirm=true."""
+        check(
+            "codemesh_delete_repository",
+            {"repository_id": repository_id, "confirm": confirm},
+        )
         if not confirm:
             return {
                 "ok": False,
@@ -503,6 +538,7 @@ def build_server() -> Any:
     @server.tool()
     async def codemesh_get_summary_coverage(repository_id: str) -> dict[str, Any]:
         """Fetch generated node summary coverage for one indexed CodeMesh repository."""
+        check("codemesh_get_summary_coverage", {"repository_id": repository_id})
         return (await tools.get_summary_coverage(repository_id)).model_dump(mode="json")
 
     @server.tool()
@@ -511,6 +547,10 @@ def build_server() -> Any:
         limit: int = 50,
     ) -> dict[str, Any]:
         """List CodeMesh ingestion runs, optionally scoped to a repository."""
+        check(
+            "codemesh_list_ingestion_runs",
+            {"repository_id": repository_id, "limit": limit},
+        )
         return (
             await tools.list_ingestion_runs(repository_id=repository_id, limit=limit)
         ).model_dump(mode="json")

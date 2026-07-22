@@ -227,6 +227,8 @@ static Task TestRefreshWorkflowNormalizesIngestArguments()
         Equal(true, args.Contains("--force-embeddings"), "Refresh workflow removed an embedding flag.");
         Equal(true, args.Contains("--include-summaries"), "Refresh workflow removed a summary flag.");
         Equal(true, args.Contains("--json"), "Refresh workflow removed json output flag.");
+        Equal(1, args.Count(arg => string.Equals(arg, "--root", StringComparison.OrdinalIgnoreCase)), "Refresh workflow emitted duplicate root options.");
+        Equal(1, args.Count(arg => string.Equals(arg, "--solution", StringComparison.OrdinalIgnoreCase)), "Refresh workflow emitted duplicate solution options.");
         Equal(root, args[Array.LastIndexOf(args, "--root") + 1], "Refresh workflow did not inject the resolved root.");
         Equal(solution, args[Array.LastIndexOf(args, "--solution") + 1], "Refresh workflow did not inject the resolved solution.");
     }

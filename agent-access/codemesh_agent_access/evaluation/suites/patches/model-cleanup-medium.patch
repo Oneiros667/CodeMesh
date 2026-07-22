@@ -1,0 +1,13 @@
+diff --git a/src/CodeMesh.Ingestion/RepositoryCleanupService.cs b/src/CodeMesh.Ingestion/RepositoryCleanupService.cs
+--- a/src/CodeMesh.Ingestion/RepositoryCleanupService.cs
++++ b/src/CodeMesh.Ingestion/RepositoryCleanupService.cs
+@@ -50,9 +50,6 @@ public sealed class RepositoryCleanupService(
+         var embeddingsCleaned = false;
+         if (vectorStore is IIncrementalVectorStore incrementalVectorStore)
+         {
+-            await incrementalVectorStore
+-                .RemoveEmbeddingsExceptAsync(repositoryId, EmptySet(), cancellationToken)
+-                .ConfigureAwait(false);
+             embeddingsCleaned = true;
+         }
+         else

@@ -1,0 +1,12 @@
+diff --git a/src/CodeMesh.Control/Configuration/CodeMeshRefreshWorkflow.cs b/src/CodeMesh.Control/Configuration/CodeMeshRefreshWorkflow.cs
+--- a/src/CodeMesh.Control/Configuration/CodeMeshRefreshWorkflow.cs
++++ b/src/CodeMesh.Control/Configuration/CodeMeshRefreshWorkflow.cs
+@@ -27,7 +27,7 @@ public static class CodeMeshRefreshWorkflow
+                 continue;
+             }
+ 
+-            if (IsOptionWithValue(arg, "--root", "--repository-root", "--solution", "--solution-path"))
++            if (IsOptionWithValue(arg, "--root", "--repository-root", "--solution-path"))
+             {
+                 skipNext = true;
+                 continue;
