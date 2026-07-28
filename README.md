@@ -18,6 +18,8 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. Code
 
 - [Agent Quickstart](docs/agent-quickstart.md): starting point for AI agents working in this repository.
 - [Architecture](docs/architecture.md): current components, data flow, stores, and extension points.
+- [Graph Intelligence Design](docs/graph-intelligence-design.md): proposed
+  relationship evidence, graph analysis, agent outcome memory, and portability.
 - [Testing Guide](docs/testing.md): verification commands and smoke-test guidance.
 - [MCP Evaluation](docs/evaluation.md): deterministic, live stdio, agent A/B, and graded model-selection benchmarks.
 - [Agent Access Contracts](docs/agent-access-contracts.md): REST, MCP, CLI, and .NET client contracts.

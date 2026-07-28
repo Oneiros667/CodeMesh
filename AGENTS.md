@@ -12,9 +12,12 @@ Before planning larger CodeMesh work, review these repository notes:
 - `docs/security-and-redaction.md` records secret-handling expectations for agent-facing context.
 - `docs/agent-prompts.md` contains example prompts for agents using CodeMesh through MCP.
 - `docs/next-steps.md` tracks the prioritized backlog for making CodeMesh effective as an MCP service for AI agents.
+- `docs/graph-intelligence-design.md` proposes relationship evidence, graph
+  analysis, explicit agent outcome memory, parser tiers, and portable snapshots.
 - `docs/sdlc-roadmap.md` tracks longer-term SDLC intelligence goals beyond implementation-code indexing.
 
-Treat `docs/next-steps.md` and `docs/sdlc-roadmap.md` as planning context, not implemented behavior.
+Treat `docs/next-steps.md`, `docs/graph-intelligence-design.md`, and
+`docs/sdlc-roadmap.md` as planning context, not implemented behavior.
 
 ## Agent Defaults
 

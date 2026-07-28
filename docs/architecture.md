@@ -119,4 +119,6 @@ CodeMesh is organized around a write-side ingestion pipeline and a read-side Age
 ## Planning References
 
 - `docs/next-steps.md` prioritizes the next features needed for effective MCP agent use.
+- `docs/graph-intelligence-design.md` proposes relationship evidence, graph
+  analysis, explicit agent outcome memory, parser tiers, and portable snapshots.
 - `docs/sdlc-roadmap.md` describes broader SDLC intelligence goals.

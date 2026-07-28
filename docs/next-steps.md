@@ -4,6 +4,10 @@ CodeMesh already has an Agent Access surface with REST, MCP tools, CLI commands,
 
 This document prioritizes the features that would make CodeMesh effective as an MCP service used by AI agents, including agents analyzing CodeMesh itself.
 
+`docs/graph-intelligence-design.md` records a planning-only design for
+relationship evidence, deterministic graph analysis, explicit agent outcome
+memory, parser tiers, portable snapshots, and graph-derived reports.
+
 ## Current Project State Review
 
 Review date: 2026-07-20.
@@ -38,11 +42,13 @@ Current state:
 Current priority judgment:
 
 1. Deepen test and validation context with implementation-to-test relationships and validation command nodes.
-2. Establish and review live/agent evaluation baselines as ranking and context behavior evolves.
-3. Deepen deployment ingestion with Kubernetes/Helm and code-to-runtime links.
-4. Deepen parser relationships for Python imports/routes/MCP handlers and Markdown cross-links.
-5. Strengthen secret-file exclusion and configurable allow/deny policy before broad SDLC artifact ingestion.
-6. Improve watch ergonomics with optional native file-system events and UI visibility for active watches.
+2. Add relationship provenance, confidence, and evidence spans, then build
+   deterministic path and reverse-impact queries on that foundation.
+3. Establish and review live/agent evaluation baselines as ranking and context behavior evolves.
+4. Deepen deployment ingestion with Kubernetes/Helm and code-to-runtime links.
+5. Deepen parser relationships for Python imports/routes/MCP handlers and Markdown cross-links.
+6. Strengthen secret-file exclusion and configurable allow/deny policy before broad SDLC artifact ingestion.
+7. Improve watch ergonomics with optional native file-system events and UI visibility for active watches.
 
 ## P0 - Required For A Dependable MCP Baseline
 
@@ -392,10 +398,13 @@ Useful agents need to follow local engineering process, not only compile code.
 ## Near-Term Recommended Order
 
 1. Deepen test and validation context with first-class test files/cases and relationships to implementation nodes.
-2. Establish reviewed evaluation baselines and add a representative external repository suite.
-3. Deepen deployment ingestion into Kubernetes manifests, Helm charts, CI/CD workflows, and code-to-runtime links.
-4. Deepen Python and Markdown relationship extraction where it improves self-analysis and MCP packages.
-5. Add configurable sensitive-file exclusion and allow/deny policy before broadening SDLC artifact ingestion.
-6. Improve watch ergonomics with optional native file-system events and local UI visibility.
+2. Add relationship evidence, then repository-scoped shortest-path and
+   reverse-impact queries as described in
+   `docs/graph-intelligence-design.md`.
+3. Establish reviewed evaluation baselines and add a representative external repository suite.
+4. Deepen deployment ingestion into Kubernetes manifests, Helm charts, CI/CD workflows, and code-to-runtime links.
+5. Deepen Python and Markdown relationship extraction where it improves self-analysis and MCP packages.
+6. Add configurable sensitive-file exclusion and allow/deny policy before broadening SDLC artifact ingestion.
+7. Improve watch ergonomics with optional native file-system events and local UI visibility.
 
 This order keeps CodeMesh useful as a local MCP service while moving from basic context access toward production-aware, validation-aware agent workflows.
