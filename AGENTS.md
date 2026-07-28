@@ -14,10 +14,13 @@ Before planning larger CodeMesh work, review these repository notes:
 - `docs/next-steps.md` tracks the prioritized backlog for making CodeMesh effective as an MCP service for AI agents.
 - `docs/graph-intelligence-design.md` proposes relationship evidence, graph
   analysis, explicit agent outcome memory, parser tiers, and portable snapshots.
+- `docs/summary-model-qualification.md` defines the planned qualification
+  procedure for local and online ingestion summary models.
 - `docs/sdlc-roadmap.md` tracks longer-term SDLC intelligence goals beyond implementation-code indexing.
 
-Treat `docs/next-steps.md`, `docs/graph-intelligence-design.md`, and
-`docs/sdlc-roadmap.md` as planning context, not implemented behavior.
+Treat `docs/next-steps.md`, `docs/graph-intelligence-design.md`,
+`docs/summary-model-qualification.md`, and `docs/sdlc-roadmap.md` as planning
+context, not implemented behavior.
 
 ## Agent Defaults
 

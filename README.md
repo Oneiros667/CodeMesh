@@ -22,6 +22,9 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. Code
   relationship evidence, graph analysis, agent outcome memory, and portability.
 - [Testing Guide](docs/testing.md): verification commands and smoke-test guidance.
 - [MCP Evaluation](docs/evaluation.md): deterministic, live stdio, agent A/B, and graded model-selection benchmarks.
+- [Summary Model Qualification](docs/summary-model-qualification.md):
+  provider-neutral procedure for qualifying local or online ingestion
+  summarizers.
 - [Agent Access Contracts](docs/agent-access-contracts.md): REST, MCP, CLI, and .NET client contracts.
 - [MCP Setup](docs/mcp-setup.md): configure CodeMesh as an MCP service for AI agents.
 - [CodeMesh Self-Analysis](docs/self-analysis.md): index and query CodeMesh with CodeMesh itself.

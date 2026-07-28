@@ -9,6 +9,14 @@ CodeMesh has four evaluation levels:
 
 Normal tests never start live stores or invoke a paid agent.
 
+Ingestion summary models require a separate qualification because bounded
+summary generation is not equivalent to autonomous MCP tool use or repair
+ability. `docs/summary-model-qualification.md` defines a provider-neutral
+procedure for local and online candidates, including factual accuracy,
+reliability, speed, token efficiency, privacy, cost, and downstream retrieval
+gates. The dedicated qualification runner described there is planned and is not
+an available CLI command yet.
+
 ## Deterministic Fixture Suite
 
 From `agent-access`:

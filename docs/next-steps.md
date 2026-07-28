@@ -8,6 +8,10 @@ This document prioritizes the features that would make CodeMesh effective as an 
 relationship evidence, deterministic graph analysis, explicit agent outcome
 memory, parser tiers, portable snapshots, and graph-derived reports.
 
+`docs/summary-model-qualification.md` records a planning-only procedure for
+qualifying local or online ingestion summary models using accuracy, reliability,
+speed, token efficiency, privacy, cost, and downstream retrieval evidence.
+
 ## Current Project State Review
 
 Review date: 2026-07-20.
@@ -45,10 +49,13 @@ Current priority judgment:
 2. Add relationship provenance, confidence, and evidence spans, then build
    deterministic path and reverse-impact queries on that foundation.
 3. Establish and review live/agent evaluation baselines as ranking and context behavior evolves.
-4. Deepen deployment ingestion with Kubernetes/Helm and code-to-runtime links.
-5. Deepen parser relationships for Python imports/routes/MCP handlers and Markdown cross-links.
-6. Strengthen secret-file exclusion and configurable allow/deny policy before broad SDLC artifact ingestion.
-7. Improve watch ergonomics with optional native file-system events and UI visibility for active watches.
+4. Implement the summary-model qualification runner and establish a qualified
+   local baseline before treating generated summaries as a default retrieval
+   input.
+5. Deepen deployment ingestion with Kubernetes/Helm and code-to-runtime links.
+6. Deepen parser relationships for Python imports/routes/MCP handlers and Markdown cross-links.
+7. Strengthen secret-file exclusion and configurable allow/deny policy before broad SDLC artifact ingestion.
+8. Improve watch ergonomics with optional native file-system events and UI visibility for active watches.
 
 ## P0 - Required For A Dependable MCP Baseline
 
