@@ -19,3 +19,5 @@ build/
 .codemesh-smoke/
 .codemesh-live-summary/
 .codemesh-evals/
+
+references/
