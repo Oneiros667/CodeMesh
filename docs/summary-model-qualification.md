@@ -7,6 +7,10 @@ qualification command and report schema described here are not implemented yet.
 Existing ingestion and live-evaluation commands can be used to run parts of the
 procedure manually.
 
+CodeMesh does implement versioned, complexity-tiered summary prompts and
+completion ceilings. The qualification automation and certification report
+remain planned.
+
 ## Purpose
 
 CodeMesh can use a chat model during ingestion to generate a short summary,

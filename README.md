@@ -141,6 +141,34 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
 
 Summaries are stored in MongoDB `node_summaries` by default and are keyed by repository, node, content hash, summary kind, provider, model, and prompt version. Incremental ingestion skips unchanged completed summaries; use `--force-summaries` to regenerate summaries for unchanged code.
 
+Summary generation assigns each eligible node a deterministic `compact`,
+`standard`, `complex`, or `aggregate` budget from its node kind, source span,
+input size, truncation state, and available parser complexity metadata. The
+prompt varies from one concise sentence for compact nodes to 3-5 sentences for
+aggregate nodes. Reasoning-capable models receive a 1,024-token ceiling for
+compact and standard nodes and a 1,536-token ceiling for complex and aggregate
+nodes by default; generation stops earlier when the model finishes.
+
+Tune the shared policy for a provider or host from the CLI:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- ingest `
+  --root D:\source\repos\YoutubeDownloader `
+  --solution D:\source\repos\YoutubeDownloader\YoutubeDownloader.slnx `
+  --skip-embeddings `
+  --include-summaries `
+  --summary-provider lmstudio `
+  --summary-model ornith-1.0-9b@q4_k_s `
+  --summary-max-input-chars 4000 `
+  --summary-reasoning-token-reserve 768 `
+  --summary-max-completion-tokens 1536
+```
+
+The selected tier, visible-token target, reasoning reserve, effective
+completion ceiling, input size, truncation state, and policy version are stored
+with each generated summary. Changing the prompt version regenerates summaries;
+use `--force-summaries` after changing only budget settings.
+
 Each successful ingestion run stamps graph, content, vector, and summary records with a repository id and ingestion run id. CodeMesh also writes repository/run registry records to MongoDB so users and agents can discover indexed repositories and recent ingestion history. Repository registry records include a generated alias, for example `YoutubeDownloader` becomes `youtube_downloader`, and read commands accept either the hash id or alias. Incremental ingestion skips unchanged graph/content/vector/summary writes after parsing, then removes stale records from the same repository that were not seen in the current run. If `--skip-embeddings` is used, vector cleanup is skipped so existing embeddings are left untouched.
 
 Use `refresh` during normal development to re-run the same incremental ingestion path for the current repository:

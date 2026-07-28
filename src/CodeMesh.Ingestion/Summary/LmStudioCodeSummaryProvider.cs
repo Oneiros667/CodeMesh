@@ -49,7 +49,7 @@ public sealed class LmStudioCodeSummaryProvider : ICodeSummaryProvider, IDisposa
                     Model,
                     messages,
                     Temperature: 0.1,
-                    MaxTokens: 220,
+                    MaxTokens: request.Budget?.MaxCompletionTokens ?? 1024,
                     ResponseFormat: new ResponseFormat("text")),
                 JsonOptions,
                 cancellationToken)

@@ -11,7 +11,7 @@ public sealed record SummaryChatMessage(
 
 internal static class SummaryPrompt
 {
-    public const string DefaultPromptVersion = "node-summary-v1";
+    public const string DefaultPromptVersion = "node-summary-v2";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -30,8 +30,30 @@ The summary must be factual, brief, and based only on the supplied code.
 Use confidence high, medium, or low.
 """;
 
+        var budget = request.Budget ?? new SummaryBudget(
+            SummaryBudgetPolicy.PolicyVersion,
+            SummaryComplexityTier.Standard,
+            SummaryBudgetPolicy.VisibleTokenBudget(SummaryComplexityTier.Standard),
+            0,
+            1024,
+            source.Length,
+            false);
+        var instruction = budget.ComplexityTier switch
+        {
+            SummaryComplexityTier.Compact =>
+                "Summarize this code node in one sentence. State only its essential responsibility.",
+            SummaryComplexityTier.Standard =>
+                "Summarize this code node in 1-2 sentences. State its responsibility and important behavior.",
+            SummaryComplexityTier.Complex =>
+                "Summarize this code node in 2-3 sentences. Cover its responsibility, important behavior, side effects, and failure behavior when present.",
+            SummaryComplexityTier.Aggregate =>
+                "Summarize this code node in 3-5 sentences. Cover its purpose, major responsibilities, and important integration boundaries.",
+            _ => throw new ArgumentOutOfRangeException()
+        };
+
         var user = $$"""
-Summarize this code node in 1-2 sentences.
+{{instruction}}
+Keep the complete JSON response within approximately {{budget.VisibleTokenBudget}} visible tokens.
 
 Node:
 - kind: {{request.Node.Kind}}
@@ -40,6 +62,8 @@ Node:
 - project: {{request.Node.Project}}
 - file: {{request.Node.Span.FilePath}}
 - lines: {{request.Node.Span.StartLine}}-{{request.Node.Span.EndLine}}
+- summary complexity tier: {{budget.ComplexityTier.ToString().ToLowerInvariant()}}
+- input truncated: {{budget.InputTruncated.ToString().ToLowerInvariant()}}
 
 Code:
 ```{{request.Node.Language}}

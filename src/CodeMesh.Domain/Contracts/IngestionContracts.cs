@@ -22,7 +22,10 @@ public sealed record IngestionRequest(
     bool ForceEmbeddings = false,
     bool IncludeSummaries = false,
     bool ForceSummaries = false,
-    IReadOnlyDictionary<string, string>? Options = null);
+    IReadOnlyDictionary<string, string>? Options = null,
+    int SummaryMaxInputCharacters = 4000,
+    int SummaryReasoningTokenReserve = 768,
+    int SummaryMaxCompletionTokens = 1536);
 
 public sealed record IngestionRun(
     string RunId,

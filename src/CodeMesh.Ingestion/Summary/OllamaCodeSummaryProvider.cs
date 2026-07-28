@@ -50,7 +50,9 @@ public sealed class OllamaCodeSummaryProvider : ICodeSummaryProvider, IDisposabl
                     messages,
                     Stream: false,
                     Format: "json",
-                    Options: new ChatOptions(Temperature: 0.1, NumPredict: 220)),
+                    Options: new ChatOptions(
+                        Temperature: 0.1,
+                        NumPredict: request.Budget?.MaxCompletionTokens ?? 1024)),
                 JsonOptions,
                 cancellationToken)
             .ConfigureAwait(false);

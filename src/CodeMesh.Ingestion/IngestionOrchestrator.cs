@@ -241,7 +241,11 @@ public sealed class IngestionOrchestrator(
                 var summaryGenerator = new CodeSummaryGenerator(
                     summaryProvider,
                     summaryStore,
-                    new CodeSummaryGenerationOptions(Force: request.ForceSummaries));
+                    new CodeSummaryGenerationOptions(
+                        MaxInputCharacters: request.SummaryMaxInputCharacters,
+                        ReasoningTokenReserve: request.SummaryReasoningTokenReserve,
+                        MaxCompletionTokens: request.SummaryMaxCompletionTokens,
+                        Force: request.ForceSummaries));
 
                 summaryResult = await summaryGenerator
                     .GenerateAsync(repository, ingestionRunId, nodes, contentByHash, cancellationToken)

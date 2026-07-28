@@ -34,6 +34,9 @@ CodeMesh is organized around a write-side ingestion pipeline and a read-side Age
 - Performs incremental skip logic for unchanged records.
 - Removes stale records from previous runs.
 - Supports local embedding and summary providers.
+- Assigns versioned summary complexity tiers from node kind, source size,
+  truncation, and available parser metadata; the selected token budgets are
+  persisted with each generated summary.
 
 ### Parser Workers
 

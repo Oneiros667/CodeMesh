@@ -42,6 +42,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("repository refresh removes stale records", TestRepositoryRefreshRemovesStaleRecords),
     ("incremental ingestion skips unchanged records", TestIncrementalIngestionSkipsUnchangedRecords),
     ("incremental ingestion skips unchanged summaries", TestIncrementalIngestionSkipsUnchangedSummaries),
+    ("summary budgets scale with node complexity", TestSummaryBudgetsScaleWithNodeComplexity),
+    ("summary generator persists budget metadata", TestSummaryGeneratorPersistsBudgetMetadata),
     ("forced embedding ingestion rebuilds unchanged embeddings", TestForcedEmbeddingIngestionRebuildsUnchangedEmbeddings),
     ("embedding verifier reports missing and stale vectors", TestEmbeddingVerifierReportsMissingAndStaleVectors),
     ("repository cleanup removes indexed data", TestRepositoryCleanupRemovesIndexedData),
@@ -54,6 +56,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("ollama embedding provider maps responses", TestOllamaEmbeddingProviderMapsResponses),
     ("lm studio embedding provider maps responses", TestLmStudioEmbeddingProviderMapsResponses),
     ("lm studio summary provider accepts numeric confidence", TestLmStudioSummaryProviderAcceptsNumericConfidence),
+    ("ollama summary provider uses request completion budget", TestOllamaSummaryProviderUsesRequestCompletionBudget),
     ("mongodb content store round-trips content", TestMongoContentStoreRoundTripsContent),
     ("mongodb registry store round-trips repositories and runs", TestMongoRegistryStoreRoundTripsRepositoriesAndRuns),
     ("neo4j graph store round-trips graph", TestNeo4jGraphStoreRoundTripsGraph),
@@ -217,6 +220,8 @@ static Task TestRefreshWorkflowNormalizesIngestArguments()
                 "--skip-embeddings",
                 "--force-embeddings",
                 "--include-summaries",
+                "--summary-max-completion-tokens",
+                "1024",
                 "--json"
             ],
             target);
@@ -226,6 +231,8 @@ static Task TestRefreshWorkflowNormalizesIngestArguments()
         Equal(true, args.Contains("--skip-embeddings"), "Refresh workflow removed an ingestion flag.");
         Equal(true, args.Contains("--force-embeddings"), "Refresh workflow removed an embedding flag.");
         Equal(true, args.Contains("--include-summaries"), "Refresh workflow removed a summary flag.");
+        Equal(true, args.Contains("--summary-max-completion-tokens"), "Refresh workflow removed summary budget configuration.");
+        Equal("1024", args[Array.IndexOf(args, "--summary-max-completion-tokens") + 1], "Refresh workflow changed summary budget configuration.");
         Equal(true, args.Contains("--json"), "Refresh workflow removed json output flag.");
         Equal(1, args.Count(arg => string.Equals(arg, "--root", StringComparison.OrdinalIgnoreCase)), "Refresh workflow emitted duplicate root options.");
         Equal(1, args.Count(arg => string.Equals(arg, "--solution", StringComparison.OrdinalIgnoreCase)), "Refresh workflow emitted duplicate solution options.");
@@ -268,6 +275,8 @@ static Task TestWatchWorkflowNormalizesRefreshArguments()
                 "--run-once",
                 "--skip-embeddings",
                 "--include-summaries",
+                "--summary-reasoning-token-reserve",
+                "768",
                 "--json"
             ],
             target);
@@ -279,6 +288,8 @@ static Task TestWatchWorkflowNormalizesRefreshArguments()
         Equal(false, args.Contains("--run-once"), "Watch workflow leaked run-once configuration into ingest args.");
         Equal(true, args.Contains("--skip-embeddings"), "Watch workflow removed an ingestion flag.");
         Equal(true, args.Contains("--include-summaries"), "Watch workflow removed a summary flag.");
+        Equal(true, args.Contains("--summary-reasoning-token-reserve"), "Watch workflow removed summary reasoning configuration.");
+        Equal("768", args[Array.IndexOf(args, "--summary-reasoning-token-reserve") + 1], "Watch workflow changed summary reasoning configuration.");
         Equal(true, args.Contains("--json"), "Watch workflow removed json output flag.");
         Equal(root, args[Array.LastIndexOf(args, "--root") + 1], "Watch workflow did not inject the resolved root.");
         Equal(solution, args[Array.LastIndexOf(args, "--solution") + 1], "Watch workflow did not inject the resolved solution.");
@@ -392,6 +403,8 @@ static Task TestSelfWorkflowNormalizesIngestArguments()
                 "ignored query",
                 "--skip-embeddings",
                 "--include-summaries",
+                "--summary-max-input-chars",
+                "4000",
                 "--json"
             ],
             target);
@@ -401,6 +414,8 @@ static Task TestSelfWorkflowNormalizesIngestArguments()
         Equal(false, args.Contains("--agent-access-url"), "Self workflow leaked smoke-only Agent Access options into ingest args.");
         Equal(true, args.Contains("--skip-embeddings"), "Self workflow removed an ingestion flag.");
         Equal(true, args.Contains("--include-summaries"), "Self workflow removed a summary flag.");
+        Equal(true, args.Contains("--summary-max-input-chars"), "Self workflow removed summary input configuration.");
+        Equal("4000", args[Array.IndexOf(args, "--summary-max-input-chars") + 1], "Self workflow changed summary input configuration.");
         Equal(true, args.Contains("--json"), "Self workflow removed json output flag.");
         Equal(root, args[Array.LastIndexOf(args, "--root") + 1], "Self workflow did not inject the resolved root.");
         Equal(alternateSolution, args[Array.LastIndexOf(args, "--solution") + 1], "Self workflow did not inject the resolved solution.");
@@ -1009,7 +1024,7 @@ static async Task TestIncrementalIngestionSkipsUnchangedSummaries()
         Equal(1, coverage.CompletedCount, "Summary coverage completed count changed.");
         Equal(0, coverage.FailedCount, "Summary coverage failed count changed.");
         Equal(1, coverage.KindCounts["Class"], "Summary coverage kind count changed.");
-        Equal(1, coverage.ProviderModelCounts["test/summary-counting/node-summary-v1"], "Summary coverage provider/model count changed.");
+        Equal(1, coverage.ProviderModelCounts["test/summary-counting/node-summary-v2"], "Summary coverage provider/model count changed.");
         Equal("summary-counting", coverage.ProviderModelCountDetails[0].Model, "Summary coverage provider/model detail changed.");
 
         await store.UpsertSummariesAsync([
@@ -1087,6 +1102,108 @@ static async Task TestIncrementalIngestionSkipsUnchangedSummaries()
     {
         Directory.Delete(root, recursive: true);
     }
+}
+
+static Task TestSummaryBudgetsScaleWithNodeComplexity()
+{
+    var compact = SummaryBudgetPolicy.CreateRequest(
+        SummaryNode(
+            CodeNodeKind.Property,
+            "Name",
+            "public string Name { get; init; }",
+            startLine: 1,
+            endLine: 1),
+        SummaryContent("public string Name { get; init; }"),
+        "node-summary-v2");
+    Equal(SummaryComplexityTier.Compact, compact.Budget!.ComplexityTier, "A trivial property did not use the compact summary tier.");
+    Equal(128, compact.Budget.VisibleTokenBudget, "Compact visible summary budget changed.");
+    Equal(1024, compact.Budget.MaxCompletionTokens, "Compact completion ceiling changed.");
+
+    var complexText = string.Join(
+        Environment.NewLine,
+        Enumerable.Range(1, 60).Select(index => $"DoWork({index});"));
+    var complex = SummaryBudgetPolicy.CreateRequest(
+        SummaryNode(
+            CodeNodeKind.Method,
+            "Run",
+            complexText,
+            startLine: 1,
+            endLine: 60),
+        SummaryContent(complexText),
+        "node-summary-v2");
+    Equal(SummaryComplexityTier.Complex, complex.Budget!.ComplexityTier, "A 60-line method did not use the complex summary tier.");
+    Equal(320, complex.Budget.VisibleTokenBudget, "Complex visible summary budget changed.");
+    Equal(1536, complex.Budget.MaxCompletionTokens, "Complex completion ceiling changed.");
+
+    var aggregate = SummaryBudgetPolicy.CreateRequest(
+        SummaryNode(
+            CodeNodeKind.File,
+            "Worker.cs",
+            "sealed class Worker;",
+            startLine: 1,
+            endLine: 1),
+        SummaryContent("sealed class Worker;"),
+        "node-summary-v2");
+    Equal(SummaryComplexityTier.Aggregate, aggregate.Budget!.ComplexityTier, "A file did not use the aggregate summary tier.");
+    Equal(448, aggregate.Budget.VisibleTokenBudget, "Aggregate visible summary budget changed.");
+    Equal(1536, aggregate.Budget.MaxCompletionTokens, "Aggregate completion ceiling changed.");
+
+    var longText = new string('x', 4500);
+    var capped = SummaryBudgetPolicy.CreateRequest(
+        SummaryNode(
+            CodeNodeKind.Method,
+            "LongMethod",
+            longText,
+            startLine: 1,
+            endLine: 20),
+        SummaryContent(longText),
+        "node-summary-v2",
+        new SummaryBudgetPolicyOptions(
+            MaxInputCharacters: 4000,
+            ReasoningTokenReserve: 0,
+            MaxCompletionTokens: 768));
+    Equal(SummaryComplexityTier.Aggregate, capped.Budget!.ComplexityTier, "A truncated input did not use the aggregate summary tier.");
+    Equal(true, capped.Budget.InputTruncated, "A truncated input was not recorded.");
+    Equal(4000, capped.Budget.InputCharacters, "Summary input character count did not reflect truncation.");
+    Equal(768, capped.Budget.MaxCompletionTokens, "Configured completion ceiling was not applied.");
+
+    return Task.CompletedTask;
+}
+
+static async Task TestSummaryGeneratorPersistsBudgetMetadata()
+{
+    var store = new InMemoryCodeMeshStore();
+    var provider = new CountingSummaryProvider();
+    var text = string.Join(
+        Environment.NewLine,
+        Enumerable.Range(1, 50).Select(index => $"Step({index});"));
+    var node = SummaryNode(
+        CodeNodeKind.Method,
+        "Execute",
+        text,
+        startLine: 10,
+        endLine: 59);
+    var repository = new RepositoryRef("repo:summary-budget", "/summary-budget");
+    var generator = new CodeSummaryGenerator(provider, store);
+
+    var result = await generator.GenerateAsync(
+        repository,
+        "run:summary-budget",
+        [node],
+        new Dictionary<string, CodeContent>
+        {
+            [node.ContentHash] = SummaryContent(text)
+        });
+
+    Equal(1, result.WrittenCount, "Summary budget metadata test did not generate a summary.");
+    var metadata = result.Summaries[0].Metadata;
+    Equal(SummaryBudgetPolicy.PolicyVersion, metadata["summaryBudgetPolicyVersion"], "Summary budget policy version was not persisted.");
+    Equal("complex", metadata["summaryComplexityTier"], "Summary complexity tier was not persisted.");
+    Equal("320", metadata["summaryVisibleTokenBudget"], "Visible summary token budget was not persisted.");
+    Equal("768", metadata["summaryReasoningTokenReserve"], "Reasoning token reserve was not persisted.");
+    Equal("1536", metadata["summaryMaxCompletionTokens"], "Completion ceiling was not persisted.");
+    Equal("false", metadata["summaryInputTruncated"], "Summary truncation state was not persisted.");
+    Equal(1536, provider.LastRequest?.Budget?.MaxCompletionTokens ?? 0, "Summary provider did not receive the selected completion ceiling.");
 }
 
 static async Task TestForcedEmbeddingIngestionRebuildsUnchangedEmbeddings()
@@ -1626,8 +1743,16 @@ static async Task TestLmStudioSummaryProviderAcceptsNumericConfidence()
     var summary = await provider.SummarizeAsync(new CodeSummaryRequest(
         node,
         content,
-        "node-summary-v1",
-        1500));
+        "node-summary-v2",
+        1500,
+        new SummaryBudget(
+            SummaryBudgetPolicy.PolicyVersion,
+            SummaryComplexityTier.Complex,
+            320,
+            768,
+            1536,
+            text.Length,
+            false)));
 
     Equal(1, handler.RequestCount, "Expected one LM Studio summary request.");
     Equal("lmstudio", provider.Provider, "LM Studio summary provider name changed.");
@@ -1641,6 +1766,49 @@ static async Task TestLmStudioSummaryProviderAcceptsNumericConfidence()
     if (!handler.LastRequestBody.Contains("\"response_format\":{\"type\":\"text\"}", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("LM Studio summary request response format changed.");
+    }
+    if (!handler.LastRequestBody.Contains("\"max_tokens\":1536", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("LM Studio summary request ignored the selected completion ceiling.");
+    }
+    if (!handler.LastRequestBody.Contains("2-3 sentences", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("LM Studio summary request ignored the complex summary tier.");
+    }
+}
+
+static async Task TestOllamaSummaryProviderUsesRequestCompletionBudget()
+{
+    var handler = new FakeOllamaSummaryHandler();
+    using var http = new HttpClient(handler)
+    {
+        BaseAddress = new Uri("http://ollama.test/")
+    };
+    using var provider = new OllamaCodeSummaryProvider(http, "test-summary");
+
+    const string text = "public int Add(int left, int right) => left + right;";
+    var node = SummaryNode(
+        CodeNodeKind.Method,
+        "Add",
+        text,
+        startLine: 1,
+        endLine: 1);
+    var request = SummaryBudgetPolicy.CreateRequest(
+        node,
+        SummaryContent(text),
+        "node-summary-v2");
+
+    var summary = await provider.SummarizeAsync(request);
+
+    Equal(1, handler.RequestCount, "Expected one Ollama summary request.");
+    Equal("Adds two integers and returns their sum.", summary.Summary, "Ollama summary text did not deserialize.");
+    if (!handler.LastRequestBody.Contains("\"num_predict\":1024", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("Ollama summary request ignored the selected completion ceiling.");
+    }
+    if (!handler.LastRequestBody.Contains("one sentence", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("Ollama summary request ignored the compact summary tier.");
     }
 }
 
@@ -3123,6 +3291,37 @@ static void Throws<TException>(Action action, string message)
     throw new InvalidOperationException($"{message} Expected {typeof(TException).Name}, but no exception was thrown.");
 }
 
+static CodeNode SummaryNode(
+    CodeNodeKind kind,
+    string name,
+    string text,
+    int startLine,
+    int endLine)
+{
+    var hash = CodeMeshHash.Sha256Hex(text);
+    return new CodeNode(
+        $"summary-test:{kind}:{name}:{hash}",
+        $"summary-test:{kind}:{name}",
+        kind,
+        name,
+        "csharp",
+        "CodeMesh.Tests",
+        new SourceSpan($"{name}.cs", startLine, 1, endLine, 1),
+        hash,
+        new Dictionary<string, string>());
+}
+
+static CodeContent SummaryContent(string text)
+{
+    var hash = CodeMeshHash.Sha256Hex(text);
+    return new CodeContent(
+        hash,
+        text,
+        "text/x-csharp-fragment",
+        DateTimeOffset.UtcNow,
+        DateTimeOffset.UtcNow);
+}
+
 static async Task DeleteQdrantCollectionAsync(string url, string collection)
 {
     try
@@ -3495,6 +3694,8 @@ sealed class CountingSummaryProvider : ICodeSummaryProvider
 {
     public int SummarizedNodeCount { get; private set; }
 
+    public CodeSummaryRequest? LastRequest { get; private set; }
+
     public string Provider => "test";
 
     public string Model => "summary-counting";
@@ -3504,10 +3705,47 @@ sealed class CountingSummaryProvider : ICodeSummaryProvider
         CancellationToken cancellationToken = default)
     {
         SummarizedNodeCount++;
+        LastRequest = request;
         return Task.FromResult(new CodeSummaryResult(
             $"Summarizes {request.Node.Kind} {request.Node.Name}.",
             [request.Node.Kind.ToString().ToLowerInvariant()],
             "high"));
+    }
+}
+
+sealed class FakeOllamaSummaryHandler : HttpMessageHandler
+{
+    public int RequestCount { get; private set; }
+    public string LastRequestBody { get; private set; } = string.Empty;
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        RequestCount++;
+        LastRequestBody = request.Content is null
+            ? string.Empty
+            : await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        if (request.RequestUri?.AbsolutePath != "/api/chat")
+        {
+            return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+        }
+
+        return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """
+                {
+                  "message": {
+                    "role": "assistant",
+                    "content": "{\"summary\":\"Adds two integers and returns their sum.\",\"tags\":[\"addition\"],\"confidence\":\"high\"}"
+                  }
+                }
+                """,
+                System.Text.Encoding.UTF8,
+                "application/json")
+        };
     }
 }
 

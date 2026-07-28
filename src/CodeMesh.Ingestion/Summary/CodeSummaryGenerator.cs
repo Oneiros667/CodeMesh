@@ -6,6 +6,8 @@ namespace CodeMesh.Ingestion.Summary;
 public sealed record CodeSummaryGenerationOptions(
     string PromptVersion = SummaryPrompt.DefaultPromptVersion,
     int MaxInputCharacters = 4000,
+    int ReasoningTokenReserve = 768,
+    int MaxCompletionTokens = 1536,
     bool Force = false);
 
 public sealed record CodeSummaryGenerationResult(
@@ -132,15 +134,21 @@ public sealed class CodeSummaryGenerator(
             provider.Model,
             _options.PromptVersion);
         var generatedAt = DateTimeOffset.UtcNow;
-        var metadata = MetadataFor(node, repository, ingestionRunId);
         contentByHash.TryGetValue(node.ContentHash, out var content);
+        var request = SummaryBudgetPolicy.CreateRequest(
+            node,
+            content,
+            _options.PromptVersion,
+            new SummaryBudgetPolicyOptions(
+                _options.MaxInputCharacters,
+                _options.ReasoningTokenReserve,
+                _options.MaxCompletionTokens));
+        var metadata = MetadataFor(node, repository, ingestionRunId, request);
 
         try
         {
             var result = await provider
-                .SummarizeAsync(
-                    new CodeSummaryRequest(node, content, _options.PromptVersion, Math.Max(512, _options.MaxInputCharacters)),
-                    cancellationToken)
+                .SummarizeAsync(request, cancellationToken)
                 .ConfigureAwait(false);
 
             return new CodeNodeSummary(
@@ -202,15 +210,26 @@ public sealed class CodeSummaryGenerator(
     private static IReadOnlyDictionary<string, string> MetadataFor(
         CodeNode node,
         RepositoryRef repository,
-        string ingestionRunId)
+        string ingestionRunId,
+        CodeSummaryRequest request)
     {
+        var budget = request.Budget
+            ?? throw new InvalidOperationException("Generated summaries require a summary budget.");
+
         return new Dictionary<string, string>(node.Metadata, StringComparer.Ordinal)
         {
             ["repositoryId"] = repository.Id,
             ["repositoryRoot"] = repository.RootPath,
             ["ingestionRunId"] = ingestionRunId,
             ["summaryNodeKind"] = node.Kind.ToString(),
-            ["summaryNodeName"] = node.Name
+            ["summaryNodeName"] = node.Name,
+            ["summaryBudgetPolicyVersion"] = budget.PolicyVersion,
+            ["summaryComplexityTier"] = budget.ComplexityTier.ToString().ToLowerInvariant(),
+            ["summaryVisibleTokenBudget"] = budget.VisibleTokenBudget.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["summaryReasoningTokenReserve"] = budget.ReasoningTokenReserve.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["summaryMaxCompletionTokens"] = budget.MaxCompletionTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["summaryInputCharacters"] = budget.InputCharacters.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["summaryInputTruncated"] = budget.InputTruncated.ToString().ToLowerInvariant()
         };
     }
 }

@@ -6,7 +6,8 @@ public sealed record CodeSummaryRequest(
     CodeNode Node,
     CodeContent? Content,
     string PromptVersion,
-    int MaxInputCharacters);
+    int MaxInputCharacters,
+    SummaryBudget? Budget = null);
 
 public sealed record CodeSummaryResult(
     string Summary,

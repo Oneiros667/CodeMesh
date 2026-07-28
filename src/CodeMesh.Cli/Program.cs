@@ -316,7 +316,10 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
         SkipEmbeddings: skipEmbeddings,
         ForceEmbeddings: forceEmbeddings,
         IncludeSummaries: includeSummaries,
-        ForceSummaries: HasFlag(args, "--force-summaries"));
+        ForceSummaries: HasFlag(args, "--force-summaries"),
+        SummaryMaxInputCharacters: ReadIntOption(args, "--summary-max-input-chars", 4000),
+        SummaryReasoningTokenReserve: ReadIntOption(args, "--summary-reasoning-token-reserve", 768),
+        SummaryMaxCompletionTokens: ReadIntOption(args, "--summary-max-completion-tokens", 1536));
 
     var orchestrator = new IngestionOrchestrator(
         parserClient,
@@ -1289,6 +1292,7 @@ static void PrintHelp()
     Console.WriteLine("  --include-embeddings --embedding-provider <none|ollama|lmstudio> --ollama-url <url> --lm-studio-url <url> --embedding-model <model>");
     Console.WriteLine("  --embedding-batch-size <count> --embedding-max-chars <count>");
     Console.WriteLine("  --include-summaries --force-summaries --summary-provider <ollama|lmstudio> --summary-model <model>");
+    Console.WriteLine("  --summary-max-input-chars <count> --summary-reasoning-token-reserve <count> --summary-max-completion-tokens <count>");
 }
 
 sealed class LocalCSharpParserClient(CSharpParseService parser) : IParserClient
