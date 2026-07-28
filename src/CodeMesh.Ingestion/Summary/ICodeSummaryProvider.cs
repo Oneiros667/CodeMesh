@@ -12,7 +12,15 @@ public sealed record CodeSummaryRequest(
 public sealed record CodeSummaryResult(
     string Summary,
     IReadOnlyList<string> Tags,
-    string Confidence);
+    string Confidence,
+    CodeSummaryUsage? Usage = null);
+
+public sealed record CodeSummaryUsage(
+    int InputTokens,
+    int CachedInputTokens,
+    int OutputTokens,
+    int ReasoningTokens,
+    int TotalTokens);
 
 public interface ICodeSummaryProvider
 {

@@ -349,6 +349,12 @@ uv run python -m codemesh_agent_access eval summaries `
   --model <model-id> `
   --profile local-offline
 
+uv run python -m codemesh_agent_access eval summaries `
+  --suite codemesh-summary-model `
+  --provider openai `
+  --model <model-id> `
+  --profile online-approved-data
+
 uv run python -m codemesh_agent_access eval summaries compare `
   candidate-a.json candidate-b.json reference.json
 ```

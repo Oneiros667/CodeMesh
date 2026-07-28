@@ -762,7 +762,7 @@ static (ICodeSummaryProvider Provider, bool IncludeSummaries) CreateSummaryProvi
     if (string.Equals(provider, "none", StringComparison.OrdinalIgnoreCase))
     {
         throw new InvalidOperationException(
-            "Summary provider 'none' cannot be used when summaries are included. Supported values: ollama, lmstudio.");
+            "Summary provider 'none' cannot be used when summaries are included. Supported values: ollama, lmstudio, openai.");
     }
 
     var model = ReadOption(args, "--summary-model")
@@ -779,8 +779,16 @@ static (ICodeSummaryProvider Provider, bool IncludeSummaries) CreateSummaryProvi
                 ?? Environment.GetEnvironmentVariable("CODEMESH_LM_STUDIO_URL")
                 ?? "http://127.0.0.1:1234/v1",
             model)), true),
+        "openai" => (new OpenAiCodeSummaryProvider(new OpenAiCodeSummaryProviderOptions(
+            ReadRequiredEnvironmentVariable(
+                "OPENAI_API_KEY",
+                "OpenAI summary generation requires OPENAI_API_KEY."),
+            ReadOption(args, "--openai-url")
+                ?? Environment.GetEnvironmentVariable("CODEMESH_OPENAI_URL")
+                ?? "https://api.openai.com/v1",
+            model)), true),
         _ => throw new InvalidOperationException(
-            $"Unsupported summary provider: {provider}. Supported values: ollama, lmstudio.")
+            $"Unsupported summary provider: {provider}. Supported values: ollama, lmstudio, openai.")
     };
 }
 
@@ -821,9 +829,12 @@ static string NormalizeModelProvider(string provider)
 
 static string DefaultSummaryModel(string provider)
 {
-    return NormalizeModelProvider(provider) == "lmstudio"
-        ? "mistralai/ministral-3-3b"
-        : "qwen2.5-coder:14b";
+    return NormalizeModelProvider(provider) switch
+    {
+        "lmstudio" => "mistralai/ministral-3-3b",
+        "openai" => "gpt-5.6-luna",
+        _ => "qwen2.5-coder:14b"
+    };
 }
 
 static string DefaultEmbeddingModel(string provider)
@@ -843,6 +854,14 @@ static int? ReadOptionalIntOption(string[] args, string name)
 {
     var value = ReadOption(args, name);
     return int.TryParse(value, out var parsed) ? parsed : null;
+}
+
+static string ReadRequiredEnvironmentVariable(string name, string message)
+{
+    var value = Environment.GetEnvironmentVariable(name);
+    return !string.IsNullOrWhiteSpace(value)
+        ? value
+        : throw new InvalidOperationException(message);
 }
 
 static (string User, string Password) ReadNeo4jCredentials(string[] args)
@@ -1291,7 +1310,8 @@ static void PrintHelp()
     Console.WriteLine("  --parser-url <url>");
     Console.WriteLine("  --include-embeddings --embedding-provider <none|ollama|lmstudio> --ollama-url <url> --lm-studio-url <url> --embedding-model <model>");
     Console.WriteLine("  --embedding-batch-size <count> --embedding-max-chars <count>");
-    Console.WriteLine("  --include-summaries --force-summaries --summary-provider <ollama|lmstudio> --summary-model <model>");
+    Console.WriteLine("  --include-summaries --force-summaries --summary-provider <ollama|lmstudio|openai> --summary-model <model>");
+    Console.WriteLine("  --openai-url <url> (OpenAI summaries only; authentication uses OPENAI_API_KEY)");
     Console.WriteLine("  --summary-max-input-chars <count> --summary-reasoning-token-reserve <count> --summary-max-completion-tokens <count>");
 }
 

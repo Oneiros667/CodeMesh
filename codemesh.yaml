@@ -62,6 +62,7 @@ models:
     lm_studio:
       base_url: ${CODEMESH_LM_STUDIO_URL}
     openai:
+      base_url: ${CODEMESH_OPENAI_URL}
       api_key_env: OPENAI_API_KEY
     azure_openai:
       endpoint_env: AZURE_OPENAI_ENDPOINT

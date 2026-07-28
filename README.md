@@ -139,6 +139,33 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
   --summary-model mistralai/ministral-3-3b
 ```
 
+OpenAI summary generation uses the Responses API with strict Structured
+Outputs. Authentication is read only from `OPENAI_API_KEY`; CodeMesh does not
+accept the key as a command-line option. The default OpenAI summary model is
+`gpt-5.6-luna`, selected for this high-volume extraction workload, and should
+still be qualified against representative CodeMesh nodes before production
+use:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- ingest `
+  --root D:\source\repos\YoutubeDownloader `
+  --solution D:\source\repos\YoutubeDownloader\YoutubeDownloader.slnx `
+  --skip-embeddings `
+  --include-summaries `
+  --summary-provider openai `
+  --summary-model gpt-5.6-luna
+```
+
+`CODEMESH_OPENAI_URL` or `--openai-url` may override the default
+`https://api.openai.com/v1` endpoint for a compatible gateway. Never commit
+`OPENAI_API_KEY`. OpenAI is an online provider: confirm that the repository is
+approved for external processing and review
+[Security And Redaction](docs/security-and-redaction.md) and
+[Summary Model Qualification](docs/summary-model-qualification.md) before
+sending source code. When returned by the provider, input, cached-input, output,
+reasoning, and total token counts are stored in the summary metadata for later
+qualification and cost analysis.
+
 Summaries are stored in MongoDB `node_summaries` by default and are keyed by repository, node, content hash, summary kind, provider, model, and prompt version. Incremental ingestion skips unchanged completed summaries; use `--force-summaries` to regenerate summaries for unchanged code.
 
 Summary generation assigns each eligible node a deterministic `compact`,
@@ -268,6 +295,17 @@ To validate summary generation as well, load a local chat/code model and add the
   -SummaryProvider lmstudio `
   -SummaryModel mistralai/ministral-3-3b `
   -LmStudioUrl http://127.0.0.1:1234/v1
+```
+
+To exercise the same smoke path with OpenAI, set `OPENAI_API_KEY` and use an
+approved synthetic or non-sensitive fixture. This makes billable online API
+requests:
+
+```powershell
+.\scripts\e2e-smoke.ps1 `
+  -IncludeSummaries `
+  -SummaryProvider openai `
+  -SummaryModel gpt-5.6-luna
 ```
 
 ### Ollama Modes

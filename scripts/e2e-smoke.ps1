@@ -12,6 +12,7 @@ param(
     [string]$SummaryModel = $env:CODEMESH_SUMMARY_MODEL,
     [string]$OllamaUrl = $env:CODEMESH_OLLAMA_URL,
     [string]$LmStudioUrl = $env:CODEMESH_LM_STUDIO_URL,
+    [string]$OpenAiUrl = $env:CODEMESH_OPENAI_URL,
     [switch]$SkipCompose,
     [switch]$UseConfiguredSample,
     [switch]$KeepFixture,
@@ -213,7 +214,10 @@ if ([string]::IsNullOrWhiteSpace($SummaryProvider)) {
 }
 
 if ([string]::IsNullOrWhiteSpace($SummaryModel)) {
-    $SummaryModel = if ($SummaryProvider -in @("lmstudio", "lm-studio", "lm_studio")) {
+    $SummaryModel = if ($SummaryProvider -eq "openai") {
+        "gpt-5.6-luna"
+    }
+    elseif ($SummaryProvider -in @("lmstudio", "lm-studio", "lm_studio")) {
         "mistralai/ministral-3-3b"
     }
     else {
@@ -288,6 +292,9 @@ if ($IncludeSummaries) {
     }
     elseif ($SummaryProvider -in @("lmstudio", "lm-studio", "lm_studio") -and ![string]::IsNullOrWhiteSpace($LmStudioUrl)) {
         $ingestArgs += @("--lm-studio-url", $LmStudioUrl)
+    }
+    elseif ($SummaryProvider -eq "openai" -and ![string]::IsNullOrWhiteSpace($OpenAiUrl)) {
+        $ingestArgs += @("--openai-url", $OpenAiUrl)
     }
 }
 

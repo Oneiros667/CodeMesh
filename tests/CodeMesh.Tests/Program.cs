@@ -57,6 +57,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("lm studio embedding provider maps responses", TestLmStudioEmbeddingProviderMapsResponses),
     ("lm studio summary provider accepts numeric confidence", TestLmStudioSummaryProviderAcceptsNumericConfidence),
     ("ollama summary provider uses request completion budget", TestOllamaSummaryProviderUsesRequestCompletionBudget),
+    ("openai summary provider uses responses structured output", TestOpenAiSummaryProviderUsesResponsesStructuredOutput),
     ("mongodb content store round-trips content", TestMongoContentStoreRoundTripsContent),
     ("mongodb registry store round-trips repositories and runs", TestMongoRegistryStoreRoundTripsRepositoriesAndRuns),
     ("neo4j graph store round-trips graph", TestNeo4jGraphStoreRoundTripsGraph),
@@ -1203,6 +1204,11 @@ static async Task TestSummaryGeneratorPersistsBudgetMetadata()
     Equal("768", metadata["summaryReasoningTokenReserve"], "Reasoning token reserve was not persisted.");
     Equal("1536", metadata["summaryMaxCompletionTokens"], "Completion ceiling was not persisted.");
     Equal("false", metadata["summaryInputTruncated"], "Summary truncation state was not persisted.");
+    Equal("100", metadata["summaryInputTokens"], "Summary input token usage was not persisted.");
+    Equal("25", metadata["summaryCachedInputTokens"], "Summary cached input token usage was not persisted.");
+    Equal("40", metadata["summaryOutputTokens"], "Summary output token usage was not persisted.");
+    Equal("10", metadata["summaryReasoningTokens"], "Summary reasoning token usage was not persisted.");
+    Equal("140", metadata["summaryTotalTokens"], "Summary total token usage was not persisted.");
     Equal(1536, provider.LastRequest?.Budget?.MaxCompletionTokens ?? 0, "Summary provider did not receive the selected completion ceiling.");
 }
 
@@ -1809,6 +1815,69 @@ static async Task TestOllamaSummaryProviderUsesRequestCompletionBudget()
     if (!handler.LastRequestBody.Contains("one sentence", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("Ollama summary request ignored the compact summary tier.");
+    }
+}
+
+static async Task TestOpenAiSummaryProviderUsesResponsesStructuredOutput()
+{
+    var handler = new FakeOpenAiSummaryHandler();
+    using var http = new HttpClient(handler)
+    {
+        BaseAddress = new Uri("https://openai.test/v1/")
+    };
+    using var provider = new OpenAiCodeSummaryProvider(
+        http,
+        "test-api-key",
+        "test-summary");
+
+    const string text = "public int Add(int left, int right) => left + right;";
+    var node = SummaryNode(
+        CodeNodeKind.Method,
+        "Add",
+        text,
+        startLine: 1,
+        endLine: 1);
+    var request = SummaryBudgetPolicy.CreateRequest(
+        node,
+        SummaryContent(text),
+        "node-summary-v2");
+
+    var summary = await provider.SummarizeAsync(request);
+
+    Equal(1, handler.RequestCount, "Expected one OpenAI summary request.");
+    Equal("openai", provider.Provider, "OpenAI summary provider name changed.");
+    Equal("test-summary", provider.Model, "OpenAI summary model changed.");
+    Equal("Bearer", handler.AuthorizationScheme, "OpenAI request did not use bearer authentication.");
+    Equal("test-api-key", handler.AuthorizationParameter, "OpenAI request did not use the configured API key.");
+    Equal("Adds two integers and returns their sum.", summary.Summary, "OpenAI summary text did not deserialize.");
+    Equal("high", summary.Confidence, "OpenAI confidence did not deserialize.");
+    Equal("arithmetic", summary.Tags[0], "OpenAI summary tags did not deserialize.");
+    Equal(96, summary.Usage?.InputTokens ?? -1, "OpenAI input token usage did not deserialize.");
+    Equal(32, summary.Usage?.CachedInputTokens ?? -1, "OpenAI cached input token usage did not deserialize.");
+    Equal(24, summary.Usage?.OutputTokens ?? -1, "OpenAI output token usage did not deserialize.");
+    Equal(8, summary.Usage?.ReasoningTokens ?? -1, "OpenAI reasoning token usage did not deserialize.");
+    Equal(120, summary.Usage?.TotalTokens ?? -1, "OpenAI total token usage did not deserialize.");
+    if (!handler.LastRequestBody.Contains("\"max_output_tokens\":1024", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("OpenAI summary request ignored the selected completion ceiling.");
+    }
+    if (!handler.LastRequestBody.Contains("\"store\":false", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("OpenAI summary request did not disable response storage.");
+    }
+    if (!handler.LastRequestBody.Contains(
+            "\"format\":{\"type\":\"json_schema\",\"name\":\"codemesh_node_summary\",\"strict\":true",
+            StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("OpenAI summary request did not use strict Structured Outputs.");
+    }
+    if (!handler.LastRequestBody.Contains("\"additionalProperties\":false", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("OpenAI summary schema allows unspecified properties.");
+    }
+    if (!handler.LastRequestBody.Contains("one sentence", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("OpenAI summary request ignored the compact summary tier.");
     }
 }
 
@@ -3709,7 +3778,13 @@ sealed class CountingSummaryProvider : ICodeSummaryProvider
         return Task.FromResult(new CodeSummaryResult(
             $"Summarizes {request.Node.Kind} {request.Node.Name}.",
             [request.Node.Kind.ToString().ToLowerInvariant()],
-            "high"));
+            "high",
+            new CodeSummaryUsage(
+                InputTokens: 100,
+                CachedInputTokens: 25,
+                OutputTokens: 40,
+                ReasoningTokens: 10,
+                TotalTokens: 140)));
     }
 }
 
@@ -3872,6 +3947,67 @@ sealed class FakeLmStudioSummaryHandler : HttpMessageHandler
         };
 
         return response;
+    }
+}
+
+sealed class FakeOpenAiSummaryHandler : HttpMessageHandler
+{
+    public int RequestCount { get; private set; }
+    public string LastRequestBody { get; private set; } = string.Empty;
+    public string? AuthorizationScheme { get; private set; }
+    public string? AuthorizationParameter { get; private set; }
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        RequestCount++;
+        LastRequestBody = request.Content is null
+            ? string.Empty
+            : await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        AuthorizationScheme = request.Headers.Authorization?.Scheme;
+        AuthorizationParameter = request.Headers.Authorization?.Parameter;
+
+        if (request.RequestUri?.AbsolutePath != "/v1/responses")
+        {
+            return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+        }
+
+        return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """
+                {
+                  "id": "resp_test",
+                  "object": "response",
+                  "status": "completed",
+                  "output": [
+                    {
+                      "type": "message",
+                      "content": [
+                        {
+                          "type": "output_text",
+                          "text": "{\"summary\":\"Adds two integers and returns their sum.\",\"tags\":[\"arithmetic\"],\"confidence\":\"high\"}"
+                        }
+                      ]
+                    }
+                  ],
+                  "usage": {
+                    "input_tokens": 96,
+                    "input_tokens_details": {
+                      "cached_tokens": 32
+                    },
+                    "output_tokens": 24,
+                    "output_tokens_details": {
+                      "reasoning_tokens": 8
+                    },
+                    "total_tokens": 120
+                  }
+                }
+                """,
+                System.Text.Encoding.UTF8,
+                "application/json")
+        };
     }
 }
 

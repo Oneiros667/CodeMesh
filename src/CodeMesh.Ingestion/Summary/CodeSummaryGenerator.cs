@@ -150,6 +150,7 @@ public sealed class CodeSummaryGenerator(
             var result = await provider
                 .SummarizeAsync(request, cancellationToken)
                 .ConfigureAwait(false);
+            var completedMetadata = MetadataWithUsage(metadata, result.Usage);
 
             return new CodeNodeSummary(
                 id,
@@ -175,7 +176,7 @@ public sealed class CodeSummaryGenerator(
                 generatedAt,
                 "completed",
                 null,
-                metadata);
+                completedMetadata);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -230,6 +231,25 @@ public sealed class CodeSummaryGenerator(
             ["summaryMaxCompletionTokens"] = budget.MaxCompletionTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["summaryInputCharacters"] = budget.InputCharacters.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["summaryInputTruncated"] = budget.InputTruncated.ToString().ToLowerInvariant()
+        };
+    }
+
+    private static IReadOnlyDictionary<string, string> MetadataWithUsage(
+        IReadOnlyDictionary<string, string> metadata,
+        CodeSummaryUsage? usage)
+    {
+        if (usage is null)
+        {
+            return metadata;
+        }
+
+        return new Dictionary<string, string>(metadata, StringComparer.Ordinal)
+        {
+            ["summaryInputTokens"] = usage.InputTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["summaryCachedInputTokens"] = usage.CachedInputTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["summaryOutputTokens"] = usage.OutputTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["summaryReasoningTokens"] = usage.ReasoningTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["summaryTotalTokens"] = usage.TotalTokens.ToString(System.Globalization.CultureInfo.InvariantCulture)
         };
     }
 }
