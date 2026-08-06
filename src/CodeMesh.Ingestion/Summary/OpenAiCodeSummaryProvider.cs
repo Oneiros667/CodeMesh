@@ -9,7 +9,8 @@ public sealed record OpenAiCodeSummaryProviderOptions(
     string ApiKey,
     string BaseUrl = "https://api.openai.com/v1",
     string Model = "gpt-5.6-luna",
-    TimeSpan? Timeout = null);
+    TimeSpan? Timeout = null,
+    string? ReasoningEffort = null);
 
 public sealed class OpenAiCodeSummaryProvider : ICodeSummaryProvider, IDisposable
 {
@@ -41,6 +42,7 @@ public sealed class OpenAiCodeSummaryProvider : ICodeSummaryProvider, IDisposabl
 
     private readonly HttpClient _http;
     private readonly string _apiKey;
+    private readonly string? _reasoningEffort;
     private readonly bool _ownsHttpClient;
 
     public OpenAiCodeSummaryProvider(OpenAiCodeSummaryProviderOptions options)
@@ -48,7 +50,8 @@ public sealed class OpenAiCodeSummaryProvider : ICodeSummaryProvider, IDisposabl
             CreateHttpClient(options),
             options.ApiKey,
             options.Model,
-            ownsHttpClient: true)
+            ownsHttpClient: true,
+            reasoningEffort: options.ReasoningEffort)
     {
     }
 
@@ -56,7 +59,8 @@ public sealed class OpenAiCodeSummaryProvider : ICodeSummaryProvider, IDisposabl
         HttpClient httpClient,
         string apiKey,
         string model = "gpt-5.6-luna",
-        bool ownsHttpClient = false)
+        bool ownsHttpClient = false,
+        string? reasoningEffort = null)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
@@ -64,6 +68,7 @@ public sealed class OpenAiCodeSummaryProvider : ICodeSummaryProvider, IDisposabl
 
         _http = httpClient;
         _apiKey = apiKey;
+        _reasoningEffort = NormalizeReasoningEffort(reasoningEffort);
         _ownsHttpClient = ownsHttpClient;
         Model = model;
     }
@@ -71,6 +76,9 @@ public sealed class OpenAiCodeSummaryProvider : ICodeSummaryProvider, IDisposabl
     public string Provider => "openai";
 
     public string Model { get; }
+
+    public string GenerationConfigurationFingerprint =>
+        $"reasoning-effort:{_reasoningEffort ?? "provider-default"}";
 
     public async Task<CodeSummaryResult> SummarizeAsync(
         CodeSummaryRequest request,
@@ -90,6 +98,9 @@ public sealed class OpenAiCodeSummaryProvider : ICodeSummaryProvider, IDisposabl
                             "codemesh_node_summary",
                             Strict: true,
                             SummarySchema)),
+                    _reasoningEffort is null
+                        ? null
+                        : new ResponsesReasoning(_reasoningEffort),
                     request.Budget?.MaxCompletionTokens ?? 1024,
                     Store: false),
                 options: JsonOptions)
@@ -151,9 +162,17 @@ public sealed class OpenAiCodeSummaryProvider : ICodeSummaryProvider, IDisposabl
                 : new CodeSummaryUsage(
                     result.Usage.InputTokens,
                     result.Usage.InputTokenDetails?.CachedTokens ?? 0,
+                    result.Usage.InputTokenDetails?.CacheWriteTokens ?? 0,
                     result.Usage.OutputTokens,
                     result.Usage.OutputTokenDetails?.ReasoningTokens ?? 0,
-                    result.Usage.TotalTokens)
+                    result.Usage.TotalTokens),
+            ProviderMetadata = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["openaiRequestedReasoningEffort"] = _reasoningEffort ?? "provider-default",
+                ["openaiReasoningEffort"] = result.Reasoning?.Effort ?? _reasoningEffort ?? "unknown",
+                ["openaiResponseModel"] = result.Model ?? Model,
+                ["openaiServiceTier"] = result.ServiceTier ?? "unknown"
+            }
         };
     }
 
@@ -202,10 +221,29 @@ public sealed class OpenAiCodeSummaryProvider : ICodeSummaryProvider, IDisposabl
         return "OpenAI returned an error response.";
     }
 
+    private static string? NormalizeReasoningEffort(string? reasoningEffort)
+    {
+        if (string.IsNullOrWhiteSpace(reasoningEffort))
+        {
+            return null;
+        }
+
+        var normalized = reasoningEffort.Trim().ToLowerInvariant();
+        return normalized is "none" or "minimal" or "low" or "medium" or "high" or "xhigh" or "max"
+            ? normalized
+            : throw new ArgumentOutOfRangeException(
+                nameof(reasoningEffort),
+                reasoningEffort,
+                "OpenAI reasoning effort must be one of: none, minimal, low, medium, high, xhigh, max.");
+    }
+
     private sealed record ResponsesRequest(
         [property: JsonPropertyName("model")] string Model,
         [property: JsonPropertyName("input")] IReadOnlyList<SummaryChatMessage> Input,
         [property: JsonPropertyName("text")] ResponsesText Text,
+        [property: JsonPropertyName("reasoning")]
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        ResponsesReasoning? Reasoning,
         [property: JsonPropertyName("max_output_tokens")] int MaxOutputTokens,
         [property: JsonPropertyName("store")] bool Store);
 
@@ -218,11 +256,17 @@ public sealed class OpenAiCodeSummaryProvider : ICodeSummaryProvider, IDisposabl
         [property: JsonPropertyName("strict")] bool Strict,
         [property: JsonPropertyName("schema")] JsonElement Schema);
 
+    private sealed record ResponsesReasoning(
+        [property: JsonPropertyName("effort")] string Effort);
+
     private sealed record ResponsesResponse(
+        [property: JsonPropertyName("model")] string? Model,
         [property: JsonPropertyName("status")] string? Status,
         [property: JsonPropertyName("incomplete_details")] IncompleteDetails? IncompleteDetails,
+        [property: JsonPropertyName("reasoning")] ResponsesReasoning? Reasoning,
         [property: JsonPropertyName("output")] IReadOnlyList<ResponseOutput>? Output,
-        [property: JsonPropertyName("usage")] ResponseUsage? Usage);
+        [property: JsonPropertyName("usage")] ResponseUsage? Usage,
+        [property: JsonPropertyName("service_tier")] string? ServiceTier);
 
     private sealed record IncompleteDetails(
         [property: JsonPropertyName("reason")] string? Reason);
@@ -243,7 +287,8 @@ public sealed class OpenAiCodeSummaryProvider : ICodeSummaryProvider, IDisposabl
         [property: JsonPropertyName("total_tokens")] int TotalTokens);
 
     private sealed record InputTokenDetails(
-        [property: JsonPropertyName("cached_tokens")] int CachedTokens);
+        [property: JsonPropertyName("cached_tokens")] int CachedTokens,
+        [property: JsonPropertyName("cache_write_tokens")] int CacheWriteTokens);
 
     private sealed record OutputTokenDetails(
         [property: JsonPropertyName("reasoning_tokens")] int ReasoningTokens);

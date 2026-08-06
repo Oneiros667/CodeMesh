@@ -153,7 +153,8 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
   --skip-embeddings `
   --include-summaries `
   --summary-provider openai `
-  --summary-model gpt-5.6-luna
+  --summary-model gpt-5.6-luna `
+  --summary-reasoning-effort low
 ```
 
 `CODEMESH_OPENAI_URL` or `--openai-url` may override the default
@@ -162,11 +163,24 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
 approved for external processing and review
 [Security And Redaction](docs/security-and-redaction.md) and
 [Summary Model Qualification](docs/summary-model-qualification.md) before
-sending source code. When returned by the provider, input, cached-input, output,
-reasoning, and total token counts are stored in the summary metadata for later
-qualification and cost analysis.
+sending source code. When returned by the provider, input, cached-input,
+cache-write input, output, reasoning, and total token counts are stored in the
+summary metadata for later qualification and cost analysis. Use
+`--summary-reasoning-effort` or
+`CODEMESH_OPENAI_REASONING_EFFORT` to select an explicit provider effort. When
+omitted, CodeMesh leaves the field unset and the selected OpenAI model applies
+its provider default. The requested setting, response-effective setting,
+API-returned model identity, and service tier are stored with every successful
+summary.
 
-Summaries are stored in MongoDB `node_summaries` by default and are keyed by repository, node, content hash, summary kind, provider, model, and prompt version. Incremental ingestion skips unchanged completed summaries; use `--force-summaries` to regenerate summaries for unchanged code.
+Summaries are stored in MongoDB `node_summaries` by default and are keyed by
+repository, node, content hash, summary kind, provider, model, prompt version,
+and a generation-configuration fingerprint. Incremental ingestion skips only
+unchanged completed summaries generated with the same budget policy and
+provider configuration. Use `--force-summaries` to regenerate summaries even
+when all identity inputs are unchanged. On first summary-store access after this
+upgrade, CodeMesh replaces the legacy MongoDB `node_summary_identity` index with
+the generation-aware `node_summary_identity_v2` index.
 
 Summary generation assigns each eligible node a deterministic `compact`,
 `standard`, `complex`, or `aggregate` budget from its node kind, source span,
@@ -192,9 +206,10 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
 ```
 
 The selected tier, visible-token target, reasoning reserve, effective
-completion ceiling, input size, truncation state, and policy version are stored
-with each generated summary. Changing the prompt version regenerates summaries;
-use `--force-summaries` after changing only budget settings.
+completion ceiling, input size, truncation state, policy version, and generation
+configuration fingerprint are stored with each generated summary. Changing the
+prompt version, budget configuration, or provider generation configuration
+regenerates summaries automatically.
 
 Each successful ingestion run stamps graph, content, vector, and summary records with a repository id and ingestion run id. CodeMesh also writes repository/run registry records to MongoDB so users and agents can discover indexed repositories and recent ingestion history. Repository registry records include a generated alias, for example `YoutubeDownloader` becomes `youtube_downloader`, and read commands accept either the hash id or alias. Incremental ingestion skips unchanged graph/content/vector/summary writes after parsing, then removes stale records from the same repository that were not seen in the current run. If `--skip-embeddings` is used, vector cleanup is skipped so existing embeddings are left untouched.
 
@@ -305,7 +320,8 @@ requests:
 .\scripts\e2e-smoke.ps1 `
   -IncludeSummaries `
   -SummaryProvider openai `
-  -SummaryModel gpt-5.6-luna
+  -SummaryModel gpt-5.6-luna `
+  -OpenAiReasoningEffort low
 ```
 
 ### Ollama Modes

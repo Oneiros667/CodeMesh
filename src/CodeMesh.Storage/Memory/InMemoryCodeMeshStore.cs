@@ -373,6 +373,7 @@ public sealed class InMemoryCodeMeshStore :
                 summary.Provider,
                 summary.Model,
                 summary.PromptVersion,
+                summary.GenerationConfigurationFingerprint,
                 summary.Status))
             .ToArray();
 

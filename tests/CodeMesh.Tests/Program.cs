@@ -21,6 +21,8 @@ using CodeMesh.Storage.Memory;
 using CodeMesh.Storage.Mongo;
 using CodeMesh.Storage.Neo4j;
 using CodeMesh.Storage.Qdrant;
+using MongoDB.Bson;
+using MongoDB.Driver;
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -44,6 +46,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("incremental ingestion skips unchanged summaries", TestIncrementalIngestionSkipsUnchangedSummaries),
     ("summary budgets scale with node complexity", TestSummaryBudgetsScaleWithNodeComplexity),
     ("summary generator persists budget metadata", TestSummaryGeneratorPersistsBudgetMetadata),
+    ("summary generator regenerates when configuration changes", TestSummaryGeneratorRegeneratesWhenConfigurationChanges),
     ("forced embedding ingestion rebuilds unchanged embeddings", TestForcedEmbeddingIngestionRebuildsUnchangedEmbeddings),
     ("embedding verifier reports missing and stale vectors", TestEmbeddingVerifierReportsMissingAndStaleVectors),
     ("repository cleanup removes indexed data", TestRepositoryCleanupRemovesIndexedData),
@@ -58,7 +61,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("lm studio summary provider accepts numeric confidence", TestLmStudioSummaryProviderAcceptsNumericConfidence),
     ("ollama summary provider uses request completion budget", TestOllamaSummaryProviderUsesRequestCompletionBudget),
     ("openai summary provider uses responses structured output", TestOpenAiSummaryProviderUsesResponsesStructuredOutput),
+    ("openai summary provider records provider-default effort", TestOpenAiSummaryProviderRecordsProviderDefaultEffort),
     ("mongodb content store round-trips content", TestMongoContentStoreRoundTripsContent),
+    ("mongodb summary store migrates generation identity", TestMongoSummaryStoreMigratesGenerationIdentity),
     ("mongodb registry store round-trips repositories and runs", TestMongoRegistryStoreRoundTripsRepositoriesAndRuns),
     ("neo4j graph store round-trips graph", TestNeo4jGraphStoreRoundTripsGraph),
     ("qdrant vector store round-trips embeddings", TestQdrantVectorStoreRoundTripsEmbeddings),
@@ -1057,6 +1062,7 @@ static async Task TestIncrementalIngestionSkipsUnchangedSummaries()
                 "other",
                 "other-model",
                 "node-summary-v1",
+                "alternate-provider-v1",
                 CodeMeshHash.StableId("summary-prompt", "node-summary-v1"),
                 DateTimeOffset.UtcNow,
                 "completed",
@@ -1206,10 +1212,62 @@ static async Task TestSummaryGeneratorPersistsBudgetMetadata()
     Equal("false", metadata["summaryInputTruncated"], "Summary truncation state was not persisted.");
     Equal("100", metadata["summaryInputTokens"], "Summary input token usage was not persisted.");
     Equal("25", metadata["summaryCachedInputTokens"], "Summary cached input token usage was not persisted.");
+    Equal("5", metadata["summaryCacheWriteInputTokens"], "Summary cache-write input token usage was not persisted.");
     Equal("40", metadata["summaryOutputTokens"], "Summary output token usage was not persisted.");
     Equal("10", metadata["summaryReasoningTokens"], "Summary reasoning token usage was not persisted.");
     Equal("140", metadata["summaryTotalTokens"], "Summary total token usage was not persisted.");
+    Equal("configured", metadata["testProviderSetting"], "Summary provider metadata was not persisted.");
     Equal(1536, provider.LastRequest?.Budget?.MaxCompletionTokens ?? 0, "Summary provider did not receive the selected completion ceiling.");
+}
+
+static async Task TestSummaryGeneratorRegeneratesWhenConfigurationChanges()
+{
+    var store = new InMemoryCodeMeshStore();
+    const string text = "public int Add(int left, int right) => left + right;";
+    var node = SummaryNode(
+        CodeNodeKind.Method,
+        "Add",
+        text,
+        startLine: 1,
+        endLine: 1);
+    var repository = new RepositoryRef("repo:summary-configuration", "/summary-configuration");
+    var content = new Dictionary<string, CodeContent>
+    {
+        [node.ContentHash] = SummaryContent(text)
+    };
+
+    var firstProvider = new CountingSummaryProvider("reasoning-effort:none");
+    var first = await new CodeSummaryGenerator(firstProvider, store)
+        .GenerateAsync(repository, "run:summary-configuration-1", [node], content);
+    Equal(1, first.WrittenCount, "Initial summary configuration did not generate a summary.");
+    var firstSummaryId = first.Summaries[0].Id;
+
+    var secondProvider = new CountingSummaryProvider("reasoning-effort:low");
+    var second = await new CodeSummaryGenerator(secondProvider, store)
+        .GenerateAsync(repository, "run:summary-configuration-2", [node], content);
+    Equal(1, second.WrittenCount, "Changed provider configuration did not regenerate the summary.");
+    Equal(0, second.SkippedCount, "Changed provider configuration incorrectly skipped the summary.");
+    Equal(false, string.Equals(firstSummaryId, second.Summaries[0].Id, StringComparison.Ordinal), "Provider configuration did not affect summary identity.");
+    var states = await store.GetSummaryStatesAsync(repository.Id);
+    Equal(1, states.Count, "Changed provider configuration retained an obsolete summary variant.");
+
+    var third = await new CodeSummaryGenerator(
+            secondProvider,
+            store,
+            new CodeSummaryGenerationOptions(MaxCompletionTokens: 2048))
+        .GenerateAsync(repository, "run:summary-configuration-3", [node], content);
+    Equal(1, third.WrittenCount, "Changed budget configuration did not regenerate the summary.");
+    Equal(false, string.Equals(second.Summaries[0].Id, third.Summaries[0].Id, StringComparison.Ordinal), "Budget configuration did not affect summary identity.");
+    states = await store.GetSummaryStatesAsync(repository.Id);
+    Equal(1, states.Count, "Changed budget configuration retained an obsolete summary variant.");
+
+    var fourth = await new CodeSummaryGenerator(
+            secondProvider,
+            store,
+            new CodeSummaryGenerationOptions(MaxCompletionTokens: 2048))
+        .GenerateAsync(repository, "run:summary-configuration-4", [node], content);
+    Equal(0, fourth.WrittenCount, "Unchanged generation configuration rewrote the summary.");
+    Equal(1, fourth.SkippedCount, "Unchanged generation configuration did not skip the summary.");
 }
 
 static async Task TestForcedEmbeddingIngestionRebuildsUnchangedEmbeddings()
@@ -1828,7 +1886,8 @@ static async Task TestOpenAiSummaryProviderUsesResponsesStructuredOutput()
     using var provider = new OpenAiCodeSummaryProvider(
         http,
         "test-api-key",
-        "test-summary");
+        "test-summary",
+        reasoningEffort: "none");
 
     const string text = "public int Add(int left, int right) => left + right;";
     var node = SummaryNode(
@@ -1854,9 +1913,14 @@ static async Task TestOpenAiSummaryProviderUsesResponsesStructuredOutput()
     Equal("arithmetic", summary.Tags[0], "OpenAI summary tags did not deserialize.");
     Equal(96, summary.Usage?.InputTokens ?? -1, "OpenAI input token usage did not deserialize.");
     Equal(32, summary.Usage?.CachedInputTokens ?? -1, "OpenAI cached input token usage did not deserialize.");
+    Equal(12, summary.Usage?.CacheWriteInputTokens ?? -1, "OpenAI cache-write input token usage did not deserialize.");
     Equal(24, summary.Usage?.OutputTokens ?? -1, "OpenAI output token usage did not deserialize.");
     Equal(8, summary.Usage?.ReasoningTokens ?? -1, "OpenAI reasoning token usage did not deserialize.");
     Equal(120, summary.Usage?.TotalTokens ?? -1, "OpenAI total token usage did not deserialize.");
+    Equal("none", summary.ProviderMetadata?["openaiReasoningEffort"] ?? "", "OpenAI reasoning effort metadata changed.");
+    Equal("none", summary.ProviderMetadata?["openaiRequestedReasoningEffort"] ?? "", "OpenAI requested reasoning effort metadata changed.");
+    Equal("test-summary-snapshot", summary.ProviderMetadata?["openaiResponseModel"] ?? "", "OpenAI response model metadata changed.");
+    Equal("default", summary.ProviderMetadata?["openaiServiceTier"] ?? "", "OpenAI service tier metadata changed.");
     if (!handler.LastRequestBody.Contains("\"max_output_tokens\":1024", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("OpenAI summary request ignored the selected completion ceiling.");
@@ -1864,6 +1928,10 @@ static async Task TestOpenAiSummaryProviderUsesResponsesStructuredOutput()
     if (!handler.LastRequestBody.Contains("\"store\":false", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("OpenAI summary request did not disable response storage.");
+    }
+    if (!handler.LastRequestBody.Contains("\"reasoning\":{\"effort\":\"none\"}", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("OpenAI summary request ignored the configured reasoning effort.");
     }
     if (!handler.LastRequestBody.Contains(
             "\"format\":{\"type\":\"json_schema\",\"name\":\"codemesh_node_summary\",\"strict\":true",
@@ -1878,6 +1946,30 @@ static async Task TestOpenAiSummaryProviderUsesResponsesStructuredOutput()
     if (!handler.LastRequestBody.Contains("one sentence", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("OpenAI summary request ignored the compact summary tier.");
+    }
+}
+
+static async Task TestOpenAiSummaryProviderRecordsProviderDefaultEffort()
+{
+    var handler = new FakeOpenAiSummaryHandler("medium");
+    using var http = new HttpClient(handler)
+    {
+        BaseAddress = new Uri("https://openai.test/v1/")
+    };
+    using var provider = new OpenAiCodeSummaryProvider(http, "test-api-key", "test-summary");
+    const string text = "public int Add(int left, int right) => left + right;";
+    var request = SummaryBudgetPolicy.CreateRequest(
+        SummaryNode(CodeNodeKind.Method, "Add", text, startLine: 1, endLine: 1),
+        SummaryContent(text),
+        "node-summary-v2");
+
+    var summary = await provider.SummarizeAsync(request);
+
+    Equal("provider-default", summary.ProviderMetadata?["openaiRequestedReasoningEffort"] ?? "", "OpenAI omitted reasoning effort was not recorded as provider-default.");
+    Equal("medium", summary.ProviderMetadata?["openaiReasoningEffort"] ?? "", "OpenAI response-effective reasoning effort was not recorded.");
+    if (handler.LastRequestBody.Contains("\"reasoning\":", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("OpenAI request emitted reasoning when the effort was omitted.");
     }
 }
 
@@ -1966,6 +2058,84 @@ static async Task TestMongoContentStoreRoundTripsContent()
 
     IsNull(await store.GetContentAsync(incrementalStale.Hash, timeout.Token), "MongoDB incremental cleanup did not remove stale content.");
     NotNull(await store.GetContentAsync(incrementalCurrent.Hash, timeout.Token), "MongoDB incremental cleanup removed current content.");
+}
+
+static async Task TestMongoSummaryStoreMigratesGenerationIdentity()
+{
+    var connectionString = Environment.GetEnvironmentVariable("CODEMESH_MONGO_URI") ?? "mongodb://127.0.0.1:27017";
+    var databaseName = Environment.GetEnvironmentVariable("CODEMESH_MONGO_TEST_DATABASE") ?? "codemesh_tests";
+    var collectionName = $"node_summaries_configuration_{Guid.NewGuid():N}";
+    var store = new MongoNodeSummaryStore(new MongoNodeSummaryStoreOptions(
+        connectionString,
+        databaseName,
+        collectionName,
+        TimeSpan.FromSeconds(2)));
+
+    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+    var health = await store.CheckAsync(timeout.Token);
+    if (health.State != CodeMesh.Domain.Health.ComponentState.Healthy)
+    {
+        var detail = health.Metadata.TryGetValue("detail", out var value) ? value : health.Message;
+        throw new SkipTestException($"MongoDB is not reachable: {detail}");
+    }
+
+    var client = new MongoClient(connectionString);
+    var database = client.GetDatabase(databaseName);
+    var collection = database.GetCollection<BsonDocument>(collectionName);
+
+    try
+    {
+        var legacyIdentity = Builders<BsonDocument>.IndexKeys
+            .Ascending("repositoryId")
+            .Ascending("nodeId")
+            .Ascending("contentHash")
+            .Ascending("summaryKind")
+            .Ascending("provider")
+            .Ascending("model")
+            .Ascending("promptVersion");
+        await collection.Indexes.CreateOneAsync(
+            new CreateIndexModel<BsonDocument>(
+                legacyIdentity,
+                new CreateIndexOptions { Name = "node_summary_identity", Unique = true }),
+            cancellationToken: timeout.Token);
+
+        const string text = "public int Add(int left, int right) => left + right;";
+        var node = SummaryNode(CodeNodeKind.Method, "Add", text, startLine: 1, endLine: 1);
+        var repository = new RepositoryRef($"repo:mongo-summary:{Guid.NewGuid():N}", "/mongo-summary");
+        var content = new Dictionary<string, CodeContent>
+        {
+            [node.ContentHash] = SummaryContent(text)
+        };
+
+        var first = await new CodeSummaryGenerator(
+                new CountingSummaryProvider("reasoning-effort:none"),
+                store)
+            .GenerateAsync(repository, "run:mongo-summary-1", [node], content, timeout.Token);
+        Equal(1, first.WrittenCount, "MongoDB summary store did not write the initial configuration.");
+
+        var second = await new CodeSummaryGenerator(
+                new CountingSummaryProvider("reasoning-effort:low"),
+                store)
+            .GenerateAsync(repository, "run:mongo-summary-2", [node], content, timeout.Token);
+        Equal(1, second.WrittenCount, "MongoDB summary store did not write the changed configuration.");
+        var states = await store.GetSummaryStatesAsync(repository.Id, timeout.Token);
+        Equal(1, states.Count, "MongoDB summary store retained an obsolete configuration variant.");
+        Equal(
+            second.Summaries[0].GenerationConfigurationFingerprint,
+            states[0].GenerationConfigurationFingerprint,
+            "MongoDB summary state lost the generation configuration fingerprint.");
+
+        using var indexesCursor = await collection.Indexes.ListAsync(timeout.Token);
+        var indexNames = (await indexesCursor.ToListAsync(timeout.Token))
+            .Select(index => index["name"].AsString)
+            .ToHashSet(StringComparer.Ordinal);
+        Equal(false, indexNames.Contains("node_summary_identity"), "MongoDB summary store retained the legacy identity index.");
+        Equal(true, indexNames.Contains("node_summary_identity_v2"), "MongoDB summary store did not create the generation-aware identity index.");
+    }
+    finally
+    {
+        await database.DropCollectionAsync(collectionName, timeout.Token);
+    }
 }
 
 static async Task TestMongoRegistryStoreRoundTripsRepositoriesAndRuns()
@@ -3761,6 +3931,11 @@ sealed class CountingEmbeddingProvider : IEmbeddingProvider
 
 sealed class CountingSummaryProvider : ICodeSummaryProvider
 {
+    public CountingSummaryProvider(string generationConfigurationFingerprint = "")
+    {
+        GenerationConfigurationFingerprint = generationConfigurationFingerprint;
+    }
+
     public int SummarizedNodeCount { get; private set; }
 
     public CodeSummaryRequest? LastRequest { get; private set; }
@@ -3768,6 +3943,8 @@ sealed class CountingSummaryProvider : ICodeSummaryProvider
     public string Provider => "test";
 
     public string Model => "summary-counting";
+
+    public string GenerationConfigurationFingerprint { get; }
 
     public Task<CodeSummaryResult> SummarizeAsync(
         CodeSummaryRequest request,
@@ -3782,9 +3959,14 @@ sealed class CountingSummaryProvider : ICodeSummaryProvider
             new CodeSummaryUsage(
                 InputTokens: 100,
                 CachedInputTokens: 25,
+                CacheWriteInputTokens: 5,
                 OutputTokens: 40,
                 ReasoningTokens: 10,
-                TotalTokens: 140)));
+                TotalTokens: 140),
+            new Dictionary<string, string>
+            {
+                ["testProviderSetting"] = "configured"
+            }));
     }
 }
 
@@ -3952,6 +4134,13 @@ sealed class FakeLmStudioSummaryHandler : HttpMessageHandler
 
 sealed class FakeOpenAiSummaryHandler : HttpMessageHandler
 {
+    private readonly string _responseReasoningEffort;
+
+    public FakeOpenAiSummaryHandler(string responseReasoningEffort = "none")
+    {
+        _responseReasoningEffort = responseReasoningEffort;
+    }
+
     public int RequestCount { get; private set; }
     public string LastRequestBody { get; private set; } = string.Empty;
     public string? AuthorizationScheme { get; private set; }
@@ -3976,11 +4165,16 @@ sealed class FakeOpenAiSummaryHandler : HttpMessageHandler
         return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
         {
             Content = new StringContent(
-                """
+                $$"""
                 {
                   "id": "resp_test",
                   "object": "response",
+                  "model": "test-summary-snapshot",
                   "status": "completed",
+                  "service_tier": "default",
+                  "reasoning": {
+                    "effort": "{{_responseReasoningEffort}}"
+                  },
                   "output": [
                     {
                       "type": "message",
@@ -3995,7 +4189,8 @@ sealed class FakeOpenAiSummaryHandler : HttpMessageHandler
                   "usage": {
                     "input_tokens": 96,
                     "input_tokens_details": {
-                      "cached_tokens": 32
+                      "cached_tokens": 32,
+                      "cache_write_tokens": 12
                     },
                     "output_tokens": 24,
                     "output_tokens_details": {

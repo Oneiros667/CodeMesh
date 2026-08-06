@@ -786,7 +786,9 @@ static (ICodeSummaryProvider Provider, bool IncludeSummaries) CreateSummaryProvi
             ReadOption(args, "--openai-url")
                 ?? Environment.GetEnvironmentVariable("CODEMESH_OPENAI_URL")
                 ?? "https://api.openai.com/v1",
-            model)), true),
+            model,
+            ReasoningEffort: ReadOption(args, "--summary-reasoning-effort")
+                ?? Environment.GetEnvironmentVariable("CODEMESH_OPENAI_REASONING_EFFORT"))), true),
         _ => throw new InvalidOperationException(
             $"Unsupported summary provider: {provider}. Supported values: ollama, lmstudio, openai.")
     };
@@ -1312,6 +1314,7 @@ static void PrintHelp()
     Console.WriteLine("  --embedding-batch-size <count> --embedding-max-chars <count>");
     Console.WriteLine("  --include-summaries --force-summaries --summary-provider <ollama|lmstudio|openai> --summary-model <model>");
     Console.WriteLine("  --openai-url <url> (OpenAI summaries only; authentication uses OPENAI_API_KEY)");
+    Console.WriteLine("  --summary-reasoning-effort <none|minimal|low|medium|high|xhigh|max> (OpenAI only)");
     Console.WriteLine("  --summary-max-input-chars <count> --summary-reasoning-token-reserve <count> --summary-max-completion-tokens <count>");
 }
 

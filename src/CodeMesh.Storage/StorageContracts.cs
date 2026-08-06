@@ -80,6 +80,7 @@ public sealed record StoredNodeSummaryState(
     string Provider,
     string Model,
     string PromptVersion,
+    string GenerationConfigurationFingerprint,
     string Status);
 
 public interface IIncrementalNodeSummaryStore : INodeSummaryStore

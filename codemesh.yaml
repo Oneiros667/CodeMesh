@@ -64,6 +64,7 @@ models:
     openai:
       base_url: ${CODEMESH_OPENAI_URL}
       api_key_env: OPENAI_API_KEY
+      reasoning_effort: ${CODEMESH_OPENAI_REASONING_EFFORT}
     azure_openai:
       endpoint_env: AZURE_OPENAI_ENDPOINT
       api_key_env: AZURE_OPENAI_API_KEY

@@ -38,7 +38,8 @@ internal static class CodeSummaryIdentity
         string summaryKind,
         string provider,
         string model,
-        string promptVersion)
+        string promptVersion,
+        string generationConfigurationFingerprint)
     {
         return CodeMeshHash.StableId(
             "summary",
@@ -48,6 +49,7 @@ internal static class CodeSummaryIdentity
             summaryKind,
             provider,
             model,
-            promptVersion);
+            promptVersion,
+            generationConfigurationFingerprint);
     }
 }

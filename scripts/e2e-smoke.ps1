@@ -13,6 +13,7 @@ param(
     [string]$OllamaUrl = $env:CODEMESH_OLLAMA_URL,
     [string]$LmStudioUrl = $env:CODEMESH_LM_STUDIO_URL,
     [string]$OpenAiUrl = $env:CODEMESH_OPENAI_URL,
+    [string]$OpenAiReasoningEffort = $env:CODEMESH_OPENAI_REASONING_EFFORT,
     [switch]$SkipCompose,
     [switch]$UseConfiguredSample,
     [switch]$KeepFixture,
@@ -295,6 +296,10 @@ if ($IncludeSummaries) {
     }
     elseif ($SummaryProvider -eq "openai" -and ![string]::IsNullOrWhiteSpace($OpenAiUrl)) {
         $ingestArgs += @("--openai-url", $OpenAiUrl)
+    }
+
+    if ($SummaryProvider -eq "openai" -and ![string]::IsNullOrWhiteSpace($OpenAiReasoningEffort)) {
+        $ingestArgs += @("--summary-reasoning-effort", $OpenAiReasoningEffort)
     }
 }
 

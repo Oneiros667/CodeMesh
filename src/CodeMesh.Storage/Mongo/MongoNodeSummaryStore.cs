@@ -80,6 +80,7 @@ public sealed class MongoNodeSummaryStore :
                 Provider = item.Provider,
                 Model = item.Model,
                 PromptVersion = item.PromptVersion,
+                GenerationConfigurationFingerprint = item.GenerationConfigurationFingerprint,
                 Status = item.Status
             })
             .ToListAsync(cancellationToken)
@@ -94,6 +95,7 @@ public sealed class MongoNodeSummaryStore :
                 item.Provider,
                 item.Model,
                 item.PromptVersion,
+                item.GenerationConfigurationFingerprint,
                 item.Status))
             .ToArray();
     }
@@ -227,10 +229,11 @@ public sealed class MongoNodeSummaryStore :
                     .Ascending(item => item.SummaryKind)
                     .Ascending(item => item.Provider)
                     .Ascending(item => item.Model)
-                    .Ascending(item => item.PromptVersion),
+                    .Ascending(item => item.PromptVersion)
+                    .Ascending(item => item.GenerationConfigurationFingerprint),
                 new CreateIndexOptions
                 {
-                    Name = "node_summary_identity",
+                    Name = "node_summary_identity_v2",
                     Unique = true
                 }),
             new CreateIndexModel<NodeSummaryDocument>(
@@ -251,8 +254,24 @@ public sealed class MongoNodeSummaryStore :
                 new CreateIndexOptions { Name = "repository_content_hash" })
         };
 
+        await DropLegacyIdentityIndexAsync(cancellationToken).ConfigureAwait(false);
         await _summaries.Indexes.CreateManyAsync(indexes, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    private async Task DropLegacyIdentityIndexAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _summaries.Indexes
+                .DropOneAsync("node_summary_identity", cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (MongoCommandException exception) when (
+            string.Equals(exception.CodeName, "IndexNotFound", StringComparison.Ordinal))
+        {
+            // The collection is already new or has already completed this index migration.
+        }
     }
 
     private static IReadOnlyDictionary<string, int> CountBy<T>(
@@ -364,6 +383,9 @@ public sealed class MongoNodeSummaryStore :
         [BsonElement("promptVersion")]
         public required string PromptVersion { get; init; }
 
+        [BsonElement("generationConfigurationFingerprint")]
+        public string GenerationConfigurationFingerprint { get; init; } = "legacy";
+
         [BsonElement("promptHash")]
         public required string PromptHash { get; init; }
 
@@ -406,6 +428,7 @@ public sealed class MongoNodeSummaryStore :
                 Provider = summary.Provider,
                 Model = summary.Model,
                 PromptVersion = summary.PromptVersion,
+                GenerationConfigurationFingerprint = summary.GenerationConfigurationFingerprint,
                 PromptHash = summary.PromptHash,
                 GeneratedAtUtc = summary.GeneratedAt.UtcDateTime,
                 Status = summary.Status,
@@ -430,6 +453,8 @@ public sealed class MongoNodeSummaryStore :
         public required string Model { get; init; }
 
         public required string PromptVersion { get; init; }
+
+        public string GenerationConfigurationFingerprint { get; init; } = "legacy";
 
         public required string Status { get; init; }
     }

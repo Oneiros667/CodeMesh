@@ -122,6 +122,7 @@ public sealed record CodeNodeSummary(
     string Provider,
     string Model,
     string PromptVersion,
+    string GenerationConfigurationFingerprint,
     string PromptHash,
     DateTimeOffset GeneratedAt,
     string Status,

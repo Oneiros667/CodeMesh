@@ -90,7 +90,8 @@ Record the following before generating any summaries:
 - Quantization and numeric precision.
 - Chat template and its hash.
 - Context length and maximum summary input characters.
-- Temperature, top-p, top-k, seed, stop sequences, and maximum output tokens.
+- Temperature, top-p, top-k, seed, stop sequences, requested and
+  response-effective reasoning-effort settings, and maximum output tokens.
 - Retry, timeout, concurrency, and batching settings.
 - Host operating system, CPU, memory, accelerator, accelerator memory, and
   serving runtime versions.
@@ -204,6 +205,10 @@ that do not expose the candidate model name.
 
 Measure cold and warm behavior separately. Use at least one warm-up pass and
 three measured repetitions unless the profile explicitly requires more.
+If a warm-up fails because of quota, authentication, transport, or provider
+availability, mark the model `blocked` with support `unknown` and stop that
+model's measured repetitions. Mark a model `unsupported` only when the provider
+explicitly rejects the model or requested parameter combination.
 
 Record:
 
@@ -212,7 +217,8 @@ Record:
 - Time to first token when the provider exposes it.
 - Nodes summarized per minute.
 - Successful nodes per wall-clock hour.
-- Input, output, cached-input, and total tokens.
+- Input, output, cached-input, cache-write input, and total tokens.
+- Reasoning tokens when the provider reports them.
 - Tokens per attempted and successfully summarized node.
 - Supported facts and required facts recovered per 1,000 output tokens.
 - Retry-adjusted tokens and duration.

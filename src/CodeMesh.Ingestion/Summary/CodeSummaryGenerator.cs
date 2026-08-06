@@ -1,4 +1,5 @@
 using CodeMesh.Domain.Graph;
+using CodeMesh.Domain.Utilities;
 using CodeMesh.Storage;
 
 namespace CodeMesh.Ingestion.Summary;
@@ -31,6 +32,7 @@ public sealed class CodeSummaryGenerator(
         IReadOnlyDictionary<string, CodeContent> contentByHash,
         CancellationToken cancellationToken = default)
     {
+        var generationConfigurationFingerprint = GenerationConfigurationFingerprint();
         var candidates = nodes
             .Where(CodeSummaryIdentity.IsCandidate)
             .ToArray();
@@ -41,7 +43,8 @@ public sealed class CodeSummaryGenerator(
                 CodeSummaryIdentity.SummaryKind(node),
                 provider.Provider,
                 provider.Model,
-                _options.PromptVersion))
+                _options.PromptVersion,
+                generationConfigurationFingerprint))
             .ToHashSet(StringComparer.Ordinal);
         var nodesToSummarize = candidates;
         var skippedCount = 0;
@@ -57,20 +60,20 @@ public sealed class CodeSummaryGenerator(
 
         if (!_options.Force && incrementalStore is not null)
         {
-            var existingKeys = existingSummaries
-                .Where(summary =>
-                    string.Equals(summary.Provider, provider.Provider, StringComparison.Ordinal) &&
-                    string.Equals(summary.Model, provider.Model, StringComparison.Ordinal) &&
-                    string.Equals(summary.PromptVersion, _options.PromptVersion, StringComparison.Ordinal) &&
-                    string.Equals(summary.Status, "completed", StringComparison.Ordinal))
-                .Select(summary => CodeSummaryIdentity.LookupKey(summary.NodeId, summary.ContentHash, summary.SummaryKind))
+            var completedSummaryIds = existingSummaries
+                .Where(summary => string.Equals(summary.Status, "completed", StringComparison.Ordinal))
+                .Select(summary => summary.SummaryId)
                 .ToHashSet(StringComparer.Ordinal);
 
             nodesToSummarize = candidates
-                .Where(node => !existingKeys.Contains(CodeSummaryIdentity.LookupKey(
-                    node.Id,
-                    node.ContentHash,
-                    CodeSummaryIdentity.SummaryKind(node))))
+                .Where(node => !completedSummaryIds.Contains(CodeSummaryIdentity.SummaryId(
+                    repository.Id,
+                    node,
+                    CodeSummaryIdentity.SummaryKind(node),
+                    provider.Provider,
+                    provider.Model,
+                    _options.PromptVersion,
+                    generationConfigurationFingerprint)))
                 .ToArray();
             skippedCount = candidates.Length - nodesToSummarize.Length;
         }
@@ -79,7 +82,13 @@ public sealed class CodeSummaryGenerator(
         foreach (var node in nodesToSummarize)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            summaries.Add(await CreateSummaryAsync(repository, ingestionRunId, node, contentByHash, cancellationToken)
+            summaries.Add(await CreateSummaryAsync(
+                    repository,
+                    ingestionRunId,
+                    node,
+                    contentByHash,
+                    generationConfigurationFingerprint,
+                    cancellationToken)
                 .ConfigureAwait(false));
         }
 
@@ -95,10 +104,15 @@ public sealed class CodeSummaryGenerator(
                     CodeSummaryIdentity.SummaryKind(node)))
                 .ToHashSet(StringComparer.Ordinal);
             var retainedSummaryIds = existingSummaries
-                .Where(summary => currentSummaryKeys.Contains(CodeSummaryIdentity.LookupKey(
-                    summary.NodeId,
-                    summary.ContentHash,
-                    summary.SummaryKind)))
+                .Where(summary =>
+                    currentSummaryKeys.Contains(CodeSummaryIdentity.LookupKey(
+                        summary.NodeId,
+                        summary.ContentHash,
+                        summary.SummaryKind)) &&
+                    (!string.Equals(summary.Provider, provider.Provider, StringComparison.Ordinal) ||
+                     !string.Equals(summary.Model, provider.Model, StringComparison.Ordinal) ||
+                     !string.Equals(summary.PromptVersion, _options.PromptVersion, StringComparison.Ordinal) ||
+                     currentSummaryIds.Contains(summary.SummaryId)))
                 .Select(summary => summary.SummaryId)
                 .Concat(currentSummaryIds)
                 .ToHashSet(StringComparer.Ordinal);
@@ -123,6 +137,7 @@ public sealed class CodeSummaryGenerator(
         string ingestionRunId,
         CodeNode node,
         IReadOnlyDictionary<string, CodeContent> contentByHash,
+        string generationConfigurationFingerprint,
         CancellationToken cancellationToken)
     {
         var summaryKind = CodeSummaryIdentity.SummaryKind(node);
@@ -132,7 +147,8 @@ public sealed class CodeSummaryGenerator(
             summaryKind,
             provider.Provider,
             provider.Model,
-            _options.PromptVersion);
+            _options.PromptVersion,
+            generationConfigurationFingerprint);
         var generatedAt = DateTimeOffset.UtcNow;
         contentByHash.TryGetValue(node.ContentHash, out var content);
         var request = SummaryBudgetPolicy.CreateRequest(
@@ -143,14 +159,19 @@ public sealed class CodeSummaryGenerator(
                 _options.MaxInputCharacters,
                 _options.ReasoningTokenReserve,
                 _options.MaxCompletionTokens));
-        var metadata = MetadataFor(node, repository, ingestionRunId, request);
+        var metadata = MetadataFor(
+            node,
+            repository,
+            ingestionRunId,
+            request,
+            generationConfigurationFingerprint);
 
         try
         {
             var result = await provider
                 .SummarizeAsync(request, cancellationToken)
                 .ConfigureAwait(false);
-            var completedMetadata = MetadataWithUsage(metadata, result.Usage);
+            var completedMetadata = MetadataWithProviderResult(metadata, result);
 
             return new CodeNodeSummary(
                 id,
@@ -172,6 +193,7 @@ public sealed class CodeSummaryGenerator(
                 provider.Provider,
                 provider.Model,
                 _options.PromptVersion,
+                generationConfigurationFingerprint,
                 SummaryPrompt.PromptHash(_options.PromptVersion),
                 generatedAt,
                 "completed",
@@ -200,6 +222,7 @@ public sealed class CodeSummaryGenerator(
                 provider.Provider,
                 provider.Model,
                 _options.PromptVersion,
+                generationConfigurationFingerprint,
                 SummaryPrompt.PromptHash(_options.PromptVersion),
                 generatedAt,
                 "failed",
@@ -212,7 +235,8 @@ public sealed class CodeSummaryGenerator(
         CodeNode node,
         RepositoryRef repository,
         string ingestionRunId,
-        CodeSummaryRequest request)
+        CodeSummaryRequest request,
+        string generationConfigurationFingerprint)
     {
         var budget = request.Budget
             ?? throw new InvalidOperationException("Generated summaries require a summary budget.");
@@ -224,6 +248,7 @@ public sealed class CodeSummaryGenerator(
             ["ingestionRunId"] = ingestionRunId,
             ["summaryNodeKind"] = node.Kind.ToString(),
             ["summaryNodeName"] = node.Name,
+            ["summaryGenerationConfigurationFingerprint"] = generationConfigurationFingerprint,
             ["summaryBudgetPolicyVersion"] = budget.PolicyVersion,
             ["summaryComplexityTier"] = budget.ComplexityTier.ToString().ToLowerInvariant(),
             ["summaryVisibleTokenBudget"] = budget.VisibleTokenBudget.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -234,22 +259,45 @@ public sealed class CodeSummaryGenerator(
         };
     }
 
-    private static IReadOnlyDictionary<string, string> MetadataWithUsage(
+    private static IReadOnlyDictionary<string, string> MetadataWithProviderResult(
         IReadOnlyDictionary<string, string> metadata,
-        CodeSummaryUsage? usage)
+        CodeSummaryResult result)
     {
-        if (usage is null)
+        if (result.Usage is null && result.ProviderMetadata is null)
         {
             return metadata;
         }
 
-        return new Dictionary<string, string>(metadata, StringComparer.Ordinal)
+        var completed = new Dictionary<string, string>(metadata, StringComparer.Ordinal);
+        if (result.Usage is { } usage)
         {
-            ["summaryInputTokens"] = usage.InputTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["summaryCachedInputTokens"] = usage.CachedInputTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["summaryOutputTokens"] = usage.OutputTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["summaryReasoningTokens"] = usage.ReasoningTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["summaryTotalTokens"] = usage.TotalTokens.ToString(System.Globalization.CultureInfo.InvariantCulture)
-        };
+            completed["summaryInputTokens"] = usage.InputTokens.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            completed["summaryCachedInputTokens"] = usage.CachedInputTokens.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            completed["summaryCacheWriteInputTokens"] = usage.CacheWriteInputTokens.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            completed["summaryOutputTokens"] = usage.OutputTokens.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            completed["summaryReasoningTokens"] = usage.ReasoningTokens.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            completed["summaryTotalTokens"] = usage.TotalTokens.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        if (result.ProviderMetadata is not null)
+        {
+            foreach (var item in result.ProviderMetadata)
+            {
+                completed[item.Key] = item.Value;
+            }
+        }
+
+        return completed;
+    }
+
+    private string GenerationConfigurationFingerprint()
+    {
+        return CodeMeshHash.StableId(
+            "summary-generation-configuration",
+            SummaryBudgetPolicy.PolicyVersion,
+            _options.MaxInputCharacters.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            _options.ReasoningTokenReserve.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            _options.MaxCompletionTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            provider.GenerationConfigurationFingerprint);
     }
 }
