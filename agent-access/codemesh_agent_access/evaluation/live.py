@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import tempfile
 from contextlib import asynccontextmanager
@@ -123,6 +124,19 @@ async def run_live_evaluation(
     started = perf_counter()
     resolved_repository = repository_id or suite.repository_id
     client = McpEvaluationClient(command, command_args, command_cwd)
+    tool_source = get_tool_source_identity(Path(client.parameters.cwd))
+    tool_source_comparable = bool(tool_source.get("available")) and not bool(
+        tool_source.get("working_tree_dirty")
+    )
+    if not tool_source_comparable and not allow_stale:
+        detail = (
+            "CodeMesh tool-source checkout is dirty."
+            if tool_source.get("available")
+            else "CodeMesh tool-source commit identity is unavailable."
+        )
+        raise EvaluationInfrastructureError(
+            f"The MCP implementation is not comparable: {detail}"
+        )
 
     async with client.connect():
         required_tools = {case.tool for case in suite.cases} | {
@@ -173,7 +187,7 @@ async def run_live_evaluation(
         suite_commit_matches = (
             suite.repository_commit is None or indexed_commit == suite.repository_commit
         )
-        comparable = fresh and suite_commit_matches
+        comparable = fresh and suite_commit_matches and tool_source_comparable
         if not comparable and not allow_stale:
             if not fresh:
                 detail = (
@@ -253,6 +267,9 @@ async def run_live_evaluation(
         "suite_repository_url": suite.repository_url,
         "suite_repository_commit": suite.repository_commit,
         "suite_commit_matches": suite_commit_matches,
+        "codemesh_source_commit": tool_source.get("commit"),
+        "codemesh_source_branch": tool_source.get("branch"),
+        "codemesh_source_checkout_modified": tool_source.get("working_tree_dirty"),
         "search_modes": sorted(
             {str(item.get("mode")) for item in diagnostics if item.get("mode")}
         ),
@@ -313,6 +330,36 @@ async def get_repository_preflight(
             or "Agent evaluation requires a fresh CodeMesh index."
         )
     return data
+
+
+def get_tool_source_identity(path: Path) -> dict[str, Any]:
+    def git(*arguments: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", "-C", str(path), *arguments],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+    try:
+        root = git("rev-parse", "--show-toplevel")
+        if root.returncode != 0:
+            return {"available": False}
+        status = git("status", "--porcelain")
+        commit = git("rev-parse", "HEAD")
+        branch = git("rev-parse", "--abbrev-ref", "HEAD")
+    except (OSError, subprocess.SubprocessError):
+        return {"available": False}
+
+    if any(result.returncode != 0 for result in (status, commit, branch)):
+        return {"available": False}
+    return {
+        "available": True,
+        "commit": commit.stdout.strip(),
+        "branch": branch.stdout.strip(),
+        "working_tree_dirty": bool(status.stdout.strip()),
+    }
 
 
 async def _run_live_case(

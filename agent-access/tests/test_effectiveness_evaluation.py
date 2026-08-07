@@ -27,6 +27,7 @@ from codemesh_agent_access.evaluation.live import (
     EvaluationInfrastructureError,
     McpEvaluationClient,
     _run_live_case,
+    get_tool_source_identity,
 )
 from codemesh_agent_access.evaluation.metrics import (
     percentile,
@@ -226,6 +227,27 @@ def test_live_case_scores_results_and_omits_raw_payloads() -> None:
         _run_live_case(FakeClient(), case, case.arguments, 1, True, 3)  # type: ignore[arg-type]
     )
     assert raw_report.raw_responses is not None
+
+
+def test_live_tool_source_identity_reports_commit_and_dirtiness(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "tracked.txt").write_text("clean\n", encoding="utf-8")
+    _git(source, "init", "--quiet")
+    _git(source, "config", "user.name", "CodeMesh Test")
+    _git(source, "config", "user.email", "codemesh@example.invalid")
+    _git(source, "add", "tracked.txt")
+    _git(source, "commit", "--quiet", "-m", "fixture")
+
+    clean = get_tool_source_identity(source)
+    assert clean["available"] is True
+    assert clean["commit"] == _git(source, "rev-parse", "HEAD").strip()
+    assert clean["working_tree_dirty"] is False
+
+    (source / "tracked.txt").write_text("dirty\n", encoding="utf-8")
+    assert get_tool_source_identity(source)["working_tree_dirty"] is True
 
 
 def test_codex_jsonl_parser_collects_usage_tools_and_failures() -> None:

@@ -155,7 +155,13 @@ uv run python -m codemesh_agent_access eval live --allow-stale
 uv run python -m codemesh_agent_access eval live --keep-raw-traces
 ```
 
-Without `--allow-stale`, the indexed commit must match a clean local checkout. An allowed stale run is marked non-comparable. The built-in suite does not require embeddings; running it again with embeddings or summaries enabled exposes their contribution in search diagnostics while preserving the same gold targets.
+Without `--allow-stale`, the indexed commit must match a clean local checkout
+and the CodeMesh MCP tool-source checkout must also be clean with a resolvable
+commit identity. External-repository reports record both identities. An allowed
+stale or uncommitted run is marked non-comparable. The built-in suite does not
+require embeddings; running it again with embeddings or summaries enabled
+exposes their contribution in search diagnostics while preserving the same gold
+targets.
 
 The report contains:
 
