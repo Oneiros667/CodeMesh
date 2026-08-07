@@ -94,6 +94,14 @@ async def run_agent_evaluation(
     codex_runner = runner or CodexRunner(codex_executable)
     rng = random.Random(seed)
     mcp_cwd = Path(__file__).resolve().parents[2]
+    codemesh_root = _git_root(mcp_cwd)
+    if _git(codemesh_root, "status", "--porcelain"):
+        raise EvaluationInfrastructureError(
+            "Agent evaluation requires a clean CodeMesh tool-source checkout so "
+            "the treatment surface has a frozen commit identity."
+        )
+    codemesh_source_commit = _git(codemesh_root, "rev-parse", "HEAD")
+    codemesh_source_branch = _git(codemesh_root, "rev-parse", "--abbrev-ref", "HEAD")
     destination = (
         Path(output_dir)
         if output_dir
@@ -147,6 +155,10 @@ async def run_agent_evaluation(
             "suite_repository_commit": suite.repository_commit,
             "raw_traces_retained": keep_raw_traces,
             "source_checkout_modified": False,
+            "codemesh_source_commit": codemesh_source_commit,
+            "codemesh_source_branch": codemesh_source_branch,
+            "codemesh_source_checkout_modified": False,
+            "classification_requires_codemesh_adoption": True,
             "artifact_directory": str(destination.resolve()),
         },
         summary=summary,
@@ -375,32 +387,70 @@ def classify_agent_results(
         pair["control"].passed and not pair["treatment"].passed for pair in completed
     )
     safety = sum(pair["treatment"].safety_violation for pair in completed)
-    both_pass = [
+    adopted_pairs = [pair for pair in completed if bool(pair["treatment"].mcp_calls)]
+    attributable_wins = sum(
+        pair["treatment"].passed and not pair["control"].passed
+        for pair in adopted_pairs
+    )
+    all_both_pass = [
         pair
         for pair in completed
         if pair["control"].passed and pair["treatment"].passed
     ]
+    adopted_both_pass = [
+        pair
+        for pair in adopted_pairs
+        if pair["control"].passed and pair["treatment"].passed
+    ]
 
-    control_duration = _median([pair["control"].duration_ms for pair in both_pass])
-    treatment_duration = _median([pair["treatment"].duration_ms for pair in both_pass])
-    control_tokens = _median([_tokens(pair["control"]) for pair in both_pass])
-    treatment_tokens = _median([_tokens(pair["treatment"]) for pair in both_pass])
+    control_duration = _median([pair["control"].duration_ms for pair in all_both_pass])
+    treatment_duration = _median(
+        [pair["treatment"].duration_ms for pair in all_both_pass]
+    )
+    control_tokens = _median([_tokens(pair["control"]) for pair in all_both_pass])
+    treatment_tokens = _median([_tokens(pair["treatment"]) for pair in all_both_pass])
     duration_delta = _relative_delta(control_duration, treatment_duration)
     token_delta = _relative_delta(control_tokens, treatment_tokens)
+    codemesh_control_duration = _median(
+        [pair["control"].duration_ms for pair in adopted_both_pass]
+    )
+    codemesh_treatment_duration = _median(
+        [pair["treatment"].duration_ms for pair in adopted_both_pass]
+    )
+    codemesh_control_tokens = _median(
+        [_tokens(pair["control"]) for pair in adopted_both_pass]
+    )
+    codemesh_treatment_tokens = _median(
+        [_tokens(pair["treatment"]) for pair in adopted_both_pass]
+    )
+    codemesh_duration_delta = _relative_delta(
+        codemesh_control_duration, codemesh_treatment_duration
+    )
+    codemesh_token_delta = _relative_delta(
+        codemesh_control_tokens, codemesh_treatment_tokens
+    )
 
     if len(completed) < suite.thresholds.minimum_completed_pairs:
         verdict = "insufficient"
-    elif safety or regressions > wins:
+    elif safety or regressions > attributable_wins:
         verdict = "regressed"
-    elif wins > regressions:
+    elif not adopted_pairs:
+        verdict = "neutral"
+    elif len(adopted_pairs) < suite.thresholds.minimum_completed_pairs:
+        verdict = "insufficient"
+    elif attributable_wins > regressions:
         verdict = "improved"
     else:
         threshold = suite.thresholds.efficiency_delta
-        improved = (duration_delta <= -threshold and token_delta <= threshold) or (
-            token_delta <= -threshold and duration_delta <= threshold
+        improved = (
+            codemesh_duration_delta <= -threshold and codemesh_token_delta <= threshold
+        ) or (
+            codemesh_token_delta <= -threshold and codemesh_duration_delta <= threshold
         )
-        regressed = (duration_delta >= threshold and token_delta >= -threshold) or (
-            token_delta >= threshold and duration_delta >= -threshold
+        regressed = (
+            codemesh_duration_delta >= threshold and codemesh_token_delta >= -threshold
+        ) or (
+            codemesh_token_delta >= threshold and codemesh_duration_delta >= -threshold
         )
         verdict = "improved" if improved else "regressed" if regressed else "neutral"
 
@@ -413,17 +463,26 @@ def classify_agent_results(
         "pair_count": len(pairs),
         "completed_pair_count": len(completed),
         "treatment_wins": wins,
+        "codemesh_attributable_wins": attributable_wins,
         "treatment_regressions": regressions,
         "treatment_safety_violations": safety,
         "control_success_rate": _success_rate(control_runs),
         "treatment_success_rate": _success_rate(treatment_runs),
         "codemesh_adoption_rate": round(adoption, 6),
+        "codemesh_adopted_pair_count": len(adopted_pairs),
+        "codemesh_efficiency_pair_count": len(adopted_both_pass),
         "median_control_duration_ms": control_duration,
         "median_treatment_duration_ms": treatment_duration,
         "duration_delta": round(duration_delta, 6),
         "median_control_tokens": control_tokens,
         "median_treatment_tokens": treatment_tokens,
         "token_delta": round(token_delta, 6),
+        "codemesh_median_control_duration_ms": codemesh_control_duration,
+        "codemesh_median_treatment_duration_ms": codemesh_treatment_duration,
+        "codemesh_duration_delta": round(codemesh_duration_delta, 6),
+        "codemesh_median_control_tokens": codemesh_control_tokens,
+        "codemesh_median_treatment_tokens": codemesh_treatment_tokens,
+        "codemesh_token_delta": round(codemesh_token_delta, 6),
     }
 
 

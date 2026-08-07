@@ -394,11 +394,63 @@ def test_agent_classifier_prioritizes_correctness_and_safety() -> None:
     verdict, summary = classify_agent_results(runs, suite)
     assert verdict == "improved"
     assert summary["treatment_wins"] == 3
+    assert summary["codemesh_attributable_wins"] == 3
     assert summary["codemesh_adoption_rate"] == 1
+    assert summary["codemesh_adopted_pair_count"] == 3
 
     runs[-1].safety_violation = True
     verdict, _summary = classify_agent_results(runs, suite)
     assert verdict == "regressed"
+
+
+def test_agent_classifier_does_not_credit_unadopted_efficiency() -> None:
+    suite = AgentSuite(
+        name="agent",
+        tasks=[
+            AgentTask(
+                id="answer",
+                description="answer",
+                task_type="answer",
+                prompt="answer",
+                targets=[RetrievalTarget(file_path="src/A.cs")],
+            )
+        ],
+    )
+    runs = []
+    for repetition in range(1, 4):
+        runs.extend(
+            [
+                AgentExecutionReport(
+                    task_id="answer",
+                    repetition=repetition,
+                    condition="control",
+                    completed=True,
+                    passed=True,
+                    duration_ms=100,
+                    input_tokens=100,
+                ),
+                AgentExecutionReport(
+                    task_id="answer",
+                    repetition=repetition,
+                    condition="treatment",
+                    completed=True,
+                    passed=True,
+                    duration_ms=50,
+                    input_tokens=50,
+                ),
+            ]
+        )
+
+    verdict, summary = classify_agent_results(runs, suite)
+
+    assert verdict == "neutral"
+    assert summary["codemesh_adoption_rate"] == 0
+    assert summary["codemesh_adopted_pair_count"] == 0
+    assert summary["codemesh_efficiency_pair_count"] == 0
+    assert summary["duration_delta"] == -0.5
+    assert summary["token_delta"] == -0.5
+    assert summary["codemesh_duration_delta"] == 0
+    assert summary["codemesh_token_delta"] == 0
 
 
 def test_command_policy_rejects_unsafe_commands() -> None:

@@ -47,6 +47,9 @@ Recent completed work:
   behavior.
 - Agent citation grading preserves hidden paths such as `.github` and safely
   normalizes absolute citations inside isolated evaluation workspaces.
+- Agent comparison reports retain overall timing and token medians but attribute
+  correctness and efficiency only to matched pairs that actually called a
+  CodeMesh tool.
 
 Current state:
 
@@ -61,11 +64,11 @@ Current state:
   external C# golden queries, and opt-in agent A/B and model harnesses.
   Deterministic success proves contracts, not usefulness.
 - The summary-free pinned YoutubeDownloader live suite passes all six cases with
-  complete expected target and relationship coverage. A corrected three-repeat
-  agent campaign completed all nine pairs with equal 100% task success but zero
-  CodeMesh adoption. Its verdict is neutral: treatment was faster at the median,
-  but used 10.29% more tokens and no improvement can be attributed to CodeMesh
-  when no MCP tool was called.
+  complete expected target and relationship coverage. Two corrected
+  three-repeat agent campaigns completed all nine pairs with equal 100% task
+  success but zero CodeMesh adoption, including after task-oriented MCP
+  descriptions were made canonical across the server and stable manifest.
+  Their overall timing and token variation cannot be attributed to CodeMesh.
 - No summary model is CodeMesh-qualified. Existing manual results are research
   evidence and generated summaries remain optional.
 - The immediate product gap is evidence that CodeMesh improves correctness,
@@ -76,15 +79,12 @@ Current priority judgment:
 
 1. Keep the clean CodeMesh and pinned YoutubeDownloader live baselines passing
    without generated summaries.
-2. Address the measured zero-adoption constraint without forcing tool use in the
-   treatment prompt. First make one canonical task-oriented description set
-   drive both the MCP server and its stable manifest, then repeat the same frozen
-   agent campaign.
-3. If agents adopt CodeMesh, use observed calls, correctness, elapsed time, and
-   token overhead to select the smallest retrieval, relationship, validation, or
-   packaging improvement. If they still do not adopt it, retain the negative
-   result and test whether a more complex but still representative frozen task
-   exposes a natural selection boundary.
+2. Retain the repeated zero-adoption result without forcing tool use in the
+   treatment prompt. Add a separate, more complex but still representative
+   frozen task that exposes a natural selection boundary.
+3. Use the complex-task retrieval misses already observed around adding a new
+   output container to select the smallest ranking or packaging improvement,
+   then compare agent adoption and outcomes on that task.
 4. Repeat the same frozen evaluations after each material tool-selection,
    ranking, packaging, or relationship change. Correctness and safety win; time
    and token improvement count only when correctness is preserved.
@@ -456,13 +456,12 @@ Useful agents need to follow local engineering process, not only compile code.
 ## Near-Term Recommended Order
 
 1. Keep the summary-free CodeMesh and pinned external C# live baselines green.
-2. Repeat the frozen external control/treatment campaign after the task-oriented
-   MCP discovery metadata change; do not force MCP use in the task prompt.
-3. If adoption remains zero, retain that negative result and add one frozen,
-   representative task whose cross-project impact depth makes the selection
-   boundary measurable without naming CodeMesh.
-4. If adoption occurs, implement only the smallest graph, validation, ranking,
-   or packaging change supported by the observed calls and failures.
+2. Retain the two zero-adoption external campaigns; do not force MCP use in the
+   task prompt or credit unadopted run variance to CodeMesh.
+3. Add one frozen representative task whose cross-project impact depth makes the
+   selection boundary measurable without naming CodeMesh.
+4. Improve only the smallest ranking or packaging limitation exposed by that
+   task, then compare adoption and outcomes.
 5. Re-run the same frozen baseline and retain comparable evidence.
 6. Repeat until CodeMesh demonstrates a correctness improvement or a meaningful
    time or token improvement without correctness, freshness, or safety

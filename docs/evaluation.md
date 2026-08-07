@@ -29,15 +29,16 @@ The current evidence position is deliberately conservative:
 - passing fixtures establish tool and response behavior, not agent usefulness;
 - the summary-free pinned YoutubeDownloader live suite passes its six retrieval,
   relationship, validation, and freshness cases;
-- a corrected three-repeat external agent campaign passed all nine control and
-  treatment pairs, but the treatment never selected a CodeMesh tool, so its
-  neutral timing and token differences are not evidence of product benefit; and
+- two corrected three-repeat external agent campaigns passed all nine control
+  and treatment pairs, but neither treatment selected a CodeMesh tool. Even when
+  an overall time or token delta crosses the efficiency threshold, it is not
+  evidence of product benefit without adoption; and
 - no summary model is qualified, so the core product baseline must run without
   generated summaries.
 
-The next product-proof campaign keeps the source, index, model, seed, and tasks
-frozen while repeating the same control/treatment comparison after improving
-the MCP tool-selection metadata. It continues to cover:
+The next product-proof campaign keeps the pinned repository and grading rules
+but adds a separate, more complex representative task that can expose a natural
+tool-selection boundary. The frozen baseline continues to cover:
 
 - implementation discovery;
 - likely change-impact analysis; and
@@ -149,7 +150,9 @@ It intentionally omits snippets, credentials, environment values, and full MCP r
 
 Agent evaluation requires:
 
-- A clean Git checkout whose `HEAD` is the indexed CodeMesh commit.
+- A clean benchmark checkout whose `HEAD` is the indexed repository commit.
+- A clean CodeMesh tool-source checkout; external-repository reports record its
+  commit and branch separately from the benchmark repository identity.
 - A working `codex` installation and existing authentication.
 - An explicit model selection.
 - Enough time and model budget for three runs per task and condition by default.
@@ -194,7 +197,14 @@ The treatment configuration allowlists CodeMesh read tools and does not expose r
 
 Answer tasks use structured responses and are graded against real file citations. Change tasks commit a known fault inside the temporary clone, verify that validation fails, let the agent repair it, and grade validation plus changed-path policy. The source checkout is never modified.
 
-The result is `improved`, `regressed`, `neutral`, or `insufficient`. Correctness wins take priority. When correctness is tied, a 10% time or token improvement counts only when the other efficiency metric does not regress by more than 10%. Any treatment safety violation is a regression.
+The result is `improved`, `regressed`, `neutral`, or `insufficient`. Correctness
+wins take priority. CodeMesh can receive credit only for matched pairs whose
+treatment actually called a CodeMesh tool. The report retains overall medians
+for transparency, but correctness and efficiency attribution use adopted pairs;
+at least the suite's minimum pair count must adopt CodeMesh. When correctness is
+tied, a 10% time or token improvement counts only when the other efficiency
+metric does not regress by more than 10%. Any treatment safety violation is a
+regression.
 
 Default artifacts are written under `.codemesh-evals/` and contain the report, validation summaries, changed paths, and secret-scrubbed diffs. `--keep-raw-traces` additionally retains exact Codex JSONL, final messages, full diffs, and raw MCP output; treat that option as sensitive.
 
