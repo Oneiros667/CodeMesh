@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0",
+  "kind": "live",
+  "name": "youtube-downloader-impact-live",
+  "description": "Pinned complex C# impact retrieval calibration for output-container changes.",
+  "repository_id": "youtube_downloader",
+  "repository_url": "https://github.com/Tyrrrz/YoutubeDownloader.git",
+  "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+  "cases": [
+    {
+      "id": "audio-container-impact",
+      "description": "Distinguish required and generic impact when adding an audio-only output container.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {
+        "query": "Plan the likely impact of adding a new audio-only output container. Find hard-coded option-generation and batch-selector changes, then trace generic single-download selection, multi-download preferences, persisted settings, and dashboard execution.",
+        "repository_id": "youtube_downloader",
+        "limit": 12,
+        "max_characters": 24000,
+        "context_depth": 4,
+        "relationship_limit": 12
+      },
+      "targets": [
+        {
+          "file_path": "YoutubeDownloader.Core/Downloading/VideoDownloadOption.cs",
+          "primary": true
+        },
+        {
+          "file_path": "YoutubeDownloader.Core/Downloading/VideoDownloadPreference.cs"
+        },
+        {
+          "file_path": "YoutubeDownloader/ViewModels/Dialogs/DownloadMultipleSetupViewModel.cs"
+        },
+        {
+          "file_path": "YoutubeDownloader/ViewModels/Dialogs/DownloadSingleSetupViewModel.cs"
+        },
+        {
+          "file_path": "YoutubeDownloader/Services/SettingsService.cs"
+        },
+        {
+          "file_path": "YoutubeDownloader/ViewModels/Components/DashboardViewModel.cs"
+        }
+      ],
+      "min_hit_count": 6,
+      "top_k": 12
+    },
+    {
+      "id": "freshness",
+      "description": "Require the pinned external checkout to be freshly indexed.",
+      "tool": "codemesh_get_repository_status",
+      "arguments": {
+        "repository_id": "youtube_downloader"
+      },
+      "expected_values": {
+        "freshness.status": "fresh"
+      }
+    }
+  ],
+  "thresholds": {
+    "min_tool_success_rate": 1.0,
+    "min_recall_at_k": 0.85,
+    "min_mrr": 0.75,
+    "max_primary_rank": 3,
+    "max_secret_leaks": 0
+  }
+}

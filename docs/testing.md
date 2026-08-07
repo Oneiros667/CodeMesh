@@ -101,6 +101,12 @@ Use `--suite youtube-downloader-agent` and point `--repository-root` at the
 pinned external checkout for its implementation-discovery, change-impact, and
 validation-selection comparison.
 
+Use `--suite youtube-downloader-impact-agent` with the same checkout for the
+separate complex impact-analysis calibration task. It runs six executions at
+the default three repetitions and does not alter the original frozen suite.
+Run `eval live --suite youtube-downloader-impact-live` first to retain its
+retrieval and relationship baseline.
+
 After the live suite passes, run the opt-in model selection benchmark. Tier 1
 uses 72 executions per model and is the qualification gate before paired repair
 testing:

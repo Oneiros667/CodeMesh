@@ -101,6 +101,27 @@ The three task families are implementation discovery, likely change impact,
 and validation selection. The validation task deliberately requires the
 repository workflow and solution file and forbids inventing a test project.
 
+The separate `youtube-downloader-impact-live` and
+`youtube-downloader-impact-agent` suites preserve the first
+complexity-calibration task selected after two zero-adoption baseline campaigns.
+They ask retrieval and agents to distinguish required edits from already-generic
+flow when adding an audio-only output container across the core and application
+projects:
+
+```powershell
+uv run python -m codemesh_agent_access eval live `
+  --suite youtube-downloader-impact-live `
+  --output ..\.codemesh-evals\youtube-downloader-impact-live\report.json
+
+uv run python -m codemesh_agent_access eval agent `
+  --suite youtube-downloader-impact-agent `
+  --repository-root ..\references\YoutubeDownloader `
+  --model <model-id>
+```
+
+Keep these suites separate from the original live and three-task agent suites so
+their outcomes do not rewrite the frozen baseline.
+
 ## Deterministic Fixture Suite
 
 From `agent-access`:

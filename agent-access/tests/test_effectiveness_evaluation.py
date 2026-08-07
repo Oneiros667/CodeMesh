@@ -50,9 +50,13 @@ from codemesh_agent_access.evaluation.models import (
 def test_built_in_suites_and_schemas_are_valid() -> None:
     live, live_path = load_suite("codemesh-live", "live")
     external_live, external_live_path = load_suite("youtube-downloader-live", "live")
+    impact_live, impact_live_path = load_suite("youtube-downloader-impact-live", "live")
     agent, agent_path = load_suite("codemesh-agent", "agent")
     external_agent, external_agent_path = load_suite(
         "youtube-downloader-agent", "agent"
+    )
+    impact_agent, impact_agent_path = load_suite(
+        "youtube-downloader-impact-agent", "agent"
     )
     model, model_path = load_suite("codemesh-model", "model-benchmark")
 
@@ -60,17 +64,23 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert len(live.cases) >= 9
     assert external_live.repository_id == "youtube_downloader"
     assert external_live.repository_commit
+    assert len(impact_live.cases) == 2
+    assert impact_live.repository_commit == external_live.repository_commit
     assert agent.name == "codemesh-agent"
     assert {task.task_type for task in agent.tasks} == {"answer", "change"}
     assert len(external_agent.tasks) == 3
     assert external_agent.repository_commit == external_live.repository_commit
+    assert len(impact_agent.tasks) == 1
+    assert impact_agent.repository_commit == external_live.repository_commit
     assert model.name == "codemesh-model"
     assert len(model.questions) == 24
     assert len(model.change_scenarios) == 9
     assert live_path.is_file()
     assert external_live_path.is_file()
+    assert impact_live_path.is_file()
     assert agent_path.is_file()
     assert external_agent_path.is_file()
+    assert impact_agent_path.is_file()
     assert model_path.is_file()
     assert suite_json_schema("live")["title"] == "LiveSuite"
     assert suite_json_schema("agent")["title"] == "AgentSuite"

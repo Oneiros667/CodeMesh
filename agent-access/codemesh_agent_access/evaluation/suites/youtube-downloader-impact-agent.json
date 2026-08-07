@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "kind": "agent",
+  "name": "youtube-downloader-impact-agent",
+  "description": "Pinned complex C# impact task for measuring the natural CodeMesh selection boundary.",
+  "repository_id": "youtube_downloader",
+  "repository_url": "https://github.com/Tyrrrz/YoutubeDownloader.git",
+  "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+  "thresholds": {
+    "efficiency_delta": 0.10,
+    "minimum_completed_pairs": 3
+  },
+  "tasks": [
+    {
+      "id": "audio-container-impact",
+      "description": "Distinguish required and generic impact when adding an audio-only output container.",
+      "task_type": "answer",
+      "prompt": "Plan the likely impact of adding a new audio-only output container to YoutubeDownloader. Identify the hard-coded option-generation and batch-selector changes that are actually required, then trace how the selected container flows through single-download selection, multi-download preferences, persisted settings, and dashboard execution. Explicitly distinguish generic paths that should already adapt from places requiring edits. Cite implementation files and exact line ranges. Do not implement the change.",
+      "targets": [
+        {
+          "file_path": "YoutubeDownloader.Core/Downloading/VideoDownloadOption.cs"
+        },
+        {
+          "file_path": "YoutubeDownloader.Core/Downloading/VideoDownloadPreference.cs"
+        },
+        {
+          "file_path": "YoutubeDownloader/ViewModels/Dialogs/DownloadMultipleSetupViewModel.cs"
+        },
+        {
+          "file_path": "YoutubeDownloader/ViewModels/Dialogs/DownloadSingleSetupViewModel.cs"
+        },
+        {
+          "file_path": "YoutubeDownloader/Services/SettingsService.cs"
+        },
+        {
+          "file_path": "YoutubeDownloader/ViewModels/Components/DashboardViewModel.cs"
+        }
+      ]
+    }
+  ]
+}
