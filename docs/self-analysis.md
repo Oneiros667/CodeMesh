@@ -10,7 +10,8 @@ Start stores and services:
 docker compose up -d neo4j mongodb qdrant csharp-parser agent-access
 ```
 
-Ingest the repository without embeddings:
+Ingest the repository without embeddings or summaries. This is the core
+product-proof baseline:
 
 ```powershell
 dotnet run --project src/CodeMesh.Cli -- self ingest --skip-embeddings
@@ -122,11 +123,15 @@ See `docs/mcp-setup.md` for MCP client configuration.
 
 The highest-value improvements are tracked in `docs/next-steps.md`:
 
-- Self-ingestion workflow.
-- MCP setup guide.
-- Index freshness diagnostics.
-- Secret redaction.
-- Python parser support.
-- Markdown documentation ingestion.
-- Runtime/deployment artifact ingestion.
-- Context package quality gates.
+- Establish a reviewed live MCP baseline on a clean current index.
+- Add one representative external C# repository evaluation suite.
+- Run repeated control/treatment tasks for implementation discovery, impact
+  analysis, and validation selection.
+- Use measured failures to choose between implementation-to-test links,
+  validation command nodes, relationship evidence, reverse impact, or tighter
+  context-package budgets.
+- Keep summaries disabled in the core baseline until a summary deployment
+  profile is qualified and improves retrieval over the no-summary index.
+
+Broader parser, deployment, SDLC, UI, portability, and agent-memory work remains
+deferred until the initial C#/.NET workflow demonstrates repeatable benefit.

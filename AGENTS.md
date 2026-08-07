@@ -2,6 +2,14 @@
 
 ## Project Context
 
+CodeMesh's initial product wedge is source-grounded implementation discovery,
+likely change-impact analysis, and validation selection for agents working in
+C#/.NET repositories. The current milestone is reviewed evidence that CodeMesh
+improves agent outcomes over normal repository exploration. Do not select broad
+parser, SDLC, UI, model-provider, summary, portability, or agent-memory work as
+the next task unless `docs/next-steps.md` or explicit user direction activates
+it.
+
 Before planning larger CodeMesh work, review these repository notes:
 
 - `docs/agent-quickstart.md` is the preferred starting point for AI agents working in this repository.

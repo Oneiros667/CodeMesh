@@ -1,6 +1,29 @@
 # CodeMesh
 
-CodeMesh is a local-first code intelligence substrate for AI coding agents. Code ingestion writes graph, content, and vector intelligence; Agent Access reads that intelligence through REST and MCP tools; coding agents use the returned context while editing code in their normal environment.
+CodeMesh is a local-first context and change-impact service for AI coding
+agents. It turns a fresh repository index into compact, source-backed evidence
+that helps an agent locate implementation code, trace likely impact, and choose
+the right validation while editing in its normal environment.
+
+The initial product wedge is C#/.NET repositories, where the Roslyn parser can
+provide higher-fidelity semantic relationships. The product goal is not to
+index every software artifact. It is to improve agent correctness, elapsed
+time, or token use compared with normal repository exploration while preserving
+freshness, source citations, repository boundaries, and local data control.
+
+## Current Product Status
+
+CodeMesh has a healthy technical baseline for ingestion, Agent Access, MCP,
+freshness diagnostics, source-grounded context packages, and deterministic
+evaluation. Repeatable product benefit is not established yet: retained agent
+control/treatment evidence is insufficient or negative, and a current reviewed
+baseline against a representative external C# repository is still required.
+
+Generated summaries, embeddings, broader parser coverage, deployment
+intelligence, and SDLC ingestion are supporting or experimental capabilities.
+They must not displace the near-term evidence milestone. In particular, no
+summary model is currently CodeMesh-qualified, so summaries are optional and
+should not be treated as a default retrieval dependency.
 
 ## Current Scaffold
 
@@ -38,19 +61,20 @@ CodeMesh is a local-first code intelligence substrate for AI coding agents. Code
 ```powershell
 dotnet run --project src/CodeMesh.Cli -- doctor
 dotnet run --project src/CodeMesh.Cli -- status
-dotnet run --project src/CodeMesh.Cli -- ingest --root D:\source\repos\YoutubeDownloader --solution D:\source\repos\YoutubeDownloader\YoutubeDownloader.slnx --skip-embeddings
-dotnet run --project src/CodeMesh.Cli -- ingest --root . --language deployment --dry-run --skip-embeddings
-dotnet run --project src/CodeMesh.Cli -- ingest --root . --language markdown --dry-run --skip-embeddings
-dotnet run --project src/CodeMesh.Cli -- ingest --root .\agent-access --language python --dry-run --skip-embeddings
-dotnet run --project src/CodeMesh.Cli -- refresh --skip-embeddings
-dotnet run --project src/CodeMesh.Cli -- watch --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- self ingest --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- self smoke --skip-embeddings
+dotnet run --project src/CodeMesh.Cli -- refresh --skip-embeddings
+dotnet run --project src/CodeMesh.Cli -- watch --skip-embeddings
 dotnet run --project src/CodeMesh.Cli -- repos list
 dotnet run --project src/CodeMesh.Cli -- runs list --limit 5
 dotnet run --project tests/CodeMesh.Tests
 cd agent-access; uv run python -m codemesh_agent_access eval
 ```
+
+This core path intentionally omits generated summaries, embeddings, and
+secondary parser modes. The sections below document those optional capabilities
+for explicit experiments. Use the sample C# repository flow below when testing
+beyond CodeMesh self-analysis.
 
 ## Sample Project
 
@@ -141,10 +165,11 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
 
 OpenAI summary generation uses the Responses API with strict Structured
 Outputs. Authentication is read only from `OPENAI_API_KEY`; CodeMesh does not
-accept the key as a command-line option. The default OpenAI summary model is
-`gpt-5.6-luna`, selected for this high-volume extraction workload, and should
-still be qualified against representative CodeMesh nodes before production
-use:
+accept the key as a command-line option. The configured OpenAI summary default
+is `gpt-5.6-luna`. This is an experimental configuration default, not a
+qualified or recommended deployment profile. It must be qualified against
+representative CodeMesh nodes and downstream retrieval outcomes before
+production use:
 
 ```powershell
 dotnet run --project src/CodeMesh.Cli -- ingest `

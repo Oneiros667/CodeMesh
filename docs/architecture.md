@@ -2,6 +2,23 @@
 
 CodeMesh is organized around a write-side ingestion pipeline and a read-side Agent Access surface.
 
+## Product Boundary
+
+The architecture is service-capable, but the initial product wedge is narrower:
+source-grounded context and change-impact support for agents working in C#/.NET
+repositories. The primary agent questions are:
+
+- Where is the relevant implementation?
+- What code and behavior are likely affected by this change?
+- Which tests and validation commands provide the best evidence?
+
+Freshness, repository scoping, source spans, and compact context packages are
+part of the core product. Generated summaries, embeddings, additional parser
+languages, deployment intelligence, UI expansion, and broader SDLC artifacts
+are optional enrichments until controlled evaluation shows that they improve
+agent outcomes. Graph paths and generated summaries remain navigation evidence,
+not source truth.
+
 ## High-Level Flow
 
 1. A repository is selected through CLI options or configuration.

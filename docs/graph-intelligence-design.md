@@ -2,6 +2,12 @@
 
 Status: proposal
 
+Activation gate: implement this proposal only where current controlled agent
+evaluation identifies relationship trust, path discovery, or impact analysis as
+a material failure or overhead source. The product-proof baseline and one
+representative external C# repository take priority over broad delivery of this
+design.
+
 This document records design improvements identified by comparing CodeMesh with
 [Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify), using the
 local Graphify `0.9.27` checkout at commit `62b1d43`. The upstream link
@@ -380,8 +386,9 @@ This proposal does not authorize:
 
 ## Decision Summary
 
-CodeMesh should remain source-grounded and service-capable while adding a
-lighter graph-intelligence layer. The first investment should be relationship
-evidence followed by deterministic path and impact queries. Those foundations
-make communities, broader parsers, outcome memory, and pull-request
-intelligence safer and easier to evaluate.
+CodeMesh should remain source-grounded and service-capable. Controlled product
+evaluation should select the next investment. When weak or opaque relationships
+are the measured constraint, relationship evidence followed by deterministic
+path and impact queries is the preferred sequence. Communities, broader
+parsers, outcome memory, and pull-request intelligence remain deferred until
+the initial C#/.NET workflow demonstrates repeatable agent benefit.

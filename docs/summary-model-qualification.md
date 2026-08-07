@@ -11,6 +11,11 @@ CodeMesh does implement versioned, complexity-tiered summary prompts and
 completion ceilings. The qualification automation and certification report
 remain planned.
 
+No summary deployment profile is currently CodeMesh-qualified. Generated
+summaries are optional and must remain outside the core C#/.NET product-proof
+baseline until a candidate passes this procedure and demonstrates no material
+retrieval regression against the no-summary index.
+
 ## Purpose
 
 CodeMesh can use a chat model during ingestion to generate a short summary,

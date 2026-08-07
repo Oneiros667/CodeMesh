@@ -17,6 +17,36 @@ reliability, speed, token efficiency, privacy, cost, and downstream retrieval
 gates. The dedicated qualification runner described there is planned and is not
 an available CLI command yet.
 
+## Product Decision Role
+
+Evaluation is the near-term product milestone, not only a regression facility.
+CodeMesh should advance beyond its initial C#/.NET wedge only after controlled
+evidence shows that agents perform better with CodeMesh than with normal
+repository exploration.
+
+The current evidence position is deliberately conservative:
+
+- passing fixtures establish tool and response behavior, not agent usefulness;
+- retained agent runs on older commits do not establish a positive outcome;
+- no current reviewed baseline covers both CodeMesh and a representative
+  external C# repository; and
+- no summary model is qualified, so the core product baseline must run without
+  generated summaries.
+
+The next product-proof campaign should freeze a clean source and index identity,
+run the live suite, and then compare repeated control/treatment tasks for:
+
+- implementation discovery;
+- likely change-impact analysis; and
+- test or validation selection.
+
+Reports must compare correctness, safety, freshness, citations, elapsed time,
+tokens, tool calls, adoption, and correction loops. A tied-correctness result is
+useful only when time or token use improves by at least the existing 10% agent
+comparison threshold and the other efficiency metric does not regress by more
+than 10%. Product evidence should repeat across more than one task family and
+repository; a passing harness or one favorable run is not sufficient.
+
 ## Deterministic Fixture Suite
 
 From `agent-access`:

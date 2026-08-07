@@ -1,5 +1,12 @@
 # CodeMesh SDLC Roadmap
 
+Status: deferred planning context.
+
+This roadmap does not define near-term execution order. Broader SDLC ingestion
+resumes only after CodeMesh demonstrates repeatable benefit for its initial
+C#/.NET agent workflow and retains configurable sensitive-file controls for the
+additional artifact classes. See `docs/next-steps.md` for current priorities.
+
 CodeMesh currently focuses on code intelligence: parsing implementation code, writing graph/content/vector/summary data, and exposing that context to coding agents through REST, MCP, CLI, and .NET client surfaces.
 
 Future work can extend CodeMesh into a broader software development lifecycle intelligence layer. The goal is not to index every file as undifferentiated text, but to parse high-value SDLC artifacts into typed nodes, relationships, raw content, and agent-ready context packages.
@@ -200,9 +207,13 @@ Useful agent questions:
 
 ## Suggested Implementation Sequence
 
-1. Add runtime/deployment ingestion for Dockerfile, Docker Compose, and Helm.
-2. Add API contract and database migration ingestion.
-3. Add test, coverage, and quality report ingestion.
+This sequence applies only after the activation gate above is satisfied:
+
+1. Add test, coverage, and quality report ingestion where it strengthens the
+   proven validation workflow.
+2. Deepen runtime/deployment ingestion beyond the existing Dockerfile and Docker
+   Compose slice into Helm and Kubernetes.
+3. Add API contract and database migration ingestion.
 4. Add ADR, architecture, and requirements indexing.
 5. Add observability and runbook indexing.
 6. Add security and supply-chain metadata with careful redaction rules.

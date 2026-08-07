@@ -4,7 +4,7 @@ This page is the preferred starting point for AI agents working in the CodeMesh 
 
 ## Read Order
 
-1. `Agents.md` for repository operating rules and local environment assumptions.
+1. `AGENTS.md` for repository operating rules and local environment assumptions.
 2. `README.md` for current product purpose, commands, services, and examples.
 3. `docs/agent-access-contracts.md` when changing REST, MCP, CLI, or .NET Agent Access behavior.
 4. `docs/next-steps.md` when choosing near-term implementation work.
@@ -14,7 +14,17 @@ Use `docs/mcp-setup.md` and `docs/self-analysis.md` when configuring CodeMesh as
 
 ## What CodeMesh Is
 
-CodeMesh is a local-first code intelligence substrate for AI coding agents. It ingests repositories into graph, content, vector, summary, and registry stores, then exposes agent-ready context through REST, MCP tools, CLI commands, and a .NET client.
+CodeMesh is a local-first context and change-impact service for AI coding
+agents. It ingests repositories into graph, content, vector, summary, and
+registry stores, then exposes source-backed context through MCP, REST, CLI, and
+a .NET client.
+
+The initial product wedge is C#/.NET repository work: locate the implementation,
+trace likely impact, and identify relevant tests or validation commands. The
+near-term milestone is repeatable evidence that CodeMesh improves agent outcomes
+over normal repository exploration. Broader parser and SDLC coverage, generated
+summaries, embeddings, and additional presentation surfaces remain secondary to
+that milestone.
 
 ## Repository Shape
 

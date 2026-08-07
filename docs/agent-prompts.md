@@ -2,6 +2,10 @@
 
 These prompts are examples for agents using CodeMesh through MCP or REST. They are phrased as tasks that map to existing or planned CodeMesh tools.
 
+The first prompts cover the initial C#/.NET product wedge: implementation
+discovery, likely impact, validation selection, and freshness. Prompts for
+broader runtime or SDLC intelligence are explicitly deferred examples.
+
 ## Find Implementation Context
 
 ```text
@@ -28,7 +32,10 @@ Likely tools:
 ## Package Context For A Change
 
 ```text
-Use CodeMesh to build an agent context package for changing repository deletion behavior. Include callers, callees, reads, writes, tests, and relevant summaries when available.
+Use CodeMesh to build an agent context package for changing repository
+deletion behavior. Include source spans, callers, callees, reads, writes, and
+tests. Treat relationships as navigation evidence and identify the source that
+supports important conclusions.
 ```
 
 Likely tools:
@@ -65,7 +72,8 @@ Likely tools:
 ## Investigate Validation
 
 ```text
-Use CodeMesh to find tests related to summary coverage and summary ingestion stats. Return the test names and the implementation nodes they exercise.
+Use CodeMesh to find tests related to repository cleanup. Return the test names,
+the implementation nodes they exercise, and the documented validation command.
 ```
 
 Likely tools:
@@ -74,7 +82,22 @@ Likely tools:
 - `codemesh_search_symbols`
 - `codemesh_get_context_package`
 
-## Runtime Impact Prompt
+## Trace Likely Change Impact
+
+```text
+Use CodeMesh to find the C# implementation of repository cleanup, inspect its
+callers and store dependencies, and identify the tests most likely to validate a
+change. Verify important relationship conclusions against the returned source
+spans.
+```
+
+Likely tools:
+
+- `codemesh_search_symbols`
+- `codemesh_get_neighbors`
+- `codemesh_get_context_package`
+
+## Deferred Runtime Impact Prompt
 
 This prompt depends on future deployment artifact ingestion from `docs/sdlc-roadmap.md`.
 

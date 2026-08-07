@@ -14,7 +14,7 @@ speed, token efficiency, privacy, cost, and downstream retrieval evidence.
 
 ## Current Project State Review
 
-Review date: 2026-07-20.
+Review date: 2026-08-06.
 
 Recent completed work:
 
@@ -34,30 +34,56 @@ Recent completed work:
 - C# ingestion emits first-class `TestFile` and `TestCase` nodes for common .NET test attributes and convention-based CodeMesh test methods.
 - Parsers and watch mode share a default repository path policy that excludes generated, cache, virtual-environment, smoke, and temporary directories.
 - Agent Access declares `pytest` and `ruff` as development dependencies, making documented verification commands reproducible after `uv sync`.
+- The versioned `codemesh-model` benchmark adds graded repository questions,
+  paired repair scenarios, review packets, and control/treatment comparison.
+- Summary generation now supports complexity-aware budgets, local providers, an
+  OpenAI provider, generation-configuration identity, and provider-reported
+  usage metadata where available.
 
 Current state:
 
-- P0 baseline items are implemented enough for dependable local MCP use.
-- P1 agent-usefulness items are implemented enough for active dogfooding, though Python and Markdown relationship richness can still improve.
+- The ingestion and Agent Access baseline is implemented enough for active local
+  dogfooding, but that is a technical-readiness statement rather than proof of
+  agent benefit.
+- The strongest current parser and initial product wedge is C#/.NET. Python,
+  Markdown, and deployment parsing provide useful supporting context but do not
+  yet offer comparable semantic relationship depth.
 - Operational freshness is covered for local development by manual refresh and a local watch command.
-- MCP evaluation now includes deterministic fixtures, live self-analysis golden queries, and an opt-in agent A/B harness; additional repositories and longer-lived baselines remain future depth.
-- The largest remaining gap is now deeper validation intelligence: linking first-class test cases to implementation nodes and validation commands.
+- MCP evaluation includes deterministic fixtures, live self-analysis golden
+  queries, and opt-in agent A/B and model harnesses. Deterministic success
+  proves contracts, not usefulness. Retained local agent runs on older commits
+  are insufficient or negative; a current reviewed baseline is still required.
+- No summary model is CodeMesh-qualified. Existing manual results are research
+  evidence and generated summaries remain optional.
+- The immediate product gap is evidence that CodeMesh improves correctness,
+  elapsed time, token use, or correction loops on representative C# repository
+  tasks compared with normal repository exploration.
 
 Current priority judgment:
 
-1. Deepen test and validation context with implementation-to-test relationships and validation command nodes.
-2. Add relationship provenance, confidence, and evidence spans, then build
-   deterministic path and reverse-impact queries on that foundation.
-3. Establish and review live/agent evaluation baselines as ranking and context behavior evolves.
-4. Implement the summary-model qualification runner and establish a qualified
-   local baseline before treating generated summaries as a default retrieval
-   input.
-5. Deepen deployment ingestion with Kubernetes/Helm and code-to-runtime links.
-6. Deepen parser relationships for Python imports/routes/MCP handlers and Markdown cross-links.
-7. Strengthen secret-file exclusion and configurable allow/deny policy before broad SDLC artifact ingestion.
-8. Improve watch ergonomics with optional native file-system events and UI visibility for active watches.
+1. Establish reviewed live and agent control/treatment baselines on the current
+   clean CodeMesh commit and one representative external C# repository. Start
+   without generated summaries so the core graph/content path is measured.
+2. Use observed task failures and overhead to select the smallest product
+   improvement. The leading candidates are implementation-to-test links,
+   validation command nodes, relationship evidence, reverse impact, and tighter
+   context-package budgets.
+3. Repeat the same frozen evaluations after each material ranking, packaging, or
+   relationship change. Correctness and safety win; time and token improvement
+   count only when correctness is preserved.
+4. Implement the summary-model qualification runner only before summaries are
+   considered for default retrieval. Require factual, reliability, safety, and
+   no-summary retrieval comparisons.
+5. Defer Kubernetes/Helm, additional parser breadth, outcome memory, UI
+   expansion, portable snapshots, and broader SDLC ingestion until the initial
+   C# agent workflow shows repeatable benefit.
+6. Keep secret-file exclusion and configurable allow/deny policy as a release
+   gate before any future broad artifact ingestion.
 
-## P0 - Required For A Dependable MCP Baseline
+## P0 - Technical MCP Baseline
+
+These capabilities make CodeMesh operable and testable as a local MCP service.
+They do not by themselves establish that an agent performs better with CodeMesh.
 
 ### 1. Self-Ingestion Workflow
 
@@ -148,6 +174,10 @@ Why it matters:
 An MCP context service will put repository content directly in front of agents. Redaction needs to be boring, predictable, and on by default.
 
 ## P1 - High-Impact Agent Usefulness
+
+The numbered capability inventory below preserves implemented behavior and
+longer-lived backlog context. It is not the current execution order; use the
+priority judgment and near-term recommended order above and below.
 
 ### 5. Python Parser Support
 
@@ -260,6 +290,10 @@ Why it matters:
 MCP tools are most effective when agents can select them without trial and error.
 
 ## P2 - Production-Grade MCP Reliability
+
+These items remain relevant to product quality, but only test/validation,
+evaluation, or operational work required by the current product-proof campaign
+should interrupt that campaign.
 
 ### 10. Watch Or Incremental Refresh Mode
 
@@ -404,14 +438,19 @@ Useful agents need to follow local engineering process, not only compile code.
 
 ## Near-Term Recommended Order
 
-1. Deepen test and validation context with first-class test files/cases and relationships to implementation nodes.
-2. Add relationship evidence, then repository-scoped shortest-path and
-   reverse-impact queries as described in
-   `docs/graph-intelligence-design.md`.
-3. Establish reviewed evaluation baselines and add a representative external repository suite.
-4. Deepen deployment ingestion into Kubernetes manifests, Helm charts, CI/CD workflows, and code-to-runtime links.
-5. Deepen Python and Markdown relationship extraction where it improves self-analysis and MCP packages.
-6. Add configurable sensitive-file exclusion and allow/deny policy before broadening SDLC artifact ingestion.
-7. Improve watch ergonomics with optional native file-system events and local UI visibility.
+1. Freeze a current clean CodeMesh index and add one representative external C#
+   repository suite.
+2. Run and review the live MCP baseline without generated summaries.
+3. Run repeated control/treatment agent tasks covering implementation discovery,
+   impact analysis, and validation selection.
+4. Implement the smallest graph, validation, ranking, or packaging change that
+   addresses measured failures or overhead.
+5. Re-run the frozen baseline and retain comparable evidence.
+6. Repeat until CodeMesh demonstrates a correctness improvement or a meaningful
+   time or token improvement without correctness, freshness, or safety
+   regression.
+7. Only then resume summary qualification, broader language/SDLC coverage,
+   deployment expansion, UI work, portability, or experiential memory.
 
-This order keeps CodeMesh useful as a local MCP service while moving from basic context access toward production-aware, validation-aware agent workflows.
+This order moves CodeMesh from a credible technical system to a proven agent
+tool before expanding its surface area.
