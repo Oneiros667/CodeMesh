@@ -17,6 +17,12 @@ def test_mcp_manifest_matches_registered_tools() -> None:
     assert set(manifest["contracts"]) == set(registered_tools)
 
     for tool_name, contract in manifest["contracts"].items():
+        manifest_tool = next(
+            tool for tool in manifest["tools"] if tool["name"] == tool_name
+        )
+        assert manifest_tool["description"] == contract["description"]
+        assert registered_tools[tool_name].description == contract["description"]
+
         schema = registered_tools[tool_name].inputSchema
         properties = schema["properties"]
         required = [

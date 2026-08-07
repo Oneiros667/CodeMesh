@@ -168,9 +168,22 @@ async def run_live_evaluation(
         )
         repository_status = _data(repository_status_payload)
         freshness = repository_status.get("freshness") or {}
-        comparable = freshness.get("status") == "fresh"
+        fresh = freshness.get("status") == "fresh"
+        indexed_commit = freshness.get("indexed_commit")
+        suite_commit_matches = (
+            suite.repository_commit is None or indexed_commit == suite.repository_commit
+        )
+        comparable = fresh and suite_commit_matches
         if not comparable and not allow_stale:
-            detail = freshness.get("detail") or "Repository freshness is not 'fresh'."
+            if not fresh:
+                detail = (
+                    freshness.get("detail") or "Repository freshness is not 'fresh'."
+                )
+            else:
+                detail = (
+                    f"Indexed commit {indexed_commit!r} does not match the suite's "
+                    f"pinned commit {suite.repository_commit!r}."
+                )
             raise EvaluationInfrastructureError(
                 f"The indexed repository is not comparable: {detail}"
             )
@@ -237,6 +250,9 @@ async def run_live_evaluation(
         "current_branch": freshness.get("current_branch"),
         "working_tree_dirty": freshness.get("working_tree_dirty"),
         "freshness_status": freshness.get("status"),
+        "suite_repository_url": suite.repository_url,
+        "suite_repository_commit": suite.repository_commit,
+        "suite_commit_matches": suite_commit_matches,
         "search_modes": sorted(
             {str(item.get("mode")) for item in diagnostics if item.get("mode")}
         ),

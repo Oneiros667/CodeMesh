@@ -27,14 +27,17 @@ repository exploration.
 The current evidence position is deliberately conservative:
 
 - passing fixtures establish tool and response behavior, not agent usefulness;
-- retained agent runs on older commits do not establish a positive outcome;
-- no current reviewed baseline covers both CodeMesh and a representative
-  external C# repository; and
+- the summary-free pinned YoutubeDownloader live suite passes its six retrieval,
+  relationship, validation, and freshness cases;
+- a corrected three-repeat external agent campaign passed all nine control and
+  treatment pairs, but the treatment never selected a CodeMesh tool, so its
+  neutral timing and token differences are not evidence of product benefit; and
 - no summary model is qualified, so the core product baseline must run without
   generated summaries.
 
-The next product-proof campaign should freeze a clean source and index identity,
-run the live suite, and then compare repeated control/treatment tasks for:
+The next product-proof campaign keeps the source, index, model, seed, and tasks
+frozen while repeating the same control/treatment comparison after improving
+the MCP tool-selection metadata. It continues to cover:
 
 - implementation discovery;
 - likely change-impact analysis; and
@@ -46,6 +49,56 @@ useful only when time or token use improves by at least the existing 10% agent
 comparison threshold and the other efficiency metric does not regress by more
 than 10%. Product evidence should repeat across more than one task family and
 repository; a passing harness or one favorable run is not sufficient.
+
+The treatment prompt must remain identical to control and must not force MCP
+use. If adoption remains zero, retain that negative result and measure a more
+complex representative task rather than weakening the comparison.
+
+## Representative External C# Baseline
+
+The built-in `youtube-downloader-live` and `youtube-downloader-agent` suites pin
+the public YoutubeDownloader repository at commit
+`05e63cddb6d2a96fc2d21b097129a0765824f251`. The runner rejects a fresh but
+different commit unless `--allow-stale` is explicitly used for a non-comparable
+diagnostic run.
+
+Prepare the checkout from the CodeMesh repository root:
+
+```powershell
+git clone https://github.com/Tyrrrz/YoutubeDownloader.git `
+  references/YoutubeDownloader
+git -C references/YoutubeDownloader checkout --detach `
+  05e63cddb6d2a96fc2d21b097129a0765824f251
+dotnet run --project src/CodeMesh.Cli -- ingest `
+  --root references/YoutubeDownloader `
+  --solution references/YoutubeDownloader/YoutubeDownloader.slnx `
+  --skip-embeddings
+```
+
+Run and retain the summary-free live report:
+
+```powershell
+cd agent-access
+$env:CODEMESH_MODEL_PROVIDER = 'none'
+uv run python -m codemesh_agent_access eval live `
+  --suite youtube-downloader-live `
+  --output ..\.codemesh-evals\youtube-downloader-live\report.json
+```
+
+The external live suite checks implementation discovery, query resolution,
+cross-project download impact, repository-scoped validation guidance, and exact
+source/index freshness. After it passes, run the paired agent comparison:
+
+```powershell
+uv run python -m codemesh_agent_access eval agent `
+  --suite youtube-downloader-agent `
+  --repository-root ..\references\YoutubeDownloader `
+  --model <model-id>
+```
+
+The three task families are implementation discovery, likely change impact,
+and validation selection. The validation task deliberately requires the
+repository workflow and solution file and forbids inventing a test project.
 
 ## Deterministic Fixture Suite
 

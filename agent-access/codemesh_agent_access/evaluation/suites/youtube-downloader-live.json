@@ -1,0 +1,136 @@
+{
+  "schema_version": "1.0",
+  "kind": "live",
+  "name": "youtube-downloader-live",
+  "description": "Pinned external C# retrieval, impact, validation, and freshness checks.",
+  "repository_id": "youtube_downloader",
+  "repository_url": "https://github.com/Tyrrrz/YoutubeDownloader.git",
+  "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+  "thresholds": {
+    "min_tool_success_rate": 1.0,
+    "min_recall_at_k": 0.9,
+    "min_mrr": 0.8,
+    "max_primary_rank": 3,
+    "max_secret_leaks": 0
+  },
+  "cases": [
+    {
+      "id": "video-download-implementation",
+      "description": "Find the download implementation and its FFmpeg integration.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {
+        "query": "VideoDownloader DownloadVideoAsync subtitles ffmpeg",
+        "repository_id": null,
+        "limit": 8,
+        "max_characters": 12000
+      },
+      "targets": [
+        {
+          "file_path": "YoutubeDownloader.Core/Downloading/VideoDownloader.cs",
+          "relevance": 3,
+          "primary": true
+        }
+      ],
+      "min_hit_count": 1,
+      "top_k": 8
+    },
+    {
+      "id": "query-resolution",
+      "description": "Find URL, playlist, channel, and search query resolution.",
+      "tool": "codemesh_search_context",
+      "arguments": {
+        "query": "QueryResolver ResolveAsync playlist video channel search",
+        "repository_id": null,
+        "limit": 8
+      },
+      "targets": [
+        {
+          "file_path": "YoutubeDownloader.Core/Resolving/QueryResolver.cs",
+          "relevance": 3,
+          "primary": true
+        }
+      ],
+      "min_hit_count": 1,
+      "top_k": 8
+    },
+    {
+      "id": "download-orchestration-impact",
+      "description": "Find dashboard orchestration and its call to the downloader.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {
+        "query": "DashboardViewModel EnqueueDownload",
+        "repository_id": null,
+        "limit": 6,
+        "max_characters": 12000
+      },
+      "targets": [
+        {
+          "file_path": "YoutubeDownloader/ViewModels/Components/DashboardViewModel.cs",
+          "relevance": 3,
+          "primary": true
+        }
+      ],
+      "relationship_targets": [
+        {
+          "group": "callees",
+          "target": {
+            "node_id": "csharp:method:YoutubeDownloader.Core.Downloading.VideoDownloader.DownloadVideoAsync(System.String,YoutubeExplode.Videos.IVideo,YoutubeDownloader.Core.Downloading.VideoDownloadOption,System.Boolean,System.String,System.IProgress<Gress.Percentage>,System.Threading.CancellationToken)"
+          }
+        }
+      ],
+      "min_hit_count": 1,
+      "top_k": 6
+    },
+    {
+      "id": "settings-service",
+      "description": "Find the settings persistence service.",
+      "tool": "codemesh_search_symbols",
+      "arguments": {
+        "query": "SettingsService",
+        "repository_id": null,
+        "limit": 8,
+        "kinds": ["Class"]
+      },
+      "targets": [
+        {
+          "file_path": "YoutubeDownloader/Services/SettingsService.cs",
+          "relevance": 3,
+          "primary": true
+        }
+      ],
+      "min_hit_count": 1,
+      "top_k": 8
+    },
+    {
+      "id": "external-validation-command",
+      "description": "Recommend repository-scoped .NET validation, not CodeMesh tests.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {
+        "query": "VideoDownloader DownloadVideoAsync",
+        "repository_id": null,
+        "limit": 4,
+        "max_characters": 8000
+      },
+      "targets": [
+        {
+          "file_path": "YoutubeDownloader.Core/Downloading/VideoDownloader.cs",
+          "relevance": 3,
+          "primary": true
+        }
+      ],
+      "expected_values": {
+        "validation_recommendations.0.id": "dotnet-build",
+        "validation_recommendations.0.command": "dotnet build"
+      },
+      "min_hit_count": 1,
+      "top_k": 4
+    },
+    {
+      "id": "freshness",
+      "description": "Require the pinned external checkout to be freshly indexed.",
+      "tool": "codemesh_get_repository_status",
+      "arguments": {"repository_id": null},
+      "expected_values": {"freshness.status": "fresh"}
+    }
+  ]
+}

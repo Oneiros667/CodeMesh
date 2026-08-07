@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "kind": "agent",
+  "name": "youtube-downloader-agent",
+  "description": "Pinned external C# control/treatment tasks for product proof.",
+  "repository_id": "youtube_downloader",
+  "repository_url": "https://github.com/Tyrrrz/YoutubeDownloader.git",
+  "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+  "thresholds": {
+    "efficiency_delta": 0.10,
+    "minimum_completed_pairs": 3
+  },
+  "tasks": [
+    {
+      "id": "implementation-discovery",
+      "description": "Explain video download implementation details.",
+      "task_type": "answer",
+      "prompt": "Explain how YoutubeDownloader selects a download option, includes subtitles, configures FFmpeg, and reports progress. Cite the implementation files and exact line ranges.",
+      "targets": [
+        {
+          "file_path": "YoutubeDownloader.Core/Downloading/VideoDownloader.cs"
+        },
+        {
+          "file_path": "YoutubeDownloader.Core/Downloading/VideoDownloadPreference.cs"
+        }
+      ]
+    },
+    {
+      "id": "change-impact-analysis",
+      "description": "Trace likely impact of changing the download operation.",
+      "task_type": "answer",
+      "prompt": "Trace the likely impact of changing VideoDownloader.DownloadVideoAsync. Explain the dashboard orchestration, settings that affect the call, and post-download tagging behavior. Cite implementation files and exact line ranges.",
+      "targets": [
+        {
+          "file_path": "YoutubeDownloader.Core/Downloading/VideoDownloader.cs"
+        },
+        {
+          "file_path": "YoutubeDownloader/ViewModels/Components/DashboardViewModel.cs"
+        },
+        {
+          "file_path": "YoutubeDownloader/Services/SettingsService.cs"
+        }
+      ]
+    },
+    {
+      "id": "validation-selection",
+      "description": "Select authoritative validation for a download-path change.",
+      "task_type": "answer",
+      "prompt": "Identify the repository-authoritative validation commands for a change to the download pipeline, distinguish build from formatting and packaging checks, and cite exact file line ranges. Do not invent a test project.",
+      "targets": [
+        {
+          "file_path": ".github/workflows/main.yml"
+        },
+        {
+          "file_path": "YoutubeDownloader.slnx"
+        }
+      ]
+    }
+  ]
+}

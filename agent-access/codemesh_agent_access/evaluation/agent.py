@@ -85,6 +85,11 @@ async def run_agent_evaluation(
         raise EvaluationInfrastructureError(
             "The CodeMesh indexed commit, repository checkout, and benchmark base commit must match."
         )
+    if suite.repository_commit and base_commit != suite.repository_commit:
+        raise EvaluationInfrastructureError(
+            f"Benchmark commit {base_commit!r} does not match the suite's pinned "
+            f"commit {suite.repository_commit!r}."
+        )
 
     codex_runner = runner or CodexRunner(codex_executable)
     rng = random.Random(seed)
@@ -138,6 +143,8 @@ async def run_agent_evaluation(
             "model_provider": local_provider or "default",
             "codex_executable": codex_executable,
             "current_branch": freshness.get("current_branch"),
+            "suite_repository_url": suite.repository_url,
+            "suite_repository_commit": suite.repository_commit,
             "raw_traces_retained": keep_raw_traces,
             "source_checkout_modified": False,
             "artifact_directory": str(destination.resolve()),
@@ -433,11 +440,19 @@ def _grade_answer(message: str, targets: list[Any], workspace: Path) -> list[str
     for citation in citations:
         if not isinstance(citation, dict):
             continue
-        relative = str(citation.get("file_path") or "").replace("\\", "/").lstrip("./")
-        path = (workspace / relative).resolve()
+        raw_path = str(citation.get("file_path") or "").replace("\\", "/")
+        while raw_path.startswith("./"):
+            raw_path = raw_path[2:]
+        supplied_path = Path(raw_path)
+        path = (
+            supplied_path.resolve()
+            if supplied_path.is_absolute()
+            else (workspace / supplied_path).resolve()
+        )
         if not path.is_relative_to(workspace.resolve()) or not path.is_file():
-            failures.append(f"Citation path does not exist: {relative}")
+            failures.append(f"Citation path does not exist: {raw_path}")
             continue
+        relative = path.relative_to(workspace.resolve()).as_posix()
         try:
             start_line = int(citation.get("start_line"))
             end_line = int(citation.get("end_line"))

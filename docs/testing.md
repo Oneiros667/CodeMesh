@@ -80,12 +80,26 @@ cd agent-access
 uv run python -m codemesh_agent_access eval live
 ```
 
+The pinned YoutubeDownloader suite is the representative external C# baseline.
+Prepare and ingest the exact checkout as described in `docs/evaluation.md`, then
+run:
+
+```powershell
+uv run python -m codemesh_agent_access eval live `
+  --suite youtube-downloader-live `
+  --output ..\.codemesh-evals\youtube-downloader-live\report.json
+```
+
 Run the opt-in Codex A/B benchmark only when live stores, a fresh index, Codex
 authentication, time, and model budget are available:
 
 ```powershell
 uv run python -m codemesh_agent_access eval agent --model <model-id>
 ```
+
+Use `--suite youtube-downloader-agent` and point `--repository-root` at the
+pinned external checkout for its implementation-discovery, change-impact, and
+validation-selection comparison.
 
 After the live suite passes, run the opt-in model selection benchmark. Tier 1
 uses 72 executions per model and is the qualification gate before paired repair

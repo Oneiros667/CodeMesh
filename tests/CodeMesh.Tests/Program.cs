@@ -70,6 +70,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("csharp parser emits Roslyn symbols", TestCSharpParserEmitsRoslynSymbols),
     ("csharp parser emits test files and cases", TestCSharpParserEmitsTestFilesAndCases),
     ("csharp parser emits invocation and member access relationships", TestCSharpParserEmitsInvocationAndMemberAccessRelationships),
+    ("csharp parser emits cross-project invocation relationships", TestCSharpParserEmitsCrossProjectInvocationRelationships),
     ("csharp parser separates partial declarations from symbols", TestCSharpParserSeparatesPartialDeclarations),
     ("csharp parser honors project compile items", TestCSharpParserHonorsProjectCompileItems),
     ("deployment parser emits Dockerfile and Compose nodes", TestDeploymentParserEmitsDockerfileAndComposeNodes),
@@ -2942,6 +2943,109 @@ static async Task TestCSharpParserEmitsInvocationAndMemberAccessRelationships()
         HasRelationshipBetween(result, helper, count, CodeRelationshipKind.Reads);
         HasRelationshipBetween(result, count, field, CodeRelationshipKind.Reads);
         HasRelationshipBetween(result, count, field, CodeRelationshipKind.Writes);
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+static async Task TestCSharpParserEmitsCrossProjectInvocationRelationships()
+{
+    var root = Path.Combine(
+        Path.GetTempPath(),
+        $"codemesh-parser-cross-project-test-{Guid.NewGuid():N}");
+    var coreRoot = Path.Combine(root, "Sample.Core");
+    var appRoot = Path.Combine(root, "Sample.App");
+    Directory.CreateDirectory(coreRoot);
+    Directory.CreateDirectory(appRoot);
+
+    try
+    {
+        var solutionPath = Path.Combine(root, "Sample.slnx");
+        await File.WriteAllTextAsync(
+            solutionPath,
+            """
+            <Solution>
+              <Project Path="Sample.App/Sample.App.csproj" />
+              <Project Path="Sample.Core/Sample.Core.csproj" />
+            </Solution>
+            """);
+        await File.WriteAllTextAsync(
+            Path.Combine(coreRoot, "Sample.Core.csproj"),
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+            </Project>
+            """);
+        await File.WriteAllTextAsync(
+            Path.Combine(appRoot, "Sample.App.csproj"),
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+              <ItemGroup>
+                <ProjectReference Include="../Sample.Core/Sample.Core.csproj" />
+              </ItemGroup>
+            </Project>
+            """);
+        await File.WriteAllTextAsync(
+            Path.Combine(coreRoot, "Downloader.cs"),
+            """
+            namespace Sample.Core;
+
+            public sealed class Downloader
+            {
+                public void Download(string path)
+                {
+                }
+            }
+            """);
+        await File.WriteAllTextAsync(
+            Path.Combine(appRoot, "Dashboard.cs"),
+            """
+            using Sample.Core;
+
+            namespace Sample.App;
+
+            public sealed class Dashboard
+            {
+                public void Run(Downloader downloader)
+                {
+                    downloader.Download("output.mp4");
+                }
+            }
+            """);
+
+        var parser = new CSharpParseService();
+        var result = await parser.ParseAsync(new ParseRequest(
+            root,
+            solutionPath,
+            null,
+            "csharp",
+            new Dictionary<string, string>()));
+
+        var errors = result.Diagnostics
+            .Where(diagnostic => string.Equals(
+                diagnostic.Severity,
+                "error",
+                StringComparison.OrdinalIgnoreCase))
+            .Select(diagnostic => diagnostic.Message)
+            .ToArray();
+        if (errors.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"Parser returned errors: {string.Join("; ", errors)}");
+        }
+
+        HasRelationshipBetween(
+            result,
+            "csharp:method:Sample.App.Dashboard.Run(Sample.Core.Downloader)",
+            "csharp:method:Sample.Core.Downloader.Download(System.String)",
+            CodeRelationshipKind.Invokes);
     }
     finally
     {

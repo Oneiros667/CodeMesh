@@ -14,7 +14,7 @@ speed, token efficiency, privacy, cost, and downstream retrieval evidence.
 
 ## Current Project State Review
 
-Review date: 2026-08-06.
+Review date: 2026-08-07.
 
 Recent completed work:
 
@@ -39,6 +39,14 @@ Recent completed work:
 - Summary generation now supports complexity-aware budgets, local providers, an
   OpenAI provider, generation-configuration identity, and provider-reported
   usage metadata where available.
+- The `youtube-downloader-live` and `youtube-downloader-agent` suites pin a
+  representative external C# repository and fail closed when the indexed commit
+  does not match the suite commit.
+- The C# parser resolves cross-project invocations through Roslyn documentation
+  ids as well as CodeMesh stable keys, while preserving ambiguity fail-closed
+  behavior.
+- Agent citation grading preserves hidden paths such as `.github` and safely
+  normalizes absolute citations inside isolated evaluation workspaces.
 
 Current state:
 
@@ -49,10 +57,15 @@ Current state:
   Markdown, and deployment parsing provide useful supporting context but do not
   yet offer comparable semantic relationship depth.
 - Operational freshness is covered for local development by manual refresh and a local watch command.
-- MCP evaluation includes deterministic fixtures, live self-analysis golden
-  queries, and opt-in agent A/B and model harnesses. Deterministic success
-  proves contracts, not usefulness. Retained local agent runs on older commits
-  are insufficient or negative; a current reviewed baseline is still required.
+- MCP evaluation includes deterministic fixtures, live self-analysis and pinned
+  external C# golden queries, and opt-in agent A/B and model harnesses.
+  Deterministic success proves contracts, not usefulness.
+- The summary-free pinned YoutubeDownloader live suite passes all six cases with
+  complete expected target and relationship coverage. A corrected three-repeat
+  agent campaign completed all nine pairs with equal 100% task success but zero
+  CodeMesh adoption. Its verdict is neutral: treatment was faster at the median,
+  but used 10.29% more tokens and no improvement can be attributed to CodeMesh
+  when no MCP tool was called.
 - No summary model is CodeMesh-qualified. Existing manual results are research
   evidence and generated summaries remain optional.
 - The immediate product gap is evidence that CodeMesh improves correctness,
@@ -61,23 +74,27 @@ Current state:
 
 Current priority judgment:
 
-1. Establish reviewed live and agent control/treatment baselines on the current
-   clean CodeMesh commit and one representative external C# repository. Start
-   without generated summaries so the core graph/content path is measured.
-2. Use observed task failures and overhead to select the smallest product
-   improvement. The leading candidates are implementation-to-test links,
-   validation command nodes, relationship evidence, reverse impact, and tighter
-   context-package budgets.
-3. Repeat the same frozen evaluations after each material ranking, packaging, or
-   relationship change. Correctness and safety win; time and token improvement
-   count only when correctness is preserved.
-4. Implement the summary-model qualification runner only before summaries are
+1. Keep the clean CodeMesh and pinned YoutubeDownloader live baselines passing
+   without generated summaries.
+2. Address the measured zero-adoption constraint without forcing tool use in the
+   treatment prompt. First make one canonical task-oriented description set
+   drive both the MCP server and its stable manifest, then repeat the same frozen
+   agent campaign.
+3. If agents adopt CodeMesh, use observed calls, correctness, elapsed time, and
+   token overhead to select the smallest retrieval, relationship, validation, or
+   packaging improvement. If they still do not adopt it, retain the negative
+   result and test whether a more complex but still representative frozen task
+   exposes a natural selection boundary.
+4. Repeat the same frozen evaluations after each material tool-selection,
+   ranking, packaging, or relationship change. Correctness and safety win; time
+   and token improvement count only when correctness is preserved.
+5. Implement the summary-model qualification runner only before summaries are
    considered for default retrieval. Require factual, reliability, safety, and
    no-summary retrieval comparisons.
-5. Defer Kubernetes/Helm, additional parser breadth, outcome memory, UI
+6. Defer Kubernetes/Helm, additional parser breadth, outcome memory, UI
    expansion, portable snapshots, and broader SDLC ingestion until the initial
    C# agent workflow shows repeatable benefit.
-6. Keep secret-file exclusion and configurable allow/deny policy as a release
+7. Keep secret-file exclusion and configurable allow/deny policy as a release
    gate before any future broad artifact ingestion.
 
 ## P0 - Technical MCP Baseline
@@ -438,14 +455,15 @@ Useful agents need to follow local engineering process, not only compile code.
 
 ## Near-Term Recommended Order
 
-1. Freeze a current clean CodeMesh index and add one representative external C#
-   repository suite.
-2. Run and review the live MCP baseline without generated summaries.
-3. Run repeated control/treatment agent tasks covering implementation discovery,
-   impact analysis, and validation selection.
-4. Implement the smallest graph, validation, ranking, or packaging change that
-   addresses measured failures or overhead.
-5. Re-run the frozen baseline and retain comparable evidence.
+1. Keep the summary-free CodeMesh and pinned external C# live baselines green.
+2. Repeat the frozen external control/treatment campaign after the task-oriented
+   MCP discovery metadata change; do not force MCP use in the task prompt.
+3. If adoption remains zero, retain that negative result and add one frozen,
+   representative task whose cross-project impact depth makes the selection
+   boundary measurable without naming CodeMesh.
+4. If adoption occurs, implement only the smallest graph, validation, ranking,
+   or packaging change supported by the observed calls and failures.
+5. Re-run the same frozen baseline and retain comparable evidence.
 6. Repeat until CodeMesh demonstrates a correctness improvement or a meaningful
    time or token improvement without correctness, freshness, or safety
    regression.

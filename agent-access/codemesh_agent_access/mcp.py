@@ -178,7 +178,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
         "arguments": {},
     },
     "codemesh_get_tool_guidance": {
-        "description": "Recommend which CodeMesh MCP tools to use for a natural-language agent task.",
+        "description": "Start here when deciding how CodeMesh can reduce repository exploration. Maps implementation discovery, change impact, validation selection, freshness, and symbol lookup to read-only workflows.",
         "arguments": _TOOL_GUIDANCE_ARGUMENTS,
         "response": {
             "fields": [
@@ -190,7 +190,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
         },
     },
     "codemesh_search_context": {
-        "description": "Use for natural-language discovery of relevant code, docs, summaries, and indexed content before packaging context.",
+        "description": "Start here for broad source-grounded implementation discovery in an indexed repository. Rank relevant code and docs from natural-language task text before broad shell searches; use codemesh_get_context_package when relationships or validation are needed.",
         "arguments": _SEARCH_CONTEXT_ARGUMENTS,
         "response": {
             "diagnostics": [
@@ -211,7 +211,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
         },
     },
     "codemesh_get_context_package": {
-        "description": "Use before implementation work to build an agent-ready package with snippets, relationships, repository metadata, and rationale.",
+        "description": "Start here for implementation discovery, likely change-impact analysis, or validation selection in an indexed repository. Returns ranked snippets, graph relationships, freshness metadata, and repository-scoped validation recommendations before broad shell exploration.",
         "arguments": _CONTEXT_PACKAGE_ARGUMENTS,
         "response": {
             "relationship_groups": list(_RELATIONSHIP_GROUPS),
@@ -236,7 +236,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
         "arguments": _NODE_ARGUMENTS,
     },
     "codemesh_get_neighbors": {
-        "description": "Use to inspect callers, callees, reads, writes, containment, and other relationships around a known node.",
+        "description": "Use for likely change-impact analysis around a known node. Inspect callers, callees, reads, writes, containment, and other indexed relationships.",
         "arguments": _NEIGHBOR_ARGUMENTS,
     },
     "codemesh_list_repositories": {
@@ -308,7 +308,10 @@ def tool_manifest() -> dict[str, Any]:
     return {
         "service": "codemesh-agent-access",
         "protocol": "mcp",
-        "tools": [{"name": name} for name in _TOOL_NAMES],
+        "tools": [
+            {"name": name, "description": _TOOL_CONTRACTS[name]["description"]}
+            for name in _TOOL_NAMES
+        ],
         "contracts": deepcopy(_TOOL_CONTRACTS),
     }
 
@@ -329,19 +332,21 @@ def build_server(
         if call_guard is not None:
             call_guard(name, arguments)
 
-    @server.tool()
+    @server.tool(description=_TOOL_CONTRACTS["codemesh_status"]["description"])
     async def codemesh_status() -> dict[str, Any]:
         """Return CodeMesh Agent Access health and configured read endpoints."""
         check("codemesh_status", {})
         return (await tools.status()).model_dump(mode="json")
 
-    @server.tool()
+    @server.tool(
+        description=_TOOL_CONTRACTS["codemesh_get_tool_guidance"]["description"]
+    )
     async def codemesh_get_tool_guidance(task: str | None = None) -> dict[str, Any]:
         """Recommend which CodeMesh MCP tools to use for a natural-language agent task."""
         check("codemesh_get_tool_guidance", {"task": task})
         return (await tools.tool_guidance(task=task)).model_dump(mode="json")
 
-    @server.tool()
+    @server.tool(description=_TOOL_CONTRACTS["codemesh_search_context"]["description"])
     async def codemesh_search_context(
         query: str,
         repository_id: str | None = None,
@@ -374,7 +379,9 @@ def build_server(
             )
         ).model_dump(mode="json")
 
-    @server.tool()
+    @server.tool(
+        description=_TOOL_CONTRACTS["codemesh_get_context_package"]["description"]
+    )
     async def codemesh_get_context_package(
         query: str,
         repository_id: str | None = None,
@@ -430,7 +437,7 @@ def build_server(
             )
         return payload
 
-    @server.tool()
+    @server.tool(description=_TOOL_CONTRACTS["codemesh_search_symbols"]["description"])
     async def codemesh_search_symbols(
         query: str,
         repository_id: str | None = None,
@@ -455,7 +462,7 @@ def build_server(
             )
         ).model_dump(mode="json")
 
-    @server.tool()
+    @server.tool(description=_TOOL_CONTRACTS["codemesh_get_node"]["description"])
     async def codemesh_get_node(
         node_id: str,
         repository_id: str | None = None,
@@ -476,7 +483,7 @@ def build_server(
             )
         ).model_dump(mode="json")
 
-    @server.tool()
+    @server.tool(description=_TOOL_CONTRACTS["codemesh_get_neighbors"]["description"])
     async def codemesh_get_neighbors(
         node_id: str,
         repository_id: str | None = None,
@@ -497,19 +504,23 @@ def build_server(
             )
         ).model_dump(mode="json")
 
-    @server.tool()
+    @server.tool(
+        description=_TOOL_CONTRACTS["codemesh_list_repositories"]["description"]
+    )
     async def codemesh_list_repositories(limit: int = 50) -> dict[str, Any]:
         """List repositories indexed by CodeMesh."""
         check("codemesh_list_repositories", {"limit": limit})
         return (await tools.list_repositories(limit=limit)).model_dump(mode="json")
 
-    @server.tool()
+    @server.tool(description=_TOOL_CONTRACTS["codemesh_get_repository"]["description"])
     async def codemesh_get_repository(repository_id: str) -> dict[str, Any]:
         """Fetch one indexed CodeMesh repository by id."""
         check("codemesh_get_repository", {"repository_id": repository_id})
         return (await tools.get_repository(repository_id)).model_dump(mode="json")
 
-    @server.tool()
+    @server.tool(
+        description=_TOOL_CONTRACTS["codemesh_get_repository_status"]["description"]
+    )
     async def codemesh_get_repository_status(repository_id: str) -> dict[str, Any]:
         """Fetch repository status, counts, latest run, summary coverage, and freshness diagnostics."""
         check("codemesh_get_repository_status", {"repository_id": repository_id})
@@ -517,7 +528,9 @@ def build_server(
             mode="json"
         )
 
-    @server.tool()
+    @server.tool(
+        description=_TOOL_CONTRACTS["codemesh_delete_repository"]["description"]
+    )
     async def codemesh_delete_repository(
         repository_id: str, confirm: bool = False
     ) -> dict[str, Any]:
@@ -535,13 +548,17 @@ def build_server(
 
         return (await tools.delete_repository(repository_id)).model_dump(mode="json")
 
-    @server.tool()
+    @server.tool(
+        description=_TOOL_CONTRACTS["codemesh_get_summary_coverage"]["description"]
+    )
     async def codemesh_get_summary_coverage(repository_id: str) -> dict[str, Any]:
         """Fetch generated node summary coverage for one indexed CodeMesh repository."""
         check("codemesh_get_summary_coverage", {"repository_id": repository_id})
         return (await tools.get_summary_coverage(repository_id)).model_dump(mode="json")
 
-    @server.tool()
+    @server.tool(
+        description=_TOOL_CONTRACTS["codemesh_list_ingestion_runs"]["description"]
+    )
     async def codemesh_list_ingestion_runs(
         repository_id: str | None = None,
         limit: int = 50,

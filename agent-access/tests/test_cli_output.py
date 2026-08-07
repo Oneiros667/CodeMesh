@@ -290,7 +290,8 @@ def test_cli_prints_mcp_manifest(monkeypatch: Any, capsys: Any) -> None:
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["service"] == "codemesh-agent-access"
-    assert "codemesh_search_context" in {tool["name"] for tool in payload["tools"]}
+    tools = {tool["name"]: tool for tool in payload["tools"]}
+    assert "implementation discovery" in tools["codemesh_search_context"]["description"]
     assert payload["contracts"]["codemesh_search_context"]["response"][
         "diagnostics"
     ] == [

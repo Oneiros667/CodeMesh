@@ -626,8 +626,7 @@ public sealed class CSharpParseService
             declarationNodeIdsBySyntax[declaration] = declarationNodeId;
             symbolNodeIdsBySyntax[declaration] = symbolNodeId;
 
-            var symbolKey = SymbolLookupKey(symbol);
-            if (!string.IsNullOrWhiteSpace(symbolKey))
+            foreach (var symbolKey in SymbolLookupKeys(symbol))
             {
                 nodeIdsBySymbolKey.TryAdd(symbolKey, symbolNodeId);
             }
@@ -754,8 +753,9 @@ public sealed class CSharpParseService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var symbol = model.GetSymbolInfo(invocation, cancellationToken).Symbol;
-            if (symbol is IMethodSymbol methodSymbol)
+            var methodSymbol = ResolveMethodSymbol(
+                model.GetSymbolInfo(invocation, cancellationToken));
+            if (methodSymbol is not null)
             {
                 AddSymbolRelationship(
                     sourceNodeId,
@@ -772,8 +772,9 @@ public sealed class CSharpParseService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var symbol = model.GetSymbolInfo(objectCreation, cancellationToken).Symbol;
-            if (symbol is IMethodSymbol constructorSymbol)
+            var constructorSymbol = ResolveMethodSymbol(
+                model.GetSymbolInfo(objectCreation, cancellationToken));
+            if (constructorSymbol is not null)
             {
                 AddSymbolRelationship(
                     sourceNodeId,
@@ -790,8 +791,9 @@ public sealed class CSharpParseService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var symbol = model.GetSymbolInfo(objectCreation, cancellationToken).Symbol;
-            if (symbol is IMethodSymbol constructorSymbol)
+            var constructorSymbol = ResolveMethodSymbol(
+                model.GetSymbolInfo(objectCreation, cancellationToken));
+            if (constructorSymbol is not null)
             {
                 AddSymbolRelationship(
                     sourceNodeId,
@@ -851,6 +853,22 @@ public sealed class CSharpParseService
         }
 
         return expression is IdentifierNameSyntax or MemberAccessExpressionSyntax;
+    }
+
+    private static IMethodSymbol? ResolveMethodSymbol(SymbolInfo symbolInfo)
+    {
+        if (symbolInfo.Symbol is IMethodSymbol methodSymbol)
+        {
+            return methodSymbol;
+        }
+
+        var candidates = symbolInfo.CandidateSymbols
+            .OfType<IMethodSymbol>()
+            .Select(candidate => (ISymbol)candidate.OriginalDefinition)
+            .Distinct(SymbolEqualityComparer.Default)
+            .OfType<IMethodSymbol>()
+            .ToArray();
+        return candidates.Length == 1 ? candidates[0] : null;
     }
 
     private static void AddAccessRelationship(
@@ -1057,8 +1075,10 @@ public sealed class CSharpParseService
         Dictionary<string, string> nodeIdsBySymbolKey,
         HashSet<string> emittedRelationshipIds)
     {
-        var targetKey = SymbolLookupKey(targetSymbol);
-        if (string.IsNullOrWhiteSpace(targetKey) || !nodeIdsBySymbolKey.TryGetValue(targetKey, out var targetNodeId))
+        var targetNodeId = SymbolLookupKeys(targetSymbol)
+            .Select(key => nodeIdsBySymbolKey.GetValueOrDefault(key))
+            .FirstOrDefault(nodeId => !string.IsNullOrWhiteSpace(nodeId));
+        if (string.IsNullOrWhiteSpace(targetNodeId))
         {
             return;
         }
@@ -1312,6 +1332,21 @@ public sealed class CSharpParseService
             IParameterSymbol parameterSymbol => $"csharp:param:{ParameterOwnerSignature(parameterSymbol)}:{parameterSymbol.Ordinal}:{parameterSymbol.Name}",
             _ => string.Empty
         };
+    }
+
+    private static IEnumerable<string> SymbolLookupKeys(ISymbol symbol)
+    {
+        var primary = SymbolLookupKey(symbol);
+        if (!string.IsNullOrWhiteSpace(primary))
+        {
+            yield return primary;
+        }
+
+        var documentationId = symbol.OriginalDefinition.GetDocumentationCommentId();
+        if (!string.IsNullOrWhiteSpace(documentationId))
+        {
+            yield return $"csharp:doc:{documentationId}";
+        }
     }
 
     private static string TypeDefinitionName(INamedTypeSymbol symbol)

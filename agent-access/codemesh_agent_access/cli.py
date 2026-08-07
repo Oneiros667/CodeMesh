@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import json
 import sys
+from pathlib import Path
 
 import uvicorn
 
@@ -35,6 +36,7 @@ def main() -> None:
     live_eval_parser.add_argument("--warmup", type=int, default=1)
     live_eval_parser.add_argument("--allow-stale", action="store_true")
     live_eval_parser.add_argument("--keep-raw-traces", action="store_true")
+    live_eval_parser.add_argument("--output")
 
     agent_eval_parser = eval_modes.add_parser(
         "agent", help="Run paired agent tasks with and without CodeMesh."
@@ -260,7 +262,12 @@ def main() -> None:
                         keep_raw_traces=args.keep_raw_traces,
                     )
                 )
-                print(json.dumps(report.model_dump(mode="json"), indent=2))
+                payload = json.dumps(report.model_dump(mode="json"), indent=2)
+                if args.output:
+                    output_path = Path(args.output)
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                    output_path.write_text(payload + "\n", encoding="utf-8")
+                print(payload)
                 raise SystemExit(0 if report.passed else 1)
 
             if args.eval_mode == "agent":
@@ -337,8 +344,6 @@ def main() -> None:
                 report = evaluation.compare_model_reports(args.reports)
                 payload = json.dumps(report.model_dump(mode="json"), indent=2)
                 if args.output:
-                    from pathlib import Path
-
                     Path(args.output).write_text(payload, encoding="utf-8")
                 print(payload)
                 raise SystemExit(0 if report.comparable else 2)

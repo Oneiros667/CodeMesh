@@ -293,9 +293,13 @@ def test_context_package_includes_snippet_relationships_and_registry_metadata() 
     assert package.latest_run["run_id"] == "run:test"
     assert package.validation_recommendations == [
         {
-            "id": "dotnet-tests",
-            "command": "dotnet run --project tests/CodeMesh.Tests",
-            "reason": "Run after .NET parser, ingestion, storage, CLI, or contract changes.",
+            "id": "dotnet-build",
+            "command": "dotnet build",
+            "reason": (
+                "Build the indexed .NET repository from its root. Inspect "
+                "repository-owned workflow and test configuration before "
+                "claiming broader validation."
+            ),
             "applies_to": ["Downloader.cs"],
         }
     ]

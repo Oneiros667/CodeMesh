@@ -210,15 +210,18 @@ class CodeMeshReadStore:
                 include_context_relationships=False,
             )
         )
+        repository_summary = None
         repository = None
         latest_run = None
-        if query.include_repository and query.repository_id:
+        if query.repository_id:
             repository_summary = await self.get_repository(query.repository_id)
-            repository = (
-                repository_summary.model_dump(mode="json")
-                if repository_summary
-                else None
-            )
+            if query.include_repository:
+                repository = (
+                    repository_summary.model_dump(mode="json")
+                    if repository_summary
+                    else None
+                )
+        if query.include_repository and query.repository_id:
             runs = await self.list_ingestion_runs(
                 repository_id=query.repository_id, limit=1
             )
@@ -293,7 +296,9 @@ class CodeMeshReadStore:
             repository=repository,
             latest_run=latest_run,
             items=items,
-            validation_recommendations=_validation_recommendations(items),
+            validation_recommendations=_validation_recommendations(
+                items, repository_summary
+            ),
             total_snippet_characters=total_snippet_characters,
         )
 
@@ -1057,6 +1062,7 @@ def _refresh_changed(stats: dict[str, Any]) -> bool | None:
 
 def _validation_recommendations(
     items: list[ContextPackageItem],
+    repository: RepositorySummary | None = None,
 ) -> list[dict[str, Any]]:
     file_paths = sorted(
         {_normalized_file_path(item) for item in items if _normalized_file_path(item)},
@@ -1066,6 +1072,21 @@ def _validation_recommendations(
         return []
 
     recommendations: list[dict[str, Any]] = []
+    is_codemesh = repository is not None and repository.alias == "code_mesh"
+
+    if not is_codemesh:
+        if any(_is_dotnet_path(path) for path in file_paths):
+            recommendations.append(
+                _validation_command(
+                    "dotnet-build",
+                    "dotnet build",
+                    "Build the indexed .NET repository from its root. Inspect "
+                    "repository-owned workflow and test configuration before "
+                    "claiming broader validation.",
+                    file_paths,
+                )
+            )
+        return recommendations
 
     if any(_is_dotnet_path(path) for path in file_paths):
         recommendations.append(
@@ -1145,6 +1166,7 @@ def _validation_command(
 def _validation_applies(identifier: str, path: str) -> bool:
     return (
         (identifier == "dotnet-tests" and _is_dotnet_path(path))
+        or (identifier == "dotnet-build" and _is_dotnet_path(path))
         or (
             identifier in {"agent-access-tests", "agent-access-lint"}
             and _is_agent_access_path(path)
@@ -1169,7 +1191,7 @@ def _normalized_file_path(item: ContextPackageItem) -> str:
 
 def _is_dotnet_path(path: str) -> bool:
     lower = path.casefold()
-    return lower.endswith(".cs") or lower.endswith(".csproj") or lower.endswith(".sln")
+    return lower.endswith((".cs", ".csproj", ".sln", ".slnx"))
 
 
 def _is_agent_access_path(path: str) -> bool:

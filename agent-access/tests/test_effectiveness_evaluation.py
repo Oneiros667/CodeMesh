@@ -49,18 +49,28 @@ from codemesh_agent_access.evaluation.models import (
 
 def test_built_in_suites_and_schemas_are_valid() -> None:
     live, live_path = load_suite("codemesh-live", "live")
+    external_live, external_live_path = load_suite("youtube-downloader-live", "live")
     agent, agent_path = load_suite("codemesh-agent", "agent")
+    external_agent, external_agent_path = load_suite(
+        "youtube-downloader-agent", "agent"
+    )
     model, model_path = load_suite("codemesh-model", "model-benchmark")
 
     assert live.name == "codemesh-live"
     assert len(live.cases) >= 9
+    assert external_live.repository_id == "youtube_downloader"
+    assert external_live.repository_commit
     assert agent.name == "codemesh-agent"
     assert {task.task_type for task in agent.tasks} == {"answer", "change"}
+    assert len(external_agent.tasks) == 3
+    assert external_agent.repository_commit == external_live.repository_commit
     assert model.name == "codemesh-model"
     assert len(model.questions) == 24
     assert len(model.change_scenarios) == 9
     assert live_path.is_file()
+    assert external_live_path.is_file()
     assert agent_path.is_file()
+    assert external_agent_path.is_file()
     assert model_path.is_file()
     assert suite_json_schema("live")["title"] == "LiveSuite"
     assert suite_json_schema("agent")["title"] == "AgentSuite"
@@ -282,6 +292,29 @@ def test_answer_grading_validates_target_and_line_range(tmp_path: Path) -> None:
 
     assert _grade_answer(valid, [target], tmp_path) == []
     assert "outside the file" in _grade_answer(invalid, [target], tmp_path)[0]
+
+
+def test_answer_grading_preserves_hidden_and_absolute_paths(tmp_path: Path) -> None:
+    workflow = tmp_path / ".github" / "workflows" / "main.yml"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text("name: main\n", encoding="utf-8")
+    target = RetrievalTarget(file_path=".github/workflows/main.yml")
+
+    for file_path in [".github/workflows/main.yml", str(workflow.resolve())]:
+        answer = json.dumps(
+            {
+                "answer": "validation",
+                "citations": [
+                    {
+                        "file_path": file_path,
+                        "start_line": 1,
+                        "end_line": 1,
+                    }
+                ],
+            }
+        )
+
+        assert _grade_answer(answer, [target], tmp_path) == []
 
 
 def test_codex_arguments_only_enable_codemesh_for_treatment(tmp_path: Path) -> None:

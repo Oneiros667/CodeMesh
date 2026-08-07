@@ -69,6 +69,8 @@ class LiveSuite(BaseModel):
     name: str
     description: str = ""
     repository_id: str = "code_mesh"
+    repository_url: str | None = None
+    repository_commit: str | None = None
     cases: list[RetrievalCase]
     thresholds: LiveThresholds = Field(default_factory=LiveThresholds)
 
@@ -128,6 +130,8 @@ class AgentSuite(BaseModel):
     name: str
     description: str = ""
     repository_id: str = "code_mesh"
+    repository_url: str | None = None
+    repository_commit: str | None = None
     tasks: list[AgentTask]
     thresholds: AgentThresholds = Field(default_factory=AgentThresholds)
 
