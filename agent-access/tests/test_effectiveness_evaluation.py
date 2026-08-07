@@ -373,10 +373,13 @@ def test_codex_arguments_only_enable_codemesh_for_treatment(tmp_path: Path) -> N
     assert "mcp_servers={}" in control
     assert 'mcp_servers.codemesh.command="uv"' in treatment
     assert "mcp_servers.codemesh.required=true" in treatment
+    assert 'mcp_servers.codemesh.default_tools_approval_mode="approve"' in treatment
     assert any(
         value.startswith("mcp_servers.codemesh.enabled_tools=") for value in treatment
     )
     assert not any("codemesh_delete_repository" in value for value in treatment)
+    assert control[:3] == ["--ask-for-approval", "never", "exec"]
+    assert treatment[:3] == ["--ask-for-approval", "never", "exec"]
     assert "--ephemeral" in treatment
     assert "--ignore-user-config" in treatment
 
@@ -385,6 +388,7 @@ def test_codex_arguments_only_enable_codemesh_for_treatment(tmp_path: Path) -> N
         supports_ignore_user_config=False,
     )
     assert "--ignore-user-config" not in legacy
+    assert "--ask-for-approval" in legacy
 
     local = runner._arguments(
         AgentRunRequest(condition="control", local_provider="lmstudio", **common)

@@ -75,12 +75,7 @@ def test_mcp_manifest_matches_registered_tools() -> None:
         "uses_types",
     ]
     assert package_contract["response"]["output_formats"] == ["json", "agent"]
-    assert package_contract["response"]["agent_fields"] == [
-        "agent_text",
-        "item_count",
-        "total_snippet_characters",
-        "generated_at",
-    ]
+    assert package_contract["response"]["agent_content_type"] == "text"
 
     package_properties = registered_tools["codemesh_get_context_package"].inputSchema[
         "properties"
@@ -151,7 +146,7 @@ def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
     monkeypatch.setattr(mcp.tools, "get_context_package", fake_get_context_package)
 
     server = mcp.build_server()
-    _content, structured = asyncio.run(
+    result = asyncio.run(
         server.call_tool(
             "codemesh_get_context_package",
             {
@@ -172,6 +167,8 @@ def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
             },
         )
     )
+    content = result.content
+    structured = result.structuredContent
 
     assert captured["query"] == "EnqueueDownload"
     assert captured["repository_id"] == "repo:test"
@@ -186,12 +183,11 @@ def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
     assert captured["definition_limit"] == 1
     assert captured["uses_type_limit"] == 0
     assert captured["include_repository"] is False
-    assert structured["data"]["agent_text"].startswith("CodeMesh context package\n")
-    assert structured["data"]["item_count"] == 0
-    assert structured["data"]["total_snippet_characters"] == 0
-    assert "items" not in structured["data"]
-    assert "arguments" not in structured["data"]
-    assert len(json.dumps(structured)) < 2_000
+    assert structured is None
+    assert len(content) == 1
+    assert content[0].text.startswith("CodeMesh context package\n")
+    assert "oversized_internal_data" not in content[0].text
+    assert len(content[0].text) < 2_000
 
 
 def test_mcp_tool_guidance_ranks_task_workflows() -> None:

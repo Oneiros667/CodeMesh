@@ -139,6 +139,8 @@ class CodexRunner:
             else ["mcp_servers={}"]
         )
         arguments = [
+            "--ask-for-approval",
+            "never",
             "exec",
             "--ephemeral",
             "--json",
@@ -281,6 +283,7 @@ def _codemesh_mcp_config(cwd: Path) -> list[str]:
         f"{prefix}.args={json.dumps(['run', 'python', '-m', 'codemesh_agent_access', 'mcp'])}",
         f"{prefix}.cwd={json.dumps(str(cwd))}",
         f"{prefix}.required=true",
+        f"{prefix}.default_tools_approval_mode={json.dumps('approve')}",
         f"{prefix}.startup_timeout_sec=30",
         f"{prefix}.tool_timeout_sec=60",
         f"{prefix}.enabled_tools={json.dumps(enabled_tools)}",

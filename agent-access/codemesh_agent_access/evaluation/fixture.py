@@ -152,7 +152,7 @@ async def _evaluate_context_search(server: Any) -> None:
 
 
 async def _evaluate_context_package(server: Any) -> None:
-    _content, structured = await server.call_tool(
+    result = await server.call_tool(
         "codemesh_get_context_package",
         {
             "query": "refresh workflow",
@@ -161,6 +161,7 @@ async def _evaluate_context_package(server: Any) -> None:
             "max_characters": 5000,
         },
     )
+    structured = result.structuredContent
     data = structured["data"]
 
     assert data["items"], "Context package returned no items."
@@ -172,7 +173,7 @@ async def _evaluate_context_package(server: Any) -> None:
         "Package lacks validation recommendations."
     )
 
-    _content, structured = await server.call_tool(
+    result = await server.call_tool(
         "codemesh_get_context_package",
         {
             "query": "refresh workflow",
@@ -182,11 +183,13 @@ async def _evaluate_context_package(server: Any) -> None:
             "output_format": "agent",
         },
     )
-    data = structured["data"]
-    agent_text = data["agent_text"]
+    content = result.content
+    structured = result.structuredContent
+    assert structured is None, "Agent mode should not duplicate structured content."
+    assert len(content) == 1, "Agent mode should return one text content block."
+    agent_text = content[0].text
 
-    assert data["item_count"] == 1, "Compact agent response has the wrong item count."
-    assert "items" not in data, "Compact agent response duplicated structured items."
+    assert "Items: 1" in agent_text, "Agent text has the wrong item count."
     assert "Validation:" in agent_text, "Agent text omits validation guidance."
     assert "Stable key:" in agent_text, "Agent text omits stable keys."
     assert "Snippet:" in agent_text, "Agent text omits snippets."
@@ -210,7 +213,7 @@ async def _evaluate_repository_status(server: Any) -> None:
 
 
 async def _evaluate_secret_redaction(server: Any) -> None:
-    _content, structured = await server.call_tool(
+    result = await server.call_tool(
         "codemesh_get_context_package",
         {
             "query": "secret handling",
@@ -220,7 +223,9 @@ async def _evaluate_secret_redaction(server: Any) -> None:
             "output_format": "agent",
         },
     )
-    serialized = str(structured)
+    content = result.content
+    structured = result.structuredContent
+    serialized = str(structured) + "\n".join(item.text for item in content)
 
     assert "super-secret-token" not in serialized, "Fixture secret leaked."
     assert "[REDACTED]" in serialized, "Redaction marker is missing."

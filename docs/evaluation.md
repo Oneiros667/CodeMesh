@@ -234,7 +234,7 @@ that combination. The runner detects older builds that lack
 `--ignore-user-config` and gives local-provider runs a temporary isolated
 `CODEX_HOME`; it never reads the user's Codex configuration in that mode.
 
-Each control and treatment run receives the same task prompt, model, reasoning effort, sandbox, and isolated temporary clone. The control has an empty MCP server map. The treatment adds CodeMesh as a required stdio MCP server. The treatment prompt does not force MCP use, so the report can measure CodeMesh adoption as well as outcomes.
+Each control and treatment run receives the same task prompt, model, reasoning effort, sandbox, and isolated temporary clone. Both run non-interactively with `--ask-for-approval never`. The control has an empty MCP server map. The treatment adds CodeMesh as a required stdio MCP server and explicitly approves its allowlisted tools so non-interactive calls execute instead of being canceled at the client approval boundary. The treatment prompt does not force MCP use, so the report can measure CodeMesh adoption as well as outcomes.
 
 The treatment configuration allowlists CodeMesh read tools and does not expose repository deletion to the benchmark agent.
 
