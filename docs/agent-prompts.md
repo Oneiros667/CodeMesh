@@ -116,5 +116,7 @@ Likely tools:
 - Include the repository alias when known.
 - Ask for node ids, file paths, and line ranges.
 - Ask for context packages when implementation work is likely.
+- Start MCP agent packages with default limits, then verify returned file spans
+  through targeted, batched reads instead of repeating broad repository search.
 - Ask for freshness and recent ingestion runs before trusting context for edits.
 - Ask for relationships when call flow or ownership matters.

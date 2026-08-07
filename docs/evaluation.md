@@ -127,7 +127,8 @@ their outcomes do not rewrite the frozen baseline.
 If the spontaneous complex campaign has zero adoption, the separate
 `youtube-downloader-impact-assisted-agent` suite adds transparent treatment-only
 onboarding. It instructs the treatment to start with the context package and
-then verify source locally. The report records `adoption_mode = "assisted"` and
+then verify only the returned spans needed for citations through targeted,
+batched reads. The report records `adoption_mode = "assisted"` and
 `prompt_parity = false`; this measures utility after onboarding and cannot
 substitute for spontaneous-discovery evidence:
 

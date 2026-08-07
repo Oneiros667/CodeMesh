@@ -82,11 +82,19 @@ Current state:
   corrected, but regressed median elapsed time by 56.3% and tokens by 57.4%.
   Treatments requested a 30,000-character package and still ran 20 to 32 shell
   commands, so adoption and correctness did not establish efficiency or benefit.
+- After capping MCP agent briefs at 12,000 characters and focusing onboarding on
+  default limits plus targeted batched citation reads, the same three-pair suite
+  retained 100% adoption and task success and produced an `improved` verdict.
+  Median elapsed time fell 34.7%, median tokens fell 64.5%, and treatments used
+  2 to 4 shell commands versus 14 to 18 for controls. This is attributable
+  best-case utility evidence for one assisted task, not prompt-parity,
+  spontaneous-adoption, or cross-task generalization evidence.
 - No summary model is CodeMesh-qualified. Existing manual results are research
   evidence and generated summaries remain optional.
-- The immediate product gap is evidence that CodeMesh improves correctness,
-  elapsed time, token use, or correction loops on representative C# repository
-  tasks compared with normal repository exploration.
+- The immediate product gap is replication of the assisted efficiency result on
+  an independent representative C# task, followed by discoverability evidence
+  that normal agent-host onboarding can trigger the efficient workflow without
+  treatment-only instructions.
 
 Current priority judgment:
 
@@ -94,19 +102,20 @@ Current priority judgment:
    without generated summaries.
 2. Retain the spontaneous zero-adoption results without crediting run variance
    to CodeMesh.
-3. Run the separately labeled onboarding-assisted complex suite. Its explicit
-   treatment guidance breaks prompt parity by design and distinguishes utility
-   after onboarding from spontaneous discovery.
-4. If assisted use improves outcomes, focus next on discoverability and normal
-   agent-host onboarding. If it does not, use the actual MCP calls and returned
-   context to select the smallest utility improvement.
-5. Repeat the same frozen evaluations after each material tool-selection,
+3. Retain the focused onboarding-assisted complex result as first product-proof
+   evidence, with its one-task and prompt-parity limitations explicit.
+4. Replicate the same correctness-preserving efficiency outcome on an
+   independent representative C# task before generalizing the claim.
+5. If replication passes, focus next on discoverability and normal agent-host
+   onboarding so the efficient default-package plus targeted-read workflow does
+   not require treatment-only instructions.
+6. Repeat the same frozen evaluations after each material tool-selection,
    ranking, packaging, or relationship change. Correctness and safety win; time
    and token improvement count only when correctness is preserved.
-6. Implement the summary-model qualification runner only before summaries are
+7. Implement the summary-model qualification runner only before summaries are
    considered for default retrieval. Require factual, reliability, safety, and
    no-summary retrieval comparisons.
-7. Defer Kubernetes/Helm, additional parser breadth, outcome memory, UI
+8. Defer Kubernetes/Helm, additional parser breadth, outcome memory, UI
    expansion, portable snapshots, and broader SDLC ingestion until the initial
    C# agent workflow shows repeatable benefit.
 8. Keep secret-file exclusion and configurable allow/deny policy as a release
@@ -471,17 +480,17 @@ Useful agents need to follow local engineering process, not only compile code.
 ## Near-Term Recommended Order
 
 1. Keep the summary-free CodeMesh and pinned external C# live baselines green.
-2. Retain the three zero-adoption spontaneous campaigns; do not credit
-   unadopted run variance to CodeMesh.
-3. Run the onboarding-assisted complex suite to measure utility after explicit
-   tool introduction, keeping it separate from prompt-parity evidence.
-4. Use its actual calls and outcomes to decide between discoverability work and
-   a further retrieval or packaging improvement.
+2. Retain the spontaneous zero-adoption campaigns and the first regressed
+   assisted campaign as immutable diagnostics.
+3. Retain the focused assisted campaign as first attributable product-proof
+   evidence: equal correctness with 34.7% lower median time and 64.5% lower
+   median tokens on one complex task.
+4. Replicate the result on an independent representative C# task, then make the
+   efficient package-plus-targeted-read workflow discoverable without
+   treatment-only guidance.
 5. Re-run the same frozen live and agent baselines after any material change.
-6. Repeat until CodeMesh demonstrates a correctness improvement or a meaningful
-   time or token improvement without correctness, freshness, or safety
-   regression.
-7. Only then resume summary qualification, broader language/SDLC coverage,
+6. Only after replication and discoverability evidence resume summary
+   qualification, broader language/SDLC coverage,
    deployment expansion, UI work, portability, or experiential memory.
 
 This order moves CodeMesh from a credible technical system to a proven agent
