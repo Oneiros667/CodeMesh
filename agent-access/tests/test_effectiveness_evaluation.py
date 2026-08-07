@@ -11,6 +11,7 @@ import pytest
 from pydantic import ValidationError
 
 from codemesh_agent_access.evaluation.agent import (
+    _condition_prompt,
     _grade_answer,
     _grade_command_policy,
     _run_task_condition,
@@ -59,6 +60,9 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     impact_agent, impact_agent_path = load_suite(
         "youtube-downloader-impact-agent", "agent"
     )
+    assisted_agent, assisted_agent_path = load_suite(
+        "youtube-downloader-impact-assisted-agent", "agent"
+    )
     model, model_path = load_suite("codemesh-model", "model-benchmark")
 
     assert live.name == "codemesh-live"
@@ -73,6 +77,8 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert external_agent.repository_commit == external_live.repository_commit
     assert len(impact_agent.tasks) == 1
     assert impact_agent.repository_commit == external_live.repository_commit
+    assert assisted_agent.treatment_guidance
+    assert assisted_agent.repository_commit == external_live.repository_commit
     assert model.name == "codemesh-model"
     assert len(model.questions) == 24
     assert len(model.change_scenarios) == 9
@@ -82,6 +88,7 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert agent_path.is_file()
     assert external_agent_path.is_file()
     assert impact_agent_path.is_file()
+    assert assisted_agent_path.is_file()
     assert model_path.is_file()
     assert suite_json_schema("live")["title"] == "LiveSuite"
     assert suite_json_schema("agent")["title"] == "AgentSuite"
@@ -483,6 +490,15 @@ def test_agent_classifier_does_not_credit_unadopted_efficiency() -> None:
     assert summary["token_delta"] == -0.5
     assert summary["codemesh_duration_delta"] == 0
     assert summary["codemesh_token_delta"] == 0
+
+
+def test_assisted_treatment_guidance_does_not_change_control_prompt() -> None:
+    guidance = "Start with the indexed context package, then verify source."
+
+    assert _condition_prompt("task", "control", guidance) == "task"
+    assert _condition_prompt("task", "treatment", guidance) == (
+        "Start with the indexed context package, then verify source.\n\ntask"
+    )
 
 
 def test_command_policy_rejects_unsafe_commands() -> None:

@@ -131,6 +131,7 @@ async def run_agent_evaluation(
                     keep_workspaces=keep_workspaces,
                     runner=codex_runner,
                     artifact_dir=destination,
+                    treatment_guidance=suite.treatment_guidance,
                 )
                 runs.append(report)
 
@@ -159,6 +160,9 @@ async def run_agent_evaluation(
             "codemesh_source_branch": codemesh_source_branch,
             "codemesh_source_checkout_modified": False,
             "classification_requires_codemesh_adoption": True,
+            "adoption_mode": "assisted" if suite.treatment_guidance else "spontaneous",
+            "prompt_parity": suite.treatment_guidance is None,
+            "treatment_guidance": suite.treatment_guidance,
             "artifact_directory": str(destination.resolve()),
         },
         summary=summary,
@@ -187,6 +191,7 @@ async def _run_task_condition(
     runner: AgentRunner,
     artifact_dir: Path,
     mcp_config: tuple[str, ...] | None = None,
+    treatment_guidance: str | None = None,
 ) -> AgentExecutionReport:
     temp_parent = Path(tempfile.mkdtemp(prefix="codemesh-eval-"))
     workspace = temp_parent / "workspace"
@@ -269,7 +274,7 @@ async def _run_task_condition(
 
         result = await runner.run(
             AgentRunRequest(
-                prompt=task.prompt,
+                prompt=_condition_prompt(task.prompt, condition, treatment_guidance),
                 cwd=workspace,
                 condition=condition,
                 model=model,
@@ -484,6 +489,14 @@ def classify_agent_results(
         "codemesh_median_treatment_tokens": codemesh_treatment_tokens,
         "codemesh_token_delta": round(codemesh_token_delta, 6),
     }
+
+
+def _condition_prompt(
+    prompt: str, condition: str, treatment_guidance: str | None
+) -> str:
+    if condition != "treatment" or not treatment_guidance:
+        return prompt
+    return f"{treatment_guidance.strip()}\n\n{prompt}"
 
 
 def _grade_answer(message: str, targets: list[Any], workspace: Path) -> list[str]:

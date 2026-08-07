@@ -132,6 +132,7 @@ class AgentSuite(BaseModel):
     repository_id: str = "code_mesh"
     repository_url: str | None = None
     repository_commit: str | None = None
+    treatment_guidance: str | None = None
     tasks: list[AgentTask]
     thresholds: AgentThresholds = Field(default_factory=AgentThresholds)
 

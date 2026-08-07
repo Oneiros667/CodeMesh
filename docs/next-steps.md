@@ -50,6 +50,8 @@ Recent completed work:
 - Agent comparison reports retain overall timing and token medians but attribute
   correctness and efficiency only to matched pairs that actually called a
   CodeMesh tool.
+- Lexical task retrieval removes grammatical noise, prioritizes terms in symbol
+  and file names, and diversifies the pre-expansion candidate pool across files.
 
 Current state:
 
@@ -69,6 +71,12 @@ Current state:
   success but zero CodeMesh adoption, including after task-oriented MCP
   descriptions were made canonical across the server and stable manifest.
   Their overall timing and token variation cannot be attributed to CodeMesh.
+- The separate complex output-container live task improved from 50% to 100%
+  recall after the smallest measured ranking change, while the original external
+  and CodeMesh live suites remained fully green. Its three-repeat spontaneous
+  agent campaign also passed every pair but still made zero CodeMesh calls,
+  despite median runs consuming roughly 600,000 tokens. Complexity within this
+  two-project repository did not solve discovery.
 - No summary model is CodeMesh-qualified. Existing manual results are research
   evidence and generated summaries remain optional.
 - The immediate product gap is evidence that CodeMesh improves correctness,
@@ -79,22 +87,24 @@ Current priority judgment:
 
 1. Keep the clean CodeMesh and pinned YoutubeDownloader live baselines passing
    without generated summaries.
-2. Retain the repeated zero-adoption result without forcing tool use in the
-   treatment prompt. Add a separate, more complex but still representative
-   frozen task that exposes a natural selection boundary.
-3. Use the complex-task retrieval misses already observed around adding a new
-   output container to select the smallest ranking or packaging improvement,
-   then compare agent adoption and outcomes on that task.
-4. Repeat the same frozen evaluations after each material tool-selection,
+2. Retain the spontaneous zero-adoption results without crediting run variance
+   to CodeMesh.
+3. Run the separately labeled onboarding-assisted complex suite. Its explicit
+   treatment guidance breaks prompt parity by design and distinguishes utility
+   after onboarding from spontaneous discovery.
+4. If assisted use improves outcomes, focus next on discoverability and normal
+   agent-host onboarding. If it does not, use the actual MCP calls and returned
+   context to select the smallest utility improvement.
+5. Repeat the same frozen evaluations after each material tool-selection,
    ranking, packaging, or relationship change. Correctness and safety win; time
    and token improvement count only when correctness is preserved.
-5. Implement the summary-model qualification runner only before summaries are
+6. Implement the summary-model qualification runner only before summaries are
    considered for default retrieval. Require factual, reliability, safety, and
    no-summary retrieval comparisons.
-6. Defer Kubernetes/Helm, additional parser breadth, outcome memory, UI
+7. Defer Kubernetes/Helm, additional parser breadth, outcome memory, UI
    expansion, portable snapshots, and broader SDLC ingestion until the initial
    C# agent workflow shows repeatable benefit.
-7. Keep secret-file exclusion and configurable allow/deny policy as a release
+8. Keep secret-file exclusion and configurable allow/deny policy as a release
    gate before any future broad artifact ingestion.
 
 ## P0 - Technical MCP Baseline
@@ -456,13 +466,13 @@ Useful agents need to follow local engineering process, not only compile code.
 ## Near-Term Recommended Order
 
 1. Keep the summary-free CodeMesh and pinned external C# live baselines green.
-2. Retain the two zero-adoption external campaigns; do not force MCP use in the
-   task prompt or credit unadopted run variance to CodeMesh.
-3. Add one frozen representative task whose cross-project impact depth makes the
-   selection boundary measurable without naming CodeMesh.
-4. Improve only the smallest ranking or packaging limitation exposed by that
-   task, then compare adoption and outcomes.
-5. Re-run the same frozen baseline and retain comparable evidence.
+2. Retain the three zero-adoption spontaneous campaigns; do not credit
+   unadopted run variance to CodeMesh.
+3. Run the onboarding-assisted complex suite to measure utility after explicit
+   tool introduction, keeping it separate from prompt-parity evidence.
+4. Use its actual calls and outcomes to decide between discoverability work and
+   a further retrieval or packaging improvement.
+5. Re-run the same frozen live and agent baselines after any material change.
 6. Repeat until CodeMesh demonstrates a correctness improvement or a meaningful
    time or token improvement without correctness, freshness, or safety
    regression.

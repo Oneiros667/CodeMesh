@@ -107,6 +107,10 @@ the default three repetitions and does not alter the original frozen suite.
 Run `eval live --suite youtube-downloader-impact-live` first to retain its
 retrieval and relationship baseline.
 
+Use `--suite youtube-downloader-impact-assisted-agent` only after a spontaneous
+campaign records zero adoption. Its treatment-only onboarding deliberately
+breaks prompt parity and is reported as assisted utility evidence.
+
 After the live suite passes, run the opt-in model selection benchmark. Tier 1
 uses 72 executions per model and is the qualification gate before paired repair
 testing:

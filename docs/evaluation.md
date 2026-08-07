@@ -29,10 +29,12 @@ The current evidence position is deliberately conservative:
 - passing fixtures establish tool and response behavior, not agent usefulness;
 - the summary-free pinned YoutubeDownloader live suite passes its six retrieval,
   relationship, validation, and freshness cases;
-- two corrected three-repeat external agent campaigns passed all nine control
-  and treatment pairs, but neither treatment selected a CodeMesh tool. Even when
-  an overall time or token delta crosses the efficiency threshold, it is not
-  evidence of product benefit without adoption; and
+- two corrected three-task external campaigns and one separate complex-task
+  campaign passed every control and treatment pair, but no treatment selected a
+  CodeMesh tool. The complex runs consumed roughly 600,000 median tokens per
+  condition, so task depth in this two-project repository did not solve
+  discovery. Even when an overall time or token delta crosses the efficiency
+  threshold, it is not evidence of product benefit without adoption; and
 - no summary model is qualified, so the core product baseline must run without
   generated summaries.
 
@@ -121,6 +123,20 @@ uv run python -m codemesh_agent_access eval agent `
 
 Keep these suites separate from the original live and three-task agent suites so
 their outcomes do not rewrite the frozen baseline.
+
+If the spontaneous complex campaign has zero adoption, the separate
+`youtube-downloader-impact-assisted-agent` suite adds transparent treatment-only
+onboarding. It instructs the treatment to start with the context package and
+then verify source locally. The report records `adoption_mode = "assisted"` and
+`prompt_parity = false`; this measures utility after onboarding and cannot
+substitute for spontaneous-discovery evidence:
+
+```powershell
+uv run python -m codemesh_agent_access eval agent `
+  --suite youtube-downloader-impact-assisted-agent `
+  --repository-root ..\references\YoutubeDownloader `
+  --model <model-id>
+```
 
 ## Deterministic Fixture Suite
 
