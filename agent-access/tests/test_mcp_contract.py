@@ -75,6 +75,12 @@ def test_mcp_manifest_matches_registered_tools() -> None:
         "uses_types",
     ]
     assert package_contract["response"]["output_formats"] == ["json", "agent"]
+    assert package_contract["response"]["agent_fields"] == [
+        "agent_text",
+        "item_count",
+        "total_snippet_characters",
+        "generated_at",
+    ]
 
     package_properties = registered_tools["codemesh_get_context_package"].inputSchema[
         "properties"
@@ -132,7 +138,14 @@ def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
         captured["query"] = query
         captured.update(kwargs)
         return ToolResult(
-            data={"query": {"query": query}, "items": [], "arguments": kwargs}
+            data={
+                "query": {"query": query},
+                "items": [],
+                "arguments": kwargs,
+                "oversized_internal_data": "x" * 200_000,
+                "total_snippet_characters": 0,
+                "generated_at": "2026-08-07T00:00:00Z",
+            }
         )
 
     monkeypatch.setattr(mcp.tools, "get_context_package", fake_get_context_package)
@@ -173,8 +186,12 @@ def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
     assert captured["definition_limit"] == 1
     assert captured["uses_type_limit"] == 0
     assert captured["include_repository"] is False
-    assert structured["data"]["arguments"]["read_limit"] == 0
-    assert structured["agent_text"].startswith("CodeMesh context package\n")
+    assert structured["data"]["agent_text"].startswith("CodeMesh context package\n")
+    assert structured["data"]["item_count"] == 0
+    assert structured["data"]["total_snippet_characters"] == 0
+    assert "items" not in structured["data"]
+    assert "arguments" not in structured["data"]
+    assert len(json.dumps(structured)) < 2_000
 
 
 def test_mcp_tool_guidance_ranks_task_workflows() -> None:

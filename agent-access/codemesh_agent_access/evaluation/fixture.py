@@ -159,11 +159,9 @@ async def _evaluate_context_package(server: Any) -> None:
             "repository_id": "code_mesh",
             "limit": 2,
             "max_characters": 5000,
-            "output_format": "agent",
         },
     )
     data = structured["data"]
-    agent_text = structured["agent_text"]
 
     assert data["items"], "Context package returned no items."
     assert data["items"][0]["hit"]["content_hash"], "Package item lacks content hash."
@@ -173,6 +171,22 @@ async def _evaluate_context_package(server: Any) -> None:
     assert data["validation_recommendations"], (
         "Package lacks validation recommendations."
     )
+
+    _content, structured = await server.call_tool(
+        "codemesh_get_context_package",
+        {
+            "query": "refresh workflow",
+            "repository_id": "code_mesh",
+            "limit": 2,
+            "max_characters": 5000,
+            "output_format": "agent",
+        },
+    )
+    data = structured["data"]
+    agent_text = data["agent_text"]
+
+    assert data["item_count"] == 1, "Compact agent response has the wrong item count."
+    assert "items" not in data, "Compact agent response duplicated structured items."
     assert "Validation:" in agent_text, "Agent text omits validation guidance."
     assert "Stable key:" in agent_text, "Agent text omits stable keys."
     assert "Snippet:" in agent_text, "Agent text omits snippets."

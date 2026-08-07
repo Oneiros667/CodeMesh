@@ -225,6 +225,12 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
                 "generated_at",
             ],
             "output_formats": ["json", "agent"],
+            "agent_fields": [
+                "agent_text",
+                "item_count",
+                "total_snippet_characters",
+                "generated_at",
+            ],
         },
     },
     "codemesh_search_symbols": {
@@ -430,12 +436,24 @@ def build_server(
             uses_type_limit=uses_type_limit,
             include_repository=include_repository,
         )
-        payload = result.model_dump(mode="json")
         if output_format == "agent":
-            payload["agent_text"] = format_context_package_for_agent(
-                result.data, max_characters=max_characters
-            )
-        return payload
+            package = result.data
+            items = package.get("items")
+            return {
+                "ok": result.ok,
+                "data": {
+                    "agent_text": format_context_package_for_agent(
+                        package, max_characters=max_characters
+                    ),
+                    "item_count": len(items) if isinstance(items, list) else 0,
+                    "total_snippet_characters": package.get(
+                        "total_snippet_characters", 0
+                    ),
+                    "generated_at": package.get("generated_at"),
+                },
+                "error": result.error,
+            }
+        return result.model_dump(mode="json")
 
     @server.tool(description=_TOOL_CONTRACTS["codemesh_search_symbols"]["description"])
     async def codemesh_search_symbols(
