@@ -77,6 +77,11 @@ Current state:
   agent campaign also passed every pair but still made zero CodeMesh calls,
   despite median runs consuming roughly 600,000 tokens. Complexity within this
   two-project repository did not solve discovery.
+- The first valid onboarding-assisted complex campaign achieved 100% CodeMesh
+  adoption and 100% task success after the non-interactive MCP approval gate was
+  corrected, but regressed median elapsed time by 56.3% and tokens by 57.4%.
+  Treatments requested a 30,000-character package and still ran 20 to 32 shell
+  commands, so adoption and correctness did not establish efficiency or benefit.
 - No summary model is CodeMesh-qualified. Existing manual results are research
   evidence and generated summaries remain optional.
 - The immediate product gap is evidence that CodeMesh improves correctness,
@@ -255,7 +260,7 @@ Harden context packages for direct use in agent prompts.
 
 Current implementation:
 
-- MCP `output_format = "agent"` and CLI `--output agent` produce compact agent text; MCP agent mode returns one text content block without redundant structured serialization.
+- MCP `output_format = "agent"` and CLI `--output agent` produce compact agent text; MCP agent mode returns one text content block without redundant structured serialization and caps the brief at 12,000 characters.
 - Agent text now includes each item's file span, node id, stable key, repository id, content hash, score, rank, and rationale details.
 - Agent text applies the context package `max_characters` budget for MCP and CLI output and emits an explicit truncation marker when capped.
 - Snippets are emitted before relationship detail so the most directly actionable content is preserved first under tight budgets.

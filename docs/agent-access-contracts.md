@@ -185,7 +185,7 @@ Each package item includes:
 
 Validation recommendations currently cover the .NET harness, Agent Access Python tests/lint, deployment parser dry-runs, end-to-end smoke checks for Docker/service changes, and Markdown dry-runs.
 
-MCP `codemesh_get_context_package` also accepts `output_format = "agent"`. In that mode the tool returns the agent brief directly as one text content block and intentionally omits structured content, avoiding MCP's duplicate text-plus-structured serialization. The brief includes validation recommendations plus each item's file span, node id, stable key, repository id, content hash, score, rank, and rationale details. It uses the package `max_characters` budget and adds a truncation marker when capped. Use the default `json` format when a caller needs the complete structured package.
+MCP `codemesh_get_context_package` also accepts `output_format = "agent"`. In that mode the tool returns the agent brief directly as one text content block and intentionally omits structured content, avoiding MCP's duplicate text-plus-structured serialization. MCP agent output is capped at 12,000 characters even when a larger package budget is requested; the CLI continues to honor its explicit output budget. The brief includes validation recommendations plus each item's file span, node id, stable key, repository id, content hash, score, rank, and rationale details and adds a truncation marker when capped. Use the default `json` format when a caller needs the complete structured package.
 
 ## Symbols, Nodes, And Neighbors
 

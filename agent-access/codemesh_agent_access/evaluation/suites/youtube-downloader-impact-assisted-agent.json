@@ -6,7 +6,7 @@
   "repository_id": "youtube_downloader",
   "repository_url": "https://github.com/Tyrrrz/YoutubeDownloader.git",
   "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
-  "treatment_guidance": "This is an onboarding-assisted CodeMesh treatment. Start with codemesh_get_context_package using the full task and repository alias youtube_downloader before broad shell exploration. Use the returned snippets and relationships as a starting point, then verify every conclusion and citation against the checkout.",
+  "treatment_guidance": "This is an onboarding-assisted CodeMesh treatment. Start with codemesh_get_context_package using the full task, repository alias youtube_downloader, output_format agent, and default limits. Use its ranked file spans to make only targeted, batched checkout reads needed to verify citations. Do not repeat broad repository searches, inspect history, or inspect dependencies unless a required conclusion is absent from the package.",
   "thresholds": {
     "efficiency_delta": 0.10,
     "minimum_completed_pairs": 3

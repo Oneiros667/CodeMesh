@@ -76,6 +76,7 @@ def test_mcp_manifest_matches_registered_tools() -> None:
     ]
     assert package_contract["response"]["output_formats"] == ["json", "agent"]
     assert package_contract["response"]["agent_content_type"] == "text"
+    assert package_contract["response"]["agent_max_characters"] == 12000
 
     package_properties = registered_tools["codemesh_get_context_package"].inputSchema[
         "properties"
@@ -135,7 +136,21 @@ def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
         return ToolResult(
             data={
                 "query": {"query": query},
-                "items": [],
+                "items": [
+                    {
+                        "hit": {
+                            "node_id": "node:oversized",
+                            "stable_key": "method:Oversized",
+                            "kind": "Method",
+                            "file_path": "src/Oversized.cs",
+                            "start_line": 1,
+                            "end_line": 2,
+                            "score": 1.0,
+                        },
+                        "node": {"name": "Oversized"},
+                        "snippet": "x" * 50_000,
+                    }
+                ],
                 "arguments": kwargs,
                 "oversized_internal_data": "x" * 200_000,
                 "total_snippet_characters": 0,
@@ -164,6 +179,7 @@ def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
                 "uses_type_limit": 0,
                 "include_repository": False,
                 "output_format": "agent",
+                "max_characters": 20_000,
             },
         )
     )
@@ -187,7 +203,8 @@ def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
     assert len(content) == 1
     assert content[0].text.startswith("CodeMesh context package\n")
     assert "oversized_internal_data" not in content[0].text
-    assert len(content[0].text) < 2_000
+    assert len(content[0].text) <= 12_000
+    assert "[truncated to 12000 characters]" in content[0].text
 
 
 def test_mcp_tool_guidance_ranks_task_workflows() -> None:

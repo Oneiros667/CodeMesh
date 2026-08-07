@@ -27,6 +27,8 @@ _TOOL_NAMES = [
     "codemesh_list_ingestion_runs",
 ]
 
+_MAX_MCP_AGENT_CHARACTERS = 12000
+
 _SEARCH_CONTEXT_ARGUMENTS: dict[str, dict[str, Any]] = {
     "query": {"type": "string", "required": True},
     "repository_id": {
@@ -213,7 +215,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
         },
     },
     "codemesh_get_context_package": {
-        "description": "Start here for implementation discovery, likely change-impact analysis, or validation selection in an indexed repository. Returns ranked snippets, graph relationships, freshness metadata, and repository-scoped validation recommendations before broad shell exploration.",
+        "description": "Start here for implementation discovery, likely change-impact analysis, or validation selection in an indexed repository. Returns ranked snippets, graph relationships, freshness metadata, and repository-scoped validation recommendations. Agent format is capped at 12,000 characters; start with defaults, then verify returned file spans with targeted reads instead of duplicating broad repository exploration.",
         "arguments": _CONTEXT_PACKAGE_ARGUMENTS,
         "response": {
             "relationship_groups": list(_RELATIONSHIP_GROUPS),
@@ -228,6 +230,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
             ],
             "output_formats": ["json", "agent"],
             "agent_content_type": "text",
+            "agent_max_characters": _MAX_MCP_AGENT_CHARACTERS,
         },
     },
     "codemesh_search_symbols": {
@@ -436,7 +439,8 @@ def build_server(
         if output_format == "agent":
             text = (
                 format_context_package_for_agent(
-                    result.data, max_characters=max_characters
+                    result.data,
+                    max_characters=min(max_characters, _MAX_MCP_AGENT_CHARACTERS),
                 )
                 if result.ok
                 else result.error or "CodeMesh context package request failed."
