@@ -8,6 +8,28 @@ from .config import Settings
 
 AsyncGraphDatabase: Any | None = None
 _neo4j_import_attempted = False
+_LEXICAL_STOP_WORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "in",
+    "is",
+    "it",
+    "of",
+    "on",
+    "or",
+    "the",
+    "then",
+    "to",
+    "with",
+}
 
 
 class Neo4jGraphStore:
@@ -411,7 +433,13 @@ class Neo4jGraphStore:
 
 
 def lexical_terms(search_text: str) -> list[str]:
-    return list(dict.fromkeys(re.findall(r"[a-z0-9]+", search_text.casefold())))
+    return list(
+        dict.fromkeys(
+            term
+            for term in re.findall(r"[a-z0-9]+", search_text.casefold())
+            if term not in _LEXICAL_STOP_WORDS
+        )
+    )
 
 
 def _load_async_graph_database() -> Any | None:

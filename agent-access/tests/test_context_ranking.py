@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from codemesh_agent_access.config import Settings
+from codemesh_agent_access.graph_store import lexical_terms
 from codemesh_agent_access.models import (
     ContextHit,
     ContextPackageQuery,
@@ -14,6 +15,7 @@ from codemesh_agent_access.models import (
 )
 from codemesh_agent_access.store import (
     CodeMeshReadStore,
+    _diversify_lexical_nodes,
     _lexical_score,
     _prioritize_context_relationships,
     _ranked_unique_hits,
@@ -213,6 +215,56 @@ def test_lexical_score_ranks_multi_term_coverage() -> None:
     }
 
     assert _lexical_score(primary, query) > _lexical_score(partial, query)
+
+
+def test_lexical_score_prefers_terms_in_symbol_and_file_names() -> None:
+    query = "download multi settings"
+    explicit_boundary = {
+        "id": "csharp:type:YoutubeDownloader.DownloadMultipleSetupViewModel",
+        "stableKey": "csharp:type:YoutubeDownloader.DownloadMultipleSetupViewModel",
+        "name": "DownloadMultipleSetupViewModel",
+        "filePath": "YoutubeDownloader/DownloadMultipleSetupViewModel.cs",
+    }
+    incidental_signature = {
+        "id": "csharp:ctor:YoutubeDownloader.AuthSetupViewModel(SettingsService)",
+        "stableKey": "csharp:ctor:YoutubeDownloader.AuthSetupViewModel(SettingsService)",
+        "name": "AuthSetupViewModel",
+        "filePath": "YoutubeDownloader/AuthSetupViewModel.cs",
+    }
+
+    assert _lexical_score(explicit_boundary, query) > _lexical_score(
+        incidental_signature, query
+    )
+
+
+def test_lexical_terms_remove_grammatical_noise() -> None:
+    assert lexical_terms("trace the callers of a method and its writes") == [
+        "trace",
+        "callers",
+        "method",
+        "its",
+        "writes",
+    ]
+
+
+def test_lexical_candidates_cover_distinct_files_before_repeating() -> None:
+    nodes = [
+        {"id": "a-1", "filePath": "A.cs"},
+        {"id": "a-2", "filePath": "A.cs"},
+        {"id": "b-1", "filePath": "B.cs"},
+        {"id": "c-1", "filePath": "C.cs"},
+        {"id": "b-2", "filePath": "B.cs"},
+    ]
+
+    selected = _diversify_lexical_nodes(nodes, 5)
+
+    assert [node["id"] for node in selected] == [
+        "a-1",
+        "b-1",
+        "c-1",
+        "a-2",
+        "b-2",
+    ]
 
 
 def test_context_relationship_prioritization_prefers_agent_useful_edges() -> None:

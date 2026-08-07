@@ -743,11 +743,12 @@ class CodeMeshReadStore:
     async def _search_lexical_context(self, query: ContextQuery) -> list[ContextHit]:
         search_text = query.query.casefold()
         kinds = [kind.casefold() for kind in query.kinds]
-        limit = min(max(query.limit * 4, 16), 200)
+        candidate_limit = min(max(query.limit * 4, 16), 200)
+        raw_limit = min(max(query.limit * 16, 64), 500)
         repository_id = query.repository_id
 
         nodes = await self._graph.search_context_nodes(
-            search_text, kinds, repository_id, limit
+            search_text, kinds, repository_id, raw_limit
         )
         nodes = [
             node
@@ -756,9 +757,10 @@ class CodeMeshReadStore:
             and _matches_repository(node, query.repository_id)
         ]
         nodes.sort(key=lambda node: _lexical_score(node, search_text), reverse=True)
+        nodes = _diversify_lexical_nodes(nodes, candidate_limit)
 
         hits = []
-        for node in nodes[: _candidate_limit(query.limit)]:
+        for node in nodes:
             hits.append(
                 await self._build_context_hit(
                     node,
@@ -1533,6 +1535,32 @@ def _candidate_limit(limit: int) -> int:
     return min(max(limit * 8, 24), 120)
 
 
+def _diversify_lexical_nodes(
+    nodes: list[dict[str, Any]], limit: int
+) -> list[dict[str, Any]]:
+    if limit <= 0:
+        return []
+
+    buckets: dict[str, list[dict[str, Any]]] = {}
+    for node in nodes:
+        key = str(node.get("filePath") or node.get("id") or "")
+        buckets.setdefault(key, []).append(node)
+
+    selected: list[dict[str, Any]] = []
+    while len(selected) < limit:
+        added = False
+        for bucket in buckets.values():
+            if bucket:
+                selected.append(bucket.pop(0))
+                added = True
+            if len(selected) >= limit:
+                break
+        if not added:
+            break
+
+    return selected
+
+
 def _kind(node: dict[str, Any]) -> str:
     return str(node.get("kind") or "").casefold()
 
@@ -1720,7 +1748,18 @@ def _lexical_score(node: dict[str, Any], search_text: str) -> float:
         (sum(1 for term in terms if term in field) / len(terms) for field in fields),
         default=0.0,
     )
-    return min(0.95, 0.15 + (coverage * 0.65) + (best_field_coverage * 0.15))
+    file_name = fields[3].rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+    identifier_fields = [fields[2], file_name]
+    identifier_coverage = sum(
+        1 for term in terms if any(term in field for field in identifier_fields)
+    ) / len(terms)
+    return min(
+        0.95,
+        0.15
+        + (coverage * 0.55)
+        + (best_field_coverage * 0.10)
+        + (identifier_coverage * 0.25),
+    )
 
 
 def _symbol_score(node: dict[str, Any], search_text: str) -> float:
