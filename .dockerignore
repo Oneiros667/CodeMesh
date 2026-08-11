@@ -1,0 +1,10 @@
+**
+!CodeMesh.sln
+!NuGet.config
+!src/
+!src/CodeMesh.Domain/
+!src/CodeMesh.Domain/**
+!src/CodeMesh.Parser.CSharp/
+!src/CodeMesh.Parser.CSharp/**
+**/bin/
+**/obj/

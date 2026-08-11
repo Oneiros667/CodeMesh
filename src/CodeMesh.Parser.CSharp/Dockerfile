@@ -2,10 +2,11 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 COPY CodeMesh.sln ./
+COPY NuGet.config ./
 COPY src/CodeMesh.Domain/ ./src/CodeMesh.Domain/
 COPY src/CodeMesh.Parser.CSharp/ ./src/CodeMesh.Parser.CSharp/
 
-RUN dotnet restore src/CodeMesh.Parser.CSharp/CodeMesh.Parser.CSharp.csproj
+RUN dotnet restore src/CodeMesh.Parser.CSharp/CodeMesh.Parser.CSharp.csproj --locked-mode
 RUN dotnet publish src/CodeMesh.Parser.CSharp/CodeMesh.Parser.CSharp.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0

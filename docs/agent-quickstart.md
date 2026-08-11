@@ -46,10 +46,12 @@ that milestone.
 Run these after implementation changes unless the task is documentation-only:
 
 ```powershell
-dotnet run --project tests/CodeMesh.Tests
+dotnet restore CodeMesh.sln --locked-mode
+dotnet build CodeMesh.sln --no-restore
+dotnet run --project tests/CodeMesh.Tests --no-restore
 cd agent-access
-uv sync
-uv run pytest
+uv sync --locked
+uv run --no-sync pytest
 ```
 
 Use `.\scripts\e2e-smoke.ps1` when a change affects live store wiring, Docker services, ingestion cleanup, Agent Access REST behavior, or end-to-end repository lifecycle.

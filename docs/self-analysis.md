@@ -7,6 +7,8 @@ CodeMesh can be indexed and queried by its own Agent Access MCP service. This do
 Start stores and services:
 
 ```powershell
+Copy-Item .env.example .env
+# Set CODEMESH_NEO4J_AUTH=neo4j/<random-local-password> in .env first.
 docker compose up -d neo4j mongodb qdrant csharp-parser agent-access
 ```
 
@@ -95,7 +97,7 @@ The generated alias may differ. Use the value shown by `repos list`.
 ## Run MCP
 
 ```powershell
-cd D:\source\repos\CodeMesh\agent-access
+Set-Location agent-access
 uv run python -m codemesh_agent_access mcp
 ```
 

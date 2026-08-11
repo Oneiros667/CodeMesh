@@ -1,0 +1,94 @@
+name: Baseline verification
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Set up Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244 # v7.1.4
+        with:
+          version: "0.12.3"
+          enable-cache: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+
+      - name: Select checked commit range
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          EVENT_NAME: ${{ github.event_name }}
+          FORCED_PUSH: ${{ github.event.forced }}
+          HEAD_SHA: ${{ github.sha }}
+          PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            range="$PULL_REQUEST_BASE_SHA..$HEAD_SHA"
+          elif [[ "$FORCED_PUSH" == "true" ]]; then
+            range="$HEAD_SHA^!"
+          elif [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
+            range="$HEAD_SHA^!"
+          else
+            range="$BEFORE_SHA..$HEAD_SHA"
+          fi
+          echo "CHECK_RANGE=$range" >> "$GITHUB_ENV"
+
+      - name: Restore .NET dependencies from lock files
+        run: dotnet restore CodeMesh.sln --locked-mode
+
+      - name: Build .NET solution
+        run: dotnet build CodeMesh.sln --no-restore
+
+      - name: Run .NET tests
+        run: dotnet run --project tests/CodeMesh.Tests --no-restore
+
+      - name: Check .NET formatting
+        run: dotnet format CodeMesh.sln --verify-no-changes --no-restore
+
+      - name: Restore locked Python environment
+        working-directory: agent-access
+        run: uv sync --locked
+
+      - name: Run Python tests and deterministic evaluation
+        working-directory: agent-access
+        run: |
+          uv run --no-sync pytest
+          uv run --no-sync ruff check . ../tools
+          uv run --no-sync ruff format --check . ../tools
+          uv run --no-sync python -m codemesh_agent_access eval
+
+      - name: Check repository standards
+        run: |
+          git diff --check "$CHECK_RANGE"
+          npx --yes markdownlint-cli2@0.23.1 "**/*.md"
+          python tools/check_markdown_links.py
+          python tools/check_publication_safety.py
+          python tools/check_conventional_commit.py --range "$CHECK_RANGE"

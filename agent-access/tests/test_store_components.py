@@ -110,8 +110,7 @@ def test_qdrant_filter_maps_exact_payload_matches() -> None:
 
 def test_repository_alias_splits_paths_and_camel_case() -> None:
     assert (
-        repository_alias("D:/source/repos/YoutubeDownloader")
-        == "d_source_repos_youtube_downloader"
+        repository_alias("/fixtures/YoutubeDownloader") == "fixtures_youtube_downloader"
     )
     assert repository_alias("YoutubeDownloader") == "youtube_downloader"
     assert repository_alias("") == "repository"

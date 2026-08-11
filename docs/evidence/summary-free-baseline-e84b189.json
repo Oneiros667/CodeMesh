@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "evidence_kind": "sanitized-summary-free-baseline",
+  "generated_at": "2026-08-11",
+  "codemesh_commit": "e84b18915aca60813695f526cbb7159675a67525",
+  "rewritten_public_history_equivalent": "a57566935cfe33a1b847aa3edd082b234874ce39",
+  "source_reports_generated_at": "2026-08-07",
+  "provider": "none",
+  "embeddings": false,
+  "summaries": false,
+  "raw_traces_included": false,
+  "source_snippets_included": false,
+  "suites": [
+    {
+      "name": "codemesh-live",
+      "repository_commit": "e84b18915aca60813695f526cbb7159675a67525",
+      "comparable": true,
+      "passed": true,
+      "case_count": 10,
+      "tool_call_count": 30,
+      "tool_success_rate": 1.0,
+      "mean_recall_at_k": 1.0,
+      "mean_mrr": 1.0,
+      "mean_ndcg_at_k": 1.0,
+      "secret_leaks": 0
+    },
+    {
+      "name": "youtube-downloader-live",
+      "repository_url": "https://github.com/Tyrrrz/YoutubeDownloader.git",
+      "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+      "repository_license": "MIT",
+      "comparable": true,
+      "passed": true,
+      "case_count": 6,
+      "tool_call_count": 18,
+      "tool_success_rate": 1.0,
+      "mean_recall_at_k": 1.0,
+      "mean_mrr": 0.866667,
+      "mean_ndcg_at_k": 0.9,
+      "secret_leaks": 0
+    },
+    {
+      "name": "youtube-downloader-impact-live",
+      "repository_url": "https://github.com/Tyrrrz/YoutubeDownloader.git",
+      "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+      "repository_license": "MIT",
+      "comparable": true,
+      "passed": true,
+      "case_count": 2,
+      "tool_call_count": 6,
+      "tool_success_rate": 1.0,
+      "mean_recall_at_k": 1.0,
+      "mean_mrr": 1.0,
+      "mean_ndcg_at_k": 0.812962,
+      "secret_leaks": 0
+    }
+  ],
+  "limitations": [
+    "This manifest is a sanitized transcription of ignored local reports, not a hosted artifact attestation.",
+    "The CodeMesh evidence commit predates a path-only public-history rewrite; rewritten_public_history_equivalent identifies the corresponding public commit.",
+    "The live suites establish retrieval and MCP behavior for pinned repositories; they do not establish generalized agent benefit.",
+    "The current uncommitted publication diff is newer than the indexed CodeMesh commit and requires fresh validation before new retrieval claims."
+  ],
+  "reproduction": [
+    "docker compose up -d neo4j mongodb qdrant csharp-parser",
+    "dotnet run --project src/CodeMesh.Cli -- self ingest --skip-embeddings",
+    "cd agent-access && CODEMESH_MODEL_PROVIDER=none uv run python -m codemesh_agent_access eval live"
+  ]
+}

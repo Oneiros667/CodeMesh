@@ -1,0 +1,7 @@
+**
+!pyproject.toml
+!uv.lock
+!codemesh_agent_access/
+!codemesh_agent_access/**
+**/__pycache__/
+**/*.pyc

@@ -118,7 +118,7 @@ Current priority judgment:
 8. Defer Kubernetes/Helm, additional parser breadth, outcome memory, UI
    expansion, portable snapshots, and broader SDLC ingestion until the initial
    C# agent workflow shows repeatable benefit.
-8. Keep secret-file exclusion and configurable allow/deny policy as a release
+9. Keep secret-file exclusion and configurable allow/deny policy as a release
    gate before any future broad artifact ingestion.
 
 ## P0 - Technical MCP Baseline
@@ -140,7 +140,8 @@ Current implementation:
 Expected outcome:
 
 - A repeatable `codemesh self ingest` or equivalent documented command.
-- Defaults for `D:\source\repos\CodeMesh` and `CodeMesh.sln` when run from the repository root.
+- Automatic discovery of the repository root and `CodeMesh.sln` when run from
+  anywhere inside the checkout.
 - Clear support for dry-run, no-embedding, embedding, and summary modes.
 - A smoke check that verifies CodeMesh appears in `repos list` and can answer at least one Agent Access context query.
 

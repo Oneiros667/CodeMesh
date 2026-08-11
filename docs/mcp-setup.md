@@ -14,6 +14,8 @@ CodeMesh Agent Access can run as an MCP server so AI agents can query indexed re
 From the repository root:
 
 ```powershell
+Copy-Item .env.example .env
+# Set CODEMESH_NEO4J_AUTH=neo4j/<random-local-password> in .env first.
 docker compose up -d neo4j mongodb qdrant csharp-parser agent-access
 ```
 
@@ -39,12 +41,14 @@ After the first ingestion, refresh the current repository during normal developm
 dotnet run --project src/CodeMesh.Cli -- refresh --skip-embeddings
 ```
 
-For the configured sample:
+For an optional external sample, use paths from the current machine:
 
 ```powershell
+$repositoryRoot = "C:\path\to\sample-repository"
+$solutionPath = Join-Path $repositoryRoot "Sample.sln"
 dotnet run --project src/CodeMesh.Cli -- ingest `
-  --root D:\source\repos\YoutubeDownloader `
-  --solution D:\source\repos\YoutubeDownloader\YoutubeDownloader.slnx `
+  --root $repositoryRoot `
+  --solution $solutionPath `
   --skip-embeddings
 ```
 
@@ -66,7 +70,7 @@ dotnet run --project src/CodeMesh.Cli -- self smoke --skip-embeddings
 Use the Python package from `agent-access`:
 
 ```powershell
-cd D:\source\repos\CodeMesh\agent-access
+Set-Location agent-access
 uv run python -m codemesh_agent_access mcp
 ```
 
@@ -83,7 +87,7 @@ For an MCP client that accepts a command plus arguments, configure the server as
     "codemesh_agent_access",
     "mcp"
   ],
-  "cwd": "D:\\source\\repos\\CodeMesh\\agent-access"
+  "cwd": "/absolute/path/to/CodeMesh/agent-access"
 }
 ```
 
@@ -101,7 +105,7 @@ For clients that expect a `mcpServers` object, use:
         "codemesh_agent_access",
         "mcp"
       ],
-      "cwd": "D:\\source\\repos\\CodeMesh\\agent-access"
+      "cwd": "/absolute/path/to/CodeMesh/agent-access"
     }
   }
 }
@@ -117,7 +121,7 @@ If the client does not support `cwd`, wrap the command in PowerShell:
     "-ExecutionPolicy",
     "Bypass",
     "-Command",
-    "Set-Location 'D:\\source\\repos\\CodeMesh\\agent-access'; uv run python -m codemesh_agent_access mcp"
+    "Set-Location 'C:\\path\\to\\CodeMesh\\agent-access'; uv run python -m codemesh_agent_access mcp"
   ]
 }
 ```

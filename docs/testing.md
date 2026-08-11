@@ -2,19 +2,27 @@
 
 Use this guide to choose the right verification path after CodeMesh changes.
 
-## Default Test Commands
+## Default Verification Commands
 
 From the repository root:
 
 ```powershell
-dotnet run --project tests/CodeMesh.Tests
+dotnet restore CodeMesh.sln --locked-mode
+dotnet build CodeMesh.sln --no-restore
+dotnet run --project tests/CodeMesh.Tests --no-restore
+dotnet format CodeMesh.sln --verify-no-changes --no-restore
 ```
+
+Run these .NET commands serially because projects share intermediate output
+directories.
 
 From `agent-access`:
 
 ```powershell
-uv sync
-uv run pytest
+uv sync --locked
+uv run --no-sync pytest
+uv run --no-sync ruff check . ../tools
+uv run --no-sync ruff format --check . ../tools
 ```
 
 Run both after most implementation changes.
@@ -51,14 +59,14 @@ The Python tests under `agent-access/tests` cover:
 Use these tests when changing `agent-access/codemesh_agent_access`.
 
 The Agent Access development dependency group includes `pytest` and `ruff`, so
-`uv sync` is sufficient for a clean checkout. No global Python test or lint
-packages are required.
+`uv sync --locked` is sufficient for a clean checkout and rejects lock drift.
+No global Python test or lint packages are required.
 
 Run lint and formatting checks after Python changes:
 
 ```powershell
-uv run ruff check .
-uv run ruff format --check .
+uv run --no-sync ruff check .
+uv run --no-sync ruff format --check .
 ```
 
 Run the deterministic MCP evaluation suite directly when changing tool guidance,
@@ -66,7 +74,7 @@ context search, context packages, freshness, or redaction behavior:
 
 ```powershell
 cd agent-access
-uv run python -m codemesh_agent_access eval
+uv run --no-sync python -m codemesh_agent_access eval
 ```
 
 The current evaluation suite uses an in-process fixture store, so it does not
@@ -143,7 +151,32 @@ Common variants:
 
 ## Documentation-Only Changes
 
-Tests are usually not required for documentation-only changes. Still check formatting manually and make sure links point to existing files.
+Tests are usually not required for documentation-only changes. Run:
+
+```powershell
+npx --yes markdownlint-cli2@0.23.1 "**/*.md"
+python tools/check_markdown_links.py
+python tools/check_publication_safety.py
+git diff --check
+```
+
+The link and publication-safety checks are local-only and do not print secret
+values.
+
+## Dependency Advisory Checks
+
+Before publication or a dependency update, query the current NuGet and OSV
+advisory data:
+
+```powershell
+dotnet list CodeMesh.sln package --vulnerable --include-transitive
+Set-Location agent-access
+uv audit --locked
+```
+
+These checks use external advisory services and can become unavailable or
+change as advisories are published. Record the date and do not place them in the
+deterministic baseline workflow.
 
 ## Interpreting Results
 

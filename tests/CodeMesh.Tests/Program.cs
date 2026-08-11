@@ -3469,10 +3469,18 @@ static async Task TestPythonParserParsesAgentAccessProject()
 
 static async Task TestYoutubeDownloaderSampleParser()
 {
-    var sampleRoot = Environment.GetEnvironmentVariable("CODEMESH_SAMPLE_CSHARP_ROOT")
-        ?? @"D:\source\repos\YoutubeDownloader";
-    var solutionPath = Environment.GetEnvironmentVariable("CODEMESH_SAMPLE_CSHARP_SOLUTION")
-        ?? Path.Combine(sampleRoot, "YoutubeDownloader.slnx");
+    var sampleRoot = Environment.GetEnvironmentVariable("CODEMESH_SAMPLE_CSHARP_ROOT");
+    if (string.IsNullOrWhiteSpace(sampleRoot))
+    {
+        throw new SkipTestException(
+            "CODEMESH_SAMPLE_CSHARP_ROOT is not configured; synthetic parser tests still run.");
+    }
+
+    var solutionPath = Environment.GetEnvironmentVariable("CODEMESH_SAMPLE_CSHARP_SOLUTION");
+    if (string.IsNullOrWhiteSpace(solutionPath))
+    {
+        solutionPath = Path.Combine(sampleRoot, "YoutubeDownloader.slnx");
+    }
 
     if (!Directory.Exists(sampleRoot))
     {

@@ -235,7 +235,7 @@ class FixtureEvaluationStore:
     repository = RepositorySummary(
         repository_id="repo:codemesh",
         alias="code_mesh",
-        root_path="D:/source/repos/CodeMesh",
+        root_path="/fixtures/CodeMesh",
         branch="main",
         commit="old-indexed-commit",
         last_run_id="run:codemesh-eval",
@@ -249,7 +249,7 @@ class FixtureEvaluationStore:
     latest_run = IngestionRunSummary(
         run_id="run:codemesh-eval",
         repository_id="repo:codemesh",
-        repository_root="D:/source/repos/CodeMesh",
+        repository_root="/fixtures/CodeMesh",
         stage="Completed",
         language="csharp",
         parser_name="CodeMesh.Parser.CSharp",
