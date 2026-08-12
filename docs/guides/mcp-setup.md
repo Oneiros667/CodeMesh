@@ -34,6 +34,7 @@ Invoke-RestMethod http://127.0.0.1:8088/health
 For CodeMesh itself:
 
 ```powershell
+dotnet restore CodeMesh.sln --locked-mode
 dotnet run --project src/CodeMesh.Cli -- self ingest --skip-embeddings
 ```
 

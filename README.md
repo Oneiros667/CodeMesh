@@ -63,6 +63,7 @@ it needs no external sample repository or model provider.
 
    ```powershell
    docker compose up -d neo4j mongodb qdrant csharp-parser agent-access
+   dotnet restore CodeMesh.sln --locked-mode
    dotnet run --project src/CodeMesh.Cli -- self ingest --skip-embeddings
    ```
 

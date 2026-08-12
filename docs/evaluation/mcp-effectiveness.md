@@ -224,6 +224,7 @@ Start the stores, ingest a clean CodeMesh checkout, and confirm that repository 
 
 ```powershell
 docker compose up -d neo4j mongodb qdrant csharp-parser
+dotnet restore CodeMesh.sln --locked-mode
 dotnet run --project src/CodeMesh.Cli -- self ingest --skip-embeddings
 cd agent-access
 uv run python -m codemesh_agent_access eval live

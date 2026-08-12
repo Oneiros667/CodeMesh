@@ -14,10 +14,12 @@ Copy-Item .env.example .env
 docker compose up -d neo4j mongodb qdrant csharp-parser agent-access
 ```
 
-Ingest the repository without embeddings or summaries. This is the core
-product-proof baseline:
+Restore the locked solution before ingestion so Roslyn has complete project
+assets for semantic resolution, then ingest without embeddings or summaries.
+This is the core product-proof baseline:
 
 ```powershell
+dotnet restore CodeMesh.sln --locked-mode
 dotnet run --project src/CodeMesh.Cli -- self ingest --skip-embeddings
 ```
 

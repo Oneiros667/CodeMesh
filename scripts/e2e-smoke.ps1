@@ -106,6 +106,24 @@ public sealed class Downloader
     }
 }
 "@ | Set-Content -LiteralPath (Join-Path $fixtureRoot "Downloader.cs") -Encoding UTF8
+
+    & git -C $fixtureRoot init --quiet --initial-branch main
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to initialize the smoke fixture Git repository."
+    }
+
+    & git -C $fixtureRoot add CodeMeshSmokeFixture.csproj Downloader.cs
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to stage the smoke fixture source files."
+    }
+
+    & git -C $fixtureRoot `
+        -c user.name="CodeMesh Smoke" `
+        -c user.email="codemesh-smoke@example.invalid" `
+        commit --quiet -m "test: initialize smoke fixture"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to commit the smoke fixture source files."
+    }
 }
 
 function Remove-GeneratedFixture {
@@ -237,6 +255,12 @@ if (!$SkipCompose) {
 Write-Step "Waiting for Agent Access"
 Wait-Http "$AgentAccessUrl/health"
 
+$existingRepositoryIds = @()
+if ($generatedFixture) {
+    $repositoriesBeforeIngest = Invoke-RestMethod -Uri "$AgentAccessUrl/repositories" -Method Get -TimeoutSec 15
+    $existingRepositoryIds = @($repositoriesBeforeIngest.repositories) | ForEach-Object { $_.repository_id }
+}
+
 Write-Step "Ingesting smoke repository"
 $ingestArgs = @(
     "run",
@@ -307,6 +331,9 @@ $ingest = Invoke-JsonCommand $ingestArgs
 $repositoryId = $ingest.Repository.Id
 if ([string]::IsNullOrWhiteSpace($repositoryId)) {
     throw "Ingestion did not return a repository id."
+}
+if ($generatedFixture -and $repositoryId -in $existingRepositoryIds) {
+    throw "Generated smoke fixture resolved to existing repository $repositoryId; refusing to continue to cleanup."
 }
 
 Write-Host "Repository: $repositoryId"
