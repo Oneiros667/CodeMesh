@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "evidence_kind": "sanitized-prompt-parity-agent-campaign",
+  "generated_at": "2026-08-12",
+  "codemesh_commit": "647d83d6d356e3ee4e0b18436e7defd502cdfc2e",
+  "provider": "default",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "medium",
+  "raw_traces_included": false,
+  "source_snippets_included": false,
+  "repository": {
+    "url": "https://github.com/aloneguid/config.git",
+    "commit": "ae0af7d4b3781c66233bbb677b6e11df1f5b416b",
+    "license": "MIT"
+  },
+  "live_gate": {
+    "suite": "config-net-cache-live",
+    "comparable": true,
+    "passed": true,
+    "case_count": 6,
+    "tool_call_count": 18,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 1.0,
+    "mean_ndcg_at_k": 0.93483,
+    "secret_leaks": 0
+  },
+  "agent_campaign": {
+    "suite": "config-net-cache-agent",
+    "adoption_mode": "spontaneous",
+    "prompt_parity": true,
+    "repetitions": 3,
+    "completed_pair_count": 3,
+    "verdict": "regressed",
+    "passed": false,
+    "treatment_wins": 0,
+    "codemesh_attributable_wins": 0,
+    "treatment_regressions": 1,
+    "treatment_safety_violations": 0,
+    "harness_failure_count": 0,
+    "control_success_rate": 0.666667,
+    "treatment_success_rate": 0.333333,
+    "codemesh_adoption_rate": 0.0,
+    "codemesh_adopted_pair_count": 0,
+    "codemesh_efficiency_pair_count": 0,
+    "median_control_duration_ms": 176796.424,
+    "median_treatment_duration_ms": 246619.561,
+    "duration_delta": 0.394935,
+    "median_control_tokens": 430470.0,
+    "median_treatment_tokens": 456040.0,
+    "token_delta": 0.0594
+  },
+  "limitations": [
+    "This manifest is a sanitized transcription of ignored local reports, not a hosted artifact attestation.",
+    "No treatment run called or attempted a CodeMesh MCP tool, so timing and token differences are diagnostic and are not attributable to CodeMesh.",
+    "The regressed verdict records the matched outcome but does not establish that CodeMesh utility regressed because adoption was zero.",
+    "The required MCP configuration completed without a harness failure, but retained evidence does not expose the exact base instructions and tool schemas presented to the model.",
+    "The campaign covers one task in one independent repository and does not establish broad generalization.",
+    "Raw model traces, final messages, and source snippets are intentionally excluded."
+  ]
+}

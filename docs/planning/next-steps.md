@@ -27,18 +27,23 @@ so.
 1. Keep the clean CodeMesh and pinned YoutubeDownloader summary-free live
    baselines passing after material retrieval, packaging, relationship, or MCP
    changes.
-2. Preserve the spontaneous zero-adoption campaigns as negative evidence;
-   never attribute their overall timing or token variance to CodeMesh.
+2. Preserve the spontaneous YoutubeDownloader and prompt-parity Config.Net
+   zero-adoption campaigns as negative evidence; never attribute their overall
+   timing or token variance to CodeMesh.
 3. Preserve the focused YoutubeDownloader and independent Config.Net assisted
    campaigns as replicated utility-after-onboarding evidence, with their
    prompt-parity and task-family limitations explicit.
-4. Run the frozen prompt-parity `config-net-cache-agent` suite to evaluate
-   whether a normal host consumes CodeMesh's canonical MCP initialization
-   instructions. This is model-cost-bearing and requires explicit
-   authorization, clean committed checkouts, and a fresh matching index.
-5. Repeat the same frozen live and agent evaluations after each material
-   tool-selection, ranking, packaging, or relationship change. Correctness and
-   safety win; efficiency counts only for adopted matched pairs.
+4. Resolve the normal-host product contract after the frozen prompt-parity
+   `config-net-cache-agent` suite made zero CodeMesh calls or call attempts.
+   Choose either a bounded spontaneous-discovery experiment using an actual
+   product-default tool surface, or explicit onboarding as a supported product
+   requirement. Keep the frozen task prompt, grading, and targets intact; do
+   not create an evaluator-only tool-selection advantage.
+5. Repeat the same frozen live and prompt-parity agent evaluations after each
+   material tool-selection, ranking, packaging, or relationship change.
+   Correctness and safety win; efficiency counts only for adopted matched pairs.
+   Agent runs are model-cost-bearing and require explicit authorization, clean
+   committed checkouts, and a fresh matching index.
 6. Implement the summary-model qualification runner only before summaries are
    considered for default retrieval. Require factual, reliability, safety, and
    no-summary retrieval comparisons.
@@ -70,7 +75,7 @@ execution order above.
 | Markdown parser | Partial | Add links from docs to commands, endpoints, projects, and source when justified. | [Architecture](../current/architecture.md) |
 | Context packages | Implemented baseline | Maintain compact agent output, citations, rationale, and budget behavior. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Local web inspection | Implemented initial slice | Expand only when it serves a measured agent or audit need. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Tool guidance and onboarding | Implemented; evidence active | Establish prompt-parity normal-host discovery through the frozen Config.Net suite. | [Evaluation](../evaluation/mcp-effectiveness.md) |
+| Tool guidance and onboarding | Implemented; zero-adoption evidence active | Diagnose host presentation and establish prompt-parity normal-host discovery through the frozen Config.Net suite. | [Evaluation](../evaluation/mcp-effectiveness.md) |
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |

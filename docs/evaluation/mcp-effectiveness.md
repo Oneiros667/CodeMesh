@@ -34,13 +34,21 @@ The evidence position is summarized in [Project Status](../current/project-statu
   so their overall efficiency variance is not attributable to CodeMesh;
 - two assisted campaigns show utility after explicit onboarding, including an
   independent Config.Net replication, but do not prove prompt-parity discovery;
-  and
+- the independent prompt-parity Config.Net campaign completed three pairs but
+  recorded zero CodeMesh calls or call attempts, so it is negative
+  discoverability evidence and its overall efficiency variance is not
+  attributable to CodeMesh; and
 - no summary model is qualified, so the core baseline remains summary-free.
 
-The current product-proof campaign uses the frozen `config-net-cache-agent`
-suite to test whether a normal host consumes CodeMesh's canonical MCP
-initialization instructions without treatment-only guidance. It preserves the
-same independent task and grading targets used by the assisted replication.
+The current product-proof work diagnoses why the evaluated normal host did not
+consume CodeMesh in the frozen `config-net-cache-agent` campaign. Preserve the
+same independent task, prompt, grading targets, and no-guidance treatment while
+checking whether the host presents the server instructions and tool contracts.
+The required MCP configuration completed without a harness failure, while the
+retained report recorded no MCP call attempts. The current Codex prompt-input
+diagnostic exposes conversation input but not the separate base instructions
+and tool schemas, so it cannot independently attest the complete selection
+context. Do not classify this as a transport defect without stronger evidence.
 
 Reports must compare correctness, safety, freshness, citations, elapsed time,
 tokens, tool calls, adoption, and correction loops. A tied-correctness result is
@@ -206,6 +214,22 @@ This campaign is model-cost-bearing. Run it only with explicit authorization
 from a clean, committed, freshly indexed CodeMesh checkout. Unit tests that
 confirm instructions are published do not prove that a normal host presents or
 acts on them.
+
+The first comparable prompt-parity campaign at clean CodeMesh commit `647d83d`
+completed all three pairs but recorded no CodeMesh calls or call attempts.
+Control passed two runs and treatment passed one, with no safety violations.
+The harness verdict was `regressed`; because adoption was zero, the overall
+39.5% duration and 5.9% token regressions are diagnostic and are not attributed
+to CodeMesh. Preserve this as negative discoverability evidence. The sanitized
+transcription is
+[`docs/evaluation/evidence/config-net-prompt-parity-647d83d.json`](evidence/config-net-prompt-parity-647d83d.json).
+
+Before another paid run, resolve whether spontaneous MCP-only adoption remains
+a product requirement. If it does, test only a bounded CodeMesh-controlled
+default tool surface that would ship to normal users; do not narrow tools only
+inside the evaluator. If explicit onboarding becomes part of the supported
+contract, classify that evidence as assisted and retain the prompt-parity
+failure separately.
 
 ## Deterministic Fixture Suite
 

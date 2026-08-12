@@ -4,7 +4,7 @@ Document type: current status snapshot
 
 Reviewed: 2026-08-12
 
-Source baseline: `cc234c8` before this documentation-path reorganization.
+Source baseline: `647d83d`.
 
 This document records current implementation and retained evidence. It does not
 set execution order; use
@@ -83,18 +83,50 @@ prompt-parity discoverability, spontaneous adoption, or broad generalization.
 The Config.Net transcription is
 [`docs/evaluation/evidence/config-net-assisted-replication-d764270.json`](../evaluation/evidence/config-net-assisted-replication-d764270.json).
 
+### Prompt-parity discoverability
+
+- The Config.Net summary-free live gate remained comparable and passed at clean
+  CodeMesh commit `647d83d`: all 18 calls succeeded, recall and MRR were 1.0,
+  nDCG was 0.93483, and no secret leaks were detected.
+- The frozen three-pair prompt-parity campaign completed with identical control
+  and treatment task prompts, but no treatment run called or attempted a
+  CodeMesh MCP tool.
+- Control passed two of three runs and treatment passed one of three, with no
+  safety violations. The harness verdict was `regressed`, but the zero adoption
+  rate means overall timing and token differences are diagnostic and cannot be
+  attributed to CodeMesh.
+
+This is negative normal-host discoverability evidence, not a failure of the
+assisted CodeMesh workflow or a broad product verdict. The sanitized
+transcription is
+[`docs/evaluation/evidence/config-net-prompt-parity-647d83d.json`](../evaluation/evidence/config-net-prompt-parity-647d83d.json).
+
 ## Current Gap
 
-The immediate evidence gap is normal-host discoverability. CodeMesh now
+The immediate evidence gap remains normal-host discoverability. CodeMesh
 publishes canonical MCP initialization instructions for the efficient
-context-package plus targeted-read workflow, and `config-net-cache-agent`
-freezes the independent task without treatment-only guidance. The suite has not
-yet established that a normal host presents and follows those instructions.
+context-package plus targeted-read workflow, but the prompt-parity Config.Net
+campaign recorded zero MCP calls and zero MCP call attempts. The next work is
+an owner decision between continuing to pursue spontaneous MCP-only adoption
+through a bounded default-tool-surface experiment, or making explicit
+onboarding part of the supported product contract. Do not change the frozen
+task prompt, grading, or targets to manufacture adoption.
 
-The campaign is model-cost-bearing and requires explicit authorization, a clean
-committed CodeMesh tool checkout, a clean pinned Config.Net checkout, and a
-fresh matching index. Unit and contract tests for the instructions do not
-substitute for that evidence.
+The evaluated required MCP configuration completed without a harness failure,
+and the CodeMesh manifest publishes the intended instructions and tool
+contracts. Current Codex documentation says the host reads MCP server
+instructions, but its prompt-input diagnostic does not expose the separate base
+instructions and tool schemas. The retained campaign therefore cannot attest
+the exact selection context presented to the model, and no CodeMesh transport
+or contract defect has been confirmed.
+
+If the owner selects another spontaneous-discovery experiment, define the
+candidate as an actual product-default tool surface rather than an
+evaluator-only advantage. After a material discovery change, repeat the
+summary-free live gate and the same prompt-parity campaign. The agent campaign
+remains model-cost-bearing and requires explicit authorization, clean committed
+checkouts, and a fresh matching index. Unit and contract tests for the
+instructions do not substitute for normal-host evidence.
 
 ## Current Boundaries
 
