@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reconcile CodeMesh State"
+  short_description: "Audit current status, evidence, and priorities"
+  default_prompt: "Use $reconcile-codemesh-state to reconcile CodeMesh current status and identify the next authorized work."
