@@ -1,5 +1,7 @@
 # MCP Effectiveness Evaluation
 
+Document type: current evaluation guide
+
 CodeMesh has four evaluation levels:
 
 1. The deterministic fixture suite checks MCP behavior without stores or a model provider.
@@ -11,11 +13,11 @@ Normal tests never start live stores or invoke a paid agent.
 
 Ingestion summary models require a separate qualification because bounded
 summary generation is not equivalent to autonomous MCP tool use or repair
-ability. `docs/summary-model-qualification.md` defines a provider-neutral
-procedure for local and online candidates, including factual accuracy,
-reliability, speed, token efficiency, privacy, cost, and downstream retrieval
-gates. The dedicated qualification runner described there is planned and is not
-an available CLI command yet.
+ability. [Summary Model Qualification](../planning/summary-model-qualification.md) defines
+a provider-neutral procedure for local and online candidates, including factual
+accuracy, reliability, speed, token efficiency, privacy, cost, and downstream
+retrieval gates. The dedicated qualification runner described there is planned
+and is not an available CLI command yet.
 
 ## Product Decision Role
 
@@ -24,27 +26,21 @@ CodeMesh should advance beyond its initial C#/.NET wedge only after controlled
 evidence shows that agents perform better with CodeMesh than with normal
 repository exploration.
 
-The current evidence position is deliberately conservative:
+The evidence position is summarized in [Project Status](../current/project-status.md):
 
-- passing fixtures establish tool and response behavior, not agent usefulness;
-- the summary-free pinned YoutubeDownloader live suite passes its six retrieval,
-  relationship, validation, and freshness cases;
-- two corrected three-task external campaigns and one separate complex-task
-  campaign passed every control and treatment pair, but no treatment selected a
-  CodeMesh tool. The complex runs consumed roughly 600,000 median tokens per
-  condition, so task depth in this two-project repository did not solve
-  discovery. Even when an overall time or token delta crosses the efficiency
-  threshold, it is not evidence of product benefit without adoption; and
-- no summary model is qualified, so the core product baseline must run without
-  generated summaries.
+- fixtures establish tool and response behavior, not usefulness;
+- summary-free self and external live baselines pass their retained gates;
+- spontaneous YoutubeDownloader campaigns completed without CodeMesh adoption,
+  so their overall efficiency variance is not attributable to CodeMesh;
+- two assisted campaigns show utility after explicit onboarding, including an
+  independent Config.Net replication, but do not prove prompt-parity discovery;
+  and
+- no summary model is qualified, so the core baseline remains summary-free.
 
-The next product-proof campaign keeps the pinned repository and grading rules
-but adds a separate, more complex representative task that can expose a natural
-tool-selection boundary. The frozen baseline continues to cover:
-
-- implementation discovery;
-- likely change-impact analysis; and
-- test or validation selection.
+The current product-proof campaign uses the frozen `config-net-cache-agent`
+suite to test whether a normal host consumes CodeMesh's canonical MCP
+initialization instructions without treatment-only guidance. It preserves the
+same independent task and grading targets used by the assisted replication.
 
 Reports must compare correctness, safety, freshness, citations, elapsed time,
 tokens, tool calls, adoption, and correction loops. A tied-correctness result is
@@ -53,9 +49,10 @@ comparison threshold and the other efficiency metric does not regress by more
 than 10%. Product evidence should repeat across more than one task family and
 repository; a passing harness or one favorable run is not sufficient.
 
-The treatment prompt must remain identical to control and must not force MCP
-use. If adoption remains zero, retain that negative result and measure a more
-complex representative task rather than weakening the comparison.
+For prompt-parity suites, the treatment prompt must remain identical to control
+and must not force MCP use. Assisted suites must declare their guidance and
+cannot substitute for discoverability evidence. If adoption remains zero,
+retain that negative result rather than weakening the comparison.
 
 ## Representative External C# Baseline
 
@@ -191,7 +188,7 @@ three treatments passed versus one control, CodeMesh was adopted in every
 treatment, two wins were attributable to CodeMesh, no safety violations
 occurred, and treatment median elapsed time was 11.8% lower. Treatment median
 tokens were 3.0% higher. The sanitized transcription is retained in
-`docs/evidence/config-net-assisted-replication-d764270.json`.
+[`docs/evaluation/evidence/config-net-assisted-replication-d764270.json`](evidence/config-net-assisted-replication-d764270.json).
 
 For the next discoverability gate, `config-net-cache-agent` freezes the same
 task and targets but omits `treatment_guidance`. Its task prompt is identical in

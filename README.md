@@ -15,13 +15,15 @@ production-ready. The CodeMesh source is available under the
 | --- | --- |
 | Implemented and locally verified | C# ingestion through Roslyn; graph/content persistence; repository freshness; REST, MCP, CLI, and .NET Agent Access; source spans; relationship-aware context packages; deterministic fixture evaluation; security redaction tests. |
 | Optional and environment-dependent | Neo4j, MongoDB, and Qdrant stores; Docker Compose; embeddings through a configured local provider; Python, Markdown, and deployment-artifact parsing with narrower relationships than C#. |
-| Experimental or unqualified | Generated summaries, online model providers, model-selection benchmarks, assisted agent-efficiency evidence, and the read-only local web UI as a product surface. No summary model is CodeMesh-qualified. |
-| Planned | Repeatable independent agent-outcome evidence, configurable ingestion allow/deny policy, broader parser and SDLC coverage, portable snapshots, and expanded presentation surfaces. |
+| Experimental or unqualified | Generated summaries, online model providers, model-selection benchmarks, assisted agent-utility evidence, and the read-only local web UI as a product surface. No summary model is CodeMesh-qualified. |
+| Planned | Prompt-parity discoverability evidence, configurable ingestion allow/deny policy, broader parser and SDLC coverage, bounded repository snapshots, and expanded presentation surfaces. |
 
 Passing tests establish the covered local behavior. They do not establish
 hosted CI success, generalized agent benefit, release readiness, deployment
-acceptance, or production fitness. See [Next Steps](docs/next-steps.md) for the
-prioritized evidence milestone.
+acceptance, or production fitness. See
+[Project Status](docs/current/project-status.md) for the reviewed evidence
+position and [Next Steps](docs/planning/next-steps.md) for
+execution order.
 
 ## Architecture
 
@@ -98,35 +100,10 @@ a live index.
 
 ## Verification
 
-These commands ran successfully against the local diff on 2026-08-11:
-
-```powershell
-dotnet restore CodeMesh.sln --locked-mode
-dotnet build CodeMesh.sln --no-restore
-dotnet run --project tests/CodeMesh.Tests --no-restore
-dotnet format CodeMesh.sln --verify-no-changes --no-restore
-
-Set-Location agent-access
-uv sync --locked
-uv run --no-sync pytest
-uv run --no-sync ruff check . ../tools
-uv run --no-sync ruff format --check . ../tools
-$env:CODEMESH_MODEL_PROVIDER = "none"
-uv run --no-sync python -m codemesh_agent_access eval
-Set-Location ..
-
-dotnet run --project src/CodeMesh.Cli --no-restore -- `
-  self ingest --skip-embeddings
-python tools/check_publication_safety.py
-python tools/check_markdown_links.py
-npx --yes markdownlint-cli2@0.23.1 "**/*.md"
-```
-
-The .NET harness passed 53 tests and skipped one unconfigured external sample;
-Python passed 92 tests. The provider-free fixture suite, locked Docker image
-builds, and synthetic end-to-end smoke also passed. Full evidence, corrected
-intermediate failures, and unavailable hosted checks are recorded in
-[Publication Readiness](docs/publication-readiness.md).
+Use the risk-scaled commands in [Testing](docs/evaluation/testing.md). Current status and
+retained product evidence are summarized in
+[Project Status](docs/current/project-status.md); dated results apply only to the
+commits they identify.
 
 ## Repository map
 
@@ -139,17 +116,9 @@ intermediate failures, and unavailable hosted checks are recorded in
 - `agent-access`: Python REST, MCP, CLI, ranking, and evaluation surfaces.
 - `tests/CodeMesh.Tests` and `agent-access/tests`: .NET and Python verification.
 
-Start with [Agent Quickstart](docs/agent-quickstart.md) when working in the
-repository. Detailed references are kept in:
-
-- [Architecture](docs/architecture.md)
-- [Testing](docs/testing.md)
-- [MCP Setup](docs/mcp-setup.md)
-- [Agent Access Contracts](docs/agent-access-contracts.md)
-- [Evaluation](docs/evaluation.md)
-- [Security and Redaction](docs/security-and-redaction.md)
-- [Summary Model Qualification](docs/summary-model-qualification.md)
-- [Self-Analysis](docs/self-analysis.md)
+Start with [Agent Quickstart](docs/guides/agent-quickstart.md) when working in the
+repository. The [Documentation Hub](docs/README.md) organizes current
+references, guides, status, evidence, engineering policy, and future proposals.
 
 ## Security, contribution, and licence
 
@@ -158,6 +127,6 @@ vulnerability, and [CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes.
 
 CodeMesh is licensed under the [MIT License](LICENSE). Third-party packages,
 services, and referenced evaluation repositories retain their own licences; see
-[Third-party Notices](THIRD_PARTY_NOTICES.md). The remaining privacy,
-dependency, hosted-CI, and visibility gates are recorded in
-[Publication Readiness](docs/publication-readiness.md).
+[Third-party Notices](THIRD_PARTY_NOTICES.md). The dated
+[Publication Readiness Review](docs/history/publication-readiness-2026-08-11.md) is retained as
+historical evidence for its recorded checkout, not as current readiness status.

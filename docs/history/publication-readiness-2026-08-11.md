@@ -1,10 +1,19 @@
-# Publication Readiness
+# Publication Readiness Review
 
 Date: 2026-08-11
 
-Status: **READY FOR OWNER REVIEW; NOT YET READY FOR VISIBILITY CHANGE**
+Document type: historical evidence
 
-This is a local, fail-closed review of the current checkout. It does not change
+Status at review time: **READY FOR OWNER REVIEW; NOT YET READY FOR VISIBILITY
+CHANGE**
+
+This file preserves the fail-closed pre-publication review. The reviewed work
+was later committed as `cfb7ad2`, followed by the Node.js 24 workflow update
+`31bdfee`; this checkout's `origin/main` contains both commits. Later commits
+and the current worktree are outside this review. Do not use the status or gates
+below as current readiness evidence.
+
+This was a local, fail-closed review of the identified checkout. It did not change
 GitHub visibility, metadata, history, branches, tags, releases, or remote state.
 
 ## Checkout reviewed
@@ -90,7 +99,7 @@ Results:
   unset. Compose requires an explicit local Neo4j password and binds published
   host ports to loopback.
 
-The independent scanner result covers the current uncommitted snapshot and
+The independent scanner result covered the reviewed uncommitted snapshot and
 rewritten local branch. It is not a GitHub secret-scanning result or evidence
 for a later commit. Repeat it against the exact remote publication commit and
 every ref that will become visible.
@@ -159,7 +168,7 @@ The local diff:
 - adds focused security and contribution guidance;
 - adds a sanitized, source-free summary of the reviewed summary-free live
   reports at
-  [`docs/evidence/summary-free-baseline-e84b189.json`](evidence/summary-free-baseline-e84b189.json);
+  [`docs/evaluation/evidence/summary-free-baseline-e84b189.json`](../evaluation/evidence/summary-free-baseline-e84b189.json);
 - adds a current-tree publication-safety check; and
 - expands the existing uncommitted standards workflow into deterministic .NET,
   Python, evaluation, documentation, and repository-control verification.
@@ -231,7 +240,7 @@ workflow is configuration only.
 
 These are recommendations only; no repository setting has been changed.
 
-## Remaining gates before visibility changes
+## Gates Recorded At Review Time
 
 1. Review and commit only the intended diff. Replace only remote `main` with an
    explicit force-with-lease operation; do not push all refs or mirror the local
@@ -244,5 +253,6 @@ These are recommendations only; no repository setting has been changed.
    deployment or release claims; this is not required for the current
    source-only portfolio publication.
 
-The local preparation is ready for owner review. Do not change visibility until
-the first three gates are complete.
+At review time, the local preparation was ready for owner review and the first
+three gates remained required. This statement is retained historically and is
+not an instruction or status claim for current HEAD.

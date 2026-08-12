@@ -13,8 +13,9 @@ This document records design improvements identified by comparing CodeMesh with
 local Graphify `0.9.27` checkout at commit `62b1d43`. The upstream link
 identifies the comparison source; the pinned local commit identifies the source
 actually reviewed. This document is planning context, not implemented behavior.
-Current CodeMesh behavior remains documented in `docs/architecture.md` and
-`docs/agent-access-contracts.md`.
+Current CodeMesh behavior remains documented in
+[Architecture](../current/architecture.md) and
+[Agent Access Contracts](../current/agent-access-contracts.md).
 
 ## Purpose
 
@@ -222,9 +223,9 @@ It should package enough information to serve bounded Agent Access queries
 without requiring the full Neo4j, MongoDB, and Qdrant profile.
 
 Portable artifact design is distinct from live multi-checkout identity and
-retention. `docs/repository-identity-and-snapshot-retention.md` defines the
-planning-only requirements for project, checkout, and live index snapshots,
-branch and working-state slots, cleanup, and shared stores.
+retention. [Repository Identity and Snapshot Retention](repository-identity-and-snapshot-retention.md)
+defines the planning-only requirements for project, checkout, and live index
+snapshots, branch and working-state slots, cleanup, and shared stores.
 
 Minimum snapshot contents:
 
@@ -259,8 +260,8 @@ Add human-readable outputs derived from the same stored graph:
 Generated reports must include the indexed commit and generation timestamp.
 They should link back to source spans and state when output is truncated.
 
-Reports are derived artifacts. They do not replace `docs/architecture.md`, ADRs,
-or source code as authority.
+Reports are derived artifacts. They do not replace
+[Architecture](../current/architecture.md), ADRs, or source code as authority.
 
 ### 7. Change And Pull-Request Impact
 

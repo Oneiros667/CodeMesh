@@ -8,7 +8,7 @@
   acceptance, release, deployment, and production authorization.
 - Do not make unsupported product-benefit or readiness claims.
 - Follow the product priorities and deferred-work boundary in
-  [`docs/next-steps.md`](../next-steps.md).
+  [`docs/planning/next-steps.md`](../planning/next-steps.md).
 
 ## Commits
 
@@ -34,7 +34,7 @@ It does not install Git hooks or alter Git configuration. See
 ## Verification
 
 Use risk-scaled verification. The canonical commands and end-to-end selection
-rules are in [`docs/testing.md`](../testing.md).
+rules are in [`docs/evaluation/testing.md`](../evaluation/testing.md).
 
 - Run both .NET and Python suites after shared-contract, integration,
   serialization, lifecycle, or end-to-end changes.
@@ -67,6 +67,9 @@ The link checker is local-only and performs no network requests.
 - Distinguish proposed, implemented, automatically tested, manually inspected,
   accepted, released, and deployed states.
 - Keep normative guidance in one canonical location and link to it elsewhere.
+- Use the [Documentation Hub](../README.md) to preserve the boundary between
+  current references, status, execution order, proposals, and historical
+  evidence.
 - Record consequential implemented architecture choices using
   [`docs/decisions/0000-decision-record-template.md`](../decisions/0000-decision-record-template.md).
 - Keep dates, versions, links, measurements, and test claims truthful.

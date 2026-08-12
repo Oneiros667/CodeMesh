@@ -27,7 +27,7 @@ A committed workflow is configuration, not evidence that GitHub has run it.
 Even after a hosted pass, its results cover only the declared deterministic
 checks. They do not establish live-store integration, generalized agent
 benefit, release readiness, deployment acceptance, or production fitness. Use
-the commands in [`docs/testing.md`](../testing.md) for additional affected
+the commands in [`docs/evaluation/testing.md`](../evaluation/testing.md) for additional affected
 surfaces.
 
 Review action-version and permission changes as supply-chain changes. Do not

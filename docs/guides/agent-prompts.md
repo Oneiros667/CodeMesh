@@ -1,5 +1,7 @@
 # Agent Prompts
 
+Document type: current usage examples
+
 These prompts are examples for agents using CodeMesh through MCP or REST. They are phrased as tasks that map to existing or planned CodeMesh tools.
 
 The first prompts cover the initial C#/.NET product wedge: implementation
@@ -99,7 +101,8 @@ Likely tools:
 
 ## Deferred Runtime Impact Prompt
 
-This prompt depends on future deployment artifact ingestion from `docs/sdlc-roadmap.md`.
+This prompt depends on future deployment artifact ingestion from the
+[SDLC Roadmap](../planning/sdlc-roadmap.md).
 
 ```text
 Use CodeMesh to identify which Docker, Compose, Helm, and environment configuration artifacts are affected by changing this service port.

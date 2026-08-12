@@ -1,5 +1,7 @@
 # MCP Setup
 
+Document type: current operating guide
+
 CodeMesh Agent Access can run as an MCP server so AI agents can query indexed repository context.
 
 ## Prerequisites

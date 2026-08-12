@@ -5,7 +5,7 @@ Status: proposal
 Activation gate: this document defines a future feature. It does not describe
 implemented repository identity, snapshot retention, shared-store isolation, or
 multi-user ingestion behavior. Implementation priority remains governed by
-`docs/next-steps.md`.
+[Next Steps](next-steps.md).
 
 ## Purpose
 

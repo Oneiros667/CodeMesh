@@ -1,5 +1,7 @@
 # Security And Redaction
 
+Document type: current security reference
+
 CodeMesh is designed to expose repository context to AI agents. That makes secret handling and sensitive-file behavior part of the product surface, not only an implementation detail.
 
 ## Current Agent Rules
@@ -22,7 +24,7 @@ Common sensitive inputs include:
 - service account material
 - database dumps and backups
 
-## Desired Product Behavior
+## Implemented Behavior And Remaining Gaps
 
 The current local-first ingestion path redacts sensitive-looking values before content is persisted, embedded, summarized, or returned through Agent Access.
 
@@ -37,11 +39,16 @@ Current behavior:
 - Redacted content receives a new content hash, and graph nodes are remapped to that redacted content hash before store writes, embeddings, and summaries.
 - Ingestion emits diagnostic `CMSEC001` when redaction changes one or more content items.
 
-The following behavior remains a priority in `docs/next-steps.md`:
+The following behavior remains planned in [Next Steps](../planning/next-steps.md):
 
 - Configurable allowlists and denylists for ingestion.
 - Default exclusion for known secret files in addition to the current generated-directory exclusions.
 - Broader tests for additional secret formats and false-positive control.
+
+Shared multi-user storage adds tenant isolation, path privacy, authorization,
+retention, and verified-deletion requirements. Those requirements are proposed
+in [Repository Identity and Snapshot Retention](../planning/repository-identity-and-snapshot-retention.md);
+they are not current shared-service behavior.
 
 ## Redaction Principles
 

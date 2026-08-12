@@ -5,7 +5,8 @@ Status: deferred planning context.
 This roadmap does not define near-term execution order. Broader SDLC ingestion
 resumes only after CodeMesh demonstrates repeatable benefit for its initial
 C#/.NET agent workflow and retains configurable sensitive-file controls for the
-additional artifact classes. See `docs/next-steps.md` for current priorities.
+additional artifact classes. See [Next Steps](next-steps.md) for current
+priorities.
 
 CodeMesh currently focuses on code intelligence: parsing implementation code, writing graph/content/vector/summary data, and exposing that context to coding agents through REST, MCP, CLI, and .NET client surfaces.
 

@@ -1,5 +1,7 @@
 # Agent Access Contracts
 
+Document type: current interface reference
+
 Agent Access exposes the same read surface through REST, MCP tools, and the typed .NET client in `CodeMesh.Control.AgentAccess.AgentAccessClient`.
 
 It also serves a local read-only web UI at `/ui` for humans to inspect service health, repositories, repository freshness, ingestion runs, and context search results. The UI reuses the REST read store and is not a separate write surface.

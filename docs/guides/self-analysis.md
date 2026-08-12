@@ -1,5 +1,7 @@
 # CodeMesh Self-Analysis
 
+Document type: current operating guide
+
 CodeMesh can be indexed and queried by its own Agent Access MCP service. This dogfooding path is useful for testing context quality, repository freshness, MCP tool ergonomics, and parser coverage.
 
 ## Index CodeMesh
@@ -81,9 +83,9 @@ Run `--tier change` only for qualifying models, or use `--tier all` for the full
 126-execution benchmark. The runner uses isolated clones and writes reports and
 review packets below `.codemesh-evals/`.
 
-See `docs/evaluation.md` for freshness requirements, metrics, costs, and trace
-sensitivity. The REST-based `self smoke` remains the lifecycle smoke path; the
-live evaluator owns MCP stdio quality checks.
+See [MCP Effectiveness Evaluation](../evaluation/mcp-effectiveness.md) for freshness requirements,
+metrics, costs, and trace sensitivity. The REST-based `self smoke` remains the
+lifecycle smoke path; the live evaluator owns MCP stdio quality checks.
 
 Verify registry and runs manually:
 
@@ -101,7 +103,7 @@ Set-Location agent-access
 uv run python -m codemesh_agent_access mcp
 ```
 
-See `docs/mcp-setup.md` for MCP client configuration.
+See [MCP Setup](mcp-setup.md) for client configuration.
 
 ## Useful Self-Analysis Questions
 
@@ -121,19 +123,13 @@ See `docs/mcp-setup.md` for MCP client configuration.
 - Deployment artifacts can be ingested with `--language deployment`, but current support is limited to Dockerfiles, Docker Compose files, stages, services, selected runtime metadata, and Compose service dependencies.
 - Freshness and latest refresh outcome should be checked through `codemesh_get_repository_status`, `GET /repositories/{repository_id}/status`, or the local repository detail UI.
 
-## Expected Dogfooding Improvements
+## Current Dogfooding Priority
 
-The highest-value improvements are tracked in `docs/next-steps.md`:
+The clean self and external live baselines already exist. Keep them passing
+after material retrieval, packaging, relationship, or MCP changes. The current
+product-proof gap is whether a normal host uses CodeMesh's canonical MCP
+initialization instructions without evaluator-only guidance.
 
-- Establish a reviewed live MCP baseline on a clean current index.
-- Add one representative external C# repository evaluation suite.
-- Run repeated control/treatment tasks for implementation discovery, impact
-  analysis, and validation selection.
-- Use measured failures to choose between implementation-to-test links,
-  validation command nodes, relationship evidence, reverse impact, or tighter
-  context-package budgets.
-- Keep summaries disabled in the core baseline until a summary deployment
-  profile is qualified and improves retrieval over the no-summary index.
-
-Broader parser, deployment, SDLC, UI, portability, and agent-memory work remains
-deferred until the initial C#/.NET workflow demonstrates repeatable benefit.
+See [Project Status](../current/project-status.md) for retained evidence and
+[Next Steps](../planning/next-steps.md) for the ordered work. Keep summaries disabled in the
+core baseline until a deployment profile passes the qualification procedure.

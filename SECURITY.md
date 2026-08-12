@@ -39,4 +39,4 @@ reports should identify the commit tested.
   can contain source, prompts, diffs, and tool responses.
 
 Implemented redaction behavior and its known limitations are documented in
-[Security and Redaction](docs/security-and-redaction.md).
+[Security and Redaction](docs/current/security-and-redaction.md).

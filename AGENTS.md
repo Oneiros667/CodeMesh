@@ -7,35 +7,26 @@ likely change-impact analysis, and validation selection for agents working in
 C#/.NET repositories. The current milestone is reviewed evidence that CodeMesh
 improves agent outcomes over normal repository exploration. Do not select broad
 parser, SDLC, UI, model-provider, summary, portability, or agent-memory work as
-the next task unless `docs/next-steps.md` or explicit user direction activates
+the next task unless `docs/planning/next-steps.md` or explicit user direction activates
 it.
 
 Before planning larger CodeMesh work, review these repository notes:
 
-- `docs/agent-quickstart.md` is the preferred starting point for AI agents working in this repository.
-- `docs/architecture.md` explains the current component boundaries and data flow.
-- `docs/testing.md` explains verification commands and when to use the end-to-end smoke script.
-- `docs/mcp-setup.md` explains how to run CodeMesh as an MCP service.
-- `docs/self-analysis.md` explains how to index and query CodeMesh itself.
-- `docs/security-and-redaction.md` records secret-handling expectations for agent-facing context.
-- `docs/agent-prompts.md` contains example prompts for agents using CodeMesh through MCP.
-- `docs/next-steps.md` tracks the prioritized backlog for making CodeMesh effective as an MCP service for AI agents.
-- `docs/graph-intelligence-design.md` proposes relationship evidence, graph
-  analysis, explicit agent outcome memory, parser tiers, and portable snapshots.
-- `docs/summary-model-qualification.md` defines the planned qualification
-  procedure for local and online ingestion summary models.
-- `docs/repository-identity-and-snapshot-retention.md` defines the proposed
-  multi-checkout identity, bounded snapshot retention, and shared-store
-  requirements.
-- `docs/sdlc-roadmap.md` tracks longer-term SDLC intelligence goals beyond implementation-code indexing.
-- `docs/engineering/standards.md` defines change discipline, commit conventions,
-  risk-scaled verification, documentation expectations, and the definition of
-  done.
+- `docs/README.md` is the documentation hub and authority map.
+- `docs/guides/agent-quickstart.md` routes AI agents through the repository.
+- `docs/current/project-status.md` records current implementation and reviewed evidence.
+- `docs/planning/next-steps.md` is the execution-order authority for future product work.
+- `docs/current/architecture.md`, `docs/current/agent-access-contracts.md`, and source/tests
+  define current component and interface behavior.
+- `docs/evaluation/testing.md`, `docs/current/security-and-redaction.md`, and
+  `docs/engineering/standards.md` define verification, safety, and completion
+  discipline.
 
-Treat `docs/next-steps.md`, `docs/graph-intelligence-design.md`,
-`docs/summary-model-qualification.md`,
-`docs/repository-identity-and-snapshot-retention.md`, and
-`docs/sdlc-roadmap.md` as planning context, not implemented behavior.
+Treat `docs/planning/next-steps.md`,
+`docs/planning/graph-intelligence-design.md`,
+`docs/planning/summary-model-qualification.md`,
+`docs/planning/repository-identity-and-snapshot-retention.md`, and
+`docs/planning/sdlc-roadmap.md` as planning context, not implemented behavior.
 
 ## Agent Defaults
 
@@ -59,6 +50,9 @@ Treat `docs/next-steps.md`, `docs/graph-intelligence-design.md`,
 - Record consequential implemented architecture decisions under
   `docs/decisions/`; do not use decision records to present planning as current
   behavior.
+- Keep current status in `docs/current/project-status.md`, future execution order in
+  `docs/planning/next-steps.md`, and detailed proposals in their dedicated planning
+  documents.
 
 ## Completion And Authority
 

@@ -1,5 +1,7 @@
 # CodeMesh Architecture
 
+Document type: current implementation reference
+
 CodeMesh is organized around a write-side ingestion pipeline and a read-side Agent Access surface.
 
 ## Product Boundary
@@ -138,10 +140,13 @@ not source truth.
 
 ## Planning References
 
-- `docs/next-steps.md` prioritizes the next features needed for effective MCP agent use.
-- `docs/graph-intelligence-design.md` proposes relationship evidence, graph
-  analysis, explicit agent outcome memory, parser tiers, and portable snapshots.
-- `docs/repository-identity-and-snapshot-retention.md` defines proposed
-  multi-checkout identity, bounded snapshot retention, and future shared-store
-  requirements.
-- `docs/sdlc-roadmap.md` describes broader SDLC intelligence goals.
+- [Project Status](project-status.md) records the current implementation and
+  evidence snapshot without changing this architecture reference.
+- [Next Steps](../planning/next-steps.md) prioritizes future product work.
+- [Graph Intelligence and Agent Memory](../planning/graph-intelligence-design.md) proposes
+  relationship evidence, graph analysis, explicit agent outcome memory, parser
+  tiers, and portable snapshots.
+- [Repository Identity and Snapshot Retention](../planning/repository-identity-and-snapshot-retention.md)
+  defines proposed multi-checkout identity, bounded snapshot retention, and
+  future shared-store requirements.
+- [SDLC Roadmap](../planning/sdlc-roadmap.md) describes broader SDLC intelligence goals.

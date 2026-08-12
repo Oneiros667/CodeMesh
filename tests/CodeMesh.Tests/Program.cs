@@ -131,7 +131,7 @@ static Task TestRepositoryPathPolicyIgnoresGeneratedDirectories()
     Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath(".tmp/fixture/package.md"), "Repository path policy did not ignore temporary content.");
     Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath(".codemesh-smoke/run/Fixture.cs"), "Repository path policy did not ignore smoke output.");
     Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("package.egg-info/PKG-INFO"), "Repository path policy did not ignore Python package metadata.");
-    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("docs/testing.md"), "Repository path policy ignored repository documentation.");
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("docs/evaluation/testing.md"), "Repository path policy ignored repository documentation.");
 
     return Task.CompletedTask;
 }
@@ -3442,7 +3442,7 @@ static async Task TestMarkdownParserParsesRepositoryDocs()
     HasNode(result, CodeNodeKind.Document, "README.md");
     HasNode(result, CodeNodeKind.Section, "CodeMesh");
     HasNode(result, CodeNodeKind.Document, "next-steps.md");
-    HasNode(result, CodeNodeKind.Section, "1. Self-Ingestion Workflow");
+    HasNode(result, CodeNodeKind.Section, "Current Execution Order");
 }
 
 static async Task TestPythonParserEmitsClassesFunctionsAndContainment()

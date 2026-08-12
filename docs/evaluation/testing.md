@@ -1,5 +1,7 @@
 # Testing Guide
 
+Document type: current operating guide
+
 Use this guide to choose the right verification path after CodeMesh changes.
 
 ## Default Verification Commands
@@ -89,8 +91,8 @@ uv run python -m codemesh_agent_access eval live
 ```
 
 The pinned YoutubeDownloader suite is the representative external C# baseline.
-Prepare and ingest the exact checkout as described in `docs/evaluation.md`, then
-run:
+Prepare and ingest the exact checkout as described in
+[MCP Effectiveness Evaluation](mcp-effectiveness.md), then run:
 
 ```powershell
 uv run python -m codemesh_agent_access eval live `
@@ -131,7 +133,8 @@ uv run python -m codemesh_agent_access eval model --model <model-id> --tier chan
 These model-backed commands are intentionally excluded from normal `pytest`
 execution. Suite validation, scoring, proxy enforcement, review handling, and
 orchestration tests remain in normal CI. See
-`docs/evaluation.md` for metrics, suite formats, artifact handling, and exit codes.
+[MCP Effectiveness Evaluation](mcp-effectiveness.md) for metrics, suite formats,
+artifact handling, and exit codes.
 
 ## End-To-End Smoke
 
