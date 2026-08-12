@@ -21,7 +21,8 @@ explicit snapshot id, a checkout/branch slot key, or the generated alias. Agent
 Access resolves projects and aliases to their selected active snapshot before
 querying stores and fails closed on ambiguous slot/alias matches. Repository
 lookup accepts URL-encoded path characters in `repository_id`; generated aliases
-remain slash-free.
+remain slash-free and are retained with project identity across checkout moves
+and linked-worktree ingestion.
 
 Filters are exact-match string filters. They can match top-level node fields or metadata fields. `kinds` filters by CodeMesh node kind names such as `Method`, `Class`, `File`, `TestFile`, `TestCase`, or `Declaration`.
 

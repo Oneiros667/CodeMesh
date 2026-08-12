@@ -50,7 +50,8 @@ not source truth.
 
 - Calls parser workers.
 - Handles dry-run and persistent ingestion modes.
-- Resolves persistent project and checkout identity from private Git/local markers.
+- Resolves persistent project, alias, and checkout identity from private
+  Git/local markers.
 - Computes deterministic source snapshots and stages cross-store generations.
 - Publishes checkout-current and clean branch-head slots with compare-and-swap semantics.
 - Writes graph, content, vector, summary, registry, and run data.

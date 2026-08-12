@@ -1759,11 +1759,20 @@ static async Task TestCheckoutIdentitySurvivesMovesAndRejectsLiveCopies()
         var first = await orchestrator.IngestAsync(new IngestionRequest(original, SkipEmbeddings: true));
         var firstCheckoutId = first.Repository.CheckoutId ?? throw new InvalidOperationException("Initial checkout id was absent.");
         var projectId = first.Repository.ProjectId ?? first.Repository.Id;
+        File.WriteAllText(
+            Path.Combine(original, ".codemesh", "project.json"),
+            JsonSerializer.Serialize(new
+            {
+                format_version = 1,
+                project_id = projectId,
+                created_at_utc = DateTimeOffset.UtcNow
+            }));
 
         Directory.Move(original, moved);
         var afterMove = await orchestrator.IngestAsync(new IngestionRequest(moved, SkipEmbeddings: true));
         Equal(firstCheckoutId, afterMove.Repository.CheckoutId ?? string.Empty, "Moving a folder changed checkout identity.");
         Equal(projectId, afterMove.Repository.ProjectId ?? string.Empty, "Moving a folder changed project identity.");
+        Equal("original", (await store.GetRepositoryAsync(projectId))?.Alias ?? string.Empty, "Moving a folder changed the project alias.");
 
         CopyDirectory(moved, copied);
         var afterCopy = await orchestrator.IngestAsync(new IngestionRequest(copied, SkipEmbeddings: true));
@@ -1772,6 +1781,7 @@ static async Task TestCheckoutIdentitySurvivesMovesAndRejectsLiveCopies()
             throw new InvalidOperationException("A simultaneously live copied marker reused checkout identity.");
         }
         Equal(projectId, afterCopy.Repository.ProjectId ?? string.Empty, "Copied checkout did not retain explicit project identity.");
+        Equal("original", (await store.GetRepositoryAsync(projectId))?.Alias ?? string.Empty, "Copied checkout changed the project alias.");
     }
     finally
     {
@@ -1817,6 +1827,7 @@ static async Task TestLinkedWorktreesShareProjectsButNotCheckouts()
             throw new InvalidOperationException("Linked worktrees reused checkout identity.");
         }
         Equal(main.Repository.SnapshotId ?? string.Empty, feature.Repository.SnapshotId ?? string.Empty, "Identical linked worktree source did not reuse snapshot identity.");
+        Equal("main", (await store.GetRepositoryAsync(main.Repository.Id))?.Alias ?? string.Empty, "Linked worktree ingestion changed the project alias.");
     }
     finally
     {

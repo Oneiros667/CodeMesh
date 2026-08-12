@@ -29,10 +29,10 @@ than treating every successful re-index as permanently valuable history.
 
 Legacy records derived `repository_id` from the absolute repository root. New
 local ingestion uses a stable random project id, worktree-specific checkout id,
-and deterministic snapshot id while retaining origin, branch, commit, and dirty
-state as observations. Agent Access resolves a project or alias to its active
-snapshot namespace and compares recorded provenance with the accessible local
-checkout.
+stable generated alias, and deterministic snapshot id while retaining origin,
+branch, commit, and dirty state as observations. Agent Access resolves a project
+or alias to its active snapshot namespace and compares recorded provenance with
+the accessible local checkout.
 
 The implemented local profile closes the folder/branch retention gaps, with the
 following remaining limitations:

@@ -444,6 +444,7 @@ public sealed class IngestionOrchestrator(
                     parseResult,
                     currentEmbeddingCount,
                     startedAt,
+                    identity?.ProjectAlias,
                     cancellationToken)
                 .ConfigureAwait(false);
 
@@ -537,7 +538,7 @@ public sealed class IngestionOrchestrator(
         return new SnapshotPublication(
             new ProjectIdentityRecord(
                 repository.Id,
-                RepositoryAlias.FromPath(repository.RootPath),
+                identity.ProjectAlias,
                 repository.RemoteUrl,
                 identity.CreatedAt,
                 observedAt),
@@ -599,6 +600,7 @@ public sealed class IngestionOrchestrator(
         ParseResult parseResult,
         int? currentEmbeddingCount,
         DateTimeOffset firstSeenAt,
+        string? projectAlias,
         CancellationToken cancellationToken)
     {
         if (registryStore is null)
@@ -608,7 +610,7 @@ public sealed class IngestionOrchestrator(
 
         var finishedAt = result.Run.FinishedAt ?? DateTimeOffset.UtcNow;
         var diagnostics = result.Diagnostics;
-        var repositoryAlias = RepositoryAlias.FromPath(result.Repository.RootPath);
+        var repositoryAlias = projectAlias ?? RepositoryAlias.FromPath(result.Repository.RootPath);
         var activeSnapshotId = result.Repository.SnapshotId;
         var activeSlotKind = "legacy-current";
         var activeSourceViewHash = string.Empty;

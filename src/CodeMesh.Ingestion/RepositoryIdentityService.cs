@@ -10,6 +10,7 @@ namespace CodeMesh.Ingestion;
 internal sealed record RepositoryIdentity(
     string ProjectId,
     string CheckoutId,
+    string ProjectAlias,
     string MarkerPath,
     DateTimeOffset CreatedAt);
 
@@ -28,10 +29,17 @@ internal static class RepositoryIdentityService
         var projectMarker = await ReadProjectMarkerAsync(markerPaths.ProjectPath, cancellationToken).ConfigureAwait(false);
         var checkoutMarker = await ReadCheckoutMarkerAsync(markerPaths.CheckoutPath, cancellationToken).ConfigureAwait(false);
         var createdAt = checkoutMarker?.CreatedAtUtc ?? DateTimeOffset.UtcNow;
-        var projectId = NormalizeId(requestedProjectId, "prj")
+        var normalizedRequestedProjectId = NormalizeId(requestedProjectId, "prj");
+        var projectId = normalizedRequestedProjectId
             ?? NormalizeId(projectMarker?.ProjectId, "prj")
             ?? NewId("prj");
         var checkoutId = NormalizeId(checkoutMarker?.CheckoutId, "chk") ?? NewId("chk");
+        var existingProject = await registry
+            .GetRepositoryAsync(projectId, cancellationToken)
+            .ConfigureAwait(false);
+        var projectAlias = projectMarker?.Alias
+            ?? existingProject?.Alias
+            ?? RepositoryAlias.FromPath(markerPaths.AliasSourcePath);
 
         var registered = await registry.GetCheckoutAsync(checkoutId, cancellationToken).ConfigureAwait(false);
         if (registered is not null &&
@@ -42,11 +50,17 @@ internal static class RepositoryIdentityService
             createdAt = DateTimeOffset.UtcNow;
         }
 
-        if (projectMarker is null || !string.Equals(projectMarker.ProjectId, projectId, StringComparison.Ordinal))
+        if (projectMarker is null ||
+            !string.Equals(projectMarker.ProjectId, projectId, StringComparison.Ordinal) ||
+            !string.Equals(projectMarker.Alias, projectAlias, StringComparison.Ordinal))
         {
             await WriteMarkerAsync(
                     markerPaths.ProjectPath,
-                    new ProjectMarker(FormatVersion, projectId, projectMarker?.CreatedAtUtc ?? DateTimeOffset.UtcNow),
+                    new ProjectMarker(
+                        FormatVersion,
+                        projectId,
+                        projectMarker?.CreatedAtUtc ?? DateTimeOffset.UtcNow,
+                        projectAlias),
                     cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -59,7 +73,7 @@ internal static class RepositoryIdentityService
                 .ConfigureAwait(false);
         }
 
-        return new RepositoryIdentity(projectId, checkoutId, markerPaths.CheckoutPath, createdAt);
+        return new RepositoryIdentity(projectId, checkoutId, projectAlias, markerPaths.CheckoutPath, createdAt);
     }
 
     private static async Task<MarkerPaths> ResolveMarkerPathsAsync(
@@ -74,12 +88,14 @@ internal static class RepositoryIdentityService
                 .ConfigureAwait(false) ?? gitDirectory;
             return new MarkerPaths(
                 Path.Combine(commonDirectory, "codemesh", "project.json"),
-                Path.Combine(gitDirectory, "codemesh", "checkout.json"));
+                Path.Combine(gitDirectory, "codemesh", "checkout.json"),
+                Directory.GetParent(commonDirectory)?.FullName ?? repositoryRoot);
         }
 
         return new MarkerPaths(
             Path.Combine(repositoryRoot, ".codemesh", "project.json"),
-            Path.Combine(repositoryRoot, ".codemesh", "checkout.json"));
+            Path.Combine(repositoryRoot, ".codemesh", "checkout.json"),
+            repositoryRoot);
     }
 
     private static Task<ProjectMarker?> ReadProjectMarkerAsync(string path, CancellationToken cancellationToken)
@@ -222,12 +238,13 @@ internal static class RepositoryIdentityService
         int FormatVersion { get; }
     }
 
-    private sealed record MarkerPaths(string ProjectPath, string CheckoutPath);
+    private sealed record MarkerPaths(string ProjectPath, string CheckoutPath, string AliasSourcePath);
 
     private sealed record ProjectMarker(
         [property: JsonPropertyName("format_version")] int FormatVersion,
         [property: JsonPropertyName("project_id")] string ProjectId,
-        [property: JsonPropertyName("created_at_utc")] DateTimeOffset CreatedAtUtc) : IIdentityMarker;
+        [property: JsonPropertyName("created_at_utc")] DateTimeOffset CreatedAtUtc,
+        [property: JsonPropertyName("alias")] string? Alias = null) : IIdentityMarker;
 
     private sealed record CheckoutMarker(
         [property: JsonPropertyName("format_version")] int FormatVersion,
