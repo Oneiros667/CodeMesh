@@ -1,11 +1,13 @@
 # Repository Identity And Snapshot Retention Requirements
 
-Status: proposal
+Status: local profile implemented; shared service deferred
 
-Activation gate: this document defines a future feature. It does not describe
-implemented repository identity, snapshot retention, shared-store isolation, or
-multi-user ingestion behavior. Implementation priority remains governed by
-[Next Steps](next-steps.md).
+The local single-user identity, deterministic snapshot, slot publication,
+explicit retention-slot, legacy migration, and reference-aware cleanup model is
+implemented. Shared-service coordination, tenant isolation, authorization,
+privacy controls, quotas, and auditability remain future requirements and are
+not activated. The implemented decisions are recorded in
+[ADR 0001](../decisions/0001-local-repository-identity-and-snapshot-publication.md).
 
 ## Purpose
 
@@ -25,28 +27,24 @@ than treating every successful re-index as permanently valuable history.
 
 ## Current Behavior And Gap
 
-Current ingestion derives `repository_id` from the absolute repository root.
-Two folders therefore receive separate repository ids even when they refer to
-the same Git remote. Ingestion also captures the current origin URL, branch, and
-commit, while Agent Access compares the indexed commit with the current state of
-that recorded folder.
+Legacy records derived `repository_id` from the absolute repository root. New
+local ingestion uses a stable random project id, worktree-specific checkout id,
+and deterministic snapshot id while retaining origin, branch, commit, and dirty
+state as observations. Agent Access resolves a project or alias to its active
+snapshot namespace and compares recorded provenance with the accessible local
+checkout.
 
-This provides useful checkout separation and local freshness diagnostics, but
-it has important limitations:
+The implemented local profile closes the folder/branch retention gaps, with the
+following remaining limitations:
 
-- switching branches and re-indexing the same folder replaces that repository's
-  current graph rather than retaining independently addressable branch heads;
-- absolute paths identify folders, not the logical project shared by clones;
-- generated folder-name aliases can be ambiguous across checkouts;
-- branch and commit observations are latest-repository metadata rather than a
-  retained snapshot model;
 - a central Agent Access process cannot inspect a developer folder that is not
   mounted on the server; and
 - direct concurrent writes from several clients cannot safely publish a
   coherent generation across all stores.
 
-Current behavior remains authoritative until this feature is implemented and
-migrated.
+Separate clones require an explicit shared `--project-id`; remote URL text never
+merges them automatically. Shared-mode requirements below remain planning
+authority rather than implemented behavior.
 
 ## Terminology
 
@@ -358,38 +356,34 @@ This proposal does not require:
 - making embeddings or summaries mandatory for a snapshot; or
 - presenting a portable snapshot artifact as the canonical live-store model.
 
-## Decisions Required Before Implementation
+## Decisions Required Before Shared-Service Implementation
 
 An ADR must decide:
 
-1. Project registration and remote-identity normalization rules.
-2. Local identity-marker placement and copied-marker collision detection.
-3. Canonical snapshot serialization, hash algorithm, and schema versioning.
-4. Branch selection, authority, deletion, grace-period, and pin policies.
-5. Cross-store generation publication and recovery semantics.
-6. Snapshot representation in Neo4j and how unchanged nodes are reused without
-   unbounded membership growth.
-7. Embedding and summary reuse boundaries.
-8. Local-overlay behavior and whether private dirty snapshots may enter a
+1. Server project registration and remote-identity normalization rules.
+2. Canonical remote branch authority, deletion, and quota policies.
+3. Cross-service coordinator recovery and audit semantics.
+4. Local-overlay behavior and whether private dirty snapshots may enter a
    shared service.
-9. Tenant isolation, encryption, audit, quota, and verified-deletion controls.
-10. Migration from the current absolute-path-derived repository id.
+5. Tenant isolation, encryption, audit, quota, and verified-deletion controls.
 
 ## Proposed Delivery Sequence
 
-1. Record the identity, snapshot, and publication decisions in an ADR.
-2. Add contracts and a registry migration for projects, checkouts, snapshots,
-   observations, slots, and generations.
-3. Implement local identity discovery and collision handling without changing
-   current query defaults.
-4. Add staged storage namespaces, atomic slot publication, and reference-aware
-   cleanup in the local profile.
-5. Expose explicit snapshot selection and richer freshness through Agent Access.
-6. Prove bounded retention with repeated clean, dirty, branch-switch, move,
-   delete, and interrupted-ingestion scenarios.
-7. Add the shared ingestion coordinator, tenant authorization, privacy controls,
-   quotas, and local working-state overlay only after the local model is stable.
+1. Completed: record local identity, snapshot, publication, and migration
+   decisions in an ADR.
+2. Completed: add contracts and registry persistence for projects, checkouts,
+   snapshots, observations, slots, and generations.
+3. Completed: add local Git-private identity discovery, move preservation, and
+   copied-marker collision handling.
+4. Completed: add staged snapshot namespaces, compare-and-swap slot publication,
+   explicit retained slots, and reference-aware local cleanup.
+5. Completed: resolve Agent Access project/alias queries to active snapshots and
+   expose snapshot/source-view freshness metadata.
+6. Completed locally: automated clean, dirty, identical-input, move, copied
+   marker, linked-worktree, pin/unpin, deletion, and cleanup coverage.
+7. Deferred: add a shared ingestion coordinator, tenant authorization, privacy
+   controls, quotas, and local working-state overlay only after the local model
+   is stable.
 
-Implementation, migration, shared deployment, or production activation require
-separate authorization and evidence. This requirements document grants none of
-those actions.
+Shared deployment or production activation still requires separate
+authorization and evidence. The local implementation does not grant either.

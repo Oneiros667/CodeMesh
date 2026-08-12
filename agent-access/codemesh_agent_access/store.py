@@ -189,6 +189,10 @@ class CodeMeshReadStore:
             "summary_candidate_count": len(summary_hits),
             "lexical_fallback": bool(vector) and not vector_hits,
             "hit_count": len(ranked_hits),
+            "selected_snapshot_id": query.repository_id,
+            "selected_project_id": next(
+                (hit.repository_id for hit in ranked_hits if hit.repository_id), None
+            ),
         }
 
         return ContextResponse(query=query, hits=ranked_hits, diagnostics=diagnostics)
@@ -196,6 +200,7 @@ class CodeMeshReadStore:
     async def get_context_package(
         self, query: ContextPackageQuery
     ) -> ContextPackageResponse:
+        requested_repository_id = query.repository_id
         query = await self._resolve_package_query_repository(query)
         search = await self.search_context(
             ContextQuery(
@@ -213,17 +218,22 @@ class CodeMeshReadStore:
         repository_summary = None
         repository = None
         latest_run = None
-        if query.repository_id:
-            repository_summary = await self.get_repository(query.repository_id)
+        if requested_repository_id:
+            repository_summary = await self.get_repository(requested_repository_id)
             if query.include_repository:
                 repository = (
                     repository_summary.model_dump(mode="json")
                     if repository_summary
                     else None
                 )
-        if query.include_repository and query.repository_id:
+        if query.include_repository and requested_repository_id:
             runs = await self.list_ingestion_runs(
-                repository_id=query.repository_id, limit=1
+                repository_id=(
+                    repository_summary.repository_id
+                    if repository_summary
+                    else requested_repository_id
+                ),
+                limit=1,
             )
             latest_run = runs.runs[0].model_dump(mode="json") if runs.runs else None
 
@@ -394,18 +404,28 @@ class CodeMeshReadStore:
             return RepositoryDeleteResponse(repository_id=repository_id)
 
         resolved_repository_id = repository.repository_id
+        list_snapshot_ids = getattr(self._content, "list_snapshot_ids", None)
+        snapshot_ids = (
+            await list_snapshot_ids(resolved_repository_id)
+            if list_snapshot_ids is not None
+            else []
+        )
+        namespace_ids = list(dict.fromkeys([resolved_repository_id, *snapshot_ids]))
         graph_cleaned = content_cleaned = embeddings_cleaned = summaries_cleaned = False
 
-        await self._graph.delete_repository(resolved_repository_id)
+        for namespace_id in namespace_ids:
+            await self._graph.delete_repository(namespace_id)
         graph_cleaned = True
 
         await self._content.delete_repository(resolved_repository_id)
         content_cleaned = True
 
-        await self._vectors.delete_repository(resolved_repository_id)
+        for namespace_id in namespace_ids:
+            await self._vectors.delete_repository(namespace_id)
         embeddings_cleaned = True
 
-        await self._summaries.delete_repository(resolved_repository_id)
+        for namespace_id in namespace_ids:
+            await self._summaries.delete_repository(namespace_id)
         summaries_cleaned = True
 
         return RepositoryDeleteResponse(
@@ -527,7 +547,20 @@ class CodeMeshReadStore:
         except PyMongoError:
             return repository_id
 
-        return repository.repository_id if repository else repository_id
+        if repository:
+            return (
+                repository.snapshot_id
+                or repository.metadata.get("snapshotId")
+                or repository.repository_id
+            )
+
+        resolver = getattr(self._content, "resolve_snapshot_id", None)
+        if resolver is not None:
+            resolved = await resolver(repository_id)
+            if resolved:
+                return resolved
+
+        return repository_id
 
     async def _get_node_properties(
         self, node_id: str, repository_id: str | None = None
@@ -880,13 +913,23 @@ def _repository_freshness(repository: RepositorySummary) -> dict[str, Any]:
         or repository.metadata.get("repositoryCommit")
     )
     root_path = repository.root_path
+    selected_snapshot_id = repository.snapshot_id or repository.metadata.get(
+        "snapshotId"
+    )
+    observed_snapshot_id = repository.metadata.get("observedSnapshotId")
     git = _git_snapshot(root_path)
 
     if git["available"]:
         current_commit = git.get("current_commit")
         is_dirty = bool(git.get("working_tree_dirty"))
+        commit_mismatch = bool(indexed_commit and indexed_commit != current_commit)
+        source_view_mismatch = (
+            observed_snapshot_id != selected_snapshot_id
+            if observed_snapshot_id and selected_snapshot_id
+            else None
+        )
         if indexed_commit:
-            is_stale = indexed_commit != current_commit or is_dirty
+            is_stale = commit_mismatch or is_dirty or source_view_mismatch is True
             status = "stale" if is_stale else "fresh"
             detail = (
                 "Indexed commit differs from the local checkout or the working tree has uncommitted changes."
@@ -901,6 +944,12 @@ def _repository_freshness(repository: RepositorySummary) -> dict[str, Any]:
         return {
             **git,
             "indexed_commit": indexed_commit,
+            "selected_snapshot_id": selected_snapshot_id,
+            "indexed_source_view_hash": repository.source_view_hash
+            or repository.metadata.get("sourceViewHash"),
+            "commit_mismatch": commit_mismatch,
+            "source_view_mismatch": source_view_mismatch,
+            "provenance_status": "known" if selected_snapshot_id else "unknown",
             "is_stale": is_stale,
             "status": status,
             "detail": detail,
@@ -909,6 +958,12 @@ def _repository_freshness(repository: RepositorySummary) -> dict[str, Any]:
     return {
         **git,
         "indexed_commit": indexed_commit,
+        "selected_snapshot_id": selected_snapshot_id,
+        "indexed_source_view_hash": repository.source_view_hash
+        or repository.metadata.get("sourceViewHash"),
+        "commit_mismatch": None,
+        "source_view_mismatch": None,
+        "provenance_status": "unavailable",
         "is_stale": None,
         "status": "unknown",
         "detail": git.get("detail")
@@ -1218,6 +1273,7 @@ def _is_markdown_path(path: str) -> bool:
 
 
 def _normalize_node(node: dict[str, Any]) -> dict[str, Any]:
+    metadata = _metadata(node.get("metadataJson"))
     return {
         "storage_key": str(node.get("storageKey") or ""),
         "id": str(node.get("id") or ""),
@@ -1226,7 +1282,12 @@ def _normalize_node(node: dict[str, Any]) -> dict[str, Any]:
         "name": str(node.get("name") or ""),
         "language": str(node.get("language") or ""),
         "project": str(node.get("project") or ""),
-        "repository_id": str(node.get("repositoryId") or ""),
+        "repository_id": str(
+            metadata.get("projectId") or node.get("repositoryId") or ""
+        ),
+        "snapshot_id": str(
+            metadata.get("snapshotId") or node.get("repositoryId") or ""
+        ),
         "ingestion_run_id": str(node.get("ingestionRunId") or ""),
         "span": {
             "file_path": str(node.get("filePath") or ""),
@@ -1236,7 +1297,7 @@ def _normalize_node(node: dict[str, Any]) -> dict[str, Any]:
             "end_column": _int(node.get("endColumn")),
         },
         "content_hash": str(node.get("contentHash") or ""),
-        "metadata": _metadata(node.get("metadataJson")),
+        "metadata": metadata,
     }
 
 
@@ -1462,6 +1523,7 @@ def _context_hit_for_node(
         end_line=span["span"]["end_line"],
         score=score,
         repository_id=normalized["repository_id"] or None,
+        snapshot_id=normalized["snapshot_id"] or None,
         content_hash=str(content.get("hash") or normalized["content_hash"] or "")
         if content
         else normalized["content_hash"] or None,

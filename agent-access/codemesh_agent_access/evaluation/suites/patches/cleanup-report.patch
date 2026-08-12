@@ -1,10 +1,10 @@
 diff --git a/src/CodeMesh.Ingestion/RepositoryCleanupService.cs b/src/CodeMesh.Ingestion/RepositoryCleanupService.cs
 --- a/src/CodeMesh.Ingestion/RepositoryCleanupService.cs
 +++ b/src/CodeMesh.Ingestion/RepositoryCleanupService.cs
-@@ -70,7 +70,7 @@ public sealed class RepositoryCleanupService(
-                 await incrementalSummaryStore
-                     .RemoveSummariesExceptAsync(repositoryId, EmptySet(), cancellationToken)
-                     .ConfigureAwait(false);
+@@ -89,7 +89,7 @@ public sealed class RepositoryCleanupService(
+                         .RemoveSummariesExceptAsync(storageRepositoryId, EmptySet(), cancellationToken)
+                         .ConfigureAwait(false);
+                 }
 -                summariesCleaned = true;
 +                summariesCleaned = false;
              }

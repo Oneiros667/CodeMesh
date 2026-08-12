@@ -35,6 +35,7 @@ class ContextHit(BaseModel):
     end_line: int
     score: float
     repository_id: str | None = None
+    snapshot_id: str | None = None
     content_hash: str | None = None
     score_components: dict[str, float] = Field(default_factory=dict)
     expanded_context: dict[str, Any] | None = None
@@ -135,6 +136,11 @@ class NeighborQuery(BaseModel):
 
 class RepositorySummary(BaseModel):
     repository_id: str
+    project_id: str | None = None
+    checkout_id: str | None = None
+    snapshot_id: str | None = None
+    slot_kind: str | None = None
+    source_view_hash: str | None = None
     alias: str | None = None
     root_path: str
     remote_url: str | None = None

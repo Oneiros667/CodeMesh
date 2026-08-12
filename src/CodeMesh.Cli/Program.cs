@@ -328,7 +328,9 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
         ForceSummaries: HasFlag(args, "--force-summaries"),
         SummaryMaxInputCharacters: ReadIntOption(args, "--summary-max-input-chars", 4000),
         SummaryReasoningTokenReserve: ReadIntOption(args, "--summary-reasoning-token-reserve", 768),
-        SummaryMaxCompletionTokens: ReadIntOption(args, "--summary-max-completion-tokens", 1536));
+        SummaryMaxCompletionTokens: ReadIntOption(args, "--summary-max-completion-tokens", 1536),
+        ProjectId: ReadOption(args, "--project-id"),
+        SnapshotRetentionGraceSeconds: ReadIntOption(args, "--snapshot-retention-grace-seconds", 86400));
 
     var orchestrator = new IngestionOrchestrator(
         parserClient,
@@ -543,7 +545,7 @@ static async Task<EmbeddingVerificationResult> RunEmbeddingVerificationAsync(str
         ?? throw new InvalidOperationException("Repository id or alias is required. Usage: codemesh embeddings verify <repository-id-or-alias>");
     var (provider, model) = ResolveEmbeddingTarget(args);
     var registryStore = CreateRegistryStore(args);
-    var resolvedRepositoryId = await ResolveRepositoryIdAsync(registryStore, repositoryId, ignoreResolutionErrors: true).ConfigureAwait(false)
+    var resolvedRepositoryId = await ResolveStorageRepositoryIdAsync(registryStore, repositoryId).ConfigureAwait(false)
         ?? repositoryId;
 
     await using var graphStore = CreateGraphStore(args);
@@ -561,7 +563,7 @@ static async Task<NodeSummaryCoverage> RunSummaryCoverageAsync(string[] args)
         ?? ReadPositional(args, 2)
         ?? throw new InvalidOperationException("Repository id or alias is required. Usage: codemesh summaries coverage <repository-id-or-alias>");
     var registryStore = CreateRegistryStore(args);
-    var resolvedRepositoryId = await ResolveRepositoryIdAsync(registryStore, repositoryId, ignoreResolutionErrors: true)
+    var resolvedRepositoryId = await ResolveStorageRepositoryIdAsync(registryStore, repositoryId)
         .ConfigureAwait(false) ?? repositoryId;
     var summaryStore = CreateNodeSummaryStore(args);
 
@@ -618,6 +620,31 @@ static async Task<string?> ResolveRepositoryIdAsync(
     catch when (ignoreResolutionErrors)
     {
         return repositoryRef;
+    }
+}
+
+static async Task<string?> ResolveStorageRepositoryIdAsync(
+    IRegistryStore store,
+    string? repositoryRef)
+{
+    var projectId = await ResolveRepositoryIdAsync(store, repositoryRef, ignoreResolutionErrors: true)
+        .ConfigureAwait(false);
+    if (string.IsNullOrWhiteSpace(projectId))
+    {
+        return projectId;
+    }
+
+    try
+    {
+        var repository = await store.GetRepositoryAsync(projectId).ConfigureAwait(false);
+        return repository?.Metadata.TryGetValue("snapshotId", out var snapshotId) == true &&
+            !string.IsNullOrWhiteSpace(snapshotId)
+            ? snapshotId
+            : projectId;
+    }
+    catch
+    {
+        return projectId;
     }
 }
 
@@ -943,6 +970,15 @@ static void PrintIngestionResult(IngestionResult result, bool json)
     Console.WriteLine($"CodeMesh ingestion: {result.Run.Stage}");
     Console.WriteLine($"Run: {result.Run.RunId}");
     Console.WriteLine($"Repository: {result.Repository.RootPath}");
+    Console.WriteLine($"Project id: {result.Repository.ProjectId ?? result.Repository.Id}");
+    if (!string.IsNullOrWhiteSpace(result.Repository.CheckoutId))
+    {
+        Console.WriteLine($"Checkout id: {result.Repository.CheckoutId}");
+    }
+    if (!string.IsNullOrWhiteSpace(result.Repository.SnapshotId))
+    {
+        Console.WriteLine($"Snapshot id: {result.Repository.SnapshotId}");
+    }
     Console.WriteLine($"Mode: {mode}");
     if (result.Stats is null)
     {
@@ -1301,7 +1337,7 @@ static void PrintHelp()
     Console.WriteLine("Usage:");
     Console.WriteLine("  codemesh doctor [--root <path>] [--json]");
     Console.WriteLine("  codemesh status [--root <path>] [--json]");
-    Console.WriteLine("  codemesh ingest [--root <path>] [--solution <path>] [--project <path>] [--language <csharp|deployment|markdown|python>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
+    Console.WriteLine("  codemesh ingest [--root <path>] [--project-id <prj_id>] [--solution <path>] [--project <path>] [--language <csharp|deployment|markdown|python>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh refresh [--root <path>] [--solution <path>] [--project <path>] [--language <csharp|deployment|markdown|python>] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh watch [--root <path>] [--solution <path>] [--project <path>] [--language <csharp|deployment|markdown|python>] [--poll-seconds <seconds>] [--max-runs <count>] [--run-once] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh self ingest [--dry-run] [--skip-embeddings] [--include-embeddings] [--include-summaries] [--json]");

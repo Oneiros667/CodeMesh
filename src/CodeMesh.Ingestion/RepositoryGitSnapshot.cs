@@ -5,7 +5,8 @@ namespace CodeMesh.Ingestion;
 internal sealed record RepositoryGitSnapshot(
     string? RemoteUrl,
     string? Branch,
-    string? Commit)
+    string? Commit,
+    bool WorkingTreeDirty)
 {
     private static readonly TimeSpan GitTimeout = TimeSpan.FromSeconds(5);
 
@@ -20,7 +21,7 @@ internal sealed record RepositoryGitSnapshot(
             .ConfigureAwait(false);
         if (commit is null)
         {
-            return new RepositoryGitSnapshot(null, null, null);
+            return new RepositoryGitSnapshot(null, null, null, false);
         }
 
         var branch = await RunGitAsync(
@@ -33,14 +34,21 @@ internal sealed record RepositoryGitSnapshot(
                 ["config", "--get", "remote.origin.url"],
                 cancellationToken)
             .ConfigureAwait(false);
+        var status = await RunGitAsync(
+                repositoryRoot,
+                ["status", "--porcelain", "--untracked-files=normal"],
+                cancellationToken,
+                allowEmpty: true)
+            .ConfigureAwait(false);
 
-        return new RepositoryGitSnapshot(remoteUrl, branch, commit);
+        return new RepositoryGitSnapshot(remoteUrl, branch, commit, !string.IsNullOrEmpty(status));
     }
 
     private static async Task<string?> RunGitAsync(
         string repositoryRoot,
         IReadOnlyList<string> arguments,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool allowEmpty = false)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -77,7 +85,7 @@ internal sealed record RepositoryGitSnapshot(
             }
 
             var value = standardOutput.Result.Trim();
-            return string.IsNullOrWhiteSpace(value) ? null : value;
+            return string.IsNullOrWhiteSpace(value) && !allowEmpty ? null : value;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {

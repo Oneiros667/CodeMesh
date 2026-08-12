@@ -25,9 +25,10 @@ not source truth.
 
 1. A repository is selected through CLI options or configuration.
 2. A parser worker emits code nodes, relationships, diagnostics, and source spans.
-3. Ingestion writes graph records, source content, vector embeddings, generated summaries, repository registry records, and ingestion run records.
-4. Agent Access reads those stores through REST, MCP tools, Python CLI commands, and the .NET client.
-5. Agents consume context search results, context packages, symbols, nodes, neighbors, repository metadata, and ingestion history while editing code.
+3. Ingestion computes a deterministic snapshot id, stages graph records, source content, vector embeddings, generated summaries, repository registry records, and ingestion run records under that snapshot namespace.
+4. The registry atomically publishes checkout-current and eligible clean branch-head slots; failed or stale generations do not replace active slots.
+5. Agent Access resolves a project, alias, or snapshot reference to an active snapshot and reads the stores through REST, MCP tools, Python CLI commands, and the .NET client.
+6. Agents consume context search results, context packages, symbols, nodes, neighbors, repository metadata, and ingestion history while editing code.
 
 ## Components
 
@@ -49,9 +50,13 @@ not source truth.
 
 - Calls parser workers.
 - Handles dry-run and persistent ingestion modes.
+- Resolves persistent project and checkout identity from private Git/local markers.
+- Computes deterministic source snapshots and stages cross-store generations.
+- Publishes checkout-current and clean branch-head slots with compare-and-swap semantics.
 - Writes graph, content, vector, summary, registry, and run data.
 - Performs incremental skip logic for unchanged records.
 - Removes stale records from previous runs.
+- Marks unreferenced snapshots collectible and supports retryable cross-store garbage collection.
 - Supports local embedding providers plus local and online summary providers.
 - Assigns versioned summary complexity tiers from node kind, source size,
   truncation, and available parser metadata; the selected token budgets are
@@ -124,11 +129,12 @@ not source truth.
 
 ## Main Data Stores
 
-- Graph: code structure and relationships in Neo4j.
-- Content: source snippets and content metadata in MongoDB.
-- Vectors: semantic embeddings in Qdrant.
-- Summaries: generated node summaries in MongoDB.
-- Registry: repository metadata and ingestion run history in MongoDB.
+- Graph: snapshot-namespaced code structure and relationships in Neo4j.
+- Content: content-addressed source snippets with snapshot references in MongoDB.
+- Vectors: snapshot-namespaced semantic embeddings in Qdrant.
+- Summaries: snapshot-namespaced generated node summaries in MongoDB.
+- Registry: projects, checkouts, snapshots, observations, slots, generations,
+  repository metadata, and ingestion run history in MongoDB.
 
 ## Current Extension Points
 
@@ -147,6 +153,6 @@ not source truth.
   relationship evidence, graph analysis, explicit agent outcome memory, parser
   tiers, and portable snapshots.
 - [Repository Identity and Snapshot Retention](../planning/repository-identity-and-snapshot-retention.md)
-  defines proposed multi-checkout identity, bounded snapshot retention, and
+  records implemented local multi-checkout identity and bounded retention plus
   future shared-store requirements.
 - [SDLC Roadmap](../planning/sdlc-roadmap.md) describes broader SDLC intelligence goals.

@@ -96,7 +96,7 @@ Document labels have these meanings:
   relationship evidence, graph analysis, parser tiers, memory, and portability
   proposal.
 - [Repository Identity and Snapshot Retention](planning/repository-identity-and-snapshot-retention.md)
-  — multi-checkout and future shared-store requirements.
+  — implemented local multi-checkout retention and future shared-store requirements.
 - [Summary Model Qualification](planning/summary-model-qualification.md) — proposed
   qualification procedure; no deployment profile is currently qualified.
 - [SDLC Roadmap](planning/sdlc-roadmap.md) — deferred broader artifact coverage.

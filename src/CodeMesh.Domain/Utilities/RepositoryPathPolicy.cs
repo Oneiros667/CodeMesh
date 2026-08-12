@@ -5,6 +5,7 @@ public static class RepositoryPathPolicy
     private static readonly HashSet<string> IgnoredDirectoryNames = new(StringComparer.OrdinalIgnoreCase)
     {
         ".codemesh-live-summary",
+        ".codemesh",
         ".codemesh-smoke",
         ".dotnet_home",
         ".git",

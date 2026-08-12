@@ -219,6 +219,78 @@ public interface IRegistryStore
         CancellationToken cancellationToken = default);
 }
 
+public interface ISnapshotRegistryStore : IRegistryStore
+{
+    Task<CheckoutIdentityRecord?> GetCheckoutAsync(
+        string checkoutId,
+        CancellationToken cancellationToken = default);
+
+    Task UpsertCheckoutAsync(
+        CheckoutIdentityRecord checkout,
+        CancellationToken cancellationToken = default);
+
+    Task<SnapshotIndexRecord?> GetSnapshotAsync(
+        string snapshotId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SnapshotIndexRecord>> ListSnapshotsAsync(
+        string projectId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SnapshotSlotRecord>> ListSlotsAsync(
+        string projectId,
+        CancellationToken cancellationToken = default);
+
+    Task StageGenerationAsync(
+        IngestionGenerationRecord generation,
+        SnapshotIndexRecord snapshot,
+        CancellationToken cancellationToken = default);
+
+    Task<SnapshotPublicationResult> PublishSnapshotAsync(
+        SnapshotPublication publication,
+        CancellationToken cancellationToken = default);
+
+    Task MarkGenerationFailedAsync(
+        string generationId,
+        string error,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SnapshotIndexRecord>> ListCollectibleSnapshotsAsync(
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteSnapshotRecordAsync(
+        string snapshotId,
+        CancellationToken cancellationToken = default);
+
+    Task<SnapshotSlotRecord?> ResolveSlotAsync(
+        string projectId,
+        SnapshotSlotKind kind,
+        string key,
+        CancellationToken cancellationToken = default);
+
+    Task MigrateLegacyRepositoryAsync(
+        string legacyRepositoryId,
+        string projectId,
+        CancellationToken cancellationToken = default);
+
+    Task<SnapshotSlotMutationResult> UpsertRetainedSlotAsync(
+        string projectId,
+        SnapshotSlotKind kind,
+        string key,
+        string snapshotId,
+        long? expectedVersion,
+        CancellationToken cancellationToken = default);
+
+    Task<SnapshotSlotMutationResult> DeleteSlotAsync(
+        string projectId,
+        SnapshotSlotKind kind,
+        string key,
+        long? expectedVersion,
+        TimeSpan unreferencedGracePeriod,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IStoreHealthCheck
 {
     string Name { get; }

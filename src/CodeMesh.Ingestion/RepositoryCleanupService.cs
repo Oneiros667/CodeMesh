@@ -27,16 +27,27 @@ public sealed class RepositoryCleanupService(
             .GetRepositoryAsync(repositoryId, cancellationToken)
             .ConfigureAwait(false) is not null;
 
+        var storageRepositoryIds = registryStore is ISnapshotRegistryStore snapshotRegistry
+            ? (await snapshotRegistry.ListSnapshotsAsync(repositoryId, cancellationToken).ConfigureAwait(false))
+                .Select(snapshot => snapshot.SnapshotId)
+                .Append(repositoryId)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray()
+            : [repositoryId];
+
         var graphCleaned = false;
         if (graphStore is IIncrementalGraphStore incrementalGraphStore)
         {
-            await incrementalGraphStore
-                .RemoveGraphExceptAsync(
-                    repositoryId,
-                    EmptySet(),
-                    EmptySet(),
-                    cancellationToken)
-                .ConfigureAwait(false);
+            foreach (var storageRepositoryId in storageRepositoryIds)
+            {
+                await incrementalGraphStore
+                    .RemoveGraphExceptAsync(
+                        storageRepositoryId,
+                        EmptySet(),
+                        EmptySet(),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
             graphCleaned = true;
         }
         else
@@ -47,9 +58,12 @@ public sealed class RepositoryCleanupService(
         var contentCleaned = false;
         if (contentStore is IIncrementalContentStore incrementalContentStore)
         {
-            await incrementalContentStore
-                .RemoveContentExceptAsync(repositoryId, EmptySet(), cancellationToken)
-                .ConfigureAwait(false);
+            foreach (var storageRepositoryId in storageRepositoryIds)
+            {
+                await incrementalContentStore
+                    .RemoveContentExceptAsync(storageRepositoryId, EmptySet(), cancellationToken)
+                    .ConfigureAwait(false);
+            }
             contentCleaned = true;
         }
         else
@@ -60,9 +74,12 @@ public sealed class RepositoryCleanupService(
         var embeddingsCleaned = false;
         if (vectorStore is IIncrementalVectorStore incrementalVectorStore)
         {
-            await incrementalVectorStore
-                .RemoveEmbeddingsExceptAsync(repositoryId, EmptySet(), cancellationToken)
-                .ConfigureAwait(false);
+            foreach (var storageRepositoryId in storageRepositoryIds)
+            {
+                await incrementalVectorStore
+                    .RemoveEmbeddingsExceptAsync(storageRepositoryId, EmptySet(), cancellationToken)
+                    .ConfigureAwait(false);
+            }
             embeddingsCleaned = true;
         }
         else
@@ -75,9 +92,12 @@ public sealed class RepositoryCleanupService(
         {
             if (summaryStore is IIncrementalNodeSummaryStore incrementalSummaryStore)
             {
-                await incrementalSummaryStore
-                    .RemoveSummariesExceptAsync(repositoryId, EmptySet(), cancellationToken)
-                    .ConfigureAwait(false);
+                foreach (var storageRepositoryId in storageRepositoryIds)
+                {
+                    await incrementalSummaryStore
+                        .RemoveSummariesExceptAsync(storageRepositoryId, EmptySet(), cancellationToken)
+                        .ConfigureAwait(false);
+                }
                 summariesCleaned = true;
             }
             else

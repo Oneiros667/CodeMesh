@@ -11,6 +11,9 @@ public static class CodeMeshFingerprint
         "repositoryRemoteUrl",
         "repositoryBranch",
         "repositoryCommit",
+        "projectId",
+        "checkoutId",
+        "snapshotId",
         "ingestionRunId",
         "lastSeenAt"
     };

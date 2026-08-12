@@ -75,7 +75,7 @@ execution order above.
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |
 | Evaluation harnesses | Implemented | Maintain fixtures and live gates; run paid agent/model campaigns only with authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
-| Repository identity and snapshots | Proposal | Decide identity, slot, retention, migration, atomic publication, and shared-store policy. | [Identity and Snapshot Requirements](repository-identity-and-snapshot-retention.md) |
+| Repository identity and snapshots | Local profile implemented | Maintain deterministic identity/slot/retention behavior; shared coordinator, tenant security, and private overlays remain deferred. | [Identity and Snapshot Requirements](repository-identity-and-snapshot-retention.md) |
 | Summary-model qualification | Procedure proposed | Implement the runner and qualify a complete deployment profile before default use. | [Summary Model Qualification](summary-model-qualification.md) |
 | Graph analysis and outcome memory | Proposal | Activate only when measured relationship or impact limitations justify it. | [Graph Intelligence Design](graph-intelligence-design.md) |
 | Broader SDLC intelligence | Deferred roadmap | Add contract, persistence, operations, security, and ownership artifacts only after activation. | [SDLC Roadmap](sdlc-roadmap.md) |

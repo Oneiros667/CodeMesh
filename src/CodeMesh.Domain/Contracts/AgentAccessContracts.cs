@@ -36,7 +36,8 @@ public sealed record CodeSearchHit(
     [property: JsonPropertyName("content_hash")] string? ContentHash = null,
     [property: JsonPropertyName("score_components")] IReadOnlyDictionary<string, double>? ScoreComponents = null,
     [property: JsonPropertyName("expanded_context")] IReadOnlyDictionary<string, JsonElement>? ExpandedContext = null,
-    [property: JsonPropertyName("preview")] string? Preview = null);
+    [property: JsonPropertyName("preview")] string? Preview = null,
+    [property: JsonPropertyName("snapshot_id")] string? SnapshotId = null);
 
 public sealed record AgentContextDiagnostics(
     [property: JsonPropertyName("mode")] string Mode,
@@ -51,7 +52,9 @@ public sealed record AgentContextDiagnostics(
     [property: JsonPropertyName("lexical_candidate_count")] int LexicalCandidateCount,
     [property: JsonPropertyName("summary_candidate_count")] int SummaryCandidateCount,
     [property: JsonPropertyName("lexical_fallback")] bool LexicalFallback,
-    [property: JsonPropertyName("hit_count")] int HitCount);
+    [property: JsonPropertyName("hit_count")] int HitCount,
+    [property: JsonPropertyName("selected_project_id")] string? SelectedProjectId = null,
+    [property: JsonPropertyName("selected_snapshot_id")] string? SelectedSnapshotId = null);
 
 public sealed record AgentContextResult(
     [property: JsonPropertyName("query")] AgentContextQuery Query,
@@ -156,7 +159,12 @@ public sealed record AgentRepositorySummary(
     [property: JsonPropertyName("relationship_count")] int RelationshipCount,
     [property: JsonPropertyName("content_count")] int ContentCount,
     [property: JsonPropertyName("embedding_count")] int? EmbeddingCount,
-    [property: JsonPropertyName("metadata")] IReadOnlyDictionary<string, string>? Metadata);
+    [property: JsonPropertyName("metadata")] IReadOnlyDictionary<string, string>? Metadata,
+    [property: JsonPropertyName("project_id")] string? ProjectId = null,
+    [property: JsonPropertyName("checkout_id")] string? CheckoutId = null,
+    [property: JsonPropertyName("snapshot_id")] string? SnapshotId = null,
+    [property: JsonPropertyName("slot_kind")] string? SlotKind = null,
+    [property: JsonPropertyName("source_view_hash")] string? SourceViewHash = null);
 
 public sealed record AgentRepositoryListResult(
     [property: JsonPropertyName("repositories")] IReadOnlyList<AgentRepositorySummary> Repositories);

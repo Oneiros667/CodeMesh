@@ -53,6 +53,8 @@ def test_vector_search_expands_parameter_declaration_to_method_context() -> None
         "summary_candidate_count": 0,
         "lexical_fallback": False,
         "hit_count": 1,
+        "selected_snapshot_id": "repo:test",
+        "selected_project_id": "repo:test",
     }
     hit = response.hits[0]
     assert hit.node_id == "csharp:method:Sample.Downloader.DownloadAsync(System.String)"
@@ -150,6 +152,8 @@ def test_vector_search_reports_lexical_fallback_when_vector_has_no_hits() -> Non
         "summary_candidate_count": 0,
         "lexical_fallback": True,
         "hit_count": 1,
+        "selected_snapshot_id": "repo:test",
+        "selected_project_id": "repo:test",
     }
 
 

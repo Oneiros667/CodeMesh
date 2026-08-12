@@ -31,15 +31,15 @@ correctness benefit.
 | Python parsing | Files, classes, functions, async functions, and containment implemented. | Imports, calls, routes, tool handlers, and test links remain limited. |
 | Markdown parsing | Documents, sections, anchors, source spans, and containment implemented. | Cross-links to code, commands, endpoints, and projects are not modeled. |
 | Deployment parsing | Initial Dockerfile and Compose nodes, metadata, containment, and service dependencies implemented. | Helm, Kubernetes, CI/CD, overrides, and code-to-runtime links remain planned. |
-| Ingestion | Dry-run, incremental writes, stale cleanup, refresh, watch, redaction, optional embeddings, and optional summaries implemented. | Watch is polling-based; provider-backed paths remain optional. |
-| Storage | Neo4j graph, MongoDB content/registry/runs/summaries, Qdrant vectors, and in-memory test adapters implemented. | Normal service-backed operation requires configured stores. |
+| Ingestion | Dry-run, incremental writes, staged deterministic snapshots, compare-and-swap slot publication, reference-aware cleanup, refresh, watch, redaction, optional embeddings, and optional summaries implemented. | Watch is polling-based; provider-backed paths remain optional. |
+| Storage | Snapshot-namespaced Neo4j graph, MongoDB content/registry/runs/summaries, Qdrant vectors, and in-memory test adapters implemented. | Publication is atomic at the registry slot boundary; normal service-backed operation requires configured stores. |
 | Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. | Returned relationships and rankings are navigation evidence, not runtime proof. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
 | Evaluation | Deterministic fixture, live MCP, paired agent, and model benchmark harnesses implemented. | Paid/model-backed runs require explicit authorization; fixtures prove contracts only. |
 | Generated summaries | Complexity-aware prompts and local/online providers implemented. | No summary deployment profile is CodeMesh-qualified. |
 | Security | Pre-persistence value redaction and generated/cache path exclusions implemented. | Known secret-file exclusion and configurable allow/deny policy remain open. |
-| Repository identity | Absolute-root-derived repository ids plus Git branch, commit, origin, and local freshness implemented. | Multi-checkout project identity and retained snapshots are proposal-only. |
+| Repository identity | Stable project/checkout markers, deterministic source snapshots, checkout-current and clean branch-head slots, explicit retained slots, legacy migration, and richer local freshness implemented. | Separate clones attach with explicit `--project-id`; shared-service tenant/authorization/privacy controls remain deferred. |
 
 Detailed current interfaces are in
 [Agent Access Contracts](agent-access-contracts.md), and component boundaries
@@ -101,9 +101,8 @@ substitute for that evidence.
 - Generated summaries remain disabled in the core product-proof baseline.
 - No summary model is qualified.
 - Python, Markdown, and deployment parsers do not match Roslyn's semantic depth.
-- Shared multi-user stores, durable branch snapshots, portable snapshots,
-  outcome memory, Kubernetes/Helm ingestion, and broader SDLC intelligence are
-  not implemented.
+- Shared multi-user stores, portable snapshot artifacts, outcome memory,
+  Kubernetes/Helm ingestion, and broader SDLC intelligence are not implemented.
 - Current source redaction does not replace repository authorization or a
   configurable sensitive-file policy.
 - The historical publication review is not evidence for commits after its

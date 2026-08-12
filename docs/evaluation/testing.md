@@ -38,7 +38,8 @@ The .NET test harness covers:
 - Agent Access contract mapping.
 - Agent Access .NET client behavior.
 - Ingestion orchestration.
-- Incremental writes and cleanup.
+- Incremental writes, deterministic project/checkout/snapshot identity,
+  compare-and-swap slot retention, pins, and cleanup.
 - Embedding and summary providers.
 - MongoDB, Neo4j, and Qdrant storage adapters.
 - C# parser behavior.

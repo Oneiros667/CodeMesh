@@ -17,6 +17,7 @@ using CodeMesh.Parser.CSharp;
 using CodeMesh.Parser.Deployment;
 using CodeMesh.Parser.Markdown;
 using CodeMesh.Parser.Python;
+using CodeMesh.Storage;
 using CodeMesh.Storage.Memory;
 using CodeMesh.Storage.Mongo;
 using CodeMesh.Storage.Neo4j;
@@ -55,6 +56,11 @@ var tests = new (string Name, Func<Task> Run)[]
     ("repository aliases are generated and resolved", TestRepositoryAliasesAreGeneratedAndResolved),
     ("ingestion stamps git repository metadata", TestIngestionStampsGitRepositoryMetadata),
     ("ingestion writes repository registry records", TestIngestionWritesRepositoryRegistryRecords),
+    ("snapshot slots retain clean heads and bound dirty history", TestSnapshotSlotsRetainCleanHeadsAndBoundDirtyHistory),
+    ("checkout identity survives moves and rejects live copies", TestCheckoutIdentitySurvivesMovesAndRejectsLiveCopies),
+    ("linked worktrees share projects but not checkouts", TestLinkedWorktreesShareProjectsButNotCheckouts),
+    ("explicit pins protect snapshots until released", TestExplicitPinsProtectSnapshotsUntilReleased),
+    ("failed snapshot generations preserve active slots", TestFailedSnapshotGenerationPreservesActiveSlots),
     ("status uses configured ollama endpoint", TestStatusUsesConfiguredOllamaEndpoint),
     ("status retries transient ollama failures", TestStatusRetriesTransientOllamaFailures),
     ("status degrades when configured model is missing", TestStatusDegradesWhenConfiguredModelIsMissing),
@@ -1472,10 +1478,12 @@ static async Task TestRepositoryCleanupRemovesIndexedData()
             IncludeSummaries: true));
 
         var repositoryId = result.Repository.Id;
+        var snapshotId = result.Repository.SnapshotId
+            ?? throw new InvalidOperationException("Cleanup setup did not publish a snapshot id.");
         NotNull(await store.GetNodeAsync(RefreshParserClient.NodeIdFor("Alpha")), "Cleanup setup did not write a graph node.");
         NotNull(await store.GetContentAsync(RefreshParserClient.ContentHashFor("Alpha")), "Cleanup setup did not write content.");
-        Equal(1, (await store.GetEmbeddingStatesAsync(repositoryId)).Count, "Cleanup setup did not write an embedding.");
-        Equal(1, (await store.GetSummaryStatesAsync(repositoryId)).Count, "Cleanup setup did not write a summary.");
+        Equal(1, (await store.GetEmbeddingStatesAsync(snapshotId)).Count, "Cleanup setup did not write an embedding.");
+        Equal(1, (await store.GetSummaryStatesAsync(snapshotId)).Count, "Cleanup setup did not write a summary.");
         NotNull(await store.GetRepositoryAsync(repositoryId), "Cleanup setup did not write repository metadata.");
         Equal(1, (await store.ListRunsAsync(repositoryId)).Count, "Cleanup setup did not write an ingestion run.");
 
@@ -1495,16 +1503,16 @@ static async Task TestRepositoryCleanupRemovesIndexedData()
         Equal(true, cleanupResult.SummariesCleaned, "Cleanup did not report summary cleanup.");
         IsNull(await store.GetNodeAsync(RefreshParserClient.NodeIdFor("Alpha")), "Cleanup did not remove graph node.");
         IsNull(await store.GetContentAsync(RefreshParserClient.ContentHashFor("Alpha")), "Cleanup did not remove content.");
-        Equal(0, (await store.GetContentStatesAsync(repositoryId)).Count, "Cleanup left content state behind.");
-        Equal(0, (await store.GetEmbeddingStatesAsync(repositoryId)).Count, "Cleanup left embeddings behind.");
-        Equal(0, (await store.GetSummaryStatesAsync(repositoryId)).Count, "Cleanup left summaries behind.");
+        Equal(0, (await store.GetContentStatesAsync(snapshotId)).Count, "Cleanup left content state behind.");
+        Equal(0, (await store.GetEmbeddingStatesAsync(snapshotId)).Count, "Cleanup left embeddings behind.");
+        Equal(0, (await store.GetSummaryStatesAsync(snapshotId)).Count, "Cleanup left summaries behind.");
         IsNull(await store.GetRepositoryAsync(repositoryId), "Cleanup did not remove repository metadata.");
         Equal(0, (await store.ListRunsAsync(repositoryId)).Count, "Cleanup did not remove ingestion runs.");
 
         var matches = await store.SearchAsync(
             [1.0f, 0.0f],
             10,
-            new Dictionary<string, string> { ["repositoryId"] = repositoryId });
+            new Dictionary<string, string> { ["repositoryId"] = snapshotId });
         Equal(0, matches.Count, "Cleanup left searchable embeddings behind.");
     }
     finally
@@ -1637,6 +1645,272 @@ static async Task TestIngestionStampsGitRepositoryMetadata()
         Equal(expectedCommit, repository!.Commit ?? string.Empty, "Registry did not retain the Git commit.");
         Equal("evaluation", repository.Branch ?? string.Empty, "Registry did not retain the Git branch.");
         Equal("https://example.invalid/codemesh.git", repository.RemoteUrl ?? string.Empty, "Registry did not retain the Git remote.");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+static async Task TestSnapshotSlotsRetainCleanHeadsAndBoundDirtyHistory()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-snapshot-slots-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+
+    try
+    {
+        RunGit(root, "init", "--initial-branch", "main");
+        RunGit(root, "config", "user.email", "codemesh@example.invalid");
+        RunGit(root, "config", "user.name", "CodeMesh Tests");
+        File.WriteAllText(Path.Combine(root, "source.txt"), "alpha");
+        RunGit(root, "add", "source.txt");
+        RunGit(root, "commit", "-m", "alpha");
+
+        var store = new InMemoryCodeMeshStore();
+        var parser = new RefreshParserClient("Alpha");
+        var orchestrator = new IngestionOrchestrator(
+            parser,
+            store,
+            store,
+            store,
+            new NoEmbeddingProvider(),
+            store);
+
+        var clean = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            SkipEmbeddings: true,
+            SnapshotRetentionGraceSeconds: 0));
+        var projectId = clean.Repository.ProjectId ?? clean.Repository.Id;
+        var checkoutId = clean.Repository.CheckoutId ?? throw new InvalidOperationException("Checkout id was not published.");
+        var cleanSnapshotId = clean.Repository.SnapshotId ?? throw new InvalidOperationException("Snapshot id was not published.");
+        Equal(string.Empty, RunGit(root, "status", "--porcelain"), "Private identity markers dirtied the checkout.");
+
+        var identical = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            SkipEmbeddings: true,
+            SnapshotRetentionGraceSeconds: 0));
+        Equal(cleanSnapshotId, identical.Repository.SnapshotId ?? string.Empty, "Identical effective inputs created another snapshot.");
+        Equal(1, (await store.ListSnapshotsAsync(projectId)).Count, "Identical ingestion retained duplicate snapshot state.");
+
+        File.WriteAllText(Path.Combine(root, "source.txt"), "beta");
+        parser.TypeName = "Beta";
+        var dirtyBeta = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            SkipEmbeddings: true,
+            SnapshotRetentionGraceSeconds: 0));
+        var betaSnapshotId = dirtyBeta.Repository.SnapshotId ?? throw new InvalidOperationException("Dirty snapshot id was not published.");
+        var branchSlot = await store.ResolveSlotAsync(projectId, SnapshotSlotKind.BranchHead, "refs/heads/main");
+        var checkoutSlot = await store.ResolveSlotAsync(projectId, SnapshotSlotKind.CheckoutCurrent, checkoutId);
+        Equal(cleanSnapshotId, branchSlot?.SnapshotId ?? string.Empty, "Dirty ingestion moved the branch-head slot.");
+        Equal(betaSnapshotId, checkoutSlot?.SnapshotId ?? string.Empty, "Dirty ingestion did not move checkout-current.");
+
+        File.WriteAllText(Path.Combine(root, "source.txt"), "gamma");
+        parser.TypeName = "Gamma";
+        var dirtyGamma = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            SkipEmbeddings: true,
+            SnapshotRetentionGraceSeconds: 0));
+        var gammaSnapshotId = dirtyGamma.Repository.SnapshotId ?? throw new InvalidOperationException("Replacement dirty snapshot id was not published.");
+        var collectible = await store.ListCollectibleSnapshotsAsync(DateTimeOffset.UtcNow.AddSeconds(1));
+        Equal(true, collectible.Any(snapshot => snapshot.SnapshotId == betaSnapshotId), "Superseded dirty snapshot was not collectible.");
+
+        var garbageCollector = new SnapshotGarbageCollector(store, store, store, store, store);
+        var collection = await garbageCollector.CollectAsync(DateTimeOffset.UtcNow.AddSeconds(1));
+        Equal(true, collection.DeletedSnapshotIds.Contains(betaSnapshotId), "Garbage collection did not remove the superseded dirty snapshot.");
+        Equal(2, (await store.ListSnapshotsAsync(projectId)).Count, "Bounded retention kept an intermediate dirty snapshot.");
+
+        RunGit(root, "add", "source.txt");
+        RunGit(root, "commit", "-m", "gamma");
+        var cleanGamma = await orchestrator.IngestAsync(new IngestionRequest(
+            root,
+            SkipEmbeddings: true,
+            SnapshotRetentionGraceSeconds: 0));
+        Equal(gammaSnapshotId, cleanGamma.Repository.SnapshotId ?? string.Empty, "Clean checkout did not reuse the matching dirty source snapshot.");
+        branchSlot = await store.ResolveSlotAsync(projectId, SnapshotSlotKind.BranchHead, "refs/heads/main");
+        Equal(gammaSnapshotId, branchSlot?.SnapshotId ?? string.Empty, "Clean ingestion did not move the branch-head slot.");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static async Task TestCheckoutIdentitySurvivesMovesAndRejectsLiveCopies()
+{
+    var parent = Path.Combine(Path.GetTempPath(), $"codemesh-checkout-identity-{Guid.NewGuid():N}");
+    var original = Path.Combine(parent, "original");
+    var moved = Path.Combine(parent, "moved");
+    var copied = Path.Combine(parent, "copied");
+    Directory.CreateDirectory(original);
+
+    try
+    {
+        var store = new InMemoryCodeMeshStore();
+        var orchestrator = new IngestionOrchestrator(
+            new FakeParserClient(),
+            store,
+            store,
+            store,
+            new NoEmbeddingProvider(),
+            store);
+        var first = await orchestrator.IngestAsync(new IngestionRequest(original, SkipEmbeddings: true));
+        var firstCheckoutId = first.Repository.CheckoutId ?? throw new InvalidOperationException("Initial checkout id was absent.");
+        var projectId = first.Repository.ProjectId ?? first.Repository.Id;
+
+        Directory.Move(original, moved);
+        var afterMove = await orchestrator.IngestAsync(new IngestionRequest(moved, SkipEmbeddings: true));
+        Equal(firstCheckoutId, afterMove.Repository.CheckoutId ?? string.Empty, "Moving a folder changed checkout identity.");
+        Equal(projectId, afterMove.Repository.ProjectId ?? string.Empty, "Moving a folder changed project identity.");
+
+        CopyDirectory(moved, copied);
+        var afterCopy = await orchestrator.IngestAsync(new IngestionRequest(copied, SkipEmbeddings: true));
+        if (string.Equals(firstCheckoutId, afterCopy.Repository.CheckoutId, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("A simultaneously live copied marker reused checkout identity.");
+        }
+        Equal(projectId, afterCopy.Repository.ProjectId ?? string.Empty, "Copied checkout did not retain explicit project identity.");
+    }
+    finally
+    {
+        if (Directory.Exists(parent))
+        {
+            Directory.Delete(parent, recursive: true);
+        }
+    }
+}
+
+static async Task TestLinkedWorktreesShareProjectsButNotCheckouts()
+{
+    var parent = Path.Combine(Path.GetTempPath(), $"codemesh-worktree-identity-{Guid.NewGuid():N}");
+    var mainRoot = Path.Combine(parent, "main");
+    var worktreeRoot = Path.Combine(parent, "feature");
+    Directory.CreateDirectory(mainRoot);
+
+    try
+    {
+        RunGit(mainRoot, "init", "--initial-branch", "main");
+        RunGit(mainRoot, "config", "user.email", "codemesh@example.invalid");
+        RunGit(mainRoot, "config", "user.name", "CodeMesh Tests");
+        File.WriteAllText(Path.Combine(mainRoot, "source.txt"), "same source");
+        File.WriteAllText(Path.Combine(mainRoot, "Source.sln"), string.Empty);
+        RunGit(mainRoot, "add", "source.txt", "Source.sln");
+        RunGit(mainRoot, "commit", "-m", "initial");
+
+        var store = new InMemoryCodeMeshStore();
+        var orchestrator = new IngestionOrchestrator(new FakeParserClient(), store, store, store, new NoEmbeddingProvider(), store);
+        var main = await orchestrator.IngestAsync(new IngestionRequest(
+            mainRoot,
+            SolutionPath: Path.Combine(mainRoot, "Source.sln"),
+            SkipEmbeddings: true));
+        RunGit(mainRoot, "worktree", "add", "-b", "feature", worktreeRoot);
+        var feature = await orchestrator.IngestAsync(new IngestionRequest(
+            worktreeRoot,
+            SolutionPath: Path.Combine(worktreeRoot, "Source.sln"),
+            SkipEmbeddings: true));
+
+        Equal(main.Repository.ProjectId ?? string.Empty, feature.Repository.ProjectId ?? string.Empty, "Linked worktrees did not share project identity.");
+        if (string.Equals(main.Repository.CheckoutId, feature.Repository.CheckoutId, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Linked worktrees reused checkout identity.");
+        }
+        Equal(main.Repository.SnapshotId ?? string.Empty, feature.Repository.SnapshotId ?? string.Empty, "Identical linked worktree source did not reuse snapshot identity.");
+    }
+    finally
+    {
+        if (Directory.Exists(parent))
+        {
+            Directory.Delete(parent, recursive: true);
+        }
+    }
+}
+
+static async Task TestExplicitPinsProtectSnapshotsUntilReleased()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-snapshot-pin-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    try
+    {
+        var store = new InMemoryCodeMeshStore();
+        var parser = new RefreshParserClient("Alpha");
+        var orchestrator = new IngestionOrchestrator(parser, store, store, store, new NoEmbeddingProvider(), store);
+        var first = await orchestrator.IngestAsync(new IngestionRequest(root, SkipEmbeddings: true, SnapshotRetentionGraceSeconds: 0));
+        var projectId = first.Repository.ProjectId ?? first.Repository.Id;
+        var firstSnapshotId = first.Repository.SnapshotId ?? throw new InvalidOperationException("First snapshot id was absent.");
+        var pinned = await store.UpsertRetainedSlotAsync(
+            projectId,
+            SnapshotSlotKind.ExplicitPin,
+            "evaluation-1",
+            firstSnapshotId,
+            expectedVersion: null);
+        Equal(true, pinned.Changed, "Explicit pin was not created.");
+        var stalePin = await store.UpsertRetainedSlotAsync(
+            projectId,
+            SnapshotSlotKind.ExplicitPin,
+            "evaluation-1",
+            firstSnapshotId,
+            expectedVersion: 0);
+        Equal(false, stalePin.Changed, "A stale slot writer replaced an explicit pin.");
+
+        parser.TypeName = "Beta";
+        var second = await orchestrator.IngestAsync(new IngestionRequest(root, SkipEmbeddings: true, SnapshotRetentionGraceSeconds: 0));
+        var secondSnapshotId = second.Repository.SnapshotId ?? throw new InvalidOperationException("Second snapshot id was absent.");
+        if (string.Equals(firstSnapshotId, secondSnapshotId, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Changed source unexpectedly reused its prior snapshot.");
+        }
+        Equal(false, (await store.ListCollectibleSnapshotsAsync(DateTimeOffset.UtcNow.AddSeconds(1))).Any(snapshot => snapshot.SnapshotId == firstSnapshotId), "Pinned snapshot became collectible.");
+
+        var released = await store.DeleteSlotAsync(
+            projectId,
+            SnapshotSlotKind.ExplicitPin,
+            "evaluation-1",
+            pinned.Slot?.Version,
+            TimeSpan.Zero);
+        Equal(true, released.Changed, "Explicit pin was not released.");
+        Equal(true, released.NewlyCollectibleSnapshotIds.Contains(firstSnapshotId), "Unpinned unreferenced snapshot did not become collectible.");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+static async Task TestFailedSnapshotGenerationPreservesActiveSlots()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-snapshot-failure-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    try
+    {
+        RunGit(root, "init", "--initial-branch", "main");
+        RunGit(root, "config", "user.email", "codemesh@example.invalid");
+        RunGit(root, "config", "user.name", "CodeMesh Tests");
+        File.WriteAllText(Path.Combine(root, "source.txt"), "alpha");
+        RunGit(root, "add", "source.txt");
+        RunGit(root, "commit", "-m", "alpha");
+
+        var store = new InMemoryCodeMeshStore();
+        var parser = new RefreshParserClient("Alpha");
+        var successful = new IngestionOrchestrator(parser, store, store, store, new NoEmbeddingProvider(), store);
+        var first = await successful.IngestAsync(new IngestionRequest(root, SkipEmbeddings: true));
+        var projectId = first.Repository.ProjectId ?? first.Repository.Id;
+        var firstSnapshotId = first.Repository.SnapshotId ?? throw new InvalidOperationException("Initial snapshot id was absent.");
+
+        File.WriteAllText(Path.Combine(root, "source.txt"), "beta");
+        RunGit(root, "add", "source.txt");
+        RunGit(root, "commit", "-m", "beta");
+        parser.TypeName = "Beta";
+        var failing = new IngestionOrchestrator(new RefreshParserClient("Beta"), new FailingGraphStore(), store, store, new NoEmbeddingProvider(), store);
+        await ThrowsAsync<InvalidOperationException>(
+            () => failing.IngestAsync(new IngestionRequest(root, SkipEmbeddings: true)),
+            "A graph-store publication failure did not fail ingestion.");
+
+        var branchSlot = await store.ResolveSlotAsync(projectId, SnapshotSlotKind.BranchHead, "refs/heads/main");
+        Equal(firstSnapshotId, branchSlot?.SnapshotId ?? string.Empty, "Failed generation replaced the active branch slot.");
+        var collectible = await store.ListCollectibleSnapshotsAsync(DateTimeOffset.UtcNow.AddSeconds(1));
+        Equal(true, collectible.Any(snapshot => snapshot.State == SnapshotState.Failed), "Failed generation was not retained for retryable cleanup.");
     }
     finally
     {
@@ -2208,7 +2482,12 @@ static async Task TestMongoRegistryStoreRoundTripsRepositoriesAndRuns()
         Environment.GetEnvironmentVariable("CODEMESH_MONGO_TEST_DATABASE") ?? "codemesh_tests",
         $"repositories_smoke_{unique}",
         $"ingestion_runs_smoke_{unique}",
-        TimeSpan.FromSeconds(2)));
+        TimeSpan.FromSeconds(2),
+        $"snapshot_projects_smoke_{unique}",
+        $"snapshot_checkouts_smoke_{unique}",
+        $"snapshots_smoke_{unique}",
+        $"ingestion_generations_smoke_{unique}",
+        $"snapshot_observations_smoke_{unique}"));
 
     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
     var health = await store.CheckAsync(timeout.Token);
@@ -2315,6 +2594,51 @@ static async Task TestMongoRegistryStoreRoundTripsRepositoriesAndRuns()
     Equal(2, runs[0].Stats?.WrittenSummaryCount ?? -1, "MongoDB registry written summary stats changed.");
     Equal(1, runs[0].Stats?.SkippedSummaryCount ?? -1, "MongoDB registry skipped summary stats changed.");
     Equal(1, runs[0].Stats?.FailedSummaryCount ?? -1, "MongoDB registry failed summary stats changed.");
+
+    var checkoutId = $"chk_{unique}";
+    var snapshotId = $"snp_{unique}";
+    var generationId = $"gen_{unique}";
+    var slotId = $"slot_{CodeMeshHash.StableId(repository.RepositoryId, SnapshotSlotKind.CheckoutCurrent.ToString(), checkoutId)}";
+    var snapshot = new SnapshotIndexRecord(
+        snapshotId,
+        repository.RepositoryId,
+        "source-view",
+        "scope",
+        "parser-profile",
+        "graph-v1",
+        SnapshotState.Staging,
+        now,
+        now,
+        null,
+        generationId,
+        7,
+        11,
+        5,
+        7);
+    var generation = new IngestionGenerationRecord(
+        generationId,
+        repository.RepositoryId,
+        checkoutId,
+        snapshotId,
+        IngestionGenerationState.Staging,
+        now,
+        null,
+        null);
+    await store.StageGenerationAsync(generation, snapshot, timeout.Token);
+    var publication = await store.PublishSnapshotAsync(
+        new SnapshotPublication(
+            new ProjectIdentityRecord(repository.RepositoryId, repository.Alias!, null, now, now),
+            new CheckoutIdentityRecord(checkoutId, repository.RepositoryId, repository.RootPath, now, now),
+            snapshot,
+            new SnapshotObservationRecord($"obs_{unique}", repository.RepositoryId, checkoutId, snapshotId, "main", "abcdef", false, now, "test", run.RunId),
+            generation,
+            [new SnapshotSlotRecord(slotId, repository.RepositoryId, SnapshotSlotKind.CheckoutCurrent, checkoutId, snapshotId, 0, now)],
+            [new SnapshotSlotExpectation(slotId, null, null)],
+            TimeSpan.Zero),
+        timeout.Token);
+    Equal(true, publication.Published, "MongoDB snapshot publication failed.");
+    Equal(snapshotId, (await store.ResolveSlotAsync(repository.RepositoryId, SnapshotSlotKind.CheckoutCurrent, checkoutId, timeout.Token))?.SnapshotId ?? string.Empty, "MongoDB snapshot slot did not resolve.");
+    Equal(SnapshotState.Active, (await store.GetSnapshotAsync(snapshotId, timeout.Token))?.State ?? SnapshotState.Failed, "MongoDB snapshot was not activated.");
 
     await store.DeleteRepositoryAsync(repository.RepositoryId, timeout.Token);
     IsNull(await store.GetRepositoryAsync(repository.RepositoryId, timeout.Token), "MongoDB registry did not delete repository by id.");
@@ -3614,6 +3938,22 @@ static string RunGit(string workingDirectory, params string[] arguments)
     return standardOutput.Trim();
 }
 
+static void CopyDirectory(string source, string destination)
+{
+    Directory.CreateDirectory(destination);
+    foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
+    {
+        Directory.CreateDirectory(Path.Combine(destination, Path.GetRelativePath(source, directory)));
+    }
+
+    foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+    {
+        var target = Path.Combine(destination, Path.GetRelativePath(source, file));
+        Directory.CreateDirectory(Path.GetDirectoryName(target) ?? destination);
+        File.Copy(file, target, overwrite: true);
+    }
+}
+
 static void HasNode(ParseResult result, CodeNodeKind kind, string name)
 {
     if (!result.Nodes.Any(node => node.Kind == kind && string.Equals(node.Name, name, StringComparison.Ordinal)))
@@ -3690,6 +4030,25 @@ static void Throws<TException>(Action action, string message)
     try
     {
         action();
+    }
+    catch (TException)
+    {
+        return;
+    }
+    catch (Exception exception)
+    {
+        throw new InvalidOperationException($"{message} Expected {typeof(TException).Name}, got {exception.GetType().Name}.");
+    }
+
+    throw new InvalidOperationException($"{message} Expected {typeof(TException).Name}, but no exception was thrown.");
+}
+
+static async Task ThrowsAsync<TException>(Func<Task> action, string message)
+    where TException : Exception
+{
+    try
+    {
+        await action().ConfigureAwait(false);
     }
     catch (TException)
     {
@@ -3847,6 +4206,27 @@ sealed class SlowHttpServer : IAsyncDisposable
         var response = Encoding.ASCII.GetBytes(
             $"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {_responseBody.Length}\r\nConnection: close\r\n\r\n{_responseBody}");
         await stream.WriteAsync(response, cancellationToken).ConfigureAwait(false);
+    }
+}
+
+sealed class FailingGraphStore : IGraphStore
+{
+    public Task UpsertGraphAsync(CodeGraphBatch batch, CancellationToken cancellationToken = default)
+    {
+        throw new InvalidOperationException("Synthetic graph-store failure.");
+    }
+
+    public Task<CodeNode?> GetNodeAsync(string nodeId, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult<CodeNode?>(null);
+    }
+
+    public Task<IReadOnlyList<CodeRelationship>> GetRelationshipsAsync(
+        string nodeId,
+        int depth = 1,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult<IReadOnlyList<CodeRelationship>>(Array.Empty<CodeRelationship>());
     }
 }
 

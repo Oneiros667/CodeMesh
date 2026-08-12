@@ -19,7 +19,7 @@ public sealed class InMemoryCodeMeshStore :
     INodeSummaryStore,
     IIncrementalNodeSummaryStore,
     INodeSummaryCoverageStore,
-    IRegistryStore,
+    ISnapshotRegistryStore,
     IStoreHealthCheck
 {
     private readonly ConcurrentDictionary<string, CodeNode> _nodes = new(StringComparer.Ordinal);
@@ -30,6 +30,13 @@ public sealed class InMemoryCodeMeshStore :
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, string>> _contentRunsByRepository = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, RepositoryIndexRecord> _repositories = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IngestionRunIndexRecord> _runs = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ProjectIdentityRecord> _projects = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, CheckoutIdentityRecord> _checkouts = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, SnapshotIndexRecord> _snapshots = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, SnapshotSlotRecord> _slots = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, SnapshotObservationRecord> _observations = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, IngestionGenerationRecord> _generations = new(StringComparer.Ordinal);
+    private readonly SemaphoreSlim _publicationLock = new(1, 1);
 
     public string Name => "memory";
 
@@ -37,12 +44,12 @@ public sealed class InMemoryCodeMeshStore :
     {
         foreach (var node in batch.Nodes)
         {
-            _nodes[node.Id] = node;
+            _nodes[StorageKey(batch.Repository.Id, node.Id)] = node;
         }
 
         foreach (var relationship in batch.Relationships)
         {
-            _relationships[relationship.Id] = relationship;
+            _relationships[StorageKey(batch.Repository.Id, relationship.Id)] = relationship;
         }
 
         foreach (var content in batch.Contents)
@@ -55,7 +62,10 @@ public sealed class InMemoryCodeMeshStore :
 
     public Task<CodeNode?> GetNodeAsync(string nodeId, CancellationToken cancellationToken = default)
     {
-        _nodes.TryGetValue(nodeId, out var node);
+        var node = _nodes.Values
+            .Where(candidate => string.Equals(candidate.Id, nodeId, StringComparison.Ordinal))
+            .OrderByDescending(candidate => MetadataValue(candidate.Metadata, "lastSeenAt"), StringComparer.Ordinal)
+            .FirstOrDefault();
         return Task.FromResult(node);
     }
 
@@ -525,7 +535,336 @@ public sealed class InMemoryCodeMeshStore :
             }
         }
 
+        _projects.TryRemove(repositoryId, out _);
+        foreach (var (checkoutId, checkout) in _checkouts)
+        {
+            if (string.Equals(checkout.ProjectId, repositoryId, StringComparison.Ordinal))
+            {
+                _checkouts.TryRemove(checkoutId, out _);
+            }
+        }
+        foreach (var (slotId, slot) in _slots)
+        {
+            if (string.Equals(slot.ProjectId, repositoryId, StringComparison.Ordinal))
+            {
+                _slots.TryRemove(slotId, out _);
+            }
+        }
+        foreach (var (snapshotId, snapshot) in _snapshots)
+        {
+            if (string.Equals(snapshot.ProjectId, repositoryId, StringComparison.Ordinal))
+            {
+                _snapshots.TryRemove(snapshotId, out _);
+            }
+        }
+
         return Task.CompletedTask;
+    }
+
+    public Task<CheckoutIdentityRecord?> GetCheckoutAsync(
+        string checkoutId,
+        CancellationToken cancellationToken = default)
+    {
+        _checkouts.TryGetValue(checkoutId, out var checkout);
+        return Task.FromResult(checkout);
+    }
+
+    public Task UpsertCheckoutAsync(
+        CheckoutIdentityRecord checkout,
+        CancellationToken cancellationToken = default)
+    {
+        _checkouts[checkout.CheckoutId] = checkout;
+        return Task.CompletedTask;
+    }
+
+    public Task<SnapshotIndexRecord?> GetSnapshotAsync(
+        string snapshotId,
+        CancellationToken cancellationToken = default)
+    {
+        _snapshots.TryGetValue(snapshotId, out var snapshot);
+        return Task.FromResult(snapshot);
+    }
+
+    public Task<IReadOnlyList<SnapshotIndexRecord>> ListSnapshotsAsync(
+        string projectId,
+        CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<SnapshotIndexRecord> snapshots = _snapshots.Values
+            .Where(snapshot => string.Equals(snapshot.ProjectId, projectId, StringComparison.Ordinal))
+            .OrderByDescending(snapshot => snapshot.LastReferencedAt)
+            .ToArray();
+        return Task.FromResult(snapshots);
+    }
+
+    public Task<IReadOnlyList<SnapshotSlotRecord>> ListSlotsAsync(
+        string projectId,
+        CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<SnapshotSlotRecord> slots = _slots.Values
+            .Where(slot => string.Equals(slot.ProjectId, projectId, StringComparison.Ordinal))
+            .OrderBy(slot => slot.SlotId, StringComparer.Ordinal)
+            .ToArray();
+        return Task.FromResult(slots);
+    }
+
+    public Task StageGenerationAsync(
+        IngestionGenerationRecord generation,
+        SnapshotIndexRecord snapshot,
+        CancellationToken cancellationToken = default)
+    {
+        _generations[generation.GenerationId] = generation;
+        _snapshots.AddOrUpdate(
+            snapshot.SnapshotId,
+            snapshot,
+            (_, existing) => existing.State == SnapshotState.Active ? existing : snapshot);
+        return Task.CompletedTask;
+    }
+
+    public async Task<SnapshotPublicationResult> PublishSnapshotAsync(
+        SnapshotPublication publication,
+        CancellationToken cancellationToken = default)
+    {
+        await _publicationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            foreach (var expected in publication.ExpectedSlots)
+            {
+                _slots.TryGetValue(expected.SlotId, out var current);
+                if (!string.Equals(current?.SnapshotId, expected.SnapshotId, StringComparison.Ordinal) ||
+                    current?.Version != expected.Version)
+                {
+                    return new SnapshotPublicationResult(
+                        false,
+                        Array.Empty<SnapshotSlotRecord>(),
+                        Array.Empty<string>(),
+                        $"Slot '{expected.SlotId}' changed during ingestion.");
+                }
+            }
+
+            var now = publication.Observation.ObservedAt;
+            _projects[publication.Project.ProjectId] = publication.Project;
+            _checkouts[publication.Checkout.CheckoutId] = publication.Checkout;
+            _observations[publication.Observation.ObservationId] = publication.Observation;
+            _generations[publication.Generation.GenerationId] = publication.Generation with
+            {
+                State = IngestionGenerationState.Published,
+                FinishedAt = now,
+                Error = null
+            };
+            _snapshots[publication.Snapshot.SnapshotId] = publication.Snapshot with
+            {
+                State = SnapshotState.Active,
+                LastReferencedAt = now,
+                CollectibleAfter = null
+            };
+
+            var publishedSlots = new List<SnapshotSlotRecord>();
+            foreach (var requested in publication.Slots)
+            {
+                _slots.TryGetValue(requested.SlotId, out var current);
+                var published = requested with
+                {
+                    Version = (current?.Version ?? 0) + 1,
+                    UpdatedAt = now
+                };
+                _slots[published.SlotId] = published;
+                publishedSlots.Add(published);
+            }
+
+            var referenced = _slots.Values
+                .Where(slot => string.Equals(slot.ProjectId, publication.Project.ProjectId, StringComparison.Ordinal))
+                .Select(slot => slot.SnapshotId)
+                .ToHashSet(StringComparer.Ordinal);
+            var newlyCollectible = new List<string>();
+            foreach (var (snapshotId, snapshot) in _snapshots)
+            {
+                if (!string.Equals(snapshot.ProjectId, publication.Project.ProjectId, StringComparison.Ordinal) ||
+                    referenced.Contains(snapshotId) ||
+                    snapshot.State is SnapshotState.Failed or SnapshotState.Staging)
+                {
+                    continue;
+                }
+
+                var collectible = snapshot with
+                {
+                    State = SnapshotState.Collectible,
+                    CollectibleAfter = now + publication.UnreferencedGracePeriod
+                };
+                _snapshots[snapshotId] = collectible;
+                newlyCollectible.Add(snapshotId);
+            }
+
+            return new SnapshotPublicationResult(true, publishedSlots, newlyCollectible, null);
+        }
+        finally
+        {
+            _publicationLock.Release();
+        }
+    }
+
+    public Task MarkGenerationFailedAsync(
+        string generationId,
+        string error,
+        CancellationToken cancellationToken = default)
+    {
+        if (_generations.TryGetValue(generationId, out var generation))
+        {
+            _generations[generationId] = generation with
+            {
+                State = IngestionGenerationState.Failed,
+                FinishedAt = DateTimeOffset.UtcNow,
+                Error = error
+            };
+            if (_snapshots.TryGetValue(generation.SnapshotId, out var snapshot) &&
+                snapshot.State == SnapshotState.Staging)
+            {
+                _snapshots[generation.SnapshotId] = snapshot with
+                {
+                    State = SnapshotState.Failed,
+                    CollectibleAfter = DateTimeOffset.UtcNow
+                };
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<SnapshotIndexRecord>> ListCollectibleSnapshotsAsync(
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<SnapshotIndexRecord> snapshots = _snapshots.Values
+            .Where(snapshot => snapshot.State is SnapshotState.Collectible or SnapshotState.Failed)
+            .Where(snapshot => snapshot.CollectibleAfter is null || snapshot.CollectibleAfter <= now)
+            .Where(snapshot => !_slots.Values.Any(slot => string.Equals(slot.SnapshotId, snapshot.SnapshotId, StringComparison.Ordinal)))
+            .ToArray();
+        return Task.FromResult(snapshots);
+    }
+
+    public Task DeleteSnapshotRecordAsync(
+        string snapshotId,
+        CancellationToken cancellationToken = default)
+    {
+        if (_slots.Values.Any(slot => string.Equals(slot.SnapshotId, snapshotId, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException($"Snapshot '{snapshotId}' is still referenced by an active slot.");
+        }
+
+        _snapshots.TryRemove(snapshotId, out _);
+        return Task.CompletedTask;
+    }
+
+    public Task<SnapshotSlotRecord?> ResolveSlotAsync(
+        string projectId,
+        SnapshotSlotKind kind,
+        string key,
+        CancellationToken cancellationToken = default)
+    {
+        var slot = _slots.Values.SingleOrDefault(candidate =>
+            string.Equals(candidate.ProjectId, projectId, StringComparison.Ordinal) &&
+            candidate.Kind == kind &&
+            string.Equals(candidate.Key, key, StringComparison.Ordinal));
+        return Task.FromResult(slot);
+    }
+
+    public Task MigrateLegacyRepositoryAsync(
+        string legacyRepositoryId,
+        string projectId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.Equals(legacyRepositoryId, projectId, StringComparison.Ordinal))
+        {
+            return Task.CompletedTask;
+        }
+
+        _repositories.TryRemove(legacyRepositoryId, out _);
+        foreach (var (runId, run) in _runs)
+        {
+            if (string.Equals(run.RepositoryId, legacyRepositoryId, StringComparison.Ordinal))
+            {
+                _runs[runId] = run with { RepositoryId = projectId };
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public async Task<SnapshotSlotMutationResult> UpsertRetainedSlotAsync(
+        string projectId,
+        SnapshotSlotKind kind,
+        string key,
+        string snapshotId,
+        long? expectedVersion,
+        CancellationToken cancellationToken = default)
+    {
+        await _publicationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (!_snapshots.TryGetValue(snapshotId, out var snapshot) ||
+                !string.Equals(snapshot.ProjectId, projectId, StringComparison.Ordinal))
+            {
+                return new SnapshotSlotMutationResult(false, null, Array.Empty<string>(), "Snapshot was not found in the project.");
+            }
+
+            var slotId = RetainedSlotId(projectId, kind, key);
+            _slots.TryGetValue(slotId, out var current);
+            if (expectedVersion.HasValue && current?.Version != expectedVersion)
+            {
+                return new SnapshotSlotMutationResult(false, current, Array.Empty<string>(), $"Slot '{slotId}' changed.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var slot = new SnapshotSlotRecord(slotId, projectId, kind, key, snapshotId, (current?.Version ?? 0) + 1, now);
+            _slots[slotId] = slot;
+            _snapshots[snapshotId] = snapshot with { State = SnapshotState.Active, LastReferencedAt = now, CollectibleAfter = null };
+            return new SnapshotSlotMutationResult(true, slot, Array.Empty<string>(), null);
+        }
+        finally
+        {
+            _publicationLock.Release();
+        }
+    }
+
+    public async Task<SnapshotSlotMutationResult> DeleteSlotAsync(
+        string projectId,
+        SnapshotSlotKind kind,
+        string key,
+        long? expectedVersion,
+        TimeSpan unreferencedGracePeriod,
+        CancellationToken cancellationToken = default)
+    {
+        await _publicationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var slotId = RetainedSlotId(projectId, kind, key);
+            if (!_slots.TryGetValue(slotId, out var current))
+            {
+                return new SnapshotSlotMutationResult(false, null, Array.Empty<string>(), null);
+            }
+            if (expectedVersion.HasValue && current.Version != expectedVersion)
+            {
+                return new SnapshotSlotMutationResult(false, current, Array.Empty<string>(), $"Slot '{slotId}' changed.");
+            }
+
+            _slots.TryRemove(slotId, out _);
+            var newlyCollectible = Array.Empty<string>();
+            if (!_slots.Values.Any(slot => string.Equals(slot.SnapshotId, current.SnapshotId, StringComparison.Ordinal)) &&
+                _snapshots.TryGetValue(current.SnapshotId, out var snapshot))
+            {
+                _snapshots[current.SnapshotId] = snapshot with
+                {
+                    State = SnapshotState.Collectible,
+                    CollectibleAfter = DateTimeOffset.UtcNow + unreferencedGracePeriod
+                };
+                newlyCollectible = [current.SnapshotId];
+            }
+
+            return new SnapshotSlotMutationResult(true, current, newlyCollectible, null);
+        }
+        finally
+        {
+            _publicationLock.Release();
+        }
     }
 
     private string? PreviewFor(string contentHash)
@@ -569,6 +908,18 @@ public sealed class InMemoryCodeMeshStore :
             metadata.TryGetValue("ingestionRunId", out var itemRunId) &&
             string.Equals(itemRepositoryId, repositoryId, StringComparison.Ordinal) &&
             !string.Equals(itemRunId, ingestionRunId, StringComparison.Ordinal);
+    }
+
+    private static string StorageKey(string repositoryId, string id) => $"{repositoryId}\u001f{id}";
+
+    private static string RetainedSlotId(string projectId, SnapshotSlotKind kind, string key)
+    {
+        return $"slot_{CodeMeshHash.StableId(projectId, kind.ToString(), key)}";
+    }
+
+    private static string MetadataValue(IReadOnlyDictionary<string, string> metadata, string key)
+    {
+        return metadata.TryGetValue(key, out var value) ? value : string.Empty;
     }
 
     private static bool IsRepositoryItem(

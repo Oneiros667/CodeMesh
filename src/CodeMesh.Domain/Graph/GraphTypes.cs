@@ -54,7 +54,10 @@ public sealed record RepositoryRef(
     string RootPath,
     string? RemoteUrl = null,
     string? Branch = null,
-    string? Commit = null);
+    string? Commit = null,
+    string? ProjectId = null,
+    string? CheckoutId = null,
+    string? SnapshotId = null);
 
 public sealed record SourceSpan(
     string FilePath,

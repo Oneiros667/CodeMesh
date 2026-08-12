@@ -118,22 +118,57 @@ class MongoContentStore:
                 self._settings.mongo_repositories_collection
             ]
             runs_collection = database[self._settings.mongo_ingestion_runs_collection]
+            snapshots_collection = database["snapshots"]
+            namespace_ids = [
+                str(document.get("_id") or "")
+                for document in snapshots_collection.find(
+                    {"projectId": repository_id}, {"_id": 1}
+                )
+            ]
+            namespace_ids = [value for value in namespace_ids if value]
 
             content_collection.update_many(
-                {"repositoryIds": repository_id},
+                {"repositoryIds": {"$in": [repository_id, *namespace_ids]}},
                 {
-                    "$pull": {"repositoryIds": repository_id},
-                    "$unset": {
-                        f"repositoryRuns.{repository_id}": "",
-                        f"repositoryLastSeenAtUtc.{repository_id}": "",
+                    "$pull": {
+                        "repositoryIds": {"$in": [repository_id, *namespace_ids]}
                     },
                 },
             )
+            for namespace_id in [repository_id, *namespace_ids]:
+                content_collection.update_many(
+                    {},
+                    {
+                        "$unset": {
+                            f"repositoryRuns.{namespace_id}": "",
+                            f"repositoryLastSeenAtUtc.{namespace_id}": "",
+                        }
+                    },
+                )
             content_collection.delete_many({"repositoryIds": {"$size": 0}})
             repository_collection.delete_one({"_id": repository_id})
             runs_collection.delete_many({"repositoryId": repository_id})
+            database["snapshot_projects"].delete_one({"_id": repository_id})
+            database["snapshot_checkouts"].delete_many({"projectId": repository_id})
+            snapshots_collection.delete_many({"projectId": repository_id})
+            database["ingestion_generations"].delete_many({"projectId": repository_id})
+            database["snapshot_observations"].delete_many({"projectId": repository_id})
 
         await asyncio.to_thread(delete)
+
+    async def list_snapshot_ids(self, project_id: str) -> list[str]:
+        if not project_id or MongoClient is None:
+            return []
+
+        collection = self._mongo()[self._settings.mongo_database]["snapshots"]
+        documents = await asyncio.to_thread(
+            lambda: list(collection.find({"projectId": project_id}, {"_id": 1}))
+        )
+        return [
+            str(document.get("_id") or "")
+            for document in documents
+            if document.get("_id")
+        ]
 
     async def list_ingestion_runs(
         self,
@@ -170,6 +205,47 @@ class MongoContentStore:
             return repository_id
 
         return repository.repository_id if repository else repository_id
+
+    async def resolve_snapshot_id(self, repository_ref: str) -> str | None:
+        """Resolve a project, checkout, or explicit snapshot to one storage namespace."""
+        if not repository_ref or MongoClient is None:
+            return None
+
+        def resolve() -> str | None:
+            database = self._mongo()[self._settings.mongo_database]
+            repositories = database[self._settings.mongo_repositories_collection]
+            repository = find_repository_document(repositories, repository_ref)
+            if repository is not None:
+                metadata = string_dict(repository.get("metadata"))
+                return metadata.get("snapshotId") or str(
+                    repository.get("_id") or repository.get("repositoryId") or ""
+                )
+
+            snapshot = database["snapshots"].find_one({"_id": repository_ref})
+            if snapshot is not None:
+                return str(snapshot.get("_id") or "")
+
+            projects = database["snapshot_projects"]
+            project_documents = list(
+                projects.find({"slots.key": repository_ref}).limit(3)
+            )
+            matches = {
+                str(slot.get("snapshotId") or "")
+                for project in project_documents
+                for slot in project.get("slots", [])
+                if str(slot.get("key") or "") == repository_ref
+            }
+            matches.discard("")
+            if len(matches) > 1:
+                raise RuntimeError(
+                    f"Repository reference '{repository_ref}' matches multiple snapshots."
+                )
+            return next(iter(matches), None)
+
+        try:
+            return await asyncio.to_thread(resolve)
+        except PyMongoError:
+            return None
 
     def _mongo(self) -> Any:
         if MongoClient is None:
@@ -227,6 +303,12 @@ def normalize_repository(document: dict[str, Any]) -> RepositorySummary:
     metadata = string_dict(document.get("metadata"))
     return RepositorySummary(
         repository_id=str(document.get("_id") or document.get("repositoryId") or ""),
+        project_id=metadata.get("projectId")
+        or str(document.get("_id") or document.get("repositoryId") or ""),
+        checkout_id=metadata.get("checkoutId") or None,
+        snapshot_id=metadata.get("snapshotId") or None,
+        slot_kind=metadata.get("slotKind") or None,
+        source_view_hash=metadata.get("sourceViewHash") or None,
         alias=optional_str(document.get("alias")) or metadata.get("alias"),
         root_path=str(document.get("rootPath") or ""),
         remote_url=optional_str(document.get("remoteUrl")),

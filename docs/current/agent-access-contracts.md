@@ -16,7 +16,12 @@ Source-of-truth implementations:
 
 ## Common Controls
 
-Most read calls accept `repository_id`. This can be either the repository hash id or the generated alias. Agent Access resolves aliases before querying stores. Repository lookup accepts URL-encoded path characters in `repository_id`; generated aliases remain slash-free.
+Most read calls accept `repository_id`. This can be the stable project id, an
+explicit snapshot id, a checkout/branch slot key, or the generated alias. Agent
+Access resolves projects and aliases to their selected active snapshot before
+querying stores and fails closed on ambiguous slot/alias matches. Repository
+lookup accepts URL-encoded path characters in `repository_id`; generated aliases
+remain slash-free.
 
 Filters are exact-match string filters. They can match top-level node fields or metadata fields. `kinds` filters by CodeMesh node kind names such as `Method`, `Class`, `File`, `TestFile`, `TestCase`, or `Declaration`.
 
@@ -67,7 +72,8 @@ These routes return HTML for human inspection and reuse the same read paths as t
 
 `ContextResponse` includes:
 
-- `query`: the resolved query. If an alias was supplied, `repository_id` is rewritten to the hash id.
+- `query`: the resolved query. If a project or alias was supplied,
+  `repository_id` is rewritten to the active snapshot namespace.
 - `hits`: ranked `ContextHit` items.
 - `diagnostics`: search execution metadata.
 - `generated_at`: UTC timestamp.
@@ -75,7 +81,7 @@ These routes return HTML for human inspection and reuse the same read paths as t
 `ContextHit` fields:
 
 - `node_id`, `stable_key`, `kind`, `file_path`, `start_line`, `end_line`, `score`.
-- `repository_id` and `content_hash` when available.
+- `repository_id` (stable project), `snapshot_id`, and `content_hash` when available.
 - `score_components`, including values such as `vector_score`, `lexical_score`, `summary_score`, `kind_weight`, and `expansion_bonus`.
 - `expanded_context` when a low-level match was expanded or a declaration was attached.
 - `preview` when a snippet preview is available.
@@ -95,6 +101,8 @@ Search diagnostics:
 - `summary_candidate_count`: raw generated-summary candidate count before dedupe/ranking.
 - `lexical_fallback`: true when a vector was available but produced no vector hits.
 - `hit_count`: final returned hit count after dedupe/ranking.
+- `selected_project_id` and `selected_snapshot_id`: the project provenance and
+  exact snapshot namespace selected for the response when available.
 
 Agent Access merges vector hits, lexical graph hits, and MongoDB generated-summary hits, then dedupes by `node_id`.
 
@@ -115,6 +123,12 @@ Agent Access merges vector hits, lexical graph hits, and MongoDB generated-summa
 
 Freshness fields include `indexed_commit`, `current_commit`, `current_branch`, `working_tree_dirty`, `is_stale`, `status`, and `detail` when available. If ingestion has not stored an indexed commit yet, `status` is `unknown` and `is_stale` is `null`; agents should treat the response as a useful warning rather than proof that the index is fresh.
 
+Snapshot-aware fields include `selected_snapshot_id`,
+`indexed_source_view_hash`, `commit_mismatch`, `source_view_mismatch`, and
+`provenance_status`. A clean commit match is not substituted for a source-view
+match. If the checkout path is inaccessible, provenance remains recorded but
+live checkout freshness is unavailable.
+
 Refresh fields include `status`, `is_running`, `changed`, `latest_run_id`, `stage`, `started_at`, `finished_at`, `diagnostic_count`, `error_diagnostic_count`, `warning_diagnostic_count`, `stats`, `detail`, and `recommended_action` when available. `status` is derived from the latest ingestion run and can be `no_run`, `running`, `completed`, `skipped`, `failed`, `dry_run`, or `unknown`.
 
 `NodeSummaryCoverageResponse` fields:
@@ -130,7 +144,10 @@ Refresh fields include `status`, `is_running`, `changed`, `latest_run_id`, `stag
 
 ## Repository Delete
 
-`DELETE /repositories/{repository_id}` accepts a repository hash id or alias, resolves it through the registry, and removes that repository from the graph, content, vector, summary, run, and repository registry stores.
+`DELETE /repositories/{repository_id}` accepts a project id or alias, resolves
+it through the registry, and removes every retained snapshot namespace from the
+graph, content, vector, and summary stores before removing run, project,
+checkout, slot, generation, observation, and repository registry records.
 
 The Python CLI exposes the same operation:
 

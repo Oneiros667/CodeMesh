@@ -13,10 +13,10 @@ production-ready. The CodeMesh source is available under the
 
 | Status | Capability |
 | --- | --- |
-| Implemented and locally verified | C# ingestion through Roslyn; graph/content persistence; repository freshness; REST, MCP, CLI, and .NET Agent Access; source spans; relationship-aware context packages; deterministic fixture evaluation; security redaction tests. |
+| Implemented and locally verified | C# ingestion through Roslyn; graph/content persistence; stable checkout identity and bounded local snapshots; repository freshness; REST, MCP, CLI, and .NET Agent Access; source spans; relationship-aware context packages; deterministic fixture evaluation; security redaction tests. |
 | Optional and environment-dependent | Neo4j, MongoDB, and Qdrant stores; Docker Compose; embeddings through a configured local provider; Python, Markdown, and deployment-artifact parsing with narrower relationships than C#. |
 | Experimental or unqualified | Generated summaries, online model providers, model-selection benchmarks, assisted agent-utility evidence, and the read-only local web UI as a product surface. No summary model is CodeMesh-qualified. |
-| Planned | Prompt-parity discoverability evidence, configurable ingestion allow/deny policy, broader parser and SDLC coverage, bounded repository snapshots, and expanded presentation surfaces. |
+| Planned | Prompt-parity discoverability evidence, configurable ingestion allow/deny policy, shared-service identity controls, broader parser and SDLC coverage, and expanded presentation surfaces. |
 
 Passing tests establish the covered local behavior. They do not establish
 hosted CI success, generalized agent benefit, release readiness, deployment

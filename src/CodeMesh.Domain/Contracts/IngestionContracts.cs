@@ -25,7 +25,9 @@ public sealed record IngestionRequest(
     IReadOnlyDictionary<string, string>? Options = null,
     int SummaryMaxInputCharacters = 4000,
     int SummaryReasoningTokenReserve = 768,
-    int SummaryMaxCompletionTokens = 1536);
+    int SummaryMaxCompletionTokens = 1536,
+    string? ProjectId = null,
+    int SnapshotRetentionGraceSeconds = 86400);
 
 public sealed record IngestionRun(
     string RunId,
