@@ -188,6 +188,7 @@ def test_mcp_client_accepts_structured_payload_and_rejects_non_json() -> None:
             return self.result
 
     client = McpEvaluationClient()
+    assert client.parameters.args[-2:] == ["--profile", "diagnostic"]
     client.session = FakeSession(
         SimpleNamespace(
             isError=False,
@@ -394,6 +395,11 @@ def test_codex_arguments_only_enable_codemesh_for_treatment(tmp_path: Path) -> N
     assert 'mcp_servers.codemesh.command="uv"' in treatment
     assert "mcp_servers.codemesh.required=true" in treatment
     assert 'mcp_servers.codemesh.default_tools_approval_mode="approve"' in treatment
+    assert any(
+        '"--profile", "diagnostic"' in value
+        for value in treatment
+        if value.startswith("mcp_servers.codemesh.args=")
+    )
     assert any(
         value.startswith("mcp_servers.codemesh.enabled_tools=") for value in treatment
     )

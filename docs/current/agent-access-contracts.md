@@ -235,21 +235,30 @@ MCP `codemesh_get_context_package` also accepts `output_format = "agent"`. In th
 
 ## MCP Tools
 
-MCP tool names:
+MCP exposes named tool profiles. The default `normal` profile is the supported
+product surface:
+
+- `codemesh_get_context_package`
+- `codemesh_get_repository_status`
+- `codemesh_list_repositories`
+- `codemesh_get_node`
+
+The `diagnostic` profile adds these non-destructive inspection tools:
 
 - `codemesh_status`
 - `codemesh_get_tool_guidance`
 - `codemesh_search_context`
-- `codemesh_get_context_package`
 - `codemesh_search_symbols`
-- `codemesh_get_node`
 - `codemesh_get_neighbors`
-- `codemesh_list_repositories`
 - `codemesh_get_repository`
-- `codemesh_get_repository_status`
-- `codemesh_delete_repository`
 - `codemesh_get_summary_coverage`
 - `codemesh_list_ingestion_runs`
+
+Select a profile with `mcp --profile normal|diagnostic`. Unknown profile names
+fail before the MCP server starts. The manifest records the selected `profile`
+and includes only that profile's tools and contracts. Repository deletion is
+outside both MCP profiles and remains an explicitly invoked administrative REST
+or Python CLI operation.
 
 The MCP initialize result includes canonical server instructions for normal-host
 onboarding. For implementation discovery, likely change impact, and validation
@@ -261,13 +270,14 @@ manifest.
 Those initialization instructions are the currently implemented server-side
 guidance, not proof that every host presents or follows them. The selected v1
 product contract therefore adds explicit repository-owned guidance; the current
-manual block is in [MCP Setup](../guides/mcp-setup.md), while the reduced tool
-profile, checkout binding, and live runtime probe remain planned in
-[Agent Integration Contract](../planning/agent-integration-contract.md).
+manual block is in [MCP Setup](../guides/mcp-setup.md). The reduced tool profile
+is implemented, while checkout binding and the live runtime probe remain planned
+in [Agent Integration Contract](../planning/agent-integration-contract.md).
 
 `codemesh_get_tool_guidance` accepts optional `task` text and returns ranked workflows with recommended tool steps. Use it when an agent has not yet decided whether to search context, inspect freshness, look up a symbol, fetch neighbors, or build a package.
 
-`codemesh_delete_repository` requires `repository_id` and a deliberate `confirm = true` argument before it will call the destructive cleanup path. Without confirmation it returns a failed tool result and leaves stores unchanged.
+Repository deletion remains documented under [Repository Delete](#repository-delete)
+and is not an MCP tool in either implemented profile.
 
 The manifest can be printed with:
 
@@ -275,6 +285,9 @@ The manifest can be printed with:
 cd agent-access
 uv run python -m codemesh_agent_access mcp-manifest
 ```
+
+Pass `--profile diagnostic` to inspect that profile's manifest. Omitting the
+option prints the default `normal` profile.
 
 The manifest is covered by `agent-access/tests/test_mcp_contract.py`.
 

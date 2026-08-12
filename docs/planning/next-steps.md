@@ -33,11 +33,12 @@ so.
 3. Preserve the focused YoutubeDownloader and independent Config.Net assisted
    campaigns as replicated utility-after-onboarding evidence, with their
    prompt-parity and task-family limitations explicit.
-4. Complete the selected explicit-onboarding v1 contract in
-   [Agent Integration Contract](agent-integration-contract.md): implement the
-   normal-user tool profile, unambiguous checkout binding, fail-closed freshness
-   behavior, provider-free live runtime probe, and reviewable installation flow.
-   The canonical manual repository guidance is already documented.
+4. Continue the selected explicit-onboarding v1 contract in
+   [Agent Integration Contract](agent-integration-contract.md). The normal-user
+   and diagnostic tool profiles are implemented. Next implement unambiguous
+   checkout binding and fail-closed package freshness, followed by the
+   provider-free live runtime probe and reviewable installation flow. The
+   canonical manual repository guidance is already documented.
 5. Extend evaluation reporting to distinguish configured/onboarded product use
    from spontaneous and evaluator-assisted modes. Then repeat the frozen live
    gate and, with explicit model-spend authority, the Config.Net task using the
@@ -80,7 +81,7 @@ execution order above.
 | Markdown parser | Partial | Add links from docs to commands, endpoints, projects, and source when justified. | [Architecture](../current/architecture.md) |
 | Context packages | Implemented baseline | Maintain compact agent output, citations, rationale, and budget behavior. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Local web inspection | Implemented initial slice | Expand only when it serves a measured agent or audit need. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Tool guidance and onboarding | Server instructions and manual guidance implemented; v1 contract selected | Implement the normal-user profile, checkout binding, live probe, and reviewable installation; then establish configured/onboarded evidence. | [Agent Integration Contract](agent-integration-contract.md) |
+| Tool guidance and onboarding | Server instructions, manual guidance, and normal/diagnostic MCP profiles implemented; v1 contract selected | Implement checkout binding, fail-closed package freshness, live probe, and reviewable installation; then establish configured/onboarded evidence. | [Agent Integration Contract](agent-integration-contract.md) |
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |

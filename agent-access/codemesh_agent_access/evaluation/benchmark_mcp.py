@@ -69,7 +69,7 @@ def run() -> None:
         )
     policy = json.loads(raw_policy)
     guard = BenchmarkCallGuard(policy, Path(raw_audit))
-    build_server(call_guard=guard).run()
+    build_server(profile="diagnostic", call_guard=guard).run()
 
 
 if __name__ == "__main__":

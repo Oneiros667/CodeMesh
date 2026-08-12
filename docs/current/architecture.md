@@ -123,7 +123,9 @@ not source truth.
 `agent-access` is the Python read surface for agents:
 
 - FastAPI REST endpoints.
-- MCP tool manifest and handlers.
+- Profile-selected MCP tool manifests and handlers; the default normal-user
+  profile exposes the four package-first read tools, while the diagnostic
+  profile adds non-destructive inspection tools.
 - Python CLI commands.
 - Store read paths for graph, content, summaries, vectors, repositories, and ingestion runs.
 - Context ranking, formatting, and package generation.

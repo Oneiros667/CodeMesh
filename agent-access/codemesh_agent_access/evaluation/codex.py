@@ -280,7 +280,7 @@ def _codemesh_mcp_config(cwd: Path) -> list[str]:
     prefix = "mcp_servers.codemesh"
     return [
         f"{prefix}.command={json.dumps('uv')}",
-        f"{prefix}.args={json.dumps(['run', 'python', '-m', 'codemesh_agent_access', 'mcp'])}",
+        f"{prefix}.args={json.dumps(['run', 'python', '-m', 'codemesh_agent_access', 'mcp', '--profile', 'diagnostic'])}",
         f"{prefix}.cwd={json.dumps(str(cwd))}",
         f"{prefix}.required=true",
         f"{prefix}.default_tools_approval_mode={json.dumps('approve')}",

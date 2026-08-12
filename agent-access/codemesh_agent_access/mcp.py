@@ -11,6 +11,8 @@ from . import tools
 from .formatting import format_context_package_for_agent
 
 
+DEFAULT_TOOL_PROFILE = "normal"
+
 _TOOL_NAMES = [
     "codemesh_status",
     "codemesh_get_tool_guidance",
@@ -22,10 +24,21 @@ _TOOL_NAMES = [
     "codemesh_list_repositories",
     "codemesh_get_repository",
     "codemesh_get_repository_status",
-    "codemesh_delete_repository",
     "codemesh_get_summary_coverage",
     "codemesh_list_ingestion_runs",
 ]
+
+_NORMAL_TOOL_NAMES = [
+    "codemesh_get_context_package",
+    "codemesh_get_repository_status",
+    "codemesh_list_repositories",
+    "codemesh_get_node",
+]
+
+_TOOL_PROFILES = {
+    DEFAULT_TOOL_PROFILE: _NORMAL_TOOL_NAMES,
+    "diagnostic": _TOOL_NAMES,
+}
 
 _MAX_MCP_AGENT_CHARACTERS = 12000
 
@@ -144,19 +157,6 @@ _GET_REPOSITORY_STATUS_ARGUMENTS: dict[str, dict[str, Any]] = {
         "type": "string",
         "required": True,
         "description": "Repository hash id or alias.",
-    },
-}
-
-_DELETE_REPOSITORY_ARGUMENTS: dict[str, dict[str, Any]] = {
-    "repository_id": {
-        "type": "string",
-        "required": True,
-        "description": "Repository hash id or alias.",
-    },
-    "confirm": {
-        "type": "boolean",
-        "default": False,
-        "description": "Must be true to delete indexed repository data.",
     },
 }
 
@@ -280,21 +280,6 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
             ],
         },
     },
-    "codemesh_delete_repository": {
-        "description": "Delete one indexed CodeMesh repository from graph, content, vectors, summaries, and registry data. Requires confirm=true.",
-        "arguments": _DELETE_REPOSITORY_ARGUMENTS,
-        "response": {
-            "fields": [
-                "repository_id",
-                "deleted",
-                "registry_entry_existed",
-                "graph_cleaned",
-                "content_cleaned",
-                "embeddings_cleaned",
-                "summaries_cleaned",
-            ],
-        },
-    },
     "codemesh_get_summary_coverage": {
         "description": "Fetch generated node summary coverage for one indexed CodeMesh repository.",
         "arguments": _SUMMARY_COVERAGE_ARGUMENTS,
@@ -320,21 +305,59 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
 }
 
 
-def tool_manifest() -> dict[str, Any]:
+def tool_profile_names() -> tuple[str, ...]:
+    return tuple(_TOOL_PROFILES)
+
+
+def _tool_names_for_profile(profile: str) -> list[str]:
+    try:
+        return _TOOL_PROFILES[profile]
+    except KeyError as exc:
+        supported = ", ".join(tool_profile_names())
+        raise ValueError(
+            f"Unknown MCP tool profile '{profile}'. Expected one of: {supported}."
+        ) from exc
+
+
+def _filter_tool_guidance(
+    payload: dict[str, Any], tool_names: set[str]
+) -> dict[str, Any]:
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        return payload
+
+    data["available_tools"] = [
+        name for name in data.get("available_tools", []) if name in tool_names
+    ]
+    data["default_start"] = [
+        name for name in data.get("default_start", []) if name in tool_names
+    ]
+    data["recommended_workflows"] = [
+        workflow
+        for workflow in data.get("recommended_workflows", [])
+        if all(step.get("tool") in tool_names for step in workflow.get("steps", []))
+    ]
+    return payload
+
+
+def tool_manifest(profile: str = DEFAULT_TOOL_PROFILE) -> dict[str, Any]:
     """Return the stable MCP tool contract used by tests and fallback output."""
+    tool_names = _tool_names_for_profile(profile)
     return {
         "service": "codemesh-agent-access",
         "protocol": "mcp",
+        "profile": profile,
         "instructions": _SERVER_INSTRUCTIONS,
         "tools": [
             {"name": name, "description": _TOOL_CONTRACTS[name]["description"]}
-            for name in _TOOL_NAMES
+            for name in tool_names
         ],
-        "contracts": deepcopy(_TOOL_CONTRACTS),
+        "contracts": {name: deepcopy(_TOOL_CONTRACTS[name]) for name in tool_names},
     }
 
 
 def build_server(
+    profile: str = DEFAULT_TOOL_PROFILE,
     call_guard: Callable[[str, dict[str, Any]], None] | None = None,
 ) -> Any:
     try:
@@ -344,27 +367,37 @@ def build_server(
             "The `mcp` package is required to run the CodeMesh MCP server."
         ) from exc
 
+    tool_names = set(_tool_names_for_profile(profile))
     server = FastMCP("codemesh-agent-access", instructions=_SERVER_INSTRUCTIONS)
+
+    def register_tool(name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        def register(function: Callable[..., Any]) -> Callable[..., Any]:
+            if name not in tool_names:
+                return function
+            return server.tool(description=_TOOL_CONTRACTS[name]["description"])(
+                function
+            )
+
+        return register
 
     def check(name: str, arguments: dict[str, Any]) -> None:
         if call_guard is not None:
             call_guard(name, arguments)
 
-    @server.tool(description=_TOOL_CONTRACTS["codemesh_status"]["description"])
+    @register_tool("codemesh_status")
     async def codemesh_status() -> dict[str, Any]:
         """Return CodeMesh Agent Access health and configured read endpoints."""
         check("codemesh_status", {})
         return (await tools.status()).model_dump(mode="json")
 
-    @server.tool(
-        description=_TOOL_CONTRACTS["codemesh_get_tool_guidance"]["description"]
-    )
+    @register_tool("codemesh_get_tool_guidance")
     async def codemesh_get_tool_guidance(task: str | None = None) -> dict[str, Any]:
         """Recommend which CodeMesh MCP tools to use for a natural-language agent task."""
         check("codemesh_get_tool_guidance", {"task": task})
-        return (await tools.tool_guidance(task=task)).model_dump(mode="json")
+        payload = (await tools.tool_guidance(task=task)).model_dump(mode="json")
+        return _filter_tool_guidance(payload, tool_names)
 
-    @server.tool(description=_TOOL_CONTRACTS["codemesh_search_context"]["description"])
+    @register_tool("codemesh_search_context")
     async def codemesh_search_context(
         query: str,
         repository_id: str | None = None,
@@ -397,9 +430,7 @@ def build_server(
             )
         ).model_dump(mode="json")
 
-    @server.tool(
-        description=_TOOL_CONTRACTS["codemesh_get_context_package"]["description"]
-    )
+    @register_tool("codemesh_get_context_package")
     async def codemesh_get_context_package(
         query: str,
         repository_id: str | None = None,
@@ -469,7 +500,7 @@ def build_server(
             isError=not result.ok,
         )
 
-    @server.tool(description=_TOOL_CONTRACTS["codemesh_search_symbols"]["description"])
+    @register_tool("codemesh_search_symbols")
     async def codemesh_search_symbols(
         query: str,
         repository_id: str | None = None,
@@ -494,7 +525,7 @@ def build_server(
             )
         ).model_dump(mode="json")
 
-    @server.tool(description=_TOOL_CONTRACTS["codemesh_get_node"]["description"])
+    @register_tool("codemesh_get_node")
     async def codemesh_get_node(
         node_id: str,
         repository_id: str | None = None,
@@ -515,7 +546,7 @@ def build_server(
             )
         ).model_dump(mode="json")
 
-    @server.tool(description=_TOOL_CONTRACTS["codemesh_get_neighbors"]["description"])
+    @register_tool("codemesh_get_neighbors")
     async def codemesh_get_neighbors(
         node_id: str,
         repository_id: str | None = None,
@@ -536,23 +567,19 @@ def build_server(
             )
         ).model_dump(mode="json")
 
-    @server.tool(
-        description=_TOOL_CONTRACTS["codemesh_list_repositories"]["description"]
-    )
+    @register_tool("codemesh_list_repositories")
     async def codemesh_list_repositories(limit: int = 50) -> dict[str, Any]:
         """List repositories indexed by CodeMesh."""
         check("codemesh_list_repositories", {"limit": limit})
         return (await tools.list_repositories(limit=limit)).model_dump(mode="json")
 
-    @server.tool(description=_TOOL_CONTRACTS["codemesh_get_repository"]["description"])
+    @register_tool("codemesh_get_repository")
     async def codemesh_get_repository(repository_id: str) -> dict[str, Any]:
         """Fetch one indexed CodeMesh repository by id."""
         check("codemesh_get_repository", {"repository_id": repository_id})
         return (await tools.get_repository(repository_id)).model_dump(mode="json")
 
-    @server.tool(
-        description=_TOOL_CONTRACTS["codemesh_get_repository_status"]["description"]
-    )
+    @register_tool("codemesh_get_repository_status")
     async def codemesh_get_repository_status(repository_id: str) -> dict[str, Any]:
         """Fetch repository status, counts, latest run, summary coverage, and freshness diagnostics."""
         check("codemesh_get_repository_status", {"repository_id": repository_id})
@@ -560,37 +587,13 @@ def build_server(
             mode="json"
         )
 
-    @server.tool(
-        description=_TOOL_CONTRACTS["codemesh_delete_repository"]["description"]
-    )
-    async def codemesh_delete_repository(
-        repository_id: str, confirm: bool = False
-    ) -> dict[str, Any]:
-        """Delete one indexed CodeMesh repository. Requires confirm=true."""
-        check(
-            "codemesh_delete_repository",
-            {"repository_id": repository_id, "confirm": confirm},
-        )
-        if not confirm:
-            return {
-                "ok": False,
-                "data": {},
-                "error": "Repository deletion requires confirm=true.",
-            }
-
-        return (await tools.delete_repository(repository_id)).model_dump(mode="json")
-
-    @server.tool(
-        description=_TOOL_CONTRACTS["codemesh_get_summary_coverage"]["description"]
-    )
+    @register_tool("codemesh_get_summary_coverage")
     async def codemesh_get_summary_coverage(repository_id: str) -> dict[str, Any]:
         """Fetch generated node summary coverage for one indexed CodeMesh repository."""
         check("codemesh_get_summary_coverage", {"repository_id": repository_id})
         return (await tools.get_summary_coverage(repository_id)).model_dump(mode="json")
 
-    @server.tool(
-        description=_TOOL_CONTRACTS["codemesh_list_ingestion_runs"]["description"]
-    )
+    @register_tool("codemesh_list_ingestion_runs")
     async def codemesh_list_ingestion_runs(
         repository_id: str | None = None,
         limit: int = 50,
@@ -607,13 +610,13 @@ def build_server(
     return server
 
 
-def run() -> None:
-    server = build_server()
+def run(profile: str = DEFAULT_TOOL_PROFILE) -> None:
+    server = build_server(profile=profile)
     server.run()
 
 
-async def print_tool_manifest() -> None:
-    print(json.dumps(tool_manifest(), indent=2))
+async def print_tool_manifest(profile: str = DEFAULT_TOOL_PROFILE) -> None:
+    print(json.dumps(tool_manifest(profile=profile), indent=2))
 
 
 if __name__ == "__main__":

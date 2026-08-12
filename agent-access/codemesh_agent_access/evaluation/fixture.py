@@ -62,7 +62,7 @@ async def run_mcp_evaluations() -> EvaluationReport:
     tools.get_store = lambda: fixture_store
 
     try:
-        server = mcp.build_server()
+        server = mcp.build_server(profile="diagnostic")
         cases = [
             await _run_case(
                 "tool guidance recommends freshness checks",

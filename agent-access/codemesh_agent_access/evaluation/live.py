@@ -40,7 +40,14 @@ class McpEvaluationClient:
         package_root = Path(__file__).resolve().parents[2]
         self.parameters = StdioServerParameters(
             command=command or sys.executable,
-            args=args or ["-m", "codemesh_agent_access", "mcp"],
+            args=args
+            or [
+                "-m",
+                "codemesh_agent_access",
+                "mcp",
+                "--profile",
+                "diagnostic",
+            ],
             cwd=Path(cwd) if cwd else package_root,
         )
         self.timeout = timedelta(seconds=timeout_seconds)

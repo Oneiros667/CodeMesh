@@ -74,7 +74,7 @@ Use the Python package from `agent-access`:
 
 ```powershell
 Set-Location agent-access
-uv run python -m codemesh_agent_access mcp
+uv run python -m codemesh_agent_access mcp --profile normal
 ```
 
 For an MCP client that accepts a command plus arguments, configure the server as:
@@ -88,7 +88,9 @@ For an MCP client that accepts a command plus arguments, configure the server as
     "python",
     "-m",
     "codemesh_agent_access",
-    "mcp"
+    "mcp",
+    "--profile",
+    "normal"
   ],
   "cwd": "/absolute/path/to/CodeMesh/agent-access"
 }
@@ -106,7 +108,9 @@ For clients that expect a `mcpServers` object, use:
         "python",
         "-m",
         "codemesh_agent_access",
-        "mcp"
+        "mcp",
+        "--profile",
+        "normal"
       ],
       "cwd": "/absolute/path/to/CodeMesh/agent-access"
     }
@@ -124,7 +128,7 @@ If the client does not support `cwd`, wrap the command in PowerShell:
     "-ExecutionPolicy",
     "Bypass",
     "-Command",
-    "Set-Location 'C:\\path\\to\\CodeMesh\\agent-access'; uv run python -m codemesh_agent_access mcp"
+    "Set-Location 'C:\\path\\to\\CodeMesh\\agent-access'; uv run python -m codemesh_agent_access mcp --profile normal"
   ]
 }
 ```
@@ -138,14 +142,20 @@ limits, and verify returned spans with targeted reads. Host support for exposing
 server instructions varies; the same behavior remains explicit in the tool
 descriptions and printable stable manifest.
 
+The `normal` profile is the default and exposes only the context-package,
+repository-status, repository-listing, and node-read tools. Use
+`--profile diagnostic` for non-destructive operational investigation. Unknown
+profile names fail before server startup, and neither profile exposes repository
+deletion.
+
 ## Repository Agent Onboarding
 
 Explicit repository onboarding is the selected v1 product contract. MCP server
 instructions remain defense in depth because hosts differ in whether and how
-they present those instructions to an agent. The future profile, live runtime
-probe, checkout binding, and installation behavior are specified in
-[Agent Integration Contract](../planning/agent-integration-contract.md) and are
-not implemented yet.
+they present those instructions to an agent. The tool profiles are implemented;
+the future live runtime probe, checkout binding, fail-closed package freshness,
+and installation behavior are specified in
+[Agent Integration Contract](../planning/agent-integration-contract.md).
 
 Until reviewable installation support exists, repository owners may manually
 add this canonical block to the repository's `AGENTS.md` or equivalent durable
@@ -174,8 +184,9 @@ validation selection in this repository:
 
 Review the block and repository selector before committing it. Do not replace
 unrelated instructions or assume that adding the text proves the MCP process is
-healthy. The current `mcp-manifest` command validates static contract output;
-it is not the planned live startup and freshness probe.
+healthy. The current `mcp-manifest --profile normal|diagnostic` command validates
+static profile-specific contract output; it is not the planned live startup and
+freshness probe.
 
 ## Required Environment
 
@@ -218,21 +229,28 @@ When Agent Access runs inside Docker, use the `CODEMESH_AGENT_*` values from `.e
 
 ## Useful MCP Tools
 
-- `codemesh_status`: check service and store health.
-- `codemesh_get_tool_guidance`: recommend which CodeMesh tools to use for a natural-language agent task.
+The default `normal` profile exposes:
+
 - `codemesh_list_repositories`: find indexed repositories and aliases.
 - `codemesh_get_repository_status`: inspect latest run, counts, summary coverage, and freshness diagnostics.
-- `codemesh_search_context`: search for relevant implementation context.
 - `codemesh_get_context_package`: return an agent-ready bundle of code, summaries, relationships, and repository metadata.
-- `codemesh_search_symbols`: find precise symbols before expanding context.
 - `codemesh_get_node`: retrieve a known node and optional content.
+
+The `diagnostic` profile additionally exposes:
+
+- `codemesh_status`: check service and store health.
+- `codemesh_get_tool_guidance`: recommend which CodeMesh tools to use for a natural-language agent task.
+- `codemesh_search_context`: search for relevant implementation context.
+- `codemesh_search_symbols`: find precise symbols before expanding context.
 - `codemesh_get_neighbors`: inspect graph relationships around a node.
+- `codemesh_get_repository`: inspect one repository registry record.
+- `codemesh_get_summary_coverage`: inspect generated-summary coverage.
 - `codemesh_list_ingestion_runs`: inspect recent indexing runs.
 
 ## Troubleshooting
 
 - If MCP starts but returns no useful context, confirm the repository was ingested with `repos list`.
-- If the MCP client says the server exited immediately, run `cd agent-access; uv run python -m codemesh_agent_access mcp` in a terminal to see import or environment errors.
+- If the MCP client says the server exited immediately, run `cd agent-access; uv run python -m codemesh_agent_access mcp --profile normal` in a terminal to see import, profile, or environment errors.
 - If vector search is unavailable, check `status`; Agent Access should fall back to lexical search when possible.
 - If context search fails with request validation errors, confirm the MCP client is sending arrays for `kinds`, `filters`, and `vector` only when values are present.
 - If store connection checks fail from MCP but Docker services are running, confirm the MCP environment uses `127.0.0.1` store URLs rather than Docker service names such as `mongodb` or `qdrant`.

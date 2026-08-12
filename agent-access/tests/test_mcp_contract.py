@@ -4,15 +4,18 @@ import asyncio
 import json
 from typing import Any
 
+import pytest
+
 from codemesh_agent_access import mcp
 from codemesh_agent_access.models import ToolResult
 
 
 def test_mcp_manifest_matches_registered_tools() -> None:
-    server = mcp.build_server()
+    server = mcp.build_server(profile="diagnostic")
     registered_tools = {tool.name: tool for tool in asyncio.run(server.list_tools())}
-    manifest = mcp.tool_manifest()
+    manifest = mcp.tool_manifest(profile="diagnostic")
 
+    assert manifest["profile"] == "diagnostic"
     assert server.instructions == manifest["instructions"]
     assert "codemesh_get_context_package" in manifest["instructions"]
     assert "targeted, batched checkout reads" in manifest["instructions"]
@@ -98,16 +101,7 @@ def test_mcp_manifest_matches_registered_tools() -> None:
 
     assert package_properties["output_format"]["enum"] == ["json", "agent"]
 
-    delete_contract = manifest["contracts"]["codemesh_delete_repository"]
-    assert delete_contract["response"]["fields"] == [
-        "repository_id",
-        "deleted",
-        "registry_entry_existed",
-        "graph_cleaned",
-        "content_cleaned",
-        "embeddings_cleaned",
-        "summaries_cleaned",
-    ]
+    assert "codemesh_delete_repository" not in manifest["contracts"]
 
     status_contract = manifest["contracts"]["codemesh_get_repository_status"]
     assert status_contract["response"]["fields"] == [
@@ -128,6 +122,42 @@ def test_mcp_manifest_matches_registered_tools() -> None:
         "available_tools",
         "default_start",
     ]
+
+
+def test_mcp_normal_profile_is_the_default_product_surface() -> None:
+    expected_tools = {
+        "codemesh_get_context_package",
+        "codemesh_get_repository_status",
+        "codemesh_list_repositories",
+        "codemesh_get_node",
+    }
+
+    server = mcp.build_server()
+    registered_tools = {tool.name for tool in asyncio.run(server.list_tools())}
+    manifest = mcp.tool_manifest()
+
+    assert mcp.DEFAULT_TOOL_PROFILE == "normal"
+    assert manifest["profile"] == "normal"
+    assert registered_tools == expected_tools
+    assert {tool["name"] for tool in manifest["tools"]} == expected_tools
+    assert set(manifest["contracts"]) == expected_tools
+
+
+def test_mcp_diagnostic_profile_excludes_repository_deletion() -> None:
+    manifest = mcp.tool_manifest(profile="diagnostic")
+    tool_names = {tool["name"] for tool in manifest["tools"]}
+
+    assert "codemesh_search_context" in tool_names
+    assert "codemesh_get_tool_guidance" in tool_names
+    assert "codemesh_delete_repository" not in tool_names
+
+
+def test_mcp_unknown_profile_fails_fast() -> None:
+    with pytest.raises(ValueError, match="Unknown MCP tool profile 'admin'"):
+        mcp.build_server(profile="admin")
+
+    with pytest.raises(ValueError, match="Expected one of: normal, diagnostic"):
+        mcp.tool_manifest(profile="admin")
 
 
 def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
@@ -211,7 +241,7 @@ def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
 
 
 def test_mcp_tool_guidance_ranks_task_workflows() -> None:
-    server = mcp.build_server()
+    server = mcp.build_server(profile="diagnostic")
     _content, structured = asyncio.run(
         server.call_tool(
             "codemesh_get_tool_guidance",
@@ -227,6 +257,11 @@ def test_mcp_tool_guidance_ranks_task_workflows() -> None:
         == "codemesh_list_repositories"
     )
     assert "codemesh_get_tool_guidance" in data["available_tools"]
+    assert "codemesh_delete_repository" not in data["available_tools"]
+    assert all(
+        workflow["id"] != "delete_indexed_repository"
+        for workflow in data["recommended_workflows"]
+    )
 
 
 def test_mcp_search_and_neighbors_forward_query_controls(monkeypatch: Any) -> None:
@@ -246,7 +281,7 @@ def test_mcp_search_and_neighbors_forward_query_controls(monkeypatch: Any) -> No
     monkeypatch.setattr(mcp.tools, "search_context", fake_search_context)
     monkeypatch.setattr(mcp.tools, "get_neighbors", fake_get_neighbors)
 
-    server = mcp.build_server()
+    server = mcp.build_server(profile="diagnostic")
     asyncio.run(
         server.call_tool(
             "codemesh_search_context",
@@ -292,7 +327,7 @@ def test_mcp_symbol_search_forwards_query_controls(monkeypatch: Any) -> None:
 
     monkeypatch.setattr(mcp.tools, "search_symbols", fake_search_symbols)
 
-    server = mcp.build_server()
+    server = mcp.build_server(profile="diagnostic")
     _content, structured = asyncio.run(
         server.call_tool(
             "codemesh_search_symbols",
@@ -325,7 +360,7 @@ def test_mcp_summary_coverage_forwards_repository_id(monkeypatch: Any) -> None:
 
     monkeypatch.setattr(mcp.tools, "get_summary_coverage", fake_get_summary_coverage)
 
-    server = mcp.build_server()
+    server = mcp.build_server(profile="diagnostic")
     _content, structured = asyncio.run(
         server.call_tool(
             "codemesh_get_summary_coverage",
@@ -360,52 +395,17 @@ def test_mcp_repository_status_forwards_repository_id(monkeypatch: Any) -> None:
     assert structured["data"]["freshness"]["status"] == "unknown"
 
 
-def test_mcp_delete_repository_requires_confirmation(monkeypatch: Any) -> None:
-    captured: dict[str, Any] = {}
+def test_mcp_profiles_do_not_expose_repository_deletion() -> None:
+    for profile in mcp.tool_profile_names():
+        server = mcp.build_server(profile=profile)
+        registered_tools = {tool.name for tool in asyncio.run(server.list_tools())}
 
-    async def fake_delete_repository(repository_id: str) -> ToolResult:
-        captured["repository_id"] = repository_id
-        return ToolResult(
-            data={
-                "repository_id": "repo:test",
-                "deleted": True,
-                "registry_entry_existed": True,
-                "graph_cleaned": True,
-                "content_cleaned": True,
-                "embeddings_cleaned": True,
-                "summaries_cleaned": True,
-            }
-        )
-
-    monkeypatch.setattr(mcp.tools, "delete_repository", fake_delete_repository)
-
-    server = mcp.build_server()
-    _content, denied = asyncio.run(
-        server.call_tool(
-            "codemesh_delete_repository",
-            {"repository_id": "sample_repo"},
-        )
-    )
-
-    assert denied["ok"] is False
-    assert denied["error"] == "Repository deletion requires confirm=true."
-    assert captured == {}
-
-    _content, deleted = asyncio.run(
-        server.call_tool(
-            "codemesh_delete_repository",
-            {"repository_id": "sample_repo", "confirm": True},
-        )
-    )
-
-    assert captured["repository_id"] == "sample_repo"
-    assert deleted["data"]["repository_id"] == "repo:test"
-    assert deleted["data"]["deleted"] is True
+        assert "codemesh_delete_repository" not in registered_tools
 
 
 def test_print_tool_manifest_emits_contract_json(capsys: Any) -> None:
-    asyncio.run(mcp.print_tool_manifest())
+    asyncio.run(mcp.print_tool_manifest(profile="diagnostic"))
 
     payload = json.loads(capsys.readouterr().out)
 
-    assert payload == mcp.tool_manifest()
+    assert payload == mcp.tool_manifest(profile="diagnostic")

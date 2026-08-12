@@ -6,9 +6,10 @@ Reviewed: 2026-08-12
 
 This document selects the v1 integration contract for CodeMesh in coding-agent
 hosts. It defines the product behavior that future implementation and evaluation
-must target. Except for the existing MCP server instructions and the manual
-repository guidance in [MCP Setup](../guides/mcp-setup.md), the profile, probe,
-checkout binding, and installation behavior below are not implemented yet.
+must target. The MCP server instructions, manual repository guidance in
+[MCP Setup](../guides/mcp-setup.md), and normal/diagnostic tool profiles are
+implemented. The probe, checkout binding, fail-closed package freshness, and
+installation behavior below are not implemented yet.
 
 ## Decision
 
@@ -77,7 +78,7 @@ another host may ignore.
 
 ## Tool Profiles
 
-The planned normal-user profile is deliberately small:
+The implemented default `normal` profile is deliberately small:
 
 - `codemesh_get_context_package`
 - `codemesh_get_repository_status`
@@ -88,13 +89,12 @@ This profile supports the intended package-first workflow, repository
 resolution, freshness inspection, and targeted CodeMesh reads. Coding agents
 may also verify returned spans with their ordinary source-reading tools.
 
-An expanded diagnostic profile may expose status, guidance, search, symbol,
-neighbor, repository-detail, summary-coverage, and ingestion-run tools.
-Destructive repository deletion must remain outside both normal profiles and
-require a separately authorized administrative configuration.
-
-The exact profile mechanism and compatibility behavior require implementation
-and contract tests before this can be described as current behavior.
+The implemented `diagnostic` profile adds status, guidance, search, symbol,
+neighbor, repository-detail, summary-coverage, and ingestion-run tools. Select
+profiles with `mcp --profile normal|diagnostic`; `normal` is the default, unknown
+names fail before startup, and the static manifest records its selected profile.
+Destructive repository deletion remains outside both profiles and is available
+only through the explicit administrative REST and Python CLI surfaces.
 
 ## Checkout And Freshness Behavior
 
@@ -151,7 +151,7 @@ requirements, and summary-free live gate remain unchanged.
 Complete the integration in this order:
 
 1. retain the canonical manual onboarding block and its opt-in boundary;
-2. implement and test the normal-user and diagnostic tool profiles;
+2. maintain the implemented normal-user and diagnostic tool profiles;
 3. implement unambiguous checkout binding and fail-closed freshness behavior;
 4. implement the provider-free live runtime probe;
 5. pass deterministic contracts and a clean summary-free live gate; and

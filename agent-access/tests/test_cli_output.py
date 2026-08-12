@@ -284,12 +284,17 @@ def test_delete_repo_cli_outputs_cleanup_json(monkeypatch: Any, capsys: Any) -> 
 
 
 def test_cli_prints_mcp_manifest(monkeypatch: Any, capsys: Any) -> None:
-    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "mcp-manifest"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["codemesh-agent-access", "mcp-manifest", "--profile", "diagnostic"],
+    )
 
     cli.main()
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["service"] == "codemesh-agent-access"
+    assert payload["profile"] == "diagnostic"
     tools = {tool["name"]: tool for tool in payload["tools"]}
     assert "implementation discovery" in tools["codemesh_search_context"]["description"]
     assert payload["contracts"]["codemesh_search_context"]["response"][
@@ -309,6 +314,20 @@ def test_cli_prints_mcp_manifest(monkeypatch: Any, capsys: Any) -> None:
         "lexical_fallback",
         "hit_count",
     ]
+
+
+def test_cli_uses_normal_mcp_profile_by_default(monkeypatch: Any) -> None:
+    captured: dict[str, str] = {}
+
+    def fake_run(profile: str) -> None:
+        captured["profile"] = profile
+
+    monkeypatch.setattr(cli.mcp, "run", fake_run)
+    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "mcp"])
+
+    cli.main()
+
+    assert captured["profile"] == "normal"
 
 
 def test_cli_filter_requires_key_value_pair(monkeypatch: Any) -> None:

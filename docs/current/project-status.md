@@ -34,7 +34,7 @@ usability evidence, but is no longer the v1 acceptance contract.
 | Deployment parsing | Initial Dockerfile and Compose nodes, metadata, containment, and service dependencies implemented. | Helm, Kubernetes, CI/CD, overrides, and code-to-runtime links remain planned. |
 | Ingestion | Dry-run, incremental writes, staged deterministic snapshots, compare-and-swap slot publication, reference-aware cleanup, refresh, watch, redaction, optional embeddings, and optional summaries implemented. | Watch is polling-based; provider-backed paths remain optional. |
 | Storage | Snapshot-namespaced Neo4j graph, MongoDB content/registry/runs/summaries, Qdrant vectors, and in-memory test adapters implemented. | Publication is atomic at the registry slot boundary; normal service-backed operation requires configured stores. |
-| Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. Canonical manual repository guidance is documented. | The v1 default tool profile, checkout binding, live runtime probe, and reviewable installer are not implemented. Returned relationships and rankings are navigation evidence, not runtime proof. |
+| Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The default four-tool normal MCP profile, expanded non-destructive diagnostic profile, profile-specific manifest, and canonical manual repository guidance are implemented. | Checkout binding, fail-closed package freshness, live runtime probe, and reviewable installer are not implemented. Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
 | Evaluation | Deterministic fixture, live MCP, paired agent, and model benchmark harnesses implemented. | Paid/model-backed runs require explicit authorization; fixtures prove contracts only. |
@@ -106,10 +106,17 @@ transcription is
 
 Explicit repository onboarding is now the selected v1 product contract.
 CodeMesh publishes MCP initialization instructions and documents a canonical
-manual repository guidance block, but the product-default tool profile,
-unambiguous checkout binding, live runtime probe, and reviewable installation
-flow are not implemented. Documentation alone does not close the integration or
-product-evidence gap.
+manual repository guidance block. Its default normal MCP profile now exposes
+only context package, repository status, repository listing, and node lookup;
+the diagnostic profile adds non-destructive inspection tools. The selected
+profile is recorded in the static manifest and unknown profiles fail before
+startup.
+
+Unambiguous checkout binding, fail-closed freshness before returning trusted
+packages, the live runtime probe, and reviewable installation flow remain open.
+Current repository status reports can detect stale or dirty local checkouts, but
+that advisory behavior does not yet enforce the selected host checkout as a
+package-return acceptance condition.
 
 The prompt-parity Config.Net campaign recorded zero MCP calls and zero MCP call
 attempts. Preserve it as negative spontaneous-discovery evidence; do not change

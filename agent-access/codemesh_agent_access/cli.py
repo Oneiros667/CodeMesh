@@ -17,9 +17,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="codemesh-agent-access")
     subcommands = parser.add_subparsers(dest="command", required=True)
     subcommands.add_parser("rest", help="Run the REST API.")
-    subcommands.add_parser("mcp", help="Run the MCP server over stdio.")
-    subcommands.add_parser(
+    mcp_parser = subcommands.add_parser("mcp", help="Run the MCP server over stdio.")
+    mcp_parser.add_argument(
+        "--profile",
+        choices=mcp.tool_profile_names(),
+        default=mcp.DEFAULT_TOOL_PROFILE,
+        help="Select the MCP tool surface (default: normal).",
+    )
+    manifest_parser = subcommands.add_parser(
         "mcp-manifest", help="Print the MCP tool contract manifest JSON."
+    )
+    manifest_parser.add_argument(
+        "--profile",
+        choices=mcp.tool_profile_names(),
+        default=mcp.DEFAULT_TOOL_PROFILE,
+        help="Select the MCP tool surface (default: normal).",
     )
     eval_parser = subcommands.add_parser(
         "eval", help="Run deterministic, live, or agent effectiveness evaluations."
@@ -216,11 +228,11 @@ def main() -> None:
         return
 
     if args.command == "mcp":
-        mcp.run()
+        mcp.run(profile=args.profile)
         return
 
     if args.command == "mcp-manifest":
-        print(json.dumps(mcp.tool_manifest(), indent=2))
+        print(json.dumps(mcp.tool_manifest(profile=args.profile), indent=2))
         return
 
     if args.command == "eval":

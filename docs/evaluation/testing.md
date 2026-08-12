@@ -80,9 +80,11 @@ cd agent-access
 uv run --no-sync python -m codemesh_agent_access eval
 ```
 
-The current evaluation suite uses an in-process fixture store, so it does not
-require Docker services or a model provider. Use the end-to-end smoke script for
-live-store lifecycle checks.
+The current evaluation suite uses an in-process fixture store and explicitly
+selects the non-destructive diagnostic MCP profile, so it does not require
+Docker services or a model provider. Profile contract tests separately assert
+the four-tool normal default and deletion exclusion. Use the end-to-end smoke
+script for live-store lifecycle checks.
 
 Run the live MCP stdio benchmark after self-ingesting a clean CodeMesh checkout:
 
@@ -90,6 +92,12 @@ Run the live MCP stdio benchmark after self-ingesting a clean CodeMesh checkout:
 cd agent-access
 uv run python -m codemesh_agent_access eval live
 ```
+
+The retained live and existing spontaneous/evaluator-assisted agent suites
+select the `diagnostic` profile explicitly to preserve their frozen tool surface.
+That does not make them configured/onboarded product evidence. The future
+configured/onboarded mode must select the shipped `normal` profile and record
+that identity separately.
 
 The pinned YoutubeDownloader suite is the representative external C# baseline.
 Prepare and ingest the exact checkout as described in
