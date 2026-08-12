@@ -243,7 +243,7 @@ class CodeMeshReadStore:
         total_snippet_characters = 0
 
         for index, hit in enumerate(search.hits):
-            repository_id = hit.repository_id or query.repository_id
+            repository_id = hit.snapshot_id or query.repository_id
             node_response = await self.get_node(
                 NodeLookup(
                     node_id=hit.node_id,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 from codemesh_agent_access.config import Settings
 from codemesh_agent_access.graph_store import lexical_terms
@@ -428,6 +429,30 @@ def test_context_package_accepts_repository_alias() -> None:
     assert package.items[0].hit.repository_id == "repo:test"
 
 
+def test_context_package_uses_snapshot_namespace_for_relationships() -> None:
+    store = SnapshotReadStore()
+
+    package = asyncio.run(
+        store.get_context_package(
+            ContextPackageQuery(
+                query="download video subtitles",
+                repository_id="sample_repo",
+                limit=1,
+                vector=[1.0, 0.0],
+            )
+        )
+    )
+
+    item = package.items[0]
+    assert item.hit.repository_id == "repo:test"
+    assert item.hit.snapshot_id == "snapshot:test"
+    assert store.relationship_repository_ids == ["snapshot:test"]
+    assert (
+        item.relationship_groups["callees"][0]["target_node_id"]
+        == "csharp:method:Sample.Downloader.Normalize(System.String)"
+    )
+
+
 def test_symbol_search_resolves_alias_and_returns_declaration() -> None:
     store = FakeReadStore()
 
@@ -788,6 +813,66 @@ class FakeReadStore(CodeMeshReadStore):
                 )
             ]
         )
+
+
+class SnapshotReadStore(FakeReadStore):
+    def __init__(self) -> None:
+        super().__init__()
+        self.relationship_repository_ids: list[str | None] = []
+        for node in (
+            self.parameter_declaration,
+            self.parameter_symbol,
+            self.method_symbol,
+            self.method_declaration,
+        ):
+            metadata = json.loads(str(node.get("metadataJson") or "{}"))
+            metadata["projectId"] = "repo:test"
+            metadata["snapshotId"] = "snapshot:test"
+            node["repositoryId"] = "snapshot:test"
+            node["metadataJson"] = json.dumps(metadata)
+
+    async def get_repository(self, repository_id: str) -> RepositorySummary | None:
+        if repository_id not in {"repo:test", "sample_repo", "snapshot:test"}:
+            return None
+
+        return RepositorySummary(
+            repository_id="repo:test",
+            project_id="repo:test",
+            snapshot_id="snapshot:test",
+            alias="sample_repo",
+            root_path="C:/sample",
+            last_run_id="run:test",
+            last_stage="Completed",
+            node_count=4,
+            relationship_count=1,
+            content_count=1,
+            embedding_count=1,
+        )
+
+    async def _get_context_relationship_summaries(
+        self,
+        node_id: str,
+        repository_id: str | None = None,
+        limit: int = 8,
+        group_limits: dict[str, int] | None = None,
+    ) -> list[dict[str, object]]:
+        self.relationship_repository_ids.append(repository_id)
+        if repository_id != "snapshot:test":
+            return []
+        return await super()._get_context_relationship_summaries(
+            node_id,
+            repository_id,
+            limit,
+            group_limits,
+        )
+
+    async def _get_node_summary(
+        self,
+        repository_id: str | None,
+        node_id: str,
+        content_hash: str | None = None,
+    ) -> dict[str, object] | None:
+        return await super()._get_node_summary("repo:test", node_id, content_hash)
 
 
 class FakeVectorClient:
