@@ -78,6 +78,11 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
   --skip-embeddings
 ```
 
+Explicit `--solution` and `--project` paths may be absolute, relative to the
+repository root, or relative to the directory that launches the CLI. A missing
+explicit file fails ingestion instead of silently falling back to filesystem
+parsing.
+
 Run and retain the summary-free live report:
 
 ```powershell
@@ -138,6 +143,47 @@ uv run python -m codemesh_agent_access eval agent `
   --repository-root ..\references\YoutubeDownloader `
   --model <model-id>
 ```
+
+## Independent Assisted Replication
+
+The `config-net-cache-live` and `config-net-cache-assisted-agent` suites pin the
+MIT-licensed Config.Net repository at commit
+`ae0af7d4b3781c66233bbb677b6e11df1f5b416b`. This is a separate repository,
+author, architecture, and task family from YoutubeDownloader. The task traces
+the impact of making writes immediately visible through a cached configuration
+proxy while preserving store precedence and no-cache behavior.
+
+Prepare and ingest the checkout from the CodeMesh repository root:
+
+```powershell
+git clone https://github.com/aloneguid/config.git references/Config.Net
+git -C references/Config.Net checkout --detach `
+  ae0af7d4b3781c66233bbb677b6e11df1f5b416b
+dotnet run --project src/CodeMesh.Cli -- ingest `
+  --root references/Config.Net `
+  --solution references/Config.Net/src/Config.Net.sln `
+  --skip-embeddings
+```
+
+Run the summary-free retrieval gate before the paid agent comparison:
+
+```powershell
+cd agent-access
+$env:CODEMESH_MODEL_PROVIDER = 'none'
+uv run python -m codemesh_agent_access eval live `
+  --suite config-net-cache-live `
+  --output ..\.codemesh-evals\config-net-cache-live\report.json
+
+uv run python -m codemesh_agent_access eval agent `
+  --suite config-net-cache-assisted-agent `
+  --repository-root ..\references\Config.Net `
+  --model <model-id>
+```
+
+The assisted suite records `prompt_parity = false`; it can replicate utility
+after onboarding but cannot establish spontaneous discovery. Do not run the
+agent comparison without explicit authorization for model spend and a clean,
+committed, freshly indexed CodeMesh tool checkout.
 
 ## Deterministic Fixture Suite
 

@@ -1,0 +1,135 @@
+{
+  "schema_version": "1.0",
+  "kind": "live",
+  "name": "config-net-cache-live",
+  "description": "Pinned independent C# impact retrieval calibration for cached write coherence.",
+  "repository_id": "config_net",
+  "repository_url": "https://github.com/aloneguid/config.git",
+  "repository_commit": "ae0af7d4b3781c66233bbb677b6e11df1f5b416b",
+  "cases": [
+    {
+      "id": "cache-read-write-core",
+      "description": "Find the shared read/write cache coordinator.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {
+        "query": "IoHandler CacheFor Read Write",
+        "repository_id": "config_net",
+        "limit": 8,
+        "max_characters": 12000,
+        "context_depth": 4,
+        "relationship_limit": 12
+      },
+      "targets": [
+        {
+          "file_path": "src/Config.Net/Core/IoHandler.cs",
+          "primary": true
+        }
+      ],
+      "min_hit_count": 1,
+      "top_k": 8
+    },
+    {
+      "id": "cache-expiration",
+      "description": "Find the expiring cache value and public cache configuration.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {
+        "query": "LazyVar CacheFor time to live",
+        "repository_id": "config_net",
+        "limit": 8,
+        "max_characters": 12000
+      },
+      "targets": [
+        {
+          "file_path": "src/Config.Net/Core/LazyVar.cs",
+          "primary": true
+        },
+        {
+          "file_path": "src/Config.Net/ConfigurationBuilder.cs"
+        }
+      ],
+      "min_hit_count": 2,
+      "top_k": 8
+    },
+    {
+      "id": "write-routing",
+      "description": "Find property and configurable-method write routing.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {
+        "query": "DynamicWriter WriteProperty WriteMethod",
+        "repository_id": "config_net",
+        "limit": 8,
+        "max_characters": 12000
+      },
+      "targets": [
+        {
+          "file_path": "src/Config.Net/Core/DynamicWriter.cs",
+          "primary": true
+        }
+      ],
+      "min_hit_count": 1,
+      "top_k": 8
+    },
+    {
+      "id": "interceptor-routing",
+      "description": "Find the proxy interceptor and its writer handoff.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {
+        "query": "InterfaceInterceptor Intercept DynamicWriter",
+        "repository_id": "config_net",
+        "limit": 8,
+        "max_characters": 12000
+      },
+      "targets": [
+        {
+          "file_path": "src/Config.Net/Core/InterfaceInterceptor.cs",
+          "primary": true
+        },
+        {
+          "file_path": "src/Config.Net/Core/DynamicWriter.cs"
+        }
+      ],
+      "min_hit_count": 2,
+      "top_k": 8
+    },
+    {
+      "id": "cache-write-tests",
+      "description": "Find cached property and configurable-method test surfaces.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {
+        "query": "LogicTest ConfigurableMethodsTest",
+        "repository_id": "config_net",
+        "limit": 8,
+        "max_characters": 12000
+      },
+      "targets": [
+        {
+          "file_path": "src/Config.Net.Tests/ConfigurableMethodsTest.cs",
+          "primary": true
+        },
+        {
+          "file_path": "src/Config.Net.Tests/LogicTest.cs"
+        }
+      ],
+      "min_hit_count": 2,
+      "top_k": 8
+    },
+    {
+      "id": "freshness",
+      "description": "Require the pinned independent checkout to be freshly indexed.",
+      "tool": "codemesh_get_repository_status",
+      "arguments": {
+        "repository_id": "config_net"
+      },
+      "expected_values": {
+        "freshness.status": "fresh"
+      }
+    }
+  ],
+  "thresholds": {
+    "min_tool_success_rate": 1.0,
+    "min_recall_at_k": 0.85,
+    "min_mrr": 0.75,
+    "max_primary_rank": 3,
+    "max_secret_leaks": 0
+  }
+}

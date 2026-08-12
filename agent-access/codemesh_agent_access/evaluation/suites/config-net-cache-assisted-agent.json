@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "kind": "agent",
+  "name": "config-net-cache-assisted-agent",
+  "description": "Pinned independent onboarding-assisted C# cache-coherence impact task.",
+  "repository_id": "config_net",
+  "repository_url": "https://github.com/aloneguid/config.git",
+  "repository_commit": "ae0af7d4b3781c66233bbb677b6e11df1f5b416b",
+  "treatment_guidance": "This is an onboarding-assisted CodeMesh treatment. Start with codemesh_get_context_package using the full task, repository alias config_net, output_format agent, and default limits. Use its ranked file spans to make only targeted, batched checkout reads needed to verify citations. Do not repeat broad repository searches, inspect history, or inspect dependencies unless a required conclusion is absent from the package.",
+  "thresholds": {
+    "efficiency_delta": 0.10,
+    "minimum_completed_pairs": 3
+  },
+  "tasks": [
+    {
+      "id": "cached-write-coherence-impact",
+      "description": "Distinguish required and generic impact when cached writes must become immediately visible.",
+      "task_type": "answer",
+      "prompt": "Plan the impact of making writes immediately visible through a cached Config.Net configuration proxy without waiting for the CacheFor TTL. Trace property and configurable-method setters through interception, path construction, value conversion, store fan-out, and the keyed cache. Identify the source and test changes that are actually required, then distinguish generic paths that should already adapt without edits. Preserve store precedence and no-cache behavior. Cite implementation and test files with exact line ranges. Do not implement the change.",
+      "targets": [
+        {
+          "file_path": "src/Config.Net/Core/IoHandler.cs"
+        },
+        {
+          "file_path": "src/Config.Net/Core/LazyVar.cs"
+        },
+        {
+          "file_path": "src/Config.Net/Core/DynamicWriter.cs"
+        },
+        {
+          "file_path": "src/Config.Net/Core/InterfaceInterceptor.cs"
+        },
+        {
+          "file_path": "src/Config.Net/ConfigurationBuilder.cs"
+        },
+        {
+          "file_path": "src/Config.Net.Tests/LogicTest.cs"
+        },
+        {
+          "file_path": "src/Config.Net.Tests/ConfigurableMethodsTest.cs"
+        }
+      ]
+    }
+  ]
+}

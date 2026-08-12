@@ -287,10 +287,19 @@ static string? ReadPositional(string[] args, int index)
 
 static async Task<IngestionResult> RunIngestAsync(string[] args)
 {
-    var repositoryRoot = ReadAnyOption(args, "--root", "--repository-root")
-        ?? Directory.GetCurrentDirectory();
+    var repositoryRoot = Path.GetFullPath(
+        ReadAnyOption(args, "--root", "--repository-root")
+            ?? Directory.GetCurrentDirectory());
     var language = ReadOption(args, "--language") ?? "csharp";
     var forceEmbeddings = HasFlag(args, "--force-embeddings");
+    var solutionPath = CodeMeshIngestPathResolver.ResolveFile(
+        repositoryRoot,
+        ReadAnyOption(args, "--solution", "--solution-path"),
+        "Solution");
+    var projectPath = CodeMeshIngestPathResolver.ResolveFile(
+        repositoryRoot,
+        ReadAnyOption(args, "--project", "--project-path"),
+        "Project");
 
     if (!IsSupportedLanguage(language))
     {
@@ -309,8 +318,8 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
 
     var request = new IngestionRequest(
         repositoryRoot,
-        ReadAnyOption(args, "--solution", "--solution-path"),
-        ReadAnyOption(args, "--project", "--project-path"),
+        solutionPath,
+        projectPath,
         language,
         DryRun: HasFlag(args, "--dry-run"),
         SkipEmbeddings: skipEmbeddings,

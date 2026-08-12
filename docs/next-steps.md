@@ -42,6 +42,12 @@ Recent completed work:
 - The `youtube-downloader-live` and `youtube-downloader-agent` suites pin a
   representative external C# repository and fail closed when the indexed commit
   does not match the suite commit.
+- Explicit CLI solution and project paths resolve from either the repository
+  root or caller directory and fail fast when missing, preventing an explicit
+  semantic-ingestion target from silently degrading to filesystem parsing.
+- The `config-net-cache-live` and `config-net-cache-assisted-agent` suites pin
+  an independent MIT-licensed C# repository and cache-coherence impact task for
+  the next assisted product-proof replication.
 - The C# parser resolves cross-project invocations through Roslyn documentation
   ids as well as CodeMesh stable keys, while preserving ambiguity fail-closed
   behavior.
@@ -95,6 +101,10 @@ Current state:
   an independent representative C# task, followed by discoverability evidence
   that normal agent-host onboarding can trigger the efficient workflow without
   treatment-only instructions.
+- The independent Config.Net suite and summary-free index are prepared. Its
+  six-case live calibration passed locally, but the report is non-comparable
+  while the CodeMesh tool checkout contains the suite implementation changes.
+  No paid assisted agent campaign or independent efficiency verdict has run.
 
 Current priority judgment:
 
@@ -486,9 +496,10 @@ Useful agents need to follow local engineering process, not only compile code.
 3. Retain the focused assisted campaign as first attributable product-proof
    evidence: equal correctness with 34.7% lower median time and 64.5% lower
    median tokens on one complex task.
-4. Replicate the result on an independent representative C# task, then make the
-   efficient package-plus-targeted-read workflow discoverable without
-   treatment-only guidance.
+4. From a clean committed and freshly indexed tool checkout, pass the pinned
+   Config.Net live gate and run the authorized three-pair assisted campaign.
+   Only after an improved verdict should the efficient package-plus-targeted-
+   read workflow move to discoverability work without treatment-only guidance.
 5. Re-run the same frozen live and agent baselines after any material change.
 6. Only after replication and discoverability evidence resume summary
    qualification, broader language/SDLC coverage,

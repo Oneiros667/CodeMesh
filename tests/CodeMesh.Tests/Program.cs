@@ -29,6 +29,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("sha256 helper is deterministic", TestHash),
     ("repository path policy ignores generated directories", TestRepositoryPathPolicyIgnoresGeneratedDirectories),
     ("environment file loader fills missing variables", TestEnvironmentFileLoaderFillsMissingVariables),
+    ("ingest path resolver accepts repository and caller relative files", TestIngestPathResolverAcceptsRelativeFiles),
+    ("ingest path resolver rejects missing explicit files", TestIngestPathResolverRejectsMissingFiles),
     ("refresh workflow resolves repository root", TestRefreshWorkflowResolvesRepositoryRoot),
     ("refresh workflow normalizes ingest arguments", TestRefreshWorkflowNormalizesIngestArguments),
     ("watch workflow normalizes refresh arguments", TestWatchWorkflowNormalizesRefreshArguments),
@@ -170,6 +172,65 @@ static Task TestEnvironmentFileLoaderFillsMissingVariables()
         Environment.SetEnvironmentVariable(quotedKey, null);
         Environment.SetEnvironmentVariable(existingKey, null);
 
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    return Task.CompletedTask;
+}
+
+static Task TestIngestPathResolverAcceptsRelativeFiles()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-ingest-path-test-{Guid.NewGuid():N}");
+    var solution = Path.Combine(root, "src", "Sample.sln");
+
+    try
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(solution)!);
+        File.WriteAllText(solution, string.Empty);
+
+        Equal(
+            solution,
+            CodeMeshIngestPathResolver.ResolveFile(root, Path.Combine("src", "Sample.sln"), "Solution") ?? string.Empty,
+            "Ingest path resolver did not resolve a repository-relative solution.");
+
+        var callerRelativePath = Path.GetRelativePath(Directory.GetCurrentDirectory(), solution);
+        Equal(
+            solution,
+            CodeMeshIngestPathResolver.ResolveFile(root, callerRelativePath, "Solution") ?? string.Empty,
+            "Ingest path resolver did not resolve a caller-relative solution.");
+
+        Equal(
+            solution,
+            CodeMeshIngestPathResolver.ResolveFile(root, solution, "Solution") ?? string.Empty,
+            "Ingest path resolver changed an absolute solution path.");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    return Task.CompletedTask;
+}
+
+static Task TestIngestPathResolverRejectsMissingFiles()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-ingest-path-missing-test-{Guid.NewGuid():N}");
+
+    try
+    {
+        Directory.CreateDirectory(root);
+        Throws<InvalidOperationException>(
+            () => CodeMeshIngestPathResolver.ResolveFile(root, "missing.sln", "Solution"),
+            "Ingest path resolver accepted a missing explicit solution.");
+    }
+    finally
+    {
         if (Directory.Exists(root))
         {
             Directory.Delete(root, recursive: true);

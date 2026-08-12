@@ -63,6 +63,12 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assisted_agent, assisted_agent_path = load_suite(
         "youtube-downloader-impact-assisted-agent", "agent"
     )
+    independent_live, independent_live_path = load_suite(
+        "config-net-cache-live", "live"
+    )
+    independent_assisted_agent, independent_assisted_agent_path = load_suite(
+        "config-net-cache-assisted-agent", "agent"
+    )
     model, model_path = load_suite("codemesh-model", "model-benchmark")
 
     assert live.name == "codemesh-live"
@@ -79,6 +85,12 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert impact_agent.repository_commit == external_live.repository_commit
     assert assisted_agent.treatment_guidance
     assert assisted_agent.repository_commit == external_live.repository_commit
+    assert independent_assisted_agent.treatment_guidance
+    assert (
+        independent_assisted_agent.repository_commit
+        == independent_live.repository_commit
+    )
+    assert independent_live.repository_url != external_live.repository_url
     assert model.name == "codemesh-model"
     assert len(model.questions) == 24
     assert len(model.change_scenarios) == 9
@@ -89,6 +101,8 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert external_agent_path.is_file()
     assert impact_agent_path.is_file()
     assert assisted_agent_path.is_file()
+    assert independent_live_path.is_file()
+    assert independent_assisted_agent_path.is_file()
     assert model_path.is_file()
     assert suite_json_schema("live")["title"] == "LiveSuite"
     assert suite_json_schema("agent")["title"] == "AgentSuite"
