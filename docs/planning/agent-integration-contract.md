@@ -1,0 +1,163 @@
+# Agent Integration Contract
+
+Document type: selected product contract and implementation plan
+
+Reviewed: 2026-08-12
+
+This document selects the v1 integration contract for CodeMesh in coding-agent
+hosts. It defines the product behavior that future implementation and evaluation
+must target. Except for the existing MCP server instructions and the manual
+repository guidance in [MCP Setup](../guides/mcp-setup.md), the profile, probe,
+checkout binding, and installation behavior below are not implemented yet.
+
+## Decision
+
+CodeMesh v1 requires explicit, repository-owned agent onboarding. A configured
+repository tells compatible coding agents when and how to use CodeMesh for the
+initial C#/.NET wedge: implementation discovery, likely change-impact analysis,
+and validation selection.
+
+MCP server instructions and tool descriptions remain useful defense in depth,
+but they are not the sole integration mechanism. Spontaneous discovery of an
+available MCP server remains a later usability objective, not a v1 product
+acceptance gate.
+
+This choice follows the retained CodeMesh evidence:
+
+- summary-free live retrieval has passed on two repositories;
+- assisted campaigns have replicated utility after explicit onboarding; and
+- spontaneous and prompt-parity campaigns have recorded zero CodeMesh adoption.
+
+A comparative review of Graphify's integration in a separate repository also
+showed the value of durable repository guidance, a narrow host allowlist, and
+freshness checks. It also showed why configuration inspection is insufficient:
+the declared integration can look valid while the configured runtime cannot
+start. Those observations motivate the live probe below, but they are design
+input rather than CodeMesh effectiveness evidence.
+
+## V1 User Contract
+
+CodeMesh may claim configured product use only when all of these conditions
+hold:
+
+1. The repository owner has reviewed and opted into the canonical CodeMesh
+   guidance block in the repository's agent instructions.
+2. The host uses the CodeMesh normal-user tool profile rather than exposing the
+   entire administrative surface by default.
+3. Configuration identifies the intended project and checkout without silently
+   choosing among ambiguous indexed repositories.
+4. A live probe starts the configured MCP process, completes initialization,
+   validates the expected profile, reaches the stores, and confirms a fresh
+   matching repository snapshot.
+5. Agents begin relevant tasks with a context package, verify consequential
+   findings against current source, and fall back to normal repository
+   exploration when CodeMesh is unavailable, stale, or ambiguous.
+
+The supported claim should remain bounded:
+
+> When CodeMesh is configured for a repository and its standard agent guidance
+> is installed, coding agents begin with fresh, source-grounded context packages
+> for supported C#/.NET implementation-discovery, likely change-impact, and
+> validation-selection tasks.
+
+Measured outcome improvement requires separate retained evaluation evidence.
+Configuration alone does not establish adoption, correctness, efficiency, or
+product benefit.
+
+## Repository-Owned Onboarding
+
+The canonical manual block lives in [MCP Setup](../guides/mcp-setup.md). A future
+installer may add or update only the marked block after showing a reviewable
+diff and receiving explicit owner approval. It must not silently create,
+replace, or rewrite unrelated repository instructions.
+
+Repository guidance is the portable contract. Host-specific hooks may display
+freshness warnings or reminders, but correctness must not depend on a hook that
+another host may ignore.
+
+## Tool Profiles
+
+The planned normal-user profile is deliberately small:
+
+- `codemesh_get_context_package`
+- `codemesh_get_repository_status`
+- `codemesh_list_repositories`
+- `codemesh_get_node`
+
+This profile supports the intended package-first workflow, repository
+resolution, freshness inspection, and targeted CodeMesh reads. Coding agents
+may also verify returned spans with their ordinary source-reading tools.
+
+An expanded diagnostic profile may expose status, guidance, search, symbol,
+neighbor, repository-detail, summary-coverage, and ingestion-run tools.
+Destructive repository deletion must remain outside both normal profiles and
+require a separately authorized administrative configuration.
+
+The exact profile mechanism and compatibility behavior require implementation
+and contract tests before this can be described as current behavior.
+
+## Checkout And Freshness Behavior
+
+The integration must bind a host configuration to a stable project and checkout
+identity or a unique repository alias. It must fail clearly when selection is
+missing or ambiguous rather than using whichever indexed repository looks most
+recent.
+
+Freshness is a server-side acceptance condition. Before returning task context
+as trustworthy, CodeMesh must compare the configured checkout and source state
+with the active indexed snapshot and expose the result in the response. A hook
+or client warning may improve visibility, but it cannot convert stale data into
+accepted evidence.
+
+## Live Runtime Probe
+
+Static configuration validation and manifest printing are insufficient because
+they do not prove that the configured process can initialize in the target
+environment. The planned probe must:
+
+1. launch the exact stdio command and working directory used by the host;
+2. complete MCP initialization and inspect the server instructions;
+3. verify the selected tool profile and reject unexpected destructive tools;
+4. call service and store health through the running server;
+5. resolve the configured repository without ambiguity; and
+6. confirm current checkout and snapshot freshness.
+
+It must exit nonzero with a specific diagnostic when any required condition
+fails. The probe must be provider-free and must not invoke a paid model.
+
+## Evaluation Classification
+
+Future reports must distinguish three integration modes:
+
+- **Spontaneous:** control and treatment task prompts are identical; treatment
+  adds CodeMesh MCP only and receives no repository onboarding.
+- **Evaluator-assisted:** treatment receives temporary evaluator-only guidance.
+  Existing assisted evidence remains in this category.
+- **Configured/onboarded:** treatment uses the exact repository guidance, tool
+  profile, checkout binding, and setup process shipped to normal users. The task
+  prompt remains identical to control.
+
+Configured/onboarded evidence supports the selected v1 contract. It must not be
+relabeled as spontaneous discovery, and older evaluator-assisted runs must not
+be retroactively relabeled as configured product evidence.
+
+Before another model-cost-bearing campaign, the evaluation harness must record
+the integration mode and the identities of the installed guidance and selected
+tool profile. The frozen task, grading targets, model settings, clean-checkout
+requirements, and summary-free live gate remain unchanged.
+
+## Completion Gates
+
+Complete the integration in this order:
+
+1. retain the canonical manual onboarding block and its opt-in boundary;
+2. implement and test the normal-user and diagnostic tool profiles;
+3. implement unambiguous checkout binding and fail-closed freshness behavior;
+4. implement the provider-free live runtime probe;
+5. pass deterministic contracts and a clean summary-free live gate; and
+6. with explicit model-spend authorization, run a configured/onboarded campaign
+   using the shipped integration unchanged.
+
+Do not claim the v1 integration complete from documentation, static manifests,
+fixtures, configured CI, or an MCP process that starts without passing these
+gates.

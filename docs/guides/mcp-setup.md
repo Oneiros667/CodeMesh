@@ -138,6 +138,45 @@ limits, and verify returned spans with targeted reads. Host support for exposing
 server instructions varies; the same behavior remains explicit in the tool
 descriptions and printable stable manifest.
 
+## Repository Agent Onboarding
+
+Explicit repository onboarding is the selected v1 product contract. MCP server
+instructions remain defense in depth because hosts differ in whether and how
+they present those instructions to an agent. The future profile, live runtime
+probe, checkout binding, and installation behavior are specified in
+[Agent Integration Contract](../planning/agent-integration-contract.md) and are
+not implemented yet.
+
+Until reviewable installation support exists, repository owners may manually
+add this canonical block to the repository's `AGENTS.md` or equivalent durable
+agent-instruction file:
+
+```markdown
+<!-- codemesh:onboarding:start -->
+## CodeMesh repository context
+
+For C#/.NET implementation discovery, likely change-impact analysis, and
+validation selection in this repository:
+
+1. Start with `codemesh_get_context_package` using the full task, the configured
+   repository id or unique alias, `output_format = "agent"`, and default limits.
+2. If the repository selector is unknown, use `codemesh_list_repositories`; do
+   not guess when more than one checkout could match.
+3. Before relying on the package, use `codemesh_get_repository_status` to confirm
+   that the indexed snapshot matches the intended checkout and is fresh.
+4. Verify consequential conclusions against the returned source spans with
+   targeted reads. Treat rankings and relationships as navigation evidence, not
+   runtime proof.
+5. If CodeMesh is unavailable, stale, or ambiguous, report that condition and
+   continue with normal repository exploration.
+<!-- codemesh:onboarding:end -->
+```
+
+Review the block and repository selector before committing it. Do not replace
+unrelated instructions or assume that adding the text proves the MCP process is
+healthy. The current `mcp-manifest` command validates static contract output;
+it is not the planned live startup and freshness probe.
+
 ## Required Environment
 
 The MCP server reads the same store and model-provider environment variables as Agent Access. For local stdio MCP, these values should point at host-accessible endpoints, not Docker service names.

@@ -40,15 +40,14 @@ The evidence position is summarized in [Project Status](../current/project-statu
   attributable to CodeMesh; and
 - no summary model is qualified, so the core baseline remains summary-free.
 
-The current product-proof work diagnoses why the evaluated normal host did not
-consume CodeMesh in the frozen `config-net-cache-agent` campaign. Preserve the
-same independent task, prompt, grading targets, and no-guidance treatment while
-checking whether the host presents the server instructions and tool contracts.
-The required MCP configuration completed without a harness failure, while the
-retained report recorded no MCP call attempts. The current Codex prompt-input
-diagnostic exposes conversation input but not the separate base instructions
-and tool schemas, so it cannot independently attest the complete selection
-context. Do not classify this as a transport defect without stronger evidence.
+Explicit repository onboarding is now the selected v1 product contract; see
+[Agent Integration Contract](../planning/agent-integration-contract.md). The
+current product-proof work is to implement that integration and evaluate the
+exact guidance, tool profile, checkout binding, and setup process shipped to
+normal users. Preserve the same independent task, prompt, grading targets, and
+control behavior. The retained zero-adoption campaign remains negative
+spontaneous-discovery evidence and must not be rewritten as a transport defect
+or configured-product result.
 
 Reports must compare correctness, safety, freshness, citations, elapsed time,
 tokens, tool calls, adoption, and correction loops. A tied-correctness result is
@@ -57,10 +56,21 @@ comparison threshold and the other efficiency metric does not regress by more
 than 10%. Product evidence should repeat across more than one task family and
 repository; a passing harness or one favorable run is not sufficient.
 
-For prompt-parity suites, the treatment prompt must remain identical to control
-and must not force MCP use. Assisted suites must declare their guidance and
-cannot substitute for discoverability evidence. If adoption remains zero,
-retain that negative result rather than weakening the comparison.
+Classify agent evidence by the integration the treatment actually receives:
+
+- **Spontaneous:** the treatment prompt is identical to control, CodeMesh MCP is
+  the only added product surface, and no repository onboarding is installed.
+- **Evaluator-assisted:** treatment receives evaluator-only guidance. These
+  suites must declare the guidance and cannot substitute for product evidence.
+- **Configured/onboarded:** the task prompt remains identical to control, while
+  treatment receives the exact repository guidance, tool profile, checkout
+  binding, and setup process shipped to normal users.
+
+The current harness records spontaneous and assisted modes. Extend its report
+schema before claiming configured/onboarded evidence so the installed guidance
+and profile identities are retained. Never relabel earlier assisted evidence as
+configured product evidence. If adoption remains zero, retain that negative
+result rather than weakening the comparison.
 
 ## Representative External C# Baseline
 
@@ -224,12 +234,12 @@ to CodeMesh. Preserve this as negative discoverability evidence. The sanitized
 transcription is
 [`docs/evaluation/evidence/config-net-prompt-parity-647d83d.json`](evidence/config-net-prompt-parity-647d83d.json).
 
-Before another paid run, resolve whether spontaneous MCP-only adoption remains
-a product requirement. If it does, test only a bounded CodeMesh-controlled
-default tool surface that would ship to normal users; do not narrow tools only
-inside the evaluator. If explicit onboarding becomes part of the supported
-contract, classify that evidence as assisted and retain the prompt-parity
-failure separately.
+Before another paid run, implement and verify the selected explicit-onboarding
+contract. The treatment must use the same repository guidance and normal-user
+tool profile shipped outside the evaluator; do not create an evaluator-only
+tool-selection advantage. Record the result as configured/onboarded, not
+spontaneous or evaluator-assisted, and retain the prompt-parity failure
+separately.
 
 ## Deterministic Fixture Suite
 
@@ -328,7 +338,7 @@ that combination. The runner detects older builds that lack
 `--ignore-user-config` and gives local-provider runs a temporary isolated
 `CODEX_HOME`; it never reads the user's Codex configuration in that mode.
 
-Each control and treatment run receives the same task prompt, model, reasoning effort, sandbox, and isolated temporary clone. Both run non-interactively with `--ask-for-approval never`. The control has an empty MCP server map. The treatment adds CodeMesh as a required stdio MCP server and explicitly approves its allowlisted tools so non-interactive calls execute instead of being canceled at the client approval boundary. Suites without `treatment_guidance` preserve prompt parity and measure spontaneous adoption. Suites with guidance are reported as assisted, preserve the guidance in report metadata, and isolate best-case utility from discoverability.
+Each control and treatment run receives the same task prompt, model, reasoning effort, sandbox, and isolated temporary clone. Both run non-interactively with `--ask-for-approval never`. The control has an empty MCP server map. The treatment adds CodeMesh as a required stdio MCP server and explicitly approves its allowlisted tools so non-interactive calls execute instead of being canceled at the client approval boundary. Under the current report schema, suites without `treatment_guidance` preserve prompt parity and measure spontaneous adoption. Suites with guidance are reported as assisted, preserve the guidance in report metadata, and isolate best-case utility from discoverability. Configured/onboarded mode must be implemented before the runner can represent the selected v1 contract.
 
 The treatment configuration allowlists CodeMesh read tools and does not expose repository deletion to the benchmark agent.
 

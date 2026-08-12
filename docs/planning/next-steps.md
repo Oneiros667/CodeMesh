@@ -33,27 +33,31 @@ so.
 3. Preserve the focused YoutubeDownloader and independent Config.Net assisted
    campaigns as replicated utility-after-onboarding evidence, with their
    prompt-parity and task-family limitations explicit.
-4. Resolve the normal-host product contract after the frozen prompt-parity
-   `config-net-cache-agent` suite made zero CodeMesh calls or call attempts.
-   Choose either a bounded spontaneous-discovery experiment using an actual
-   product-default tool surface, or explicit onboarding as a supported product
-   requirement. Keep the frozen task prompt, grading, and targets intact; do
-   not create an evaluator-only tool-selection advantage.
-5. Repeat the same frozen live and prompt-parity agent evaluations after each
-   material tool-selection, ranking, packaging, or relationship change.
+4. Complete the selected explicit-onboarding v1 contract in
+   [Agent Integration Contract](agent-integration-contract.md): implement the
+   normal-user tool profile, unambiguous checkout binding, fail-closed freshness
+   behavior, provider-free live runtime probe, and reviewable installation flow.
+   The canonical manual repository guidance is already documented.
+5. Extend evaluation reporting to distinguish configured/onboarded product use
+   from spontaneous and evaluator-assisted modes. Then repeat the frozen live
+   gate and, with explicit model-spend authority, the Config.Net task using the
+   exact integration shipped to normal users and identical control/treatment
+   task prompts. Do not relabel this as spontaneous discovery.
+6. Repeat the same frozen live and configured/onboarded agent evaluations after
+   each material tool-selection, ranking, packaging, or relationship change.
    Correctness and safety win; efficiency counts only for adopted matched pairs.
    Agent runs are model-cost-bearing and require explicit authorization, clean
    committed checkouts, and a fresh matching index.
-6. Implement the summary-model qualification runner only before summaries are
+7. Implement the summary-model qualification runner only before summaries are
    considered for default retrieval. Require factual, reliability, safety, and
    no-summary retrieval comparisons.
-7. Complete default secret-file exclusion and configurable ingestion
+8. Complete default secret-file exclusion and configurable ingestion
    allow/deny policy before broad artifact ingestion or shared proprietary
    workspace storage.
-8. Defer Kubernetes/Helm, additional parser breadth, UI expansion, outcome
+9. Defer Kubernetes/Helm, additional parser breadth, UI expansion, outcome
    memory, portable snapshots, multi-checkout snapshot retention, shared
-   stores, and broader SDLC ingestion until prompt-parity product benefit is
-   repeatable or explicit owner direction reprioritizes them.
+   stores, and broader SDLC ingestion until configured/onboarded product benefit
+   is repeatable or explicit owner direction reprioritizes them.
 
 The evidence supporting this order is summarized in
 [Project Status](../current/project-status.md). Exact evaluation commands and
@@ -75,7 +79,7 @@ execution order above.
 | Markdown parser | Partial | Add links from docs to commands, endpoints, projects, and source when justified. | [Architecture](../current/architecture.md) |
 | Context packages | Implemented baseline | Maintain compact agent output, citations, rationale, and budget behavior. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Local web inspection | Implemented initial slice | Expand only when it serves a measured agent or audit need. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Tool guidance and onboarding | Implemented; zero-adoption evidence active | Diagnose host presentation and establish prompt-parity normal-host discovery through the frozen Config.Net suite. | [Evaluation](../evaluation/mcp-effectiveness.md) |
+| Tool guidance and onboarding | Server instructions and manual guidance implemented; v1 contract selected | Implement the normal-user profile, checkout binding, live probe, and reviewable installation; then establish configured/onboarded evidence. | [Agent Integration Contract](agent-integration-contract.md) |
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |

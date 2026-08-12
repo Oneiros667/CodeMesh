@@ -18,10 +18,11 @@ CodeMesh is a local-first context and likely change-impact service for coding
 agents. The initial product wedge is C#/.NET implementation discovery, impact
 navigation, and validation selection through compact source-backed context.
 
-The current milestone is prompt-parity evidence that a normal agent host
-discovers and uses the CodeMesh MCP workflow, then performs at least as safely
-and correctly as normal repository exploration with attributable efficiency or
-correctness benefit.
+The current milestone is configured/onboarded evidence that a normal agent host
+uses the selected CodeMesh v1 repository integration, then performs at least as
+safely and correctly as normal repository exploration with attributable
+efficiency or correctness benefit. Spontaneous MCP discovery remains useful
+usability evidence, but is no longer the v1 acceptance contract.
 
 ## Capability Status
 
@@ -33,7 +34,7 @@ correctness benefit.
 | Deployment parsing | Initial Dockerfile and Compose nodes, metadata, containment, and service dependencies implemented. | Helm, Kubernetes, CI/CD, overrides, and code-to-runtime links remain planned. |
 | Ingestion | Dry-run, incremental writes, staged deterministic snapshots, compare-and-swap slot publication, reference-aware cleanup, refresh, watch, redaction, optional embeddings, and optional summaries implemented. | Watch is polling-based; provider-backed paths remain optional. |
 | Storage | Snapshot-namespaced Neo4j graph, MongoDB content/registry/runs/summaries, Qdrant vectors, and in-memory test adapters implemented. | Publication is atomic at the registry slot boundary; normal service-backed operation requires configured stores. |
-| Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. | Returned relationships and rankings are navigation evidence, not runtime proof. |
+| Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. Canonical manual repository guidance is documented. | The v1 default tool profile, checkout binding, live runtime probe, and reviewable installer are not implemented. Returned relationships and rankings are navigation evidence, not runtime proof. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
 | Evaluation | Deterministic fixture, live MCP, paired agent, and model benchmark harnesses implemented. | Paid/model-backed runs require explicit authorization; fixtures prove contracts only. |
@@ -103,14 +104,19 @@ transcription is
 
 ## Current Gap
 
-The immediate evidence gap remains normal-host discoverability. CodeMesh
-publishes canonical MCP initialization instructions for the efficient
-context-package plus targeted-read workflow, but the prompt-parity Config.Net
-campaign recorded zero MCP calls and zero MCP call attempts. The next work is
-an owner decision between continuing to pursue spontaneous MCP-only adoption
-through a bounded default-tool-surface experiment, or making explicit
-onboarding part of the supported product contract. Do not change the frozen
-task prompt, grading, or targets to manufacture adoption.
+Explicit repository onboarding is now the selected v1 product contract.
+CodeMesh publishes MCP initialization instructions and documents a canonical
+manual repository guidance block, but the product-default tool profile,
+unambiguous checkout binding, live runtime probe, and reviewable installation
+flow are not implemented. Documentation alone does not close the integration or
+product-evidence gap.
+
+The prompt-parity Config.Net campaign recorded zero MCP calls and zero MCP call
+attempts. Preserve it as negative spontaneous-discovery evidence; do not change
+the frozen task prompt, grading, or targets to manufacture adoption. The next
+product-proof campaign should instead evaluate the exact configured/onboarded
+integration shipped to normal users, while retaining the same task prompt for
+control and treatment.
 
 The evaluated required MCP configuration completed without a harness failure,
 and the CodeMesh manifest publishes the intended instructions and tool
@@ -120,13 +126,13 @@ instructions and tool schemas. The retained campaign therefore cannot attest
 the exact selection context presented to the model, and no CodeMesh transport
 or contract defect has been confirmed.
 
-If the owner selects another spontaneous-discovery experiment, define the
-candidate as an actual product-default tool surface rather than an
-evaluator-only advantage. After a material discovery change, repeat the
-summary-free live gate and the same prompt-parity campaign. The agent campaign
-remains model-cost-bearing and requires explicit authorization, clean committed
-checkouts, and a fresh matching index. Unit and contract tests for the
-instructions do not substitute for normal-host evidence.
+Implement the selected contract in the order defined by
+[Agent Integration Contract](../planning/agent-integration-contract.md). After
+material integration or retrieval changes, repeat the summary-free live gate.
+The configured/onboarded agent campaign remains model-cost-bearing and requires
+explicit authorization, clean committed checkouts, a fresh matching index, and
+report metadata that identifies the shipped guidance and tool profile. Unit and
+contract tests for instructions do not substitute for normal-host evidence.
 
 ## Current Boundaries
 
