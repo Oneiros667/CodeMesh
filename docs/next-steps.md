@@ -12,6 +12,10 @@ memory, parser tiers, portable snapshots, and graph-derived reports.
 qualifying local or online ingestion summary models using accuracy, reliability,
 speed, token efficiency, privacy, cost, and downstream retrieval evidence.
 
+`docs/repository-identity-and-snapshot-retention.md` records planning-only
+requirements for multiple checkouts, bounded branch and working-state
+snapshots, local identity markers, and future shared multi-user stores.
+
 ## Current Project State Review
 
 Review date: 2026-08-12.
@@ -134,8 +138,9 @@ Current priority judgment:
    considered for default retrieval. Require factual, reliability, safety, and
    no-summary retrieval comparisons.
 8. Defer Kubernetes/Helm, additional parser breadth, outcome memory, UI
-   expansion, portable snapshots, and broader SDLC ingestion until the initial
-   C# agent workflow shows repeatable benefit.
+   expansion, portable snapshots, multi-checkout snapshot retention, shared
+   stores, and broader SDLC ingestion until the initial C# agent workflow shows
+   repeatable benefit.
 9. Keep secret-file exclusion and configurable allow/deny policy as a release
    gate before any future broad artifact ingestion.
 
@@ -455,9 +460,51 @@ Why it matters:
 
 Agent usefulness is easy to degrade accidentally. Evaluation keeps the MCP service focused on practical outcomes.
 
+### 14. Repository Identity And Bounded Snapshot Retention
+
+Support multiple folders, clones, and Git worktrees for the same logical
+project without retaining every intermediate working state.
+
+Current implementation:
+
+- Ingestion derives repository identity from the absolute root path, so two
+  folders are separated even when they share a remote.
+- Git origin, branch, and commit are recorded for the latest repository state.
+- Repository status compares that indexed commit with the current commit and
+  dirty state of the recorded local folder.
+- Re-indexing one folder replaces its repository-scoped graph; branch heads and
+  working states are not independently retained snapshots.
+- Shared multi-user publication, tenant isolation, and cross-store generation
+  coordination are not implemented.
+
+Expected outcome:
+
+- Stable project, checkout, and content-derived snapshot identities.
+- One retained current-working snapshot per active checkout and one retained
+  snapshot for each selected, successfully indexed branch head.
+- Explicit pins for the exceptional historical or evidence snapshots that must
+  outlive branch and checkout references.
+- Atomic slot publication and reference-aware cleanup across graph, content,
+  vector, summary, and registry stores.
+- An ignored, non-secret local identity marker or equivalent Git-private state
+  that survives branch changes without affecting freshness.
+- A common data model with separate local and shared policy profiles.
+- Shared-mode tenant isolation, trusted branch-head publication, local-first
+  dirty overlays, path privacy, bounded retention, and verified deletion.
+
+The complete planning-only requirements are in
+`docs/repository-identity-and-snapshot-retention.md`.
+
+Why it matters:
+
+Path-only identity cannot safely connect related clones, preserve selected
+branch heads, or support multiple developers using central stores. Unlimited
+immutable snapshots would instead create database clutter, duplicate derived
+artifacts, and make freshness selection harder.
+
 ## P3 - Broader SDLC Intelligence
 
-### 14. API Contract And Database Migration Ingestion
+### 15. API Contract And Database Migration Ingestion
 
 Add structured parsers for compatibility-critical artifacts.
 
@@ -470,7 +517,7 @@ Why it matters:
 
 Agents need to understand compatibility boundaries before changing public APIs or persisted data.
 
-### 15. Observability And Runbook Context
+### 16. Observability And Runbook Context
 
 Index operational diagnostics and support artifacts.
 
@@ -483,7 +530,7 @@ Why it matters:
 
 Production-aware agents should know how a change is monitored and how failures are diagnosed.
 
-### 16. Ownership And Review Metadata
+### 17. Ownership And Review Metadata
 
 Index collaboration rules that shape safe changes.
 
@@ -512,8 +559,9 @@ Useful agents need to follow local engineering process, not only compile code.
    when model spend is explicitly authorized.
 6. Re-run the same frozen live and agent baselines after any material change.
 7. Only after replication and discoverability evidence resume summary
-   qualification, broader language/SDLC coverage,
-   deployment expansion, UI work, portability, or experiential memory.
+   qualification, broader language/SDLC coverage, deployment expansion, UI
+   work, portability, repository snapshot retention, shared-store work, or
+   experiential memory.
 
 This order moves CodeMesh from a credible technical system to a proven agent
 tool before expanding its surface area.

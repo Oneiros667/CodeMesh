@@ -221,6 +221,11 @@ Design an optional portable snapshot for small, local, or read-only use cases.
 It should package enough information to serve bounded Agent Access queries
 without requiring the full Neo4j, MongoDB, and Qdrant profile.
 
+Portable artifact design is distinct from live multi-checkout identity and
+retention. `docs/repository-identity-and-snapshot-retention.md` defines the
+planning-only requirements for project, checkout, and live index snapshots,
+branch and working-state slots, cleanup, and shared stores.
+
 Minimum snapshot contents:
 
 - repository identity and indexed Git state;

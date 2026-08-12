@@ -24,14 +24,18 @@ Before planning larger CodeMesh work, review these repository notes:
   analysis, explicit agent outcome memory, parser tiers, and portable snapshots.
 - `docs/summary-model-qualification.md` defines the planned qualification
   procedure for local and online ingestion summary models.
+- `docs/repository-identity-and-snapshot-retention.md` defines the proposed
+  multi-checkout identity, bounded snapshot retention, and shared-store
+  requirements.
 - `docs/sdlc-roadmap.md` tracks longer-term SDLC intelligence goals beyond implementation-code indexing.
 - `docs/engineering/standards.md` defines change discipline, commit conventions,
   risk-scaled verification, documentation expectations, and the definition of
   done.
 
 Treat `docs/next-steps.md`, `docs/graph-intelligence-design.md`,
-`docs/summary-model-qualification.md`, and `docs/sdlc-roadmap.md` as planning
-context, not implemented behavior.
+`docs/summary-model-qualification.md`,
+`docs/repository-identity-and-snapshot-retention.md`, and
+`docs/sdlc-roadmap.md` as planning context, not implemented behavior.
 
 ## Agent Defaults
 

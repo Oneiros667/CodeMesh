@@ -141,4 +141,7 @@ not source truth.
 - `docs/next-steps.md` prioritizes the next features needed for effective MCP agent use.
 - `docs/graph-intelligence-design.md` proposes relationship evidence, graph
   analysis, explicit agent outcome memory, parser tiers, and portable snapshots.
+- `docs/repository-identity-and-snapshot-retention.md` defines proposed
+  multi-checkout identity, bounded snapshot retention, and future shared-store
+  requirements.
 - `docs/sdlc-roadmap.md` describes broader SDLC intelligence goals.
