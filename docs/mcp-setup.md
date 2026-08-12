@@ -128,6 +128,13 @@ If the client does not support `cwd`, wrap the command in PowerShell:
 
 Do not run the MCP server through `docker compose exec` unless the client explicitly supports interactive stdio correctly. The local `uv run` command is the preferred stdio path.
 
+During MCP initialization, CodeMesh publishes a concise default workflow for
+implementation discovery, change-impact analysis, and validation selection. It
+directs capable hosts to start with an agent-format context package, use default
+limits, and verify returned spans with targeted reads. Host support for exposing
+server instructions varies; the same behavior remains explicit in the tool
+descriptions and printable stable manifest.
+
 ## Required Environment
 
 The MCP server reads the same store and model-provider environment variables as Agent Access. For local stdio MCP, these values should point at host-accessible endpoints, not Docker service names.

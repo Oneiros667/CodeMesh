@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "evidence_kind": "sanitized-assisted-agent-replication",
+  "generated_at": "2026-08-12",
+  "codemesh_commit": "d764270d5d3c7727668197ad563c7ee3248a1210",
+  "provider": "default",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "medium",
+  "raw_traces_included": false,
+  "source_snippets_included": false,
+  "repository": {
+    "url": "https://github.com/aloneguid/config.git",
+    "commit": "ae0af7d4b3781c66233bbb677b6e11df1f5b416b",
+    "license": "MIT"
+  },
+  "live_gate": {
+    "suite": "config-net-cache-live",
+    "comparable": true,
+    "passed": true,
+    "case_count": 6,
+    "tool_call_count": 18,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 1.0,
+    "mean_ndcg_at_k": 0.93483,
+    "secret_leaks": 0
+  },
+  "agent_campaign": {
+    "suite": "config-net-cache-assisted-agent",
+    "adoption_mode": "assisted",
+    "prompt_parity": false,
+    "repetitions": 3,
+    "completed_pair_count": 3,
+    "verdict": "improved",
+    "passed": true,
+    "treatment_wins": 2,
+    "codemesh_attributable_wins": 2,
+    "treatment_regressions": 0,
+    "treatment_safety_violations": 0,
+    "control_success_rate": 0.333333,
+    "treatment_success_rate": 1.0,
+    "codemesh_adoption_rate": 1.0,
+    "median_control_duration_ms": 191477.746,
+    "median_treatment_duration_ms": 168835.489,
+    "duration_delta": -0.11825,
+    "median_control_tokens": 403924.0,
+    "median_treatment_tokens": 416138.0,
+    "token_delta": 0.030238
+  },
+  "limitations": [
+    "This manifest is a sanitized transcription of ignored local reports, not a hosted artifact attestation.",
+    "Treatment-only onboarding breaks prompt parity and establishes assisted utility, not spontaneous tool discovery.",
+    "The campaign covers one task in one independent repository and does not establish broad generalization.",
+    "The treatment token median was 3.0% higher even though median elapsed time was 11.8% lower.",
+    "Raw model traces and source snippets are intentionally excluded."
+  ]
+}

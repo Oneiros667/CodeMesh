@@ -14,7 +14,7 @@ speed, token efficiency, privacy, cost, and downstream retrieval evidence.
 
 ## Current Project State Review
 
-Review date: 2026-08-07.
+Review date: 2026-08-12.
 
 Recent completed work:
 
@@ -48,6 +48,10 @@ Recent completed work:
 - The `config-net-cache-live` and `config-net-cache-assisted-agent` suites pin
   an independent MIT-licensed C# repository and cache-coherence impact task for
   the next assisted product-proof replication.
+- MCP initialization now publishes the efficient default-package plus targeted-
+  read workflow as canonical server instructions, and
+  `config-net-cache-agent` freezes the same independent task without
+  treatment-only guidance for normal-host discoverability evaluation.
 - The C# parser resolves cross-project invocations through Roslyn documentation
   ids as well as CodeMesh stable keys, while preserving ambiguity fail-closed
   behavior.
@@ -97,14 +101,18 @@ Current state:
   spontaneous-adoption, or cross-task generalization evidence.
 - No summary model is CodeMesh-qualified. Existing manual results are research
   evidence and generated summaries remain optional.
-- The immediate product gap is replication of the assisted efficiency result on
-  an independent representative C# task, followed by discoverability evidence
-  that normal agent-host onboarding can trigger the efficient workflow without
-  treatment-only instructions.
-- The independent Config.Net suite and summary-free index are prepared. Its
-  six-case live calibration passed locally, but the report is non-comparable
-  while the CodeMesh tool checkout contains the suite implementation changes.
-  No paid assisted agent campaign or independent efficiency verdict has run.
+- The independent Config.Net summary-free live gate passed comparably at clean
+  CodeMesh commit `d764270`: all 18 calls succeeded, recall and MRR were 1.0,
+  nDCG was 0.93483, and no secret leaks were detected.
+- The three-pair Config.Net assisted campaign also produced an `improved`
+  verdict. All treatments passed versus one of three controls, yielding two
+  CodeMesh-attributable correctness wins, 100% adoption, no safety violations,
+  and 11.8% lower median elapsed time. Treatment median tokens were 3.0% higher.
+  This independently replicates assisted utility, but still does not establish
+  prompt-parity discovery or broad generalization.
+- The immediate product gap is now discoverability evidence that a normal agent
+  host consumes the canonical MCP initialization instructions and selects the
+  efficient workflow without evaluator-only guidance.
 
 Current priority judgment:
 
@@ -114,11 +122,11 @@ Current priority judgment:
    to CodeMesh.
 3. Retain the focused onboarding-assisted complex result as first product-proof
    evidence, with its one-task and prompt-parity limitations explicit.
-4. Replicate the same correctness-preserving efficiency outcome on an
-   independent representative C# task before generalizing the claim.
-5. If replication passes, focus next on discoverability and normal agent-host
-   onboarding so the efficient default-package plus targeted-read workflow does
-   not require treatment-only instructions.
+4. Retain the improved independent Config.Net assisted campaign as replicated
+   product-proof evidence, with its prompt-parity and one-task limits explicit.
+5. Evaluate canonical MCP initialization instructions through the frozen
+   prompt-parity `config-net-cache-agent` suite. Do not count implementation or
+   fixture tests as normal-host adoption evidence.
 6. Repeat the same frozen evaluations after each material tool-selection,
    ranking, packaging, or relationship change. Correctness and safety win; time
    and token improvement count only when correctness is preserved.
@@ -496,12 +504,14 @@ Useful agents need to follow local engineering process, not only compile code.
 3. Retain the focused assisted campaign as first attributable product-proof
    evidence: equal correctness with 34.7% lower median time and 64.5% lower
    median tokens on one complex task.
-4. From a clean committed and freshly indexed tool checkout, pass the pinned
-   Config.Net live gate and run the authorized three-pair assisted campaign.
-   Only after an improved verdict should the efficient package-plus-targeted-
-   read workflow move to discoverability work without treatment-only guidance.
-5. Re-run the same frozen live and agent baselines after any material change.
-6. Only after replication and discoverability evidence resume summary
+4. Retain the independent Config.Net result: two attributable correctness wins,
+   100% treatment success and adoption, no safety violations, and 11.8% lower
+   median elapsed time in the three-pair assisted campaign.
+5. Commit and freshly index the canonical MCP initialization instructions, then
+   run the frozen `config-net-cache-agent` suite without treatment-only guidance
+   when model spend is explicitly authorized.
+6. Re-run the same frozen live and agent baselines after any material change.
+7. Only after replication and discoverability evidence resume summary
    qualification, broader language/SDLC coverage,
    deployment expansion, UI work, portability, or experiential memory.
 

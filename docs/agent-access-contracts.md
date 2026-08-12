@@ -231,6 +231,13 @@ MCP tool names:
 - `codemesh_get_summary_coverage`
 - `codemesh_list_ingestion_runs`
 
+The MCP initialize result includes canonical server instructions for normal-host
+onboarding. For implementation discovery, likely change impact, and validation
+selection, they direct agents to start with an agent-format context package at
+default limits and use its ranked spans for targeted verification reads. The
+same text is exposed as the top-level `instructions` field in the stable
+manifest.
+
 `codemesh_get_tool_guidance` accepts optional `task` text and returns ranked workflows with recommended tool steps. Use it when an agent has not yet decided whether to search context, inspect freshness, look up a symbol, fetch neighbors, or build a package.
 
 `codemesh_delete_repository` requires `repository_id` and a deliberate `confirm = true` argument before it will call the destructive cleanup path. Without confirmation it returns a failed tool result and leaves stores unchanged.

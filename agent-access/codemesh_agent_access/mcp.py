@@ -29,6 +29,17 @@ _TOOL_NAMES = [
 
 _MAX_MCP_AGENT_CHARACTERS = 12000
 
+_SERVER_INSTRUCTIONS = (
+    "Use CodeMesh first for source-grounded implementation discovery, likely "
+    "change-impact analysis, and validation selection in indexed repositories. "
+    "Start with codemesh_get_context_package using the full task, the repository "
+    "id or alias, output_format='agent', and default limits. Use the returned "
+    "ranked file spans for targeted, batched checkout reads needed to verify "
+    "citations instead of repeating broad repository exploration. If the "
+    "repository is unknown, call codemesh_list_repositories; before trusting "
+    "context, call codemesh_get_repository_status to confirm freshness."
+)
+
 _SEARCH_CONTEXT_ARGUMENTS: dict[str, dict[str, Any]] = {
     "query": {"type": "string", "required": True},
     "repository_id": {
@@ -314,6 +325,7 @@ def tool_manifest() -> dict[str, Any]:
     return {
         "service": "codemesh-agent-access",
         "protocol": "mcp",
+        "instructions": _SERVER_INSTRUCTIONS,
         "tools": [
             {"name": name, "description": _TOOL_CONTRACTS[name]["description"]}
             for name in _TOOL_NAMES
@@ -332,7 +344,7 @@ def build_server(
             "The `mcp` package is required to run the CodeMesh MCP server."
         ) from exc
 
-    server = FastMCP("codemesh-agent-access")
+    server = FastMCP("codemesh-agent-access", instructions=_SERVER_INSTRUCTIONS)
 
     def check(name: str, arguments: dict[str, Any]) -> None:
         if call_guard is not None:

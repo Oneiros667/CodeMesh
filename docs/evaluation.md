@@ -144,7 +144,7 @@ uv run python -m codemesh_agent_access eval agent `
   --model <model-id>
 ```
 
-## Independent Assisted Replication
+## Independent Replication And Discoverability
 
 The `config-net-cache-live` and `config-net-cache-assisted-agent` suites pin the
 MIT-licensed Config.Net repository at commit
@@ -184,6 +184,31 @@ The assisted suite records `prompt_parity = false`; it can replicate utility
 after onboarding but cannot establish spontaneous discovery. Do not run the
 agent comparison without explicit authorization for model spend and a clean,
 committed, freshly indexed CodeMesh tool checkout.
+
+The first comparable campaign at CodeMesh commit `d764270` passed its live gate
+and produced an `improved` assisted verdict across three completed pairs. All
+three treatments passed versus one control, CodeMesh was adopted in every
+treatment, two wins were attributable to CodeMesh, no safety violations
+occurred, and treatment median elapsed time was 11.8% lower. Treatment median
+tokens were 3.0% higher. The sanitized transcription is retained in
+`docs/evidence/config-net-assisted-replication-d764270.json`.
+
+For the next discoverability gate, `config-net-cache-agent` freezes the same
+task and targets but omits `treatment_guidance`. Its task prompt is identical in
+control and treatment; the treatment sees only the normal CodeMesh MCP server,
+including its canonical initialization instructions and tool contracts:
+
+```powershell
+uv run python -m codemesh_agent_access eval agent `
+  --suite config-net-cache-agent `
+  --repository-root ..\references\Config.Net `
+  --model <model-id>
+```
+
+This campaign is model-cost-bearing. Run it only with explicit authorization
+from a clean, committed, freshly indexed CodeMesh checkout. Unit tests that
+confirm instructions are published do not prove that a normal host presents or
+acts on them.
 
 ## Deterministic Fixture Suite
 

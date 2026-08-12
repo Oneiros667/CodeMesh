@@ -13,6 +13,9 @@ def test_mcp_manifest_matches_registered_tools() -> None:
     registered_tools = {tool.name: tool for tool in asyncio.run(server.list_tools())}
     manifest = mcp.tool_manifest()
 
+    assert server.instructions == manifest["instructions"]
+    assert "codemesh_get_context_package" in manifest["instructions"]
+    assert "targeted, batched checkout reads" in manifest["instructions"]
     assert {tool["name"] for tool in manifest["tools"]} == set(registered_tools)
     assert set(manifest["contracts"]) == set(registered_tools)
 

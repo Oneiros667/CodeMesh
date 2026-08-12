@@ -66,6 +66,9 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     independent_live, independent_live_path = load_suite(
         "config-net-cache-live", "live"
     )
+    independent_agent, independent_agent_path = load_suite(
+        "config-net-cache-agent", "agent"
+    )
     independent_assisted_agent, independent_assisted_agent_path = load_suite(
         "config-net-cache-assisted-agent", "agent"
     )
@@ -85,6 +88,8 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert impact_agent.repository_commit == external_live.repository_commit
     assert assisted_agent.treatment_guidance
     assert assisted_agent.repository_commit == external_live.repository_commit
+    assert independent_agent.treatment_guidance is None
+    assert independent_agent.repository_commit == independent_live.repository_commit
     assert independent_assisted_agent.treatment_guidance
     assert (
         independent_assisted_agent.repository_commit
@@ -102,6 +107,7 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert impact_agent_path.is_file()
     assert assisted_agent_path.is_file()
     assert independent_live_path.is_file()
+    assert independent_agent_path.is_file()
     assert independent_assisted_agent_path.is_file()
     assert model_path.is_file()
     assert suite_json_schema("live")["title"] == "LiveSuite"
