@@ -54,10 +54,11 @@ so.
 8. Complete default secret-file exclusion and configurable ingestion
    allow/deny policy before broad artifact ingestion or shared proprietary
    workspace storage.
-9. Defer Kubernetes/Helm, additional parser breadth, UI expansion, outcome
-   memory, portable snapshots, multi-checkout snapshot retention, shared
-   stores, and broader SDLC ingestion until configured/onboarded product benefit
-   is repeatable or explicit owner direction reprioritizes them.
+9. Defer method-load and retrieval-granularity analysis, Kubernetes/Helm,
+   additional parser breadth, UI expansion, outcome memory, portable snapshots,
+   multi-checkout snapshot retention, shared stores, and broader SDLC ingestion
+   until configured/onboarded product benefit is repeatable or explicit owner
+   direction reprioritizes them.
 
 The evidence supporting this order is summarized in
 [Project Status](../current/project-status.md). Exact evaluation commands and
@@ -86,6 +87,7 @@ execution order above.
 | Evaluation harnesses | Implemented | Maintain fixtures and live gates; run paid agent/model campaigns only with authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
 | Repository identity and snapshots | Local profile implemented | Maintain deterministic identity/slot/retention behavior; shared coordinator, tenant security, and private overlays remain deferred. | [Identity and Snapshot Requirements](repository-identity-and-snapshot-retention.md) |
 | Summary-model qualification | Procedure proposed | Implement the runner and qualify a complete deployment profile before default use. | [Summary Model Qualification](summary-model-qualification.md) |
+| Method load and retrieval granularity | Proposal | Calibrate human-maintainability, tokenizer-bound representation, and agent-context thresholds before exposing advisory findings. | [Method Load And Retrieval Granularity](method-load-and-retrieval-granularity.md) |
 | Graph analysis and outcome memory | Proposal | Activate only when measured relationship or impact limitations justify it. | [Graph Intelligence Design](graph-intelligence-design.md) |
 | Broader SDLC intelligence | Deferred roadmap | Add contract, persistence, operations, security, and ownership artifacts only after activation. | [SDLC Roadmap](sdlc-roadmap.md) |
 
@@ -107,6 +109,7 @@ execution order above.
 ## Deferred Design References
 
 - [Graph Intelligence and Agent Memory](graph-intelligence-design.md)
+- [Method Load and Retrieval Granularity](method-load-and-retrieval-granularity.md)
 - [Repository Identity and Snapshot Retention](repository-identity-and-snapshot-retention.md)
 - [Summary Model Qualification](summary-model-qualification.md)
 - [SDLC Roadmap](sdlc-roadmap.md)

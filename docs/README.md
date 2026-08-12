@@ -98,6 +98,9 @@ Document labels have these meanings:
 - [Graph Intelligence and Agent Memory](planning/graph-intelligence-design.md) —
   relationship evidence, graph analysis, parser tiers, memory, and portability
   proposal.
+- [Method Load and Retrieval Granularity](planning/method-load-and-retrieval-granularity.md)
+  — proposed human-maintainability, model-representation, token-accounting, and
+  method-decomposition evaluation.
 - [Repository Identity and Snapshot Retention](planning/repository-identity-and-snapshot-retention.md)
   — implemented local multi-checkout retention and future shared-store requirements.
 - [Summary Model Qualification](planning/summary-model-qualification.md) — proposed

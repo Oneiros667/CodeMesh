@@ -25,6 +25,7 @@ Before planning larger CodeMesh work, review these repository notes:
 Treat `docs/planning/next-steps.md`,
 `docs/planning/agent-integration-contract.md`,
 `docs/planning/graph-intelligence-design.md`,
+`docs/planning/method-load-and-retrieval-granularity.md`,
 `docs/planning/summary-model-qualification.md`,
 `docs/planning/repository-identity-and-snapshot-retention.md`, and
 `docs/planning/sdlc-roadmap.md` as planning context, not implemented behavior.
