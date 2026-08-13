@@ -4,19 +4,20 @@ CodeMesh is a local-first, C#/.NET-focused context and change-impact service
 that helps coding agents locate implementation, trace likely impact, and select
 validation using compact, source-backed evidence.
 
-The current milestone is evidence that this workflow improves agent outcomes
-over normal repository exploration. CodeMesh is not presented as
-production-ready. The CodeMesh source is available under the
-[MIT License](LICENSE).
+The current milestone is to establish repeatable evidence that the
+configured/onboarded workflow improves agent outcomes over normal repository
+exploration. CodeMesh is not presented as production-ready. The CodeMesh source
+is available under the [MIT License](LICENSE).
 
 ## Product status
 
 | Status | Capability |
 | --- | --- |
-| Implemented and locally verified | C# ingestion through Roslyn; graph/content persistence; stable checkout identity and bounded local snapshots; repository freshness; REST, MCP, CLI, and .NET Agent Access; source spans; relationship-aware context packages; deterministic fixture evaluation; security redaction tests. |
+| Implemented and locally verified | C# ingestion through Roslyn; graph/content persistence; stable checkout identity and bounded local snapshots; repository freshness; REST, MCP, CLI, and .NET Agent Access; default normal and diagnostic MCP profiles; canonical manual onboarding; source spans; relationship-aware context packages; deterministic fixture evaluation; security redaction tests. |
 | Optional and environment-dependent | Neo4j, MongoDB, and Qdrant stores; Docker Compose; embeddings through a configured local provider; Python, Markdown, and deployment-artifact parsing with narrower relationships than C#. |
-| Experimental or unqualified | Generated summaries, online model providers, model-selection benchmarks, assisted agent-utility evidence, and the read-only local web UI as a product surface. No summary model is CodeMesh-qualified. |
-| Planned | Prompt-parity discoverability evidence, configurable ingestion allow/deny policy, shared-service identity controls, broader parser and SDLC coverage, and expanded presentation surfaces. |
+| Retained, bounded evidence | Summary-free live retrieval passed on two repositories; assisted campaigns replicated utility after explicit onboarding; spontaneous and prompt-parity campaigns recorded zero CodeMesh adoption. These results do not establish broad generalization. |
+| Experimental or unqualified | Generated summaries, online model providers, model-selection benchmarks, and the read-only local web UI as a product surface. No summary model is CodeMesh-qualified. |
+| Planned | Unambiguous checkout binding, fail-closed package freshness, a provider-free live runtime probe, reviewable installation, configured/onboarded evaluation, configurable ingestion allow/deny policy, shared-service identity controls, and broader parser and SDLC coverage. |
 
 Passing tests establish the covered local behavior. They do not establish
 hosted CI success, generalized agent benefit, release readiness, deployment

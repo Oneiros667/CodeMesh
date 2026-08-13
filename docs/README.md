@@ -93,8 +93,9 @@ Document labels have these meanings:
 
 - [Next Steps](planning/next-steps.md) — canonical execution order and capability map.
 - [Agent Integration Contract](planning/agent-integration-contract.md) — selected
-  explicit-onboarding contract, planned tool profiles, runtime probe, and
-  evaluation classification.
+  explicit-onboarding contract, implemented tool profiles, and planned checkout
+  binding, freshness enforcement, runtime probe, installation, and evaluation
+  classification.
 - [Graph Intelligence and Agent Memory](planning/graph-intelligence-design.md) —
   relationship evidence, graph analysis, parser tiers, memory, and portability
   proposal.

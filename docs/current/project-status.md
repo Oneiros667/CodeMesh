@@ -2,9 +2,12 @@
 
 Document type: current status snapshot
 
-Reviewed: 2026-08-12
+Reviewed: 2026-08-13
 
-Source baseline: `647d83d`.
+Implementation reviewed through: `57d8d5c`.
+
+Retained evidence below remains bound to the exact commits named in each
+evidence section; it does not inherit this implementation baseline.
 
 This document records current implementation and retained evidence. It does not
 set execution order; use
