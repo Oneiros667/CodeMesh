@@ -1,0 +1,44 @@
+name: Bug report
+description: Report reproducible incorrect behavior in CodeMesh.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Do not include credentials, private source, customer identifiers, or
+        sensitive paths. Use the security-reporting route for vulnerabilities.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: This report contains no secret or private source material.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide the smallest synthetic or public reproduction available.
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: CodeMesh commit
+      description: Provide the tested commit SHA.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation details
+      description: Include relevant checks, environment details, and bounded logs.

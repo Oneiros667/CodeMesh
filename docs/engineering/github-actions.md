@@ -9,14 +9,15 @@ The read-only workflow validates:
 - Markdown with the repository-pinned `markdownlint-cli2` version;
 - local Markdown links;
 - publication-safety patterns in Git-visible files; and
-- Conventional Commit messages in the pushed or pull-request range.
+- Conventional Commit messages in the pushed range, or the pull-request title.
 
-Normal pushes validate the complete pushed range and pull requests validate the
-base-to-head range. A forced push validates only its new head commit because the
-replaced history may be unavailable to the runner and is not a meaningful
-Conventional Commit comparison. Force pushes require separate owner approval;
-the publication rewrite is audited independently before its one-time remote
-replacement.
+Normal pushes validate the complete pushed range. Pull requests use the
+base-to-head range for source checks and validate the pull-request title as the
+future squash-commit subject. A forced push validates only its new head commit
+because the replaced history may be unavailable to the runner and is not a
+meaningful Conventional Commit comparison. Force pushes require separate owner
+approval; a publication rewrite must be audited independently before its
+one-time remote replacement.
 
 Every action is pinned to a full immutable commit SHA, checkout credentials are
 not persisted, and the workflow receives only `contents: read`. It uses no

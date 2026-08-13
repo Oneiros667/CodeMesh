@@ -32,7 +32,16 @@ password, and never commit the resulting file.
   summary-free and deterministic.
 - Add or update canonical documentation when behavior, commands, contracts, or
   architecture change.
-- Use Conventional Commits when a commit is requested.
+- Format pull-request titles and requested commits as Conventional Commits.
+
+## Pull requests
+
+- Keep each pull request focused and explain the problem, the chosen approach,
+  and any intentionally excluded work.
+- Complete the repository pull-request template and report each relevant check
+  as passed, failed, skipped, or unavailable.
+- Resolve review conversations and update the branch before squash merging.
+- Follow the [Code of Conduct](CODE_OF_CONDUCT.md) in repository interactions.
 
 ## Validation
 
