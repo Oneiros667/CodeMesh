@@ -87,9 +87,16 @@ jobs:
           uv run --no-sync python -m codemesh_agent_access eval
 
       - name: Check repository standards
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PULL_REQUEST_TITLE: ${{ github.event.pull_request.title }}
         run: |
           git diff --check "$CHECK_RANGE"
           npx --yes markdownlint-cli2@0.23.1 "**/*.md"
           python tools/check_markdown_links.py
           python tools/check_publication_safety.py
-          python tools/check_conventional_commit.py --range "$CHECK_RANGE"
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            python tools/check_conventional_commit.py --message "$PULL_REQUEST_TITLE"
+          else
+            python tools/check_conventional_commit.py --range "$CHECK_RANGE"
+          fi

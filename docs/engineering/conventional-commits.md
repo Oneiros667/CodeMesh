@@ -15,6 +15,11 @@ Validate a Git range before review or release:
 python tools/check_conventional_commit.py --range origin/main..HEAD
 ```
 
+Pull requests are squash-merged and their titles become the resulting commit
+subjects. Use the same `type(optional-scope): imperative summary` format for a
+pull-request title. The hosted pull-request workflow validates the title while
+local range validation remains useful for branch review.
+
 The checker allows merge and revert commits produced by Git workflows. It does
 not install a hook. Hook adoption requires a separate reviewed decision and
 must preserve existing repository tooling.

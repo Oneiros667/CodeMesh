@@ -125,7 +125,8 @@ references, guides, status, evidence, engineering policy, and future proposals.
 ## Security, contribution, and licence
 
 Read [SECURITY.md](SECURITY.md) before reporting a suspected secret or
-vulnerability, and [CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes.
+vulnerability, [CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes, and
+the [Code of Conduct](CODE_OF_CONDUCT.md) when participating in the project.
 
 CodeMesh is licensed under the [MIT License](LICENSE). Third-party packages,
 services, and referenced evaluation repositories retain their own licences; see
