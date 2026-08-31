@@ -9,9 +9,10 @@ hosts. The MCP server instructions, manual repository guidance in
 [MCP Setup](../guides/mcp-setup.md), normal/diagnostic tool profiles, exact
 checkout binding, fail-closed package freshness, reviewable installation, and
 provider-free probes are implemented and passed their clean-candidate gates at
-`ee1d4d9`. Configured/onboarded evaluator support is implemented and
-deterministically verified at `3becb88`; exact-candidate one|nine preflight and
-normal-host outcome evaluation remain outstanding.
+`ee1d4d9`. Configured/onboarded evaluator support is implemented and its live
+stale-candidate rejection is verified through `9f3216c`; exact-candidate
+one|nine positive preflight and normal-host outcome evaluation remain
+outstanding.
 
 ## Decision
 

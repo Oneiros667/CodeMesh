@@ -4,7 +4,7 @@ Document type: current status snapshot
 
 Reviewed: 2026-08-31
 
-Implementation reviewed through: configured-evaluator candidate `3becb88`.
+Implementation reviewed through: configured-evaluator candidate `9f3216c`.
 
 Retained evidence below remains bound to the exact commits named in each
 evidence section; it does not inherit this implementation baseline.
@@ -41,7 +41,7 @@ usability evidence, but is no longer the v1 acceptance contract.
 | Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and .NET, Python, and Rust validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
-| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | The configured harness is deterministically verified at `3becb88`; it has not yet produced a clean-candidate one\|nine preflight or model-backed outcome report. Paid/model-backed runs require explicit authorization; fixtures prove contracts only. |
+| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | The configured harness and live stale-candidate rejection are verified through `9f3216c`; it has not yet produced a clean-candidate one\|nine positive preflight or model-backed outcome report. Paid/model-backed runs require explicit authorization; fixtures prove contracts only. |
 | Generated summaries | Complexity-aware prompts and local/online providers implemented. | No summary deployment profile is CodeMesh-qualified. |
 | Security | Pre-persistence value redaction and generated/cache path exclusions implemented. | Known secret-file exclusion and configurable allow/deny policy remain open. |
 | Repository identity | Stable project/checkout markers, deterministic source snapshots, checkout-current and clean branch-head slots, explicit retained slots, legacy migration, and richer local freshness implemented. | Separate clones attach with explicit `--project-id`; shared-service tenant/authorization/privacy controls remain deferred. |
@@ -197,6 +197,13 @@ re-indexed: its clean checkout had advanced to `499ae263`, while the retained
 snapshot remains pinned to `e12d0281`, so freshness was correctly stale and the
 configured one|nine preflight was not run. The bounded record is
 [configured evaluator candidate evidence](../evaluation/evidence/configured-evaluator-preflight-de239b7.json).
+
+Candidate `9f3216c` then exercised the real configured preflight against that
+unchanged stale Primary state. It rejected before loading a plan or invoking a
+model and reported the indexed commit, current commit, dirty state, and indexed
+source-view identity. All 121 Python tests, Ruff checks, and the fixture suite
+passed after the diagnostic correction. See the
+[one|nine stale-rejection evidence](../evaluation/evidence/configured-onenine-stale-rejection-9f3216c.json).
 
 ## Public Repository And Hosted Evidence
 
