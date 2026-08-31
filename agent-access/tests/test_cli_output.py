@@ -316,18 +316,34 @@ def test_cli_prints_mcp_manifest(monkeypatch: Any, capsys: Any) -> None:
     ]
 
 
-def test_cli_uses_normal_mcp_profile_by_default(monkeypatch: Any) -> None:
-    captured: dict[str, str] = {}
+def test_cli_uses_normal_mcp_profile_by_default(monkeypatch: Any, tmp_path) -> None:
+    captured: dict[str, Any] = {}
 
-    def fake_run(profile: str) -> None:
+    def fake_run(profile: str, binding: Any) -> None:
         captured["profile"] = profile
+        captured["binding"] = binding
 
     monkeypatch.setattr(cli.mcp, "run", fake_run)
-    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "mcp"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "codemesh-agent-access",
+            "mcp",
+            "--project-id",
+            "project:test",
+            "--checkout-id",
+            "checkout:test",
+            "--repository-root",
+            str(tmp_path),
+        ],
+    )
 
     cli.main()
 
     assert captured["profile"] == "normal"
+    assert captured["binding"].project_id == "project:test"
+    assert captured["binding"].checkout_id == "checkout:test"
 
 
 def test_cli_filter_requires_key_value_pair(monkeypatch: Any) -> None:

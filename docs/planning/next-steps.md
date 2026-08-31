@@ -2,7 +2,7 @@
 
 Document type: planning and execution-order authority
 
-Reviewed: 2026-08-12
+Reviewed: 2026-08-31
 
 This document is the canonical order for future CodeMesh work. It does not
 describe implemented behavior; use [Project Status](../current/project-status.md),
@@ -17,6 +17,13 @@ change-impact navigation, and validation selection for C#/.NET coding agents.
 Correctness, safety, freshness, and attributable agent outcomes take precedence
 over broader feature coverage.
 
+Owner direction has activated a bounded one|nine adoption priority alongside
+that wedge. It adds the Rust and Python coverage needed to index one|nine,
+repository-specific onboarding across its isolated checkouts, and a durable
+feedback path from one|nine agents to CodeMesh development. This activation does
+not authorize general parser expansion or make diagnostic feedback product-
+benefit evidence.
+
 Do not select broad parser, SDLC, UI, model-provider, summary, portability,
 snapshot, shared-store, or agent-memory work merely because it is documented.
 Activate it only when the ordered work below or explicit owner direction does
@@ -24,42 +31,43 @@ so.
 
 ## Current Execution Order
 
-1. Keep the clean CodeMesh and pinned YoutubeDownloader summary-free live
-   baselines passing after material retrieval, packaging, relationship, or MCP
-   changes.
-2. Preserve the spontaneous YoutubeDownloader and prompt-parity Config.Net
-   zero-adoption campaigns as negative evidence; never attribute their overall
-   timing or token variance to CodeMesh.
-3. Preserve the focused YoutubeDownloader and independent Config.Net assisted
-   campaigns as replicated utility-after-onboarding evidence, with their
-   prompt-parity and task-family limitations explicit.
-4. Continue the selected explicit-onboarding v1 contract in
-   [Agent Integration Contract](agent-integration-contract.md). The normal-user
-   and diagnostic tool profiles are implemented. Next implement unambiguous
-   checkout binding and fail-closed package freshness, followed by the
-   provider-free live runtime probe and reviewable installation flow. The
-   canonical manual repository guidance is already documented.
-5. Extend evaluation reporting to distinguish configured/onboarded product use
-   from spontaneous and evaluator-assisted modes. Then repeat the frozen live
-   gate and, with explicit model-spend authority, the Config.Net task using the
-   exact integration shipped to normal users and identical control/treatment
-   task prompts. Do not relabel this as spontaneous discovery.
-6. Repeat the same frozen live and configured/onboarded agent evaluations after
-   each material tool-selection, ranking, packaging, or relationship change.
-   Correctness and safety win; efficiency counts only for adopted matched pairs.
-   Agent runs are model-cost-bearing and require explicit authorization, clean
-   committed checkouts, and a fresh matching index.
-7. Implement the summary-model qualification runner only before summaries are
-   considered for default retrieval. Require factual, reliability, safety, and
-   no-summary retrieval comparisons.
-8. Complete default secret-file exclusion and configurable ingestion
-   allow/deny policy before broad artifact ingestion or shared proprietary
-   workspace storage.
-9. Defer method-load and retrieval-granularity analysis, Kubernetes/Helm,
-   additional parser breadth, UI expansion, outcome memory, portable snapshots,
-   multi-checkout snapshot retention, shared stores, and broader SDLC ingestion
-   until configured/onboarded product benefit is repeatable or explicit owner
-   direction reprioritizes them.
+The checkout-safe integration, atomic Python-plus-Rust ingestion, Rust parser,
+feedback loop, instance-owned onboarding, and frozen provider-free Primary
+pilot gate are implemented and passed the initial local diagnostic run. The
+next three priorities are:
+
+1. **Create and verify one exact candidate.** Review and isolate the current
+   implementation, commit it only with explicit commit authority, and repeat
+   the full .NET, Python, documentation, clean summary-free live, and frozen
+   one|nine pilot gates from that clean commit. Record the exact CodeMesh and
+   one|nine commits, snapshot, source view, installation-plan hash, and report
+   hashes. Preserve the YoutubeDownloader and Config.Net zero-adoption and
+   assisted campaigns with their existing evidence boundaries.
+2. **Measure configured/onboarded normal-host use.** With explicit model-spend
+   authority, run pinned one|nine paired tasks through the exact checkout-local
+   normal MCP configuration. Keep control and treatment task prompts identical;
+   compare against ordinary repository exploration plus the checkout's existing
+   permitted Graphify workflow. Report tool adoption, correctness, safety,
+   elapsed time, tokens, fallback behavior, and validation selection. Follow
+   with a configured Config.Net replication if the one|nine campaign is valid.
+3. **Turn measured feedback into bounded improvements.** Review validated
+   one|nine feedback and controlled results, select the smallest correction for
+   a recurring ranking, relationship, budget, binding, or validation failure,
+   and rerun the frozen gates after every material change. Expand onboarding to
+   Secondary, Tertiary, Release, or Hotfix only with a separate exact binding
+   and a passing checkout-specific probe. Keep Run-only excluded pending a
+   separate acceptance decision.
+
+After those priorities, implement the summary-model qualification runner only
+before summaries are considered for default retrieval, and complete default
+secret-file exclusion plus configurable ingestion allow/deny policy before
+broad artifact ingestion or shared proprietary workspace storage.
+
+Defer method-load and retrieval-granularity analysis, Kubernetes/Helm, parser
+breadth beyond the activated Python/Rust pilot, UI expansion, outcome memory,
+portable snapshots, shared stores, and broader SDLC ingestion until
+configured/onboarded product benefit is repeatable or explicit owner direction
+reprioritizes them.
 
 The evidence supporting this order is summarized in
 [Project Status](../current/project-status.md). Exact evaluation commands and
@@ -77,11 +85,14 @@ execution order above.
 | MCP client setup | Implemented | Maintain host examples and troubleshoot environment differences. | [MCP Setup](../guides/mcp-setup.md) |
 | Repository status and freshness | Implemented locally | Older records remain unknown until re-ingested; shared freshness is future work. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Redaction and sensitive-file policy | Partial | Add known-secret-file exclusion, configurable allow/deny policy, and broader tests. | [Security and Redaction](../current/security-and-redaction.md) |
-| Python parser | Partial | Add imports, calls, routes, MCP handlers, and test relationships after activation. | [Architecture](../current/architecture.md) |
+| Python parser | Implemented bounded pilot | Maintain imports, calls, tests, and PyO3 boundary relationships; keep unrelated breadth evidence-driven. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
+| Rust parser | Implemented bounded pilot | Maintain the heuristic structural, relationship, test, path-exclusion, and PyO3 contract; broaden only from measured gaps. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
+| Multi-language ingestion | Implemented | Maintain atomic language-set publication and language preservation during refresh and watch. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Markdown parser | Partial | Add links from docs to commands, endpoints, projects, and source when justified. | [Architecture](../current/architecture.md) |
 | Context packages | Implemented baseline | Maintain compact agent output, citations, rationale, and budget behavior. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Local web inspection | Implemented initial slice | Expand only when it serves a measured agent or audit need. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Tool guidance and onboarding | Server instructions, manual guidance, and normal/diagnostic MCP profiles implemented; v1 contract selected | Implement checkout binding, fail-closed package freshness, live probe, and reviewable installation; then establish configured/onboarded evidence. | [Agent Integration Contract](agent-integration-contract.md) |
+| Tool guidance and onboarding | Implemented bounded pilot | Produce a clean exact candidate, then establish configured/onboarded normal-host evidence. | [Agent Integration Contract](agent-integration-contract.md) |
+| one\|nine agent feedback | Implemented bounded pilot | Review sanitized, provenance-bound packets and connect recurring findings to controlled evidence without automatic roadmap mutation. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |

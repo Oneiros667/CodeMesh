@@ -24,7 +24,8 @@ not source truth.
 ## High-Level Flow
 
 1. A repository is selected through CLI options or configuration.
-2. A parser worker emits code nodes, relationships, diagnostics, and source spans.
+2. One parser worker or an exact language-set composite emits code nodes,
+   relationships, diagnostics, and source spans.
 3. Ingestion computes a deterministic snapshot id, stages graph records, source content, vector embeddings, generated summaries, repository registry records, and ingestion run records under that snapshot namespace.
 4. The registry atomically publishes checkout-current and eligible clean branch-head slots; failed or stale generations do not replace active slots.
 5. Agent Access resolves a project, alias, or snapshot reference to an active snapshot and reads the stores through REST, MCP tools, Python CLI commands, and the .NET client.
@@ -49,6 +50,8 @@ not source truth.
 `src/CodeMesh.Ingestion` coordinates repository ingestion:
 
 - Calls parser workers.
+- Canonicalizes selected language sets and merges every parser result before
+  computing or publishing one snapshot; parser errors abort publication.
 - Handles dry-run and persistent ingestion modes.
 - Resolves persistent project, alias, and checkout identity from private
   Git/local markers.
@@ -77,10 +80,25 @@ not source truth.
 `src/CodeMesh.Parser.Python` is the local Python parser:
 
 - Parses `.py` files from a repository root.
-- Emits file, class, function, and async function nodes.
+- Emits file, class, function, async function, import, and test-case nodes.
 - Emits containment relationships based on indentation.
+- Handles multiline definition headers, repeated guarded imports, local calls,
+  and calls through imported aliases.
 - Uses the shared repository path policy to exclude generated/cache directories such as `.venv`, `.tmp`, `__pycache__`, `.pytest_cache`, smoke output, and build output.
-- Does not yet emit Python call/import/type relationships.
+- Does not provide complete dynamic-import, data-flow, or type resolution.
+
+`src/CodeMesh.Parser.Rust` is the local Rust parser:
+
+- Parses `.rs` files from a repository root while excluding Cargo `target`.
+- Emits module, struct, enum, trait, impl, function, method, `use`, and test-case
+  nodes with source spans and content hashes.
+- Emits containment, implementation, reference, invocation, and type-use
+  relationships.
+- Records PyO3 module, class, function, and exported-name metadata. Composite
+  Python/Rust ingestion links unambiguous static Python imports and calls to
+  those exports.
+- Uses source-structural matching rather than rustc semantic analysis; macro,
+  dynamic-import, and conditional-compilation resolution remain bounded.
 
 `src/CodeMesh.Parser.Deployment` is the local deployment artifact parser:
 
@@ -107,6 +125,9 @@ not source truth.
 - MongoDB for content, repository registry, ingestion runs, and node summaries.
 - Qdrant for vector embeddings.
 - In-memory storage for tests.
+- Neo4j node and relationship upserts are split into bounded auto-commit batches
+  so large repositories do not require one graph-sized transaction. Snapshot
+  slots remain unpublished until all store writes complete.
 
 ### Control And CLI
 
@@ -116,7 +137,8 @@ not source truth.
 - Workspace/configuration helpers.
 - Status and doctor checks.
 - Typed Agent Access .NET client.
-- Ingestion, repository, run, summary, and embedding verification commands.
+- Single- and multi-language ingestion, repository, run, summary, and embedding
+  verification commands. Refresh and watch preserve the canonical language set.
 
 ### Agent Access
 
@@ -129,6 +151,16 @@ not source truth.
 - Python CLI commands.
 - Store read paths for graph, content, summaries, vectors, repositories, and ingestion runs.
 - Context ranking, formatting, and package generation.
+- Exact normal-profile project/checkout/root/source-view binding. Bound tools
+  inject the selected project and reject caller overrides or stale, dirty,
+  mismatched, missing, and ambiguous checkout state.
+- A hashed installation planner/applier that forwards environment variable
+  names rather than secret values, plus a provider-free stdio probe that checks
+  the exact launch command, normal tool surface, binding, freshness, and real
+  context results.
+- A versioned local feedback recorder, validator, and prioritizing summarizer.
+  Packets retain repository, snapshot, CodeMesh commit/working-tree, task, and
+  validation provenance without raw prompts, payloads, or source excerpts.
 
 ## Main Data Stores
 

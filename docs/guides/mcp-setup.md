@@ -55,6 +55,16 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
   --skip-embeddings
 ```
 
+For one atomic Python/Rust snapshot, select both languages in one ingestion;
+do not run separate replacement ingestions:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- ingest `
+  --root $repositoryRoot `
+  --languages python,rust `
+  --skip-embeddings
+```
+
 Verify repository discovery:
 
 ```powershell
@@ -152,41 +162,73 @@ deletion.
 
 Explicit repository onboarding is the selected v1 product contract. MCP server
 instructions remain defense in depth because hosts differ in whether and how
-they present those instructions to an agent. The tool profiles are implemented;
-the future live runtime probe, checkout binding, fail-closed package freshness,
-and installation behavior are specified in
-[Agent Integration Contract](../planning/agent-integration-contract.md).
+they present those instructions to an agent. Generate a reviewable exact-
+checkout plan after ingestion reports the project, checkout, snapshot, and
+source-view identities:
 
-Until reviewable installation support exists, repository owners may manually
-add this canonical block to the repository's `AGENTS.md` or equivalent durable
-agent-instruction file:
-
-```markdown
-<!-- codemesh:onboarding:start -->
-## CodeMesh repository context
-
-For C#/.NET implementation discovery, likely change-impact analysis, and
-validation selection in this repository:
-
-1. Start with `codemesh_get_context_package` using the full task, the configured
-   repository id or unique alias, `output_format = "agent"`, and default limits.
-2. If the repository selector is unknown, use `codemesh_list_repositories`; do
-   not guess when more than one checkout could match.
-3. Before relying on the package, use `codemesh_get_repository_status` to confirm
-   that the indexed snapshot matches the intended checkout and is fresh.
-4. Verify consequential conclusions against the returned source spans with
-   targeted reads. Treat rankings and relationships as navigation evidence, not
-   runtime proof.
-5. If CodeMesh is unavailable, stale, or ambiguous, report that condition and
-   continue with normal repository exploration.
-<!-- codemesh:onboarding:end -->
+```powershell
+Set-Location agent-access
+uv run python -m codemesh_agent_access install plan `
+  --target-root C:\path\to\checkout `
+  --codemesh-root C:\path\to\CodeMesh `
+  --project-id prj_EXACT `
+  --checkout-id chk_EXACT `
+  --source-view-hash HASH_FROM_INGESTION `
+  --output C:\temp\codemesh-install-plan.json
 ```
 
-Review the block and repository selector before committing it. Do not replace
-unrelated instructions or assume that adding the text proves the MCP process is
-healthy. The current `mcp-manifest --profile normal|diagnostic` command validates
-static profile-specific contract output; it is not the planned live startup and
-freshness probe.
+Review the plan's exact launch, binding, complete file contents, diffs, target
+hashes, forwarded environment names, and `plan_hash`. Apply only that unchanged
+plan and hash, then run the live provider-free probe:
+
+```powershell
+uv run python -m codemesh_agent_access install apply `
+  C:\temp\codemesh-install-plan.json `
+  --approve-plan-hash REVIEWED_HASH
+uv run python -m codemesh_agent_access mcp-probe `
+  --plan C:\temp\codemesh-install-plan.json
+```
+
+The default plan manages `.codex/config.toml` and a marked onboarding block in
+`AGENTS.md` while preserving other content. Use `--configuration-only` only when
+an external instance manager owns repository guidance. Apply rejects a changed
+target or plan. The generated config forwards secret variable names, never
+their values, and forces provider mode to `none`.
+
+The bound normal server requires an exact project, checkout, and root. Its tools
+inject that project selector and reject caller overrides. Start with status and
+continue only when binding is `accepted` and freshness is `fresh`; dirty,
+moved, stale, missing, or source-view-mismatched checkouts fail closed.
+
+## Agent Feedback
+
+Participating repositories must ignore `/.codemesh-feedback/` before recording.
+Agents can then write a bounded diagnostic packet with explicit path categories
+and the accepted status provenance:
+
+```powershell
+uv run python -m codemesh_agent_access feedback record `
+  --repository-root C:\path\to\checkout `
+  --role primary `
+  --classification diagnostic `
+  --confidence high `
+  --project-id prj_EXACT `
+  --checkout-id chk_EXACT `
+  --snapshot-id snp_EXACT `
+  --language python --language rust `
+  --parser-profile python-rust-v1 `
+  --task-family test-selection `
+  --issue-category ranking `
+  --validation-outcome failed `
+  --missed-path tests/test_expected.py
+```
+
+Use `feedback validate PACKET` before review. CodeMesh maintainers run
+`feedback summarize CHECKOUT... --output SUMMARY.json` to group open failures
+without losing commit/snapshot provenance. A passing recheck may use
+`--supersedes-feedback-id` to resolve an exact earlier failure. Never store raw
+prompts, MCP payloads, source excerpts, secrets, or environment values in a
+packet.
 
 ## Required Environment
 

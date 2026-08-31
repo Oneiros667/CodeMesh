@@ -42,7 +42,7 @@ The .NET test harness covers:
   compare-and-swap slot retention, pins, and cleanup.
 - Embedding and summary providers.
 - MongoDB, Neo4j, and Qdrant storage adapters.
-- C# parser behavior.
+- C#, Python, Rust, and atomic multi-language parser behavior.
 - Optional configured sample parsing.
 
 Some tests skip when required live services or sample paths are unavailable.
@@ -56,6 +56,8 @@ The Python tests under `agent-access/tests` cover:
 - MCP evaluation scenarios.
 - Formatting.
 - MCP contracts.
+- Exact checkout binding, reviewable installation, provider-free probing, and
+  versioned feedback recording/summarization.
 - REST contracts.
 - Store read components.
 
@@ -95,9 +97,24 @@ uv run python -m codemesh_agent_access eval live
 
 The retained live and existing spontaneous/evaluator-assisted agent suites
 select the `diagnostic` profile explicitly to preserve their frozen tool surface.
-That does not make them configured/onboarded product evidence. The future
-configured/onboarded mode must select the shipped `normal` profile and record
-that identity separately.
+That does not make them configured/onboarded product evidence. The implemented
+configured mode selects the shipped `normal` profile and records that identity
+separately in its installation plan and runtime probe.
+
+For an installed configured checkout, run the reviewed plan's normal-profile
+probe instead. It verifies the exact launch and binding and can gate real target
+paths:
+
+```powershell
+uv run python -m codemesh_agent_access mcp-probe `
+  --plan C:\temp\codemesh-install-plan.json `
+  --query "Python to Rust native replay implementation and tests" `
+  --expected-path native/feed_hub_replay/src/lib.rs
+```
+
+This is configured retrieval evidence, not a model-backed agent comparison.
+Record misses through the feedback workflow and retain passing rechecks with an
+explicit superseded feedback id.
 
 The pinned YoutubeDownloader suite is the representative external C# baseline.
 Prepare and ingest the exact checkout as described in

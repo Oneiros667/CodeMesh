@@ -2,9 +2,11 @@
 
 Document type: current status snapshot
 
-Reviewed: 2026-08-13
+Reviewed: 2026-08-31
 
-Implementation reviewed through: `57d8d5c`.
+Implementation reviewed through: the candidate commit containing this status.
+The initial one|nine pilot evidence below was produced from the preceding local
+working tree and remains subject to the clean-candidate repeat gate.
 
 Retained evidence below remains bound to the exact commits named in each
 evidence section; it does not inherit this implementation baseline.
@@ -32,13 +34,14 @@ usability evidence, but is no longer the v1 acceptance contract.
 | Area | Current status | Important boundary |
 | --- | --- | --- |
 | C# parsing | Implemented with Roslyn semantic relationships, declarations, test files, and test cases. | Strongest parser and current product wedge. |
-| Python parsing | Files, classes, functions, async functions, and containment implemented. | Imports, calls, routes, tool handlers, and test links remain limited. |
+| Python parsing | Files, classes, functions, async and multiline functions, imports, local/imported calls, test cases, and containment implemented. | This is a lightweight structural parser rather than a complete Python semantic model; dynamic imports and type resolution remain limited. |
+| Rust parsing | Files, modules, structs, enums, traits, impl blocks, functions, methods, `use` declarations, test cases, call/type relationships, and PyO3 exports implemented in `CodeMesh.Parser.Rust`. | The parser is heuristic and source-structural rather than rustc-semantic; broader macro and conditional-compilation resolution remains open. |
 | Markdown parsing | Documents, sections, anchors, source spans, and containment implemented. | Cross-links to code, commands, endpoints, and projects are not modeled. |
 | Deployment parsing | Initial Dockerfile and Compose nodes, metadata, containment, and service dependencies implemented. | Helm, Kubernetes, CI/CD, overrides, and code-to-runtime links remain planned. |
-| Ingestion | Dry-run, incremental writes, staged deterministic snapshots, compare-and-swap slot publication, reference-aware cleanup, refresh, watch, redaction, optional embeddings, and optional summaries implemented. | Watch is polling-based; provider-backed paths remain optional. |
-| Storage | Snapshot-namespaced Neo4j graph, MongoDB content/registry/runs/summaries, Qdrant vectors, and in-memory test adapters implemented. | Publication is atomic at the registry slot boundary; normal service-backed operation requires configured stores. |
-| Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The default four-tool normal MCP profile, expanded non-destructive diagnostic profile, profile-specific manifest, and canonical manual repository guidance are implemented. | Checkout binding, fail-closed package freshness, live runtime probe, and reviewable installer are not implemented. Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. |
-| Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and validation recommendations implemented. | Source verification remains required for consequential conclusions. |
+| Ingestion | Dry-run, incremental writes, staged deterministic snapshots, atomic multi-language parser composition, compare-and-swap slot publication, reference-aware cleanup, refresh, watch, redaction, optional embeddings, and optional summaries implemented. | One selected language set publishes one snapshot or fails before slot activation; watch remains polling-based. |
+| Storage | Snapshot-namespaced Neo4j graph, MongoDB content/registry/runs/summaries, Qdrant vectors, and in-memory test adapters implemented. Neo4j graph publication uses bounded write batches. | Publication is atomic at the registry slot boundary rather than one cross-store transaction; normal service-backed operation requires configured stores. |
+| Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
+| Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and .NET, Python, and Rust validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
 | Evaluation | Deterministic fixture, live MCP, paired agent, and model benchmark harnesses implemented. | Paid/model-backed runs require explicit authorization; fixtures prove contracts only. |
 | Generated summaries | Complexity-aware prompts and local/online providers implemented. | No summary deployment profile is CodeMesh-qualified. |
@@ -48,6 +51,41 @@ usability evidence, but is no longer the v1 acceptance contract.
 Detailed current interfaces are in
 [Agent Access Contracts](agent-access-contracts.md), and component boundaries
 are in [Architecture](architecture.md).
+
+## Activated one|nine Pilot
+
+The first bounded pilot is active only for the clean Primary checkout at
+`11c6d7682890da9979bbc5b1fbec5e2c33b89fff`. It is bound to project
+`prj_a570a726917d4d0ca596085aaf07af50`, checkout
+`chk_70c50c5494de4837ab0627aca021eab2`, and source view
+`2fe26e79a7a0a053bcabf5e9220c0c601c7d82bb22143eb66466249852f2ca98`.
+The provider-free ingestion published snapshot
+`snp_bbc561586cc514bfbe960423c8bd5af1d1a8ed650077146d618678f450be8555`
+with 45,408 nodes, 94,571 relationships, 12,691 content items, zero
+embeddings, and zero summaries.
+
+The reviewed installation plan changed only Primary's ignored
+`.codex/config.toml`. The normal-profile stdio probe accepted the exact binding,
+reported fresh commit/source provenance, exposed exactly four tools, and
+returned real Python and Rust context. A focused test-selection probe initially
+missed `tests/test_feed_hub_native_replay_adapter.py`; a feedback packet
+recorded the exact commit/snapshot failure, identifier tokenization was
+corrected, and a superseding recheck returned the target. The feedback summary
+now reports that ranking item as resolved and the onboarding probe as verified.
+
+The instance-owned frozen pilot suite then passed eight provider-free runtime
+gates: accepted fresh Python, Rust, test-selection, and PyO3 retrieval, plus
+fail-closed wrong-checkout, wrong-root, wrong-source-view, and dirty-checkout
+probes. It validated all three retained Primary feedback packets and returned
+the checkout to a clean state. The local report schema is
+`onenine-codemesh-pilot-v1`; the report remains outside version control pending
+an exact committed candidate.
+
+This is local diagnostic pilot evidence from an uncommitted CodeMesh working
+tree. It proves a bounded configured path and feedback/improvement loop, not
+normal-agent adoption, general product benefit, release readiness, deployment
+acceptance, provider authorization, or production fitness. Secondary,
+Tertiary, Release, and Hotfix are not activated; Run-only remains excluded.
 
 ## Retained Product Evidence
 
@@ -107,19 +145,12 @@ transcription is
 
 ## Current Gap
 
-Explicit repository onboarding is now the selected v1 product contract.
-CodeMesh publishes MCP initialization instructions and documents a canonical
-manual repository guidance block. Its default normal MCP profile now exposes
-only context package, repository status, repository listing, and node lookup;
-the diagnostic profile adds non-destructive inspection tools. The selected
-profile is recorded in the static manifest and unknown profiles fail before
-startup.
-
-Unambiguous checkout binding, fail-closed freshness before returning trusted
-packages, the live runtime probe, and reviewable installation flow remain open.
-Current repository status reports can detect stale or dirty local checkouts, but
-that advisory behavior does not yet enforce the selected host checkout as a
-package-return acceptance condition.
+Explicit repository onboarding is now implemented for the bounded one|nine
+pilot: the normal profile exposes only context package, repository status,
+repository listing, and node lookup; exact binding and freshness are enforced;
+and installation plus probing are reviewable. The next evidence gap is a clean,
+committed CodeMesh candidate and adopted normal-host agent tasks that compare
+the configured path with ordinary exploration without changing task prompts.
 
 The prompt-parity Config.Net campaign recorded zero MCP calls and zero MCP call
 attempts. Preserve it as negative spontaneous-discovery evidence; do not change
@@ -136,9 +167,8 @@ instructions and tool schemas. The retained campaign therefore cannot attest
 the exact selection context presented to the model, and no CodeMesh transport
 or contract defect has been confirmed.
 
-Implement the selected contract in the order defined by
-[Agent Integration Contract](../planning/agent-integration-contract.md). After
-material integration or retrieval changes, repeat the summary-free live gate.
+After committing an exact candidate, repeat the summary-free live gate and the
+pinned one|nine probes from that clean CodeMesh source state.
 The configured/onboarded agent campaign remains model-cost-bearing and requires
 explicit authorization, clean committed checkouts, a fresh matching index, and
 report metadata that identifies the shipped guidance and tool profile. Unit and
@@ -148,7 +178,9 @@ contract tests for instructions do not substitute for normal-host evidence.
 
 - Generated summaries remain disabled in the core product-proof baseline.
 - No summary model is qualified.
-- Python, Markdown, and deployment parsers do not match Roslyn's semantic depth.
+- Python, Rust, Markdown, and deployment parsers do not match Roslyn's semantic depth.
+- The activated one|nine pilot is pinned to one Primary snapshot and must not be
+  silently expanded or repointed when either checkout advances.
 - Shared multi-user stores, portable snapshot artifacts, outcome memory,
   Kubernetes/Helm ingestion, and broader SDLC intelligence are not implemented.
 - Current source redaction does not replace repository authorization or a

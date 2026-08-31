@@ -24,6 +24,15 @@ lookup accepts URL-encoded path characters in `repository_id`; generated aliases
 remain slash-free and are retained with project identity across checkout moves
 and linked-worktree ingestion.
 
+The normal stdio MCP server can instead start with an exact
+`project_id`/`checkout_id`/`repository_root` binding and optional
+`source_view_hash`. A complete binding is required for that product profile.
+Bound repository tools inject the project id, reject conflicting caller
+selectors, resolve only that checkout's current slot, and reject packages when
+the project, checkout, root, source view, commit, or dirty-state freshness check
+is not accepted. The diagnostic profile may still run unbound for explicit
+administrative investigation.
+
 Filters are exact-match string filters. They can match top-level node fields or metadata fields. `kinds` filters by CodeMesh node kind names such as `Method`, `Class`, `File`, `TestFile`, `TestCase`, or `Declaration`.
 
 ## REST Endpoints
@@ -122,7 +131,11 @@ Agent Access merges vector hits, lexical graph hits, and MongoDB generated-summa
 - `freshness`: local git diagnostics when the repository path is accessible to Agent Access.
 - `refresh`: derived latest-refresh activity and outcome from the latest ingestion run.
 
-Freshness fields include `indexed_commit`, `current_commit`, `current_branch`, `working_tree_dirty`, `is_stale`, `status`, and `detail` when available. If ingestion has not stored an indexed commit yet, `status` is `unknown` and `is_stale` is `null`; agents should treat the response as a useful warning rather than proof that the index is fresh.
+Freshness fields include `indexed_commit`, `current_commit`, `current_branch`,
+`working_tree_dirty`, `is_stale`, `status`, and `detail` when available. Bound
+responses also include a binding assessment with `accepted` or `rejected`
+status and exact issues. Missing provenance remains `unknown` for unbound
+administrative reads but is rejected by bound normal-profile package access.
 
 Snapshot-aware fields include `selected_snapshot_id`,
 `indexed_source_view_hash`, `commit_mismatch`, `source_view_mismatch`, and
@@ -203,7 +216,9 @@ Each package item includes:
 - `relationship_groups`: grouped summaries for `callers`, `callees`, `reads`, `writes`, `contains`, `defines`, and `uses_types`.
 - `rationale`: ranking and expansion metadata.
 
-Validation recommendations currently cover the .NET harness, Agent Access Python tests/lint, deployment parser dry-runs, end-to-end smoke checks for Docker/service changes, and Markdown dry-runs.
+Validation recommendations currently cover the .NET harness, Agent Access
+Python tests/lint, Cargo formatting/Clippy/tests, deployment parser dry-runs,
+end-to-end smoke checks for Docker/service changes, and Markdown dry-runs.
 
 MCP `codemesh_get_context_package` also accepts `output_format = "agent"`. In that mode the tool returns the agent brief directly as one text content block and intentionally omits structured content, avoiding MCP's duplicate text-plus-structured serialization. MCP agent output is capped at 12,000 characters even when a larger package budget is requested; the CLI continues to honor its explicit output budget. The brief includes validation recommendations plus each item's file span, node id, stable key, repository id, content hash, score, rank, and rationale details and adds a truncation marker when capped. Use the default `json` format when a caller needs the complete structured package.
 
@@ -265,14 +280,13 @@ onboarding. For implementation discovery, likely change impact, and validation
 selection, they direct agents to start with an agent-format context package at
 default limits and use its ranked spans for targeted verification reads. The
 same text is exposed as the top-level `instructions` field in the stable
-manifest.
+manifest. A bound server's instructions also name its exact project, checkout,
+and root.
 
-Those initialization instructions are the currently implemented server-side
-guidance, not proof that every host presents or follows them. The selected v1
-product contract therefore adds explicit repository-owned guidance; the current
-manual block is in [MCP Setup](../guides/mcp-setup.md). The reduced tool profile
-is implemented, while checkout binding and the live runtime probe remain planned
-in [Agent Integration Contract](../planning/agent-integration-contract.md).
+Those initialization instructions are defense in depth rather than proof that
+every host presents or follows them. The implemented selected contract combines
+repository-owned guidance, an exact bound normal profile, hashed installation,
+and a live provider-free probe. See [MCP Setup](../guides/mcp-setup.md).
 
 `codemesh_get_tool_guidance` accepts optional `task` text and returns ranked workflows with recommended tool steps. Use it when an agent has not yet decided whether to search context, inspect freshness, look up a symbol, fetch neighbors, or build a package.
 
@@ -290,6 +304,29 @@ Pass `--profile diagnostic` to inspect that profile's manifest. Omitting the
 option prints the default `normal` profile.
 
 The manifest is covered by `agent-access/tests/test_mcp_contract.py`.
+
+## Installation, Probe, And Feedback CLI
+
+`install plan` produces a complete JSON plan containing the exact MCP launch,
+binding, target-file hashes, full new content, diffs, and a plan hash without
+changing the target. `install apply` requires that exact reviewed hash and
+rejects target drift. `--configuration-only` leaves repository guidance to an
+external instance manager.
+
+`mcp-probe --plan PLAN` verifies that the reviewed plan is applied, launches
+its exact stdio command with `CODEMESH_MODEL_PROVIDER=none`, checks the normal
+four-tool surface, exact one-repository listing, accepted/fresh binding, and a
+non-empty context package. `--query` and repeated `--expected-path` options turn
+that package into a repository-specific retrieval gate.
+
+`feedback record` writes `codemesh-feedback/v1` packets only to an ignored
+`.codemesh-feedback/` outbox. Packets contain commit, dirty-state hash, binding,
+snapshot, languages, parser profile, categorized paths, validation result,
+confidence, and bounded sanitized descriptions; they exclude raw prompts, MCP
+payloads, source excerpts, and environment values. `feedback validate` checks
+the strict schema and content id. `feedback summarize` groups validated packets,
+preserves exact provenance, prioritizes open failures, and recognizes passing
+rechecks that explicitly supersede earlier failures.
 
 ## .NET Client
 

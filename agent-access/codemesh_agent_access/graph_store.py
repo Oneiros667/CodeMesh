@@ -348,6 +348,7 @@ class Neo4jGraphStore:
         if _load_async_graph_database() is None:
             return []
 
+        normalized_search_text = search_text.casefold()
         search_terms = lexical_terms(search_text)
 
         try:
@@ -381,7 +382,7 @@ class Neo4jGraphStore:
                              toLower(coalesce(n.name, n.id, ""))
                     LIMIT $limit
                     """,
-                    search_text=search_text,
+                    search_text=normalized_search_text,
                     search_terms=search_terms,
                     kinds=kinds,
                     repository_id=repository_id,
@@ -433,10 +434,11 @@ class Neo4jGraphStore:
 
 
 def lexical_terms(search_text: str) -> list[str]:
+    expanded = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", search_text)
     return list(
         dict.fromkeys(
             term
-            for term in re.findall(r"[a-z0-9]+", search_text.casefold())
+            for term in re.findall(r"[a-z0-9]+", expanded.casefold())
             if term not in _LEXICAL_STOP_WORDS
         )
     )

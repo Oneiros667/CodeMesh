@@ -8,9 +8,40 @@ from pathlib import Path
 
 import uvicorn
 
+from .binding import binding_from_values
 from .config import Settings
-from . import evaluation, mcp, tools
+from . import evaluation, feedback, mcp, tools
 from .formatting import format_context_package_for_agent
+from .installer import (
+    apply_installation_plan,
+    create_installation_plan,
+    load_installation_plan,
+    write_installation_plan,
+)
+from .probe import (
+    RuntimeProbeError,
+    run_runtime_probe,
+    run_runtime_rejection_probe,
+)
+
+
+def _add_binding_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--project-id",
+        help="Stable CodeMesh project id (or CODEMESH_PROJECT_ID).",
+    )
+    parser.add_argument(
+        "--checkout-id",
+        help="Stable CodeMesh checkout id (or CODEMESH_CHECKOUT_ID).",
+    )
+    parser.add_argument(
+        "--repository-root",
+        help="Absolute bound checkout root (or CODEMESH_REPOSITORY_ROOT).",
+    )
+    parser.add_argument(
+        "--source-view-hash",
+        help="Optional exact indexed source-view hash (or CODEMESH_SOURCE_VIEW_HASH).",
+    )
 
 
 def main() -> None:
@@ -24,6 +55,7 @@ def main() -> None:
         default=mcp.DEFAULT_TOOL_PROFILE,
         help="Select the MCP tool surface (default: normal).",
     )
+    _add_binding_arguments(mcp_parser)
     manifest_parser = subcommands.add_parser(
         "mcp-manifest", help="Print the MCP tool contract manifest JSON."
     )
@@ -33,6 +65,137 @@ def main() -> None:
         default=mcp.DEFAULT_TOOL_PROFILE,
         help="Select the MCP tool surface (default: normal).",
     )
+    _add_binding_arguments(manifest_parser)
+    install_parser = subcommands.add_parser(
+        "install",
+        help="Plan or apply a reviewable checkout-bound MCP installation.",
+    )
+    install_actions = install_parser.add_subparsers(
+        dest="install_action",
+        required=True,
+    )
+    install_plan_parser = install_actions.add_parser(
+        "plan",
+        help="Print a reviewable installation plan without modifying the target.",
+    )
+    install_plan_parser.add_argument("--target-root", required=True)
+    install_plan_parser.add_argument("--codemesh-root", required=True)
+    install_plan_parser.add_argument("--project-id", required=True)
+    install_plan_parser.add_argument("--checkout-id", required=True)
+    install_plan_parser.add_argument("--source-view-hash")
+    install_plan_parser.add_argument("--server-name", default="codemesh")
+    install_plan_parser.add_argument(
+        "--configuration-only",
+        action="store_true",
+        help="Plan only MCP configuration when repository guidance is managed elsewhere.",
+    )
+    install_plan_parser.add_argument("--output")
+    install_apply_parser = install_actions.add_parser(
+        "apply",
+        help="Apply an unchanged reviewed plan with its explicit hash.",
+    )
+    install_apply_parser.add_argument("plan")
+    install_apply_parser.add_argument("--approve-plan-hash", required=True)
+    probe_parser = subcommands.add_parser(
+        "mcp-probe",
+        help="Launch and verify the exact MCP command in an applied installation plan.",
+    )
+    probe_parser.add_argument("--plan", required=True)
+    probe_parser.add_argument("--timeout-seconds", type=int, default=30)
+    probe_parser.add_argument(
+        "--query", default="repository implementation entry points"
+    )
+    probe_parser.add_argument("--expected-path", action="append", default=[])
+    rejection_probe_parser = subcommands.add_parser(
+        "mcp-rejection-probe",
+        help="Prove that an unsafe normal-profile binding fails closed.",
+    )
+    rejection_probe_parser.add_argument("--plan", required=True)
+    rejection_probe_parser.add_argument("--timeout-seconds", type=int, default=30)
+    rejection_probe_parser.add_argument("--project-id")
+    rejection_probe_parser.add_argument("--checkout-id")
+    rejection_probe_parser.add_argument("--repository-root")
+    rejection_probe_parser.add_argument("--source-view-hash")
+    rejection_probe_parser.add_argument(
+        "--expected-substring", action="append", default=[]
+    )
+    feedback_parser = subcommands.add_parser(
+        "feedback",
+        help="Record, validate, or summarize sanitized CodeMesh feedback.",
+    )
+    feedback_actions = feedback_parser.add_subparsers(
+        dest="feedback_action",
+        required=True,
+    )
+    feedback_record_parser = feedback_actions.add_parser(
+        "record",
+        help="Write one versioned packet to an ignored checkout outbox.",
+    )
+    feedback_record_parser.add_argument("--repository-root", required=True)
+    feedback_record_parser.add_argument("--codemesh-root")
+    feedback_record_parser.add_argument("--role", required=True)
+    feedback_record_parser.add_argument(
+        "--classification",
+        choices=["diagnostic", "controlled-evaluation"],
+        required=True,
+    )
+    feedback_record_parser.add_argument(
+        "--confidence", choices=["low", "medium", "high"], required=True
+    )
+    feedback_record_parser.add_argument("--project-id", required=True)
+    feedback_record_parser.add_argument("--checkout-id", required=True)
+    feedback_record_parser.add_argument("--snapshot-id", required=True)
+    feedback_record_parser.add_argument(
+        "--language", action="append", required=True, dest="languages"
+    )
+    feedback_record_parser.add_argument("--parser-profile", required=True)
+    feedback_record_parser.add_argument("--task-family", required=True)
+    feedback_record_parser.add_argument(
+        "--issue-category",
+        choices=[
+            "setup",
+            "binding",
+            "freshness",
+            "missing-language",
+            "missing-relationship",
+            "ranking",
+            "budget",
+            "validation",
+            "other",
+        ],
+        required=True,
+    )
+    feedback_record_parser.add_argument(
+        "--validation-outcome",
+        choices=["passed", "failed", "not-run", "inconclusive"],
+        required=True,
+    )
+    feedback_record_parser.add_argument("--tool-attempted", action="append", default=[])
+    feedback_record_parser.add_argument("--tool-called", action="append", default=[])
+    feedback_record_parser.add_argument("--helpful-path", action="append", default=[])
+    feedback_record_parser.add_argument("--incorrect-path", action="append", default=[])
+    feedback_record_parser.add_argument("--missed-path", action="append", default=[])
+    feedback_record_parser.add_argument("--stale-path", action="append", default=[])
+    feedback_record_parser.add_argument("--ambiguous-path", action="append", default=[])
+    feedback_record_parser.add_argument("--fallback-reason")
+    feedback_record_parser.add_argument("--minimal-reproduction")
+    feedback_record_parser.add_argument(
+        "--expected-target", action="append", default=[]
+    )
+    feedback_record_parser.add_argument("--proposed-correction")
+    feedback_record_parser.add_argument(
+        "--supersedes-feedback-id", action="append", default=[]
+    )
+    feedback_validate_parser = feedback_actions.add_parser(
+        "validate", help="Validate packet schema, content id, and provenance shape."
+    )
+    feedback_validate_parser.add_argument("packets", nargs="+")
+    feedback_summarize_parser = feedback_actions.add_parser(
+        "summarize",
+        help="Build a prioritized review packet from managed checkout outboxes.",
+    )
+    feedback_summarize_parser.add_argument("roots", nargs="+")
+    feedback_summarize_parser.add_argument("--output")
     eval_parser = subcommands.add_parser(
         "eval", help="Run deterministic, live, or agent effectiveness evaluations."
     )
@@ -228,11 +391,186 @@ def main() -> None:
         return
 
     if args.command == "mcp":
-        mcp.run(profile=args.profile)
+        try:
+            binding = binding_from_values(
+                args.project_id,
+                args.checkout_id,
+                args.repository_root,
+                args.source_view_hash,
+            )
+            mcp.run(profile=args.profile, binding=binding)
+        except ValueError as exc:
+            parser.error(str(exc))
         return
 
     if args.command == "mcp-manifest":
-        print(json.dumps(mcp.tool_manifest(profile=args.profile), indent=2))
+        try:
+            binding = binding_from_values(
+                args.project_id,
+                args.checkout_id,
+                args.repository_root,
+                args.source_view_hash,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(
+            json.dumps(
+                mcp.tool_manifest(profile=args.profile, binding=binding),
+                indent=2,
+            )
+        )
+        return
+
+    if args.command == "install":
+        try:
+            if args.install_action == "plan":
+                binding = binding_from_values(
+                    args.project_id,
+                    args.checkout_id,
+                    args.target_root,
+                    args.source_view_hash,
+                )
+                assert binding is not None
+                plan = create_installation_plan(
+                    args.target_root,
+                    args.codemesh_root,
+                    binding,
+                    server_name=args.server_name,
+                    include_onboarding=not args.configuration_only,
+                )
+                if args.output:
+                    write_installation_plan(plan, args.output)
+                print(json.dumps(plan.to_dict(), indent=2, sort_keys=True))
+                return
+
+            plan = load_installation_plan(args.plan)
+            changed = apply_installation_plan(plan, args.approve_plan_hash)
+            print(
+                json.dumps(
+                    {
+                        "applied": True,
+                        "plan_hash": plan.plan_hash,
+                        "changed_files": changed,
+                    },
+                    indent=2,
+                )
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"applied": False, "error": str(exc)}), file=sys.stderr)
+            raise SystemExit(1) from exc
+        return
+
+    if args.command == "mcp-probe":
+        try:
+            plan = load_installation_plan(args.plan)
+            report = asyncio.run(
+                run_runtime_probe(
+                    plan,
+                    timeout_seconds=args.timeout_seconds,
+                    query=args.query,
+                    expected_paths=args.expected_path,
+                )
+            )
+            print(json.dumps(report, indent=2, sort_keys=True))
+        except (OSError, ValueError, RuntimeProbeError) as exc:
+            print(json.dumps({"passed": False, "error": str(exc)}), file=sys.stderr)
+            raise SystemExit(1) from exc
+        return
+
+    if args.command == "mcp-rejection-probe":
+        try:
+            plan = load_installation_plan(args.plan)
+            report = asyncio.run(
+                run_runtime_rejection_probe(
+                    plan,
+                    timeout_seconds=args.timeout_seconds,
+                    project_id=args.project_id,
+                    checkout_id=args.checkout_id,
+                    repository_root=args.repository_root,
+                    source_view_hash=args.source_view_hash,
+                    expected_substrings=args.expected_substring,
+                )
+            )
+            print(json.dumps(report, indent=2, sort_keys=True))
+        except (OSError, ValueError, RuntimeProbeError) as exc:
+            print(json.dumps({"passed": False, "error": str(exc)}), file=sys.stderr)
+            raise SystemExit(1) from exc
+        return
+
+    if args.command == "feedback":
+        try:
+            if args.feedback_action == "record":
+                packet, output = feedback.record_feedback(
+                    repository_root=args.repository_root,
+                    codemesh_root=args.codemesh_root,
+                    role=args.role,
+                    classification=args.classification,
+                    confidence=args.confidence,
+                    project_id=args.project_id,
+                    checkout_id=args.checkout_id,
+                    snapshot_id=args.snapshot_id,
+                    languages=args.languages,
+                    parser_profile=args.parser_profile,
+                    task_family=args.task_family,
+                    issue_category=args.issue_category,
+                    validation_outcome=args.validation_outcome,
+                    tools_attempted=args.tool_attempted,
+                    tools_called=args.tool_called,
+                    helpful_paths=args.helpful_path,
+                    incorrect_paths=args.incorrect_path,
+                    missed_paths=args.missed_path,
+                    stale_paths=args.stale_path,
+                    ambiguous_paths=args.ambiguous_path,
+                    fallback_reason=args.fallback_reason,
+                    minimal_reproduction=args.minimal_reproduction,
+                    expected_targets=args.expected_target,
+                    proposed_correction=args.proposed_correction,
+                    supersedes_feedback_ids=args.supersedes_feedback_id,
+                )
+                print(
+                    json.dumps(
+                        {
+                            "recorded": True,
+                            "feedback_id": packet.feedback_id,
+                            "path": str(output),
+                        },
+                        indent=2,
+                    )
+                )
+                return
+
+            if args.feedback_action == "validate":
+                packets = [
+                    feedback.validate_feedback(path).model_dump(mode="json")
+                    for path in args.packets
+                ]
+                print(
+                    json.dumps(
+                        {
+                            "valid": True,
+                            "packet_count": len(packets),
+                            "feedback_ids": [
+                                packet["feedback_id"] for packet in packets
+                            ],
+                        },
+                        indent=2,
+                    )
+                )
+                return
+
+            report = feedback.summarize_feedback(args.roots)
+            payload = json.dumps(report, indent=2, sort_keys=True) + "\n"
+            if args.output:
+                output_path = Path(args.output)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(payload, encoding="utf-8")
+            print(payload, end="")
+        except (OSError, ValueError) as exc:
+            print(
+                json.dumps({"valid": False, "error": str(exc)}, indent=2),
+                file=sys.stderr,
+            )
+            raise SystemExit(1) from exc
         return
 
     if args.command == "eval":

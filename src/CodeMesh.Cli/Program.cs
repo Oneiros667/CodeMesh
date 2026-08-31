@@ -13,6 +13,7 @@ using CodeMesh.Parser.CSharp;
 using CodeMesh.Parser.Deployment;
 using CodeMesh.Parser.Markdown;
 using CodeMesh.Parser.Python;
+using CodeMesh.Parser.Rust;
 using CodeMesh.Storage;
 using CodeMesh.Storage.Mongo;
 using CodeMesh.Storage.Neo4j;
@@ -290,7 +291,8 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
     var repositoryRoot = Path.GetFullPath(
         ReadAnyOption(args, "--root", "--repository-root")
             ?? Directory.GetCurrentDirectory());
-    var language = ReadOption(args, "--language") ?? "csharp";
+    var languages = ReadLanguageSet(args);
+    var language = string.Join(',', languages);
     var forceEmbeddings = HasFlag(args, "--force-embeddings");
     var solutionPath = CodeMeshIngestPathResolver.ResolveFile(
         repositoryRoot,
@@ -301,12 +303,13 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
         ReadAnyOption(args, "--project", "--project-path"),
         "Project");
 
-    if (!IsSupportedLanguage(language))
+    var unsupportedLanguages = languages.Where(item => !IsSupportedLanguage(item)).ToArray();
+    if (unsupportedLanguages.Length > 0)
     {
-        throw new InvalidOperationException($"Unsupported ingestion language: {language}. Supported values: csharp, deployment, markdown, python.");
+        throw new InvalidOperationException($"Unsupported ingestion language(s): {string.Join(", ", unsupportedLanguages)}. Supported values: csharp, deployment, markdown, python, rust.");
     }
 
-    var parserClient = CreateParserClient(args);
+    var parserClient = CreateParserClient(args, languages);
     await using var graphStore = CreateGraphStore(args);
     var contentStore = CreateContentStore(args);
     var registryStore = CreateRegistryStore(args);
@@ -351,7 +354,7 @@ static async Task<IngestionResult> RunRefreshAsync(string[] args)
         ReadAnyOption(args, "--root", "--repository-root"),
         ReadAnyOption(args, "--solution", "--solution-path"),
         ReadAnyOption(args, "--project", "--project-path"),
-        ReadOption(args, "--language"));
+        ReadAnyOption(args, "--languages", "--language"));
 
     return await RunIngestAsync(CodeMeshRefreshWorkflow.BuildRefreshIngestArgs(args, target)).ConfigureAwait(false);
 }
@@ -362,7 +365,7 @@ static async Task<int> RunWatchAsync(string[] args, bool json)
         ReadAnyOption(args, "--root", "--repository-root"),
         ReadAnyOption(args, "--solution", "--solution-path"),
         ReadAnyOption(args, "--project", "--project-path"),
-        ReadOption(args, "--language"));
+        ReadAnyOption(args, "--languages", "--language"));
     var ingestArgs = CodeMeshWatchWorkflow.BuildWatchRefreshArgs(args, target);
     var pollSeconds = Math.Max(1, ReadIntOption(args, "--poll-seconds", 2));
     var maxRuns = ReadOptionalIntOption(args, "--max-runs");
@@ -648,14 +651,22 @@ static async Task<string?> ResolveStorageRepositoryIdAsync(
     }
 }
 
-static IParserClient CreateParserClient(string[] args)
+static IParserClient CreateParserClient(
+    string[] args,
+    IReadOnlyList<string>? selectedLanguages = null)
 {
-    var language = ReadOption(args, "--language") ?? "csharp";
+    var languages = selectedLanguages ?? ReadLanguageSet(args);
     var parserUrl = ReadOption(args, "--parser-url")
         ?? Environment.GetEnvironmentVariable("CODEMESH_CSHARP_PARSER_URL");
 
     if (!string.IsNullOrWhiteSpace(parserUrl))
     {
+        if (languages.Count != 1)
+        {
+            throw new InvalidOperationException(
+                "--parser-url cannot be used with multi-language ingestion; configure local parser clients for one atomic generation.");
+        }
+
         return new HttpParserClient(new HttpClient
         {
             BaseAddress = new Uri(EnsureTrailingSlash(parserUrl), UriKind.Absolute),
@@ -663,31 +674,42 @@ static IParserClient CreateParserClient(string[] args)
         });
     }
 
+    var clients = languages.ToDictionary(
+        language => language,
+        CreateLocalParserClient,
+        StringComparer.Ordinal);
+    return clients.Count == 1
+        ? clients.Values.Single()
+        : new CompositeParserClient(clients);
+}
+
+static IParserClient CreateLocalParserClient(string language)
+{
     return NormalizeLanguage(language) switch
     {
         "csharp" => new LocalCSharpParserClient(new CSharpParseService()),
         "deployment" => new LocalDeploymentParserClient(new DeploymentParseService()),
         "markdown" => new LocalMarkdownParserClient(new MarkdownParseService()),
         "python" => new LocalPythonParserClient(new PythonParseService()),
-        _ => throw new InvalidOperationException($"Unsupported ingestion language: {language}. Supported values: csharp, deployment, markdown, python.")
+        "rust" => new LocalRustParserClient(new RustParseService()),
+        _ => throw new InvalidOperationException($"Unsupported ingestion language: {language}. Supported values: csharp, deployment, markdown, python, rust.")
     };
+}
+
+static IReadOnlyList<string> ReadLanguageSet(string[] args)
+{
+    return CompositeParserClient.ParseLanguages(
+        ReadAnyOption(args, "--languages", "--language") ?? "csharp");
 }
 
 static bool IsSupportedLanguage(string language)
 {
-    return NormalizeLanguage(language) is "csharp" or "deployment" or "markdown" or "python";
+    return NormalizeLanguage(language) is "csharp" or "deployment" or "markdown" or "python" or "rust";
 }
 
 static string NormalizeLanguage(string language)
 {
-    return language.Trim().ToLowerInvariant() switch
-    {
-        "cs" or "c#" => "csharp",
-        "deploy" or "docker" or "compose" => "deployment",
-        "md" => "markdown",
-        "py" => "python",
-        var value => value
-    };
+    return CompositeParserClient.NormalizeLanguage(language);
 }
 
 static Neo4jGraphStore CreateGraphStore(string[] args)
@@ -1337,9 +1359,9 @@ static void PrintHelp()
     Console.WriteLine("Usage:");
     Console.WriteLine("  codemesh doctor [--root <path>] [--json]");
     Console.WriteLine("  codemesh status [--root <path>] [--json]");
-    Console.WriteLine("  codemesh ingest [--root <path>] [--project-id <prj_id>] [--solution <path>] [--project <path>] [--language <csharp|deployment|markdown|python>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
-    Console.WriteLine("  codemesh refresh [--root <path>] [--solution <path>] [--project <path>] [--language <csharp|deployment|markdown|python>] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
-    Console.WriteLine("  codemesh watch [--root <path>] [--solution <path>] [--project <path>] [--language <csharp|deployment|markdown|python>] [--poll-seconds <seconds>] [--max-runs <count>] [--run-once] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
+    Console.WriteLine("  codemesh ingest [--root <path>] [--project-id <prj_id>] [--solution <path>] [--project <path>] [--language <language> | --languages <comma-separated>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
+    Console.WriteLine("  codemesh refresh [--root <path>] [--solution <path>] [--project <path>] [--language <language> | --languages <comma-separated>] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
+    Console.WriteLine("  codemesh watch [--root <path>] [--solution <path>] [--project <path>] [--language <language> | --languages <comma-separated>] [--poll-seconds <seconds>] [--max-runs <count>] [--run-once] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh self ingest [--dry-run] [--skip-embeddings] [--include-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh self smoke [--agent-access-url <url>] [--skip-embeddings] [--query <text>] [--json]");
     Console.WriteLine("  codemesh embeddings verify <repository-id-or-alias> [--embedding-provider <provider>] [--embedding-model <model>] [--json]");
@@ -1407,6 +1429,19 @@ sealed class LocalPythonParserClient(PythonParseService parser) : IParserClient
     public Task<ParserCapability> GetCapabilityAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(PythonParseService.Capability);
+    }
+
+    public Task<ParseResult> ParseAsync(ParseRequest request, CancellationToken cancellationToken = default)
+    {
+        return parser.ParseAsync(request, cancellationToken);
+    }
+}
+
+sealed class LocalRustParserClient(RustParseService parser) : IParserClient
+{
+    public Task<ParserCapability> GetCapabilityAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(RustParseService.Capability);
     }
 
     public Task<ParseResult> ParseAsync(ParseRequest request, CancellationToken cancellationToken = default)

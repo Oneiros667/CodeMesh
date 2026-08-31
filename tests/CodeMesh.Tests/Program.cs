@@ -17,6 +17,7 @@ using CodeMesh.Parser.CSharp;
 using CodeMesh.Parser.Deployment;
 using CodeMesh.Parser.Markdown;
 using CodeMesh.Parser.Python;
+using CodeMesh.Parser.Rust;
 using CodeMesh.Storage;
 using CodeMesh.Storage.Memory;
 using CodeMesh.Storage.Mongo;
@@ -42,6 +43,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("agent access contracts map REST JSON", TestAgentAccessContractsMapRestJson),
     ("agent access client calls REST endpoints", TestAgentAccessClientCallsRestEndpoints),
     ("ingestion writes parser output", TestIngestionWritesParserOutput),
+    ("multi-language ingestion publishes one deterministic snapshot", TestMultiLanguageIngestionPublishesOneDeterministicSnapshot),
     ("ingestion redacts sensitive content before stores and embeddings", TestIngestionRedactsSensitiveContentBeforeStoresAndEmbeddings),
     ("dry-run ingestion skips stores", TestDryRunSkipsStores),
     ("repository refresh removes stale records", TestRepositoryRefreshRemovesStaleRecords),
@@ -86,7 +88,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("markdown parser emits documents sections and containment", TestMarkdownParserEmitsDocumentsSectionsAndContainment),
     ("markdown parser parses repository docs", TestMarkdownParserParsesRepositoryDocs),
     ("python parser emits classes functions and containment", TestPythonParserEmitsClassesFunctionsAndContainment),
+    ("python parser emits imports calls and test cases", TestPythonParserEmitsImportsCallsAndTestCases),
     ("python parser parses Agent Access project", TestPythonParserParsesAgentAccessProject),
+    ("rust parser emits declarations relationships tests and PyO3 exports", TestRustParserEmitsDeclarationsRelationshipsTestsAndPyO3Exports),
+    ("composite parser links Python calls to Rust PyO3 exports", TestCompositeParserLinksPythonCallsToRustPyO3Exports),
     ("csharp parser parses YoutubeDownloader sample", TestYoutubeDownloaderSampleParser)
 };
 
@@ -863,6 +868,38 @@ static async Task TestIngestionWritesParserOutput()
 
     var content = await store.GetContentAsync(FakeParserClient.ContentHash);
     NotNull(content, "Content was not written to content store.");
+}
+
+static async Task TestMultiLanguageIngestionPublishesOneDeterministicSnapshot()
+{
+    var store = new InMemoryCodeMeshStore();
+    var parser = new CompositeParserClient(new Dictionary<string, IParserClient>
+    {
+        ["rust"] = new LanguageFixtureParserClient("rust", ".rs"),
+        ["python"] = new LanguageFixtureParserClient("python", ".py")
+    });
+    var orchestrator = new IngestionOrchestrator(
+        parser,
+        store,
+        store,
+        store,
+        new NoEmbeddingProvider());
+
+    var first = await orchestrator.IngestAsync(new IngestionRequest(
+        Directory.GetCurrentDirectory(),
+        Language: "rust,python",
+        DryRun: true));
+    var second = await orchestrator.IngestAsync(new IngestionRequest(
+        Directory.GetCurrentDirectory(),
+        Language: "python,rust",
+        DryRun: true));
+
+    Equal(2, first.NodeCount, "Composite ingestion did not retain both parser outputs.");
+    Equal(2, first.ContentCount, "Composite ingestion did not retain both source contents.");
+    Equal(
+        first.Repository.SnapshotId ?? string.Empty,
+        second.Repository.SnapshotId ?? string.Empty,
+        "Language order changed the atomic snapshot identity.");
 }
 
 static async Task TestIngestionRedactsSensitiveContentBeforeStoresAndEmbeddings()
@@ -3795,8 +3832,20 @@ static async Task TestPythonParserEmitsClassesFunctionsAndContainment()
                 def greet(self, name: str) -> str:
                     return normalize(name)
 
+            class GreeterContract:
+                def configure(self, *, enabled: bool) -> None: ...
+
+            class GreeterAdapter:
+                def configure(self, *, enabled: bool) -> None:
+                    return None
+
             async def normalize(value: str) -> str:
                 return value.strip().lower()
+
+            def format_name(
+                value: str,
+            ) -> str:
+                return normalize(value)
             """);
 
         var parser = new PythonParseService();
@@ -3813,6 +3862,11 @@ static async Task TestPythonParserEmitsClassesFunctionsAndContainment()
         HasNode(result, CodeNodeKind.Class, "Greeter");
         HasNode(result, CodeNodeKind.Method, "greet");
         HasNode(result, CodeNodeKind.Method, "normalize");
+        HasNode(result, CodeNodeKind.Method, "format_name");
+        Equal(
+            2,
+            result.Nodes.Count(node => node.Kind == CodeNodeKind.Method && node.Name == "configure"),
+            "Python parser did not keep same-named methods in distinct inline-body classes.");
         HasRelationshipBetween(
             result,
             "python:file:service.py",
@@ -3826,6 +3880,11 @@ static async Task TestPythonParserEmitsClassesFunctionsAndContainment()
 
         var normalize = result.Nodes.Single(node => node.Id == "python:method:service.normalize");
         Equal("True", normalize.Metadata["async"], "Python parser did not mark async functions.");
+        HasRelationshipBetween(
+            result,
+            "python:method:service.format_name",
+            normalize.Id,
+            CodeRelationshipKind.Invokes);
     }
     finally
     {
@@ -3861,6 +3920,215 @@ static async Task TestPythonParserParsesAgentAccessProject()
     HasNode(result, CodeNodeKind.Class, "CodeMeshReadStore");
     HasNode(result, CodeNodeKind.Method, "search_context");
     HasNode(result, CodeNodeKind.Method, "tool_manifest");
+}
+
+static async Task TestPythonParserEmitsImportsCallsAndTestCases()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-python-semantic-test-{Guid.NewGuid():N}");
+    try
+    {
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "native.py"),
+            """
+            from _onenine_feed_hub_native import replay as native_replay
+            from _onenine_feed_hub_native import replay as native_replay
+
+            def run_replay():
+                return native_replay()
+
+            def test_run_replay():
+                return run_replay()
+            """);
+
+        var result = await new PythonParseService().ParseAsync(new ParseRequest(
+            root,
+            null,
+            null,
+            "python",
+            new Dictionary<string, string>()));
+
+        var import = result.Nodes.Single(node =>
+            node.Metadata.TryGetValue("pythonKind", out var kind) && kind == "import");
+        var run = result.Nodes.Single(node => node.Name == "run_replay");
+        var test = result.Nodes.Single(node => node.Name == "test_run_replay");
+        Equal("_onenine_feed_hub_native", import.Metadata["importModule"], "Python import module metadata changed.");
+        Equal("replay", import.Metadata["importedName"], "Python imported-name metadata changed.");
+        Equal(CodeNodeKind.TestCase, test.Kind, "Python test function was not emitted as a test case.");
+        HasRelationshipBetween(result, run.Id, import.Id, CodeRelationshipKind.Invokes);
+        HasRelationshipBetween(result, test.Id, run.Id, CodeRelationshipKind.Invokes);
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static async Task TestRustParserEmitsDeclarationsRelationshipsTestsAndPyO3Exports()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-rust-parser-test-{Guid.NewGuid():N}");
+    try
+    {
+        Directory.CreateDirectory(Path.Combine(root, "src"));
+        Directory.CreateDirectory(Path.Combine(root, "target", "debug"));
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "src", "lib.rs"),
+            """
+            use pyo3::prelude::*;
+
+            trait Runner {
+                fn run(&self);
+            }
+
+            #[pyclass]
+            struct Replay;
+
+            impl Runner for Replay {
+                fn run(&self) {
+                    helper();
+                }
+            }
+
+            fn helper() {}
+
+            #[pyfunction]
+            #[pyo3(name = "replay")]
+            fn replay_impl(value: Replay) -> Replay {
+                helper();
+                value
+            }
+
+            #[pymodule]
+            fn _onenine_feed_hub_native() {}
+
+            #[test]
+            fn test_replay() {
+                replay_impl(Replay);
+            }
+            """);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "target", "debug", "generated.rs"),
+            "fn must_not_be_indexed() {}\n");
+
+        var result = await new RustParseService().ParseAsync(new ParseRequest(
+            root,
+            null,
+            null,
+            "rust",
+            new Dictionary<string, string>()));
+        var repeatedResult = await new RustParseService().ParseAsync(new ParseRequest(
+            root,
+            null,
+            null,
+            "rust",
+            new Dictionary<string, string>()));
+
+        Equal("codemesh-parser-rust", result.ParserName, "Rust parser name changed.");
+        Equal(0, result.Diagnostics.Count(item => item.Severity == "error"), "Rust parser emitted errors.");
+        Equal(
+            string.Join('\n', result.Nodes.Select(node => node.Id).Order(StringComparer.Ordinal)),
+            string.Join('\n', repeatedResult.Nodes.Select(node => node.Id).Order(StringComparer.Ordinal)),
+            "Rust node identities were not deterministic.");
+        Equal(
+            string.Join('\n', result.Relationships.Select(relationship => relationship.Id).Order(StringComparer.Ordinal)),
+            string.Join('\n', repeatedResult.Relationships.Select(relationship => relationship.Id).Order(StringComparer.Ordinal)),
+            "Rust relationship identities were not deterministic.");
+        HasNode(result, CodeNodeKind.Interface, "Runner");
+        HasNode(result, CodeNodeKind.Struct, "Replay");
+        HasNode(result, CodeNodeKind.Method, "helper");
+        HasNode(result, CodeNodeKind.TestCase, "test_replay");
+        Equal(false, result.Nodes.Any(node => node.Name == "must_not_be_indexed"), "Rust parser indexed Cargo target output.");
+
+        var implementation = result.Nodes.Single(node =>
+            node.Metadata.TryGetValue("rustKind", out var kind) && kind == "impl");
+        var traitNode = result.Nodes.Single(node => node.Name == "Runner" && node.Kind == CodeNodeKind.Interface);
+        HasRelationshipBetween(result, implementation.Id, traitNode.Id, CodeRelationshipKind.Implements);
+
+        var replay = result.Nodes.Single(node =>
+            node.Metadata.TryGetValue("pythonExportName", out var name) && name == "replay");
+        Equal("function", replay.Metadata["pythonExportKind"], "Rust PyO3 function export metadata changed.");
+        var module = result.Nodes.Single(node =>
+            node.Metadata.TryGetValue("pythonExportKind", out var kind) && kind == "module");
+        Equal("_onenine_feed_hub_native", module.Metadata["pythonExportName"], "Rust PyO3 module name changed.");
+        HasRelationship(result, CodeRelationshipKind.Invokes);
+        HasRelationship(result, CodeRelationshipKind.UsesType);
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static async Task TestCompositeParserLinksPythonCallsToRustPyO3Exports()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-pyo3-boundary-test-{Guid.NewGuid():N}");
+    try
+    {
+        Directory.CreateDirectory(Path.Combine(root, "src"));
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "bridge.py"),
+            """
+            from _onenine_feed_hub_native import replay
+
+            def run():
+                replay()
+                return replay()
+            """);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "src", "lib.rs"),
+            """
+            #[pyfunction]
+            fn replay() {}
+
+            #[pymodule]
+            fn _onenine_feed_hub_native() {}
+            """);
+
+        var parser = new CompositeParserClient(new Dictionary<string, IParserClient>
+        {
+            ["python"] = new LocalPythonFixtureClient(),
+            ["rust"] = new LocalRustFixtureClient()
+        });
+        var result = await parser.ParseAsync(new ParseRequest(
+            root,
+            null,
+            null,
+            "python,rust",
+            new Dictionary<string, string>()));
+
+        var pythonRun = result.Nodes.Single(node => node.Language == "python" && node.Name == "run");
+        var rustReplay = result.Nodes.Single(node =>
+            node.Language == "rust" &&
+            node.Metadata.TryGetValue("pythonExportName", out var name) &&
+            name == "replay");
+        var boundary = result.Relationships.SingleOrDefault(relationship =>
+            relationship.SourceNodeId == pythonRun.Id &&
+            relationship.TargetNodeId == rustReplay.Id &&
+            relationship.Kind == CodeRelationshipKind.Invokes &&
+            relationship.Metadata.TryGetValue("boundary", out var value) &&
+            value == "pyo3");
+        NotNull(boundary, "Composite parser did not link Python invocation to Rust PyO3 export.");
+        Equal(
+            1,
+            result.Relationships.Count(relationship =>
+                relationship.SourceNodeId == pythonRun.Id &&
+                relationship.TargetNodeId == rustReplay.Id &&
+                relationship.Kind == CodeRelationshipKind.Invokes),
+            "Composite parser did not coalesce repeated calls across the PyO3 boundary.");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }
 
 static async Task TestYoutubeDownloaderSampleParser()
@@ -4286,6 +4554,92 @@ sealed class FakeParserClient : IParserClient
             [content],
             Array.Empty<ParserDiagnostic>(),
             now));
+    }
+}
+
+sealed class LanguageFixtureParserClient(string language, string extension) : IParserClient
+{
+    public Task<ParserCapability> GetCapabilityAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new ParserCapability(
+            $"fixture-{language}",
+            language,
+            "test",
+            [extension],
+            ["repositoryRoot"]));
+    }
+
+    public Task<ParseResult> ParseAsync(
+        ParseRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(language, request.Language, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Composite parser did not isolate the language request.");
+        }
+        var now = DateTimeOffset.UtcNow;
+        var filePath = $"sample{extension}";
+        var text = $"{language} fixture";
+        var contentHash = CodeMeshHash.Sha256Hex(text);
+        var node = new CodeNode(
+            $"{language}:file:{filePath}",
+            $"{language}:file:{filePath}",
+            CodeNodeKind.File,
+            filePath,
+            language,
+            null,
+            new SourceSpan(filePath, 1, 1, 1, text.Length),
+            contentHash,
+            new Dictionary<string, string>());
+        var content = new CodeContent(
+            contentHash,
+            text,
+            "text/plain",
+            now,
+            now);
+        return Task.FromResult(new ParseResult(
+            $"fixture-{language}",
+            language,
+            [node],
+            Array.Empty<CodeRelationship>(),
+            [content],
+            Array.Empty<ParserDiagnostic>(),
+            now));
+    }
+}
+
+sealed class LocalPythonFixtureClient : IParserClient
+{
+    private readonly PythonParseService _parser = new();
+
+    public Task<ParserCapability> GetCapabilityAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(PythonParseService.Capability);
+    }
+
+    public Task<ParseResult> ParseAsync(
+        ParseRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return _parser.ParseAsync(request, cancellationToken);
+    }
+}
+
+sealed class LocalRustFixtureClient : IParserClient
+{
+    private readonly RustParseService _parser = new();
+
+    public Task<ParserCapability> GetCapabilityAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(RustParseService.Capability);
+    }
+
+    public Task<ParseResult> ParseAsync(
+        ParseRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return _parser.ParseAsync(request, cancellationToken);
     }
 }
 

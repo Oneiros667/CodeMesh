@@ -13,11 +13,11 @@ is available under the [MIT License](LICENSE).
 
 | Status | Capability |
 | --- | --- |
-| Implemented and locally verified | C# ingestion through Roslyn; graph/content persistence; stable checkout identity and bounded local snapshots; repository freshness; REST, MCP, CLI, and .NET Agent Access; default normal and diagnostic MCP profiles; canonical manual onboarding; source spans; relationship-aware context packages; deterministic fixture evaluation; security redaction tests. |
-| Optional and environment-dependent | Neo4j, MongoDB, and Qdrant stores; Docker Compose; embeddings through a configured local provider; Python, Markdown, and deployment-artifact parsing with narrower relationships than C#. |
-| Retained, bounded evidence | Summary-free live retrieval passed on two repositories; assisted campaigns replicated utility after explicit onboarding; spontaneous and prompt-parity campaigns recorded zero CodeMesh adoption. These results do not establish broad generalization. |
+| Implemented and locally verified | C# ingestion through Roslyn; atomic multi-language ingestion; bounded Python and Rust parsing with PyO3 links; graph/content persistence; stable checkout identity and bounded local snapshots; exact checkout binding and fail-closed freshness; REST, MCP, CLI, and .NET Agent Access; normal and diagnostic MCP profiles; reviewable installation and provider-free probes; agent feedback recording and summarization; source-backed context packages; deterministic fixture evaluation; security redaction tests. |
+| Optional and environment-dependent | Neo4j, MongoDB, and Qdrant stores; Docker Compose; embeddings through a configured local provider; Python, Rust, Markdown, and deployment-artifact parsing with narrower relationships than C#. |
+| Retained, bounded evidence | Summary-free live retrieval passed on two repositories; assisted campaigns replicated utility after explicit onboarding; spontaneous and prompt-parity campaigns recorded zero CodeMesh adoption; the provider-free one\|nine Primary pilot passed its local retrieval, safety, and feedback gates. These results do not establish broad generalization. |
 | Experimental or unqualified | Generated summaries, online model providers, model-selection benchmarks, and the read-only local web UI as a product surface. No summary model is CodeMesh-qualified. |
-| Planned | Unambiguous checkout binding, fail-closed package freshness, a provider-free live runtime probe, reviewable installation, configured/onboarded evaluation, configurable ingestion allow/deny policy, shared-service identity controls, and broader parser and SDLC coverage. |
+| Planned | A clean exact one\|nine candidate, configured/onboarded normal-host evaluation, configurable ingestion allow/deny policy, shared-service identity controls, and broader parser and SDLC coverage. |
 
 Passing tests establish the covered local behavior. They do not establish
 hosted CI success, generalized agent benefit, release readiness, deployment

@@ -5,8 +5,10 @@ import json
 from typing import Any
 
 import pytest
+from mcp.server.fastmcp.exceptions import ToolError
 
 from codemesh_agent_access import mcp
+from codemesh_agent_access.binding import RepositoryBinding
 from codemesh_agent_access.models import ToolResult
 
 
@@ -158,6 +160,64 @@ def test_mcp_unknown_profile_fails_fast() -> None:
 
     with pytest.raises(ValueError, match="Expected one of: normal, diagnostic"):
         mcp.tool_manifest(profile="admin")
+
+
+def test_normal_mcp_runtime_requires_checkout_binding() -> None:
+    with pytest.raises(ValueError, match="normal MCP profile requires"):
+        mcp.run(profile="normal")
+
+
+def test_bound_mcp_injects_identity_and_rejects_override(
+    monkeypatch: Any,
+    tmp_path,
+) -> None:
+    captured: dict[str, Any] = {}
+    binding = RepositoryBinding(
+        "project:test",
+        "checkout:test",
+        str(tmp_path),
+        "view:test",
+    )
+
+    async def fake_get_context_package(query: str, **kwargs: Any) -> ToolResult:
+        captured["query"] = query
+        captured.update(kwargs)
+        return ToolResult(
+            data={
+                "query": {"query": query, "repository_id": kwargs["repository_id"]},
+                "items": [],
+                "validation_recommendations": [],
+                "total_snippet_characters": 0,
+                "generated_at": "2026-08-31T00:00:00Z",
+            }
+        )
+
+    monkeypatch.setattr(mcp.tools, "get_context_package", fake_get_context_package)
+    server = mcp.build_server(binding=binding)
+
+    result = asyncio.run(
+        server.call_tool(
+            "codemesh_get_context_package",
+            {"query": "find native replay", "output_format": "json"},
+        )
+    )
+    with pytest.raises(ToolError, match="does not match the configured project"):
+        asyncio.run(
+            server.call_tool(
+                "codemesh_get_context_package",
+                {
+                    "query": "find native replay",
+                    "repository_id": "project:other",
+                    "output_format": "json",
+                },
+            )
+        )
+
+    assert result.isError is False
+    assert captured["repository_id"] == "project:test"
+    assert captured["binding"] is binding
+    assert server.instructions == mcp.tool_manifest(binding=binding)["instructions"]
+    assert "checkout:test" in server.instructions
 
 
 def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
@@ -375,7 +435,9 @@ def test_mcp_summary_coverage_forwards_repository_id(monkeypatch: Any) -> None:
 def test_mcp_repository_status_forwards_repository_id(monkeypatch: Any) -> None:
     captured: dict[str, Any] = {}
 
-    async def fake_get_repository_status(repository_id: str) -> ToolResult:
+    async def fake_get_repository_status(
+        repository_id: str, **kwargs: Any
+    ) -> ToolResult:
         captured["repository_id"] = repository_id
         return ToolResult(
             data={"repository_id": repository_id, "freshness": {"status": "unknown"}}

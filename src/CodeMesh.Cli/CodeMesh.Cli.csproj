@@ -8,6 +8,7 @@
     <ProjectReference Include="..\CodeMesh.Parser.Deployment\CodeMesh.Parser.Deployment.csproj" />
     <ProjectReference Include="..\CodeMesh.Parser.Markdown\CodeMesh.Parser.Markdown.csproj" />
     <ProjectReference Include="..\CodeMesh.Parser.Python\CodeMesh.Parser.Python.csproj" />
+    <ProjectReference Include="..\CodeMesh.Parser.Rust\CodeMesh.Parser.Rust.csproj" />
     <ProjectReference Include="..\CodeMesh.Storage\CodeMesh.Storage.csproj" />
   </ItemGroup>
 

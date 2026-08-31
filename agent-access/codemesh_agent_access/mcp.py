@@ -8,6 +8,7 @@ from typing import Any, Callable, Literal
 from mcp.types import CallToolResult, TextContent
 
 from . import tools
+from .binding import RepositoryBinding, bound_repository_reference
 from .formatting import format_context_package_for_agent
 
 
@@ -154,9 +155,9 @@ _GET_REPOSITORY_ARGUMENTS: dict[str, dict[str, Any]] = {
 
 _GET_REPOSITORY_STATUS_ARGUMENTS: dict[str, dict[str, Any]] = {
     "repository_id": {
-        "type": "string",
-        "required": True,
-        "description": "Repository hash id or alias.",
+        "type": "string|null",
+        "default": None,
+        "description": "Repository hash id or alias; omit when the server is checkout-bound.",
     },
 }
 
@@ -340,25 +341,41 @@ def _filter_tool_guidance(
     return payload
 
 
-def tool_manifest(profile: str = DEFAULT_TOOL_PROFILE) -> dict[str, Any]:
+def _server_instructions(binding: RepositoryBinding | None) -> str:
+    if binding is None:
+        return _SERVER_INSTRUCTIONS
+    return (
+        f"{_SERVER_INSTRUCTIONS} This server is bound to project "
+        f"'{binding.project_id}', checkout '{binding.checkout_id}', and repository "
+        f"root '{binding.repository_root}'. Repository-scoped calls default to this "
+        "binding and cannot override it."
+    )
+
+
+def tool_manifest(
+    profile: str = DEFAULT_TOOL_PROFILE,
+    binding: RepositoryBinding | None = None,
+) -> dict[str, Any]:
     """Return the stable MCP tool contract used by tests and fallback output."""
     tool_names = _tool_names_for_profile(profile)
     return {
         "service": "codemesh-agent-access",
         "protocol": "mcp",
         "profile": profile,
-        "instructions": _SERVER_INSTRUCTIONS,
+        "instructions": _server_instructions(binding),
         "tools": [
             {"name": name, "description": _TOOL_CONTRACTS[name]["description"]}
             for name in tool_names
         ],
         "contracts": {name: deepcopy(_TOOL_CONTRACTS[name]) for name in tool_names},
+        "binding": binding.as_dict() if binding is not None else None,
     }
 
 
 def build_server(
     profile: str = DEFAULT_TOOL_PROFILE,
     call_guard: Callable[[str, dict[str, Any]], None] | None = None,
+    binding: RepositoryBinding | None = None,
 ) -> Any:
     try:
         from mcp.server.fastmcp import FastMCP
@@ -368,7 +385,10 @@ def build_server(
         ) from exc
 
     tool_names = set(_tool_names_for_profile(profile))
-    server = FastMCP("codemesh-agent-access", instructions=_SERVER_INSTRUCTIONS)
+    server = FastMCP(
+        "codemesh-agent-access",
+        instructions=_server_instructions(binding),
+    )
 
     def register_tool(name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         def register(function: Callable[..., Any]) -> Callable[..., Any]:
@@ -383,6 +403,17 @@ def build_server(
     def check(name: str, arguments: dict[str, Any]) -> None:
         if call_guard is not None:
             call_guard(name, arguments)
+
+    def repository_reference(
+        repository_id: str | None,
+        *,
+        required_when_unbound: bool = False,
+    ) -> str | None:
+        return bound_repository_reference(
+            binding,
+            repository_id,
+            required_when_unbound=required_when_unbound,
+        )
 
     @register_tool("codemesh_status")
     async def codemesh_status() -> dict[str, Any]:
@@ -411,6 +442,7 @@ def build_server(
         context_relationship_limit: int = 8,
     ) -> dict[str, Any]:
         """Search CodeMesh context for code relevant to an agent task."""
+        repository_id = repository_reference(repository_id)
         check(
             "codemesh_search_context",
             {"query": query, "repository_id": repository_id, "limit": limit},
@@ -454,6 +486,10 @@ def build_server(
         output_format: Literal["json", "agent"] = "json",
     ) -> CallToolResult:
         """Build an agent-ready context package with snippets, relationships, and repository metadata."""
+        repository_id = repository_reference(
+            repository_id,
+            required_when_unbound=profile == DEFAULT_TOOL_PROFILE,
+        )
         check(
             "codemesh_get_context_package",
             {"query": query, "repository_id": repository_id, "limit": limit},
@@ -478,6 +514,7 @@ def build_server(
             definition_limit=definition_limit,
             uses_type_limit=uses_type_limit,
             include_repository=include_repository,
+            binding=binding,
         )
         if output_format == "agent":
             text = (
@@ -510,6 +547,7 @@ def build_server(
         include_declarations: bool = True,
     ) -> dict[str, Any]:
         """Search indexed CodeMesh symbols by name, id, display signature, namespace, or file path."""
+        repository_id = repository_reference(repository_id)
         check(
             "codemesh_search_symbols",
             {"query": query, "repository_id": repository_id, "limit": limit},
@@ -533,6 +571,10 @@ def build_server(
         include_neighbors: bool = True,
     ) -> dict[str, Any]:
         """Fetch a CodeMesh node with optional content and immediate relationships."""
+        repository_id = repository_reference(
+            repository_id,
+            required_when_unbound=profile == DEFAULT_TOOL_PROFILE,
+        )
         check(
             "codemesh_get_node",
             {"node_id": node_id, "repository_id": repository_id},
@@ -543,6 +585,7 @@ def build_server(
                 repository_id=repository_id,
                 include_content=include_content,
                 include_neighbors=include_neighbors,
+                binding=binding,
             )
         ).model_dump(mode="json")
 
@@ -554,6 +597,7 @@ def build_server(
         relationship_kinds: list[str] | None = None,
     ) -> dict[str, Any]:
         """Fetch relationships around a CodeMesh node."""
+        repository_id = repository_reference(repository_id)
         check(
             "codemesh_get_neighbors",
             {"node_id": node_id, "repository_id": repository_id, "depth": depth},
@@ -571,25 +615,44 @@ def build_server(
     async def codemesh_list_repositories(limit: int = 50) -> dict[str, Any]:
         """List repositories indexed by CodeMesh."""
         check("codemesh_list_repositories", {"limit": limit})
-        return (await tools.list_repositories(limit=limit)).model_dump(mode="json")
+        return (await tools.list_repositories(limit=limit, binding=binding)).model_dump(
+            mode="json"
+        )
 
     @register_tool("codemesh_get_repository")
     async def codemesh_get_repository(repository_id: str) -> dict[str, Any]:
         """Fetch one indexed CodeMesh repository by id."""
+        repository_id = repository_reference(
+            repository_id,
+            required_when_unbound=True,
+        )
+        assert repository_id is not None
         check("codemesh_get_repository", {"repository_id": repository_id})
         return (await tools.get_repository(repository_id)).model_dump(mode="json")
 
     @register_tool("codemesh_get_repository_status")
-    async def codemesh_get_repository_status(repository_id: str) -> dict[str, Any]:
+    async def codemesh_get_repository_status(
+        repository_id: str | None = None,
+    ) -> dict[str, Any]:
         """Fetch repository status, counts, latest run, summary coverage, and freshness diagnostics."""
-        check("codemesh_get_repository_status", {"repository_id": repository_id})
-        return (await tools.get_repository_status(repository_id)).model_dump(
-            mode="json"
+        repository_id = repository_reference(
+            repository_id,
+            required_when_unbound=True,
         )
+        assert repository_id is not None
+        check("codemesh_get_repository_status", {"repository_id": repository_id})
+        return (
+            await tools.get_repository_status(repository_id, binding=binding)
+        ).model_dump(mode="json")
 
     @register_tool("codemesh_get_summary_coverage")
     async def codemesh_get_summary_coverage(repository_id: str) -> dict[str, Any]:
         """Fetch generated node summary coverage for one indexed CodeMesh repository."""
+        repository_id = repository_reference(
+            repository_id,
+            required_when_unbound=True,
+        )
+        assert repository_id is not None
         check("codemesh_get_summary_coverage", {"repository_id": repository_id})
         return (await tools.get_summary_coverage(repository_id)).model_dump(mode="json")
 
@@ -599,6 +662,7 @@ def build_server(
         limit: int = 50,
     ) -> dict[str, Any]:
         """List CodeMesh ingestion runs, optionally scoped to a repository."""
+        repository_id = repository_reference(repository_id)
         check(
             "codemesh_list_ingestion_runs",
             {"repository_id": repository_id, "limit": limit},
@@ -610,8 +674,16 @@ def build_server(
     return server
 
 
-def run(profile: str = DEFAULT_TOOL_PROFILE) -> None:
-    server = build_server(profile=profile)
+def run(
+    profile: str = DEFAULT_TOOL_PROFILE,
+    binding: RepositoryBinding | None = None,
+) -> None:
+    if profile == DEFAULT_TOOL_PROFILE and binding is None:
+        raise ValueError(
+            "The normal MCP profile requires an explicit project, checkout, and "
+            "repository-root binding."
+        )
+    server = build_server(profile=profile, binding=binding)
     server.run()
 
 

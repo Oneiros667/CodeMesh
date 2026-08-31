@@ -252,6 +252,17 @@ def test_lexical_terms_remove_grammatical_noise() -> None:
     ]
 
 
+def test_lexical_terms_split_language_identifiers_for_file_name_matching() -> None:
+    assert lexical_terms("NativeReplayAdapter processMboV3") == [
+        "native",
+        "replay",
+        "adapter",
+        "process",
+        "mbo",
+        "v3",
+    ]
+
+
 def test_lexical_candidates_cover_distinct_files_before_repeating() -> None:
     nodes = [
         {"id": "a-1", "filePath": "A.cs"},

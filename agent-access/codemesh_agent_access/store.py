@@ -6,6 +6,12 @@ import os
 import subprocess
 from typing import Any
 
+from .binding import (
+    RepositoryBinding,
+    assess_binding,
+    bound_repository_reference,
+    require_accepted_binding,
+)
 from .config import Settings
 from .content_store import MongoContentStore, PyMongoError
 from .embeddings import QueryEmbeddingProvider
@@ -198,10 +204,32 @@ class CodeMeshReadStore:
         return ContextResponse(query=query, hits=ranked_hits, diagnostics=diagnostics)
 
     async def get_context_package(
-        self, query: ContextPackageQuery
+        self,
+        query: ContextPackageQuery,
+        binding: RepositoryBinding | None = None,
     ) -> ContextPackageResponse:
-        requested_repository_id = query.repository_id
-        query = await self._resolve_package_query_repository(query)
+        requested_repository_id = bound_repository_reference(
+            binding,
+            query.repository_id,
+            required_when_unbound=False,
+        )
+        repository_summary = None
+        if binding is not None:
+            status = await self.get_repository_status(
+                binding.project_id,
+                binding=binding,
+            )
+            require_accepted_binding(status.freshness.get("binding", {}))
+            repository_summary = status.repository
+            if repository_summary is None or not repository_summary.snapshot_id:
+                raise RuntimeError(
+                    "CodeMesh accepted a repository binding without an active snapshot."
+                )
+            query = query.model_copy(
+                update={"repository_id": repository_summary.snapshot_id}
+            )
+        else:
+            query = await self._resolve_package_query_repository(query)
         search = await self.search_context(
             ContextQuery(
                 query=query.query,
@@ -215,11 +243,11 @@ class CodeMeshReadStore:
                 include_context_relationships=False,
             )
         )
-        repository_summary = None
         repository = None
         latest_run = None
         if requested_repository_id:
-            repository_summary = await self.get_repository(requested_repository_id)
+            if repository_summary is None:
+                repository_summary = await self.get_repository(requested_repository_id)
             if query.include_repository:
                 repository = (
                     repository_summary.model_dump(mode="json")
@@ -362,8 +390,30 @@ class CodeMeshReadStore:
 
         return SymbolSearchResponse(query=query, symbols=symbols)
 
-    async def get_node(self, lookup: NodeLookup) -> NodeResponse:
-        lookup = await self._resolve_node_lookup_repository(lookup)
+    async def get_node(
+        self,
+        lookup: NodeLookup,
+        binding: RepositoryBinding | None = None,
+    ) -> NodeResponse:
+        if binding is not None:
+            bound_repository_reference(
+                binding,
+                lookup.repository_id,
+                required_when_unbound=False,
+            )
+            status = await self.get_repository_status(
+                binding.project_id,
+                binding=binding,
+            )
+            require_accepted_binding(status.freshness.get("binding", {}))
+            repository = status.repository
+            if repository is None or not repository.snapshot_id:
+                raise RuntimeError(
+                    "CodeMesh accepted a repository binding without an active snapshot."
+                )
+            lookup = lookup.model_copy(update={"repository_id": repository.snapshot_id})
+        else:
+            lookup = await self._resolve_node_lookup_repository(lookup)
         node = await self._get_node_properties(lookup.node_id, lookup.repository_id)
         if node is None or not _matches_repository(node, lookup.repository_id):
             return NodeResponse()
@@ -392,7 +442,19 @@ class CodeMeshReadStore:
         )
         return NodeResponse(relationships=relationships)
 
-    async def list_repositories(self, limit: int = 50) -> RepositoryListResponse:
+    async def list_repositories(
+        self,
+        limit: int = 50,
+        binding: RepositoryBinding | None = None,
+    ) -> RepositoryListResponse:
+        if binding is not None:
+            repository = await self._content.get_bound_repository(
+                binding.project_id,
+                binding.checkout_id,
+            )
+            return RepositoryListResponse(
+                repositories=[repository] if repository is not None else []
+            )
         return await self._content.list_repositories(limit)
 
     async def get_repository(self, repository_id: str) -> RepositorySummary | None:
@@ -455,24 +517,45 @@ class CodeMeshReadStore:
         return await self._content.list_ingestion_runs(repository_id, limit)
 
     async def get_repository_status(
-        self, repository_id: str
+        self,
+        repository_id: str,
+        binding: RepositoryBinding | None = None,
     ) -> RepositoryStatusResponse:
-        repository = await self.get_repository(repository_id)
+        resolved_reference = bound_repository_reference(
+            binding,
+            repository_id,
+            required_when_unbound=True,
+        )
+        repository = (
+            await self._content.get_bound_repository(
+                binding.project_id,
+                binding.checkout_id,
+            )
+            if binding is not None
+            else await self.get_repository(resolved_reference or repository_id)
+        )
         if repository is None:
+            freshness = {
+                "status": "missing",
+                "is_stale": None,
+                "detail": "Repository was not found in the CodeMesh registry.",
+            }
+            if binding is not None:
+                freshness["binding"] = assess_binding(binding, None, freshness)
             return RepositoryStatusResponse(
-                repository_id=repository_id,
-                freshness={
-                    "status": "missing",
-                    "is_stale": None,
-                    "detail": "Repository was not found in the CodeMesh registry.",
-                },
+                repository_id=resolved_reference or repository_id,
+                freshness=freshness,
                 refresh=_refresh_status(None),
             )
 
         runs = await self.list_ingestion_runs(repository.repository_id, limit=1)
         latest_run = runs.runs[0] if runs.runs else None
-        summary_coverage = await self.get_summary_coverage(repository.repository_id)
+        summary_coverage = await self.get_summary_coverage(
+            repository.snapshot_id or repository.repository_id
+        )
         freshness = await asyncio.to_thread(_repository_freshness, repository)
+        if binding is not None:
+            freshness["binding"] = assess_binding(binding, repository, freshness)
 
         return RepositoryStatusResponse(
             repository_id=repository.repository_id,
@@ -774,7 +857,7 @@ class CodeMeshReadStore:
         )
 
     async def _search_lexical_context(self, query: ContextQuery) -> list[ContextHit]:
-        search_text = query.query.casefold()
+        search_text = query.query
         kinds = [kind.casefold() for kind in query.kinds]
         candidate_limit = min(max(query.limit * 4, 16), 200)
         raw_limit = min(max(query.limit * 16, 64), 500)
@@ -917,22 +1000,42 @@ def _repository_freshness(repository: RepositorySummary) -> dict[str, Any]:
         "snapshotId"
     )
     observed_snapshot_id = repository.metadata.get("observedSnapshotId")
+    indexed_working_tree_dirty = _optional_bool(
+        repository.metadata.get("workingTreeDirty")
+    )
     git = _git_snapshot(root_path)
 
     if git["available"]:
         current_commit = git.get("current_commit")
         is_dirty = bool(git.get("working_tree_dirty"))
         commit_mismatch = bool(indexed_commit and indexed_commit != current_commit)
-        source_view_mismatch = (
+        snapshot_mismatch = (
             observed_snapshot_id != selected_snapshot_id
             if observed_snapshot_id and selected_snapshot_id
             else None
         )
+        dirty_state_mismatch = (
+            indexed_working_tree_dirty != is_dirty
+            if indexed_working_tree_dirty is not None
+            else None
+        )
+        source_view_mismatch = (
+            True
+            if snapshot_mismatch is True or dirty_state_mismatch is True
+            else None
+            if snapshot_mismatch is None and dirty_state_mismatch is None
+            else False
+        )
         if indexed_commit:
-            is_stale = commit_mismatch or is_dirty or source_view_mismatch is True
+            unverifiable_dirty_view = is_dirty or indexed_working_tree_dirty is True
+            is_stale = (
+                commit_mismatch
+                or unverifiable_dirty_view
+                or source_view_mismatch is True
+            )
             status = "stale" if is_stale else "fresh"
             detail = (
-                "Indexed commit differs from the local checkout or the working tree has uncommitted changes."
+                "Indexed commit, checkout state, or source-view provenance does not match a verifiable clean checkout."
                 if is_stale
                 else "Indexed commit matches the local checkout and the working tree is clean."
             )
@@ -947,7 +1050,9 @@ def _repository_freshness(repository: RepositorySummary) -> dict[str, Any]:
             "selected_snapshot_id": selected_snapshot_id,
             "indexed_source_view_hash": repository.source_view_hash
             or repository.metadata.get("sourceViewHash"),
+            "indexed_working_tree_dirty": indexed_working_tree_dirty,
             "commit_mismatch": commit_mismatch,
+            "dirty_state_mismatch": dirty_state_mismatch,
             "source_view_mismatch": source_view_mismatch,
             "provenance_status": "known" if selected_snapshot_id else "unknown",
             "is_stale": is_stale,
@@ -961,7 +1066,9 @@ def _repository_freshness(repository: RepositorySummary) -> dict[str, Any]:
         "selected_snapshot_id": selected_snapshot_id,
         "indexed_source_view_hash": repository.source_view_hash
         or repository.metadata.get("sourceViewHash"),
+        "indexed_working_tree_dirty": indexed_working_tree_dirty,
         "commit_mismatch": None,
+        "dirty_state_mismatch": None,
         "source_view_mismatch": None,
         "provenance_status": "unavailable",
         "is_stale": None,
@@ -1014,6 +1121,19 @@ def _run_git(root_path: str, *args: str) -> str | None:
         return None
 
     return result.stdout.strip()
+
+
+def _optional_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return None
+    normalized = str(value).strip().casefold()
+    if normalized == "true":
+        return True
+    if normalized == "false":
+        return False
+    return None
 
 
 def _refresh_status(
@@ -1131,6 +1251,30 @@ def _validation_recommendations(
     recommendations: list[dict[str, Any]] = []
     is_codemesh = repository is not None and repository.alias == "code_mesh"
 
+    if any(_is_rust_path(path) for path in file_paths):
+        recommendations.extend(
+            [
+                _validation_command(
+                    "rust-format",
+                    "cargo fmt --all -- --check",
+                    "Check Rust formatting from the repository or workspace root.",
+                    file_paths,
+                ),
+                _validation_command(
+                    "rust-clippy",
+                    "cargo clippy --all-targets --all-features -- -D warnings",
+                    "Run the Rust lint gate for affected targets and features.",
+                    file_paths,
+                ),
+                _validation_command(
+                    "rust-tests",
+                    "cargo test --all-targets --all-features",
+                    "Run Rust tests after native implementation or PyO3 boundary changes.",
+                    file_paths,
+                ),
+            ]
+        )
+
     if not is_codemesh:
         if any(_is_dotnet_path(path) for path in file_paths):
             recommendations.append(
@@ -1233,6 +1377,10 @@ def _validation_applies(identifier: str, path: str) -> bool:
             and _is_deployment_path(path)
         )
         or (identifier == "markdown-dry-run" and _is_markdown_path(path))
+        or (
+            identifier in {"rust-format", "rust-clippy", "rust-tests"}
+            and _is_rust_path(path)
+        )
     )
 
 
@@ -1270,6 +1418,11 @@ def _is_deployment_path(path: str) -> bool:
 def _is_markdown_path(path: str) -> bool:
     lower = path.casefold()
     return lower.endswith(".md") or lower.endswith(".markdown")
+
+
+def _is_rust_path(path: str) -> bool:
+    lower = path.casefold()
+    return lower.endswith(".rs") or lower.endswith("cargo.toml")
 
 
 def _normalize_node(node: dict[str, Any]) -> dict[str, Any]:
@@ -1786,6 +1939,8 @@ def _lexical_score(node: dict[str, Any], search_text: str) -> float:
     if not search_text:
         return 0.5
 
+    normalized_search_text = search_text.casefold()
+
     fields = [
         str(node.get("id") or "").casefold(),
         str(node.get("stableKey") or "").casefold(),
@@ -1793,11 +1948,11 @@ def _lexical_score(node: dict[str, Any], search_text: str) -> float:
         str(node.get("filePath") or "").casefold(),
     ]
 
-    if any(field == search_text for field in fields):
+    if any(field == normalized_search_text for field in fields):
         return 1.0
-    if any(field.startswith(search_text) for field in fields):
+    if any(field.startswith(normalized_search_text) for field in fields):
         return 0.85
-    if any(search_text in field for field in fields):
+    if any(normalized_search_text in field for field in fields):
         return 0.65
 
     terms = lexical_terms(search_text)

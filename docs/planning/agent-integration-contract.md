@@ -2,14 +2,15 @@
 
 Document type: selected product contract and implementation plan
 
-Reviewed: 2026-08-12
+Reviewed: 2026-08-31
 
 This document selects the v1 integration contract for CodeMesh in coding-agent
-hosts. It defines the product behavior that future implementation and evaluation
-must target. The MCP server instructions, manual repository guidance in
-[MCP Setup](../guides/mcp-setup.md), and normal/diagnostic tool profiles are
-implemented. The probe, checkout binding, fail-closed package freshness, and
-installation behavior below are not implemented yet.
+hosts. The MCP server instructions, manual repository guidance in
+[MCP Setup](../guides/mcp-setup.md), normal/diagnostic tool profiles, exact
+checkout binding, fail-closed package freshness, reviewable installation, and
+provider-free probes are implemented in candidate source. Clean-candidate
+verification and configured/onboarded normal-host outcome evaluation remain
+outstanding.
 
 ## Decision
 
@@ -67,10 +68,11 @@ product benefit.
 
 ## Repository-Owned Onboarding
 
-The canonical manual block lives in [MCP Setup](../guides/mcp-setup.md). A future
-installer may add or update only the marked block after showing a reviewable
-diff and receiving explicit owner approval. It must not silently create,
-replace, or rewrite unrelated repository instructions.
+The canonical manual block lives in [MCP Setup](../guides/mcp-setup.md). The
+installer generates a complete hashed plan, and applies only that unchanged
+reviewed plan after its hash is supplied explicitly. It may manage the marked
+guidance block or run in configuration-only mode when another repository owns
+generated guidance. It does not silently replace unrelated instructions.
 
 Repository guidance is the portable contract. Host-specific hooks may display
 freshness warnings or reminders, but correctness must not depend on a hook that
@@ -98,22 +100,21 @@ only through the explicit administrative REST and Python CLI surfaces.
 
 ## Checkout And Freshness Behavior
 
-The integration must bind a host configuration to a stable project and checkout
-identity or a unique repository alias. It must fail clearly when selection is
-missing or ambiguous rather than using whichever indexed repository looks most
-recent.
+The normal MCP integration binds host configuration to an exact project,
+checkout, repository root, and optional source-view hash. It fails clearly when
+selection is missing, wrong, ambiguous, dirty, or stale rather than using
+whichever indexed repository looks most recent.
 
-Freshness is a server-side acceptance condition. Before returning task context
-as trustworthy, CodeMesh must compare the configured checkout and source state
-with the active indexed snapshot and expose the result in the response. A hook
-or client warning may improve visibility, but it cannot convert stale data into
-accepted evidence.
+Freshness is a server-side acceptance condition. Before returning task context,
+CodeMesh compares the configured checkout and source state with the active
+indexed snapshot and exposes the assessment in the response. Client warnings
+cannot convert stale data into accepted evidence.
 
 ## Live Runtime Probe
 
 Static configuration validation and manifest printing are insufficient because
 they do not prove that the configured process can initialize in the target
-environment. The planned probe must:
+environment. The implemented positive probe:
 
 1. launch the exact stdio command and working directory used by the host;
 2. complete MCP initialization and inspect the server instructions;
@@ -122,8 +123,10 @@ environment. The planned probe must:
 5. resolve the configured repository without ambiguity; and
 6. confirm current checkout and snapshot freshness.
 
-It must exit nonzero with a specific diagnostic when any required condition
-fails. The probe must be provider-free and must not invoke a paid model.
+It exits nonzero with a specific diagnostic when any required condition fails.
+The companion rejection probe launches the same normal profile with an unsafe
+binding and proves that it fails closed. Both probes force provider mode to
+`none` and do not invoke a paid model.
 
 ## Evaluation Classification
 
@@ -148,16 +151,18 @@ requirements, and summary-free live gate remain unchanged.
 
 ## Completion Gates
 
-Complete the integration in this order:
+Complete the product-evidence sequence in this order:
 
 1. retain the canonical manual onboarding block and its opt-in boundary;
 2. maintain the implemented normal-user and diagnostic tool profiles;
-3. implement unambiguous checkout binding and fail-closed freshness behavior;
-4. implement the provider-free live runtime probe;
-5. pass deterministic contracts and a clean summary-free live gate; and
+3. maintain the implemented exact checkout binding and fail-closed freshness;
+4. maintain the implemented provider-free positive and rejection probes;
+5. from a clean committed candidate, repeat deterministic contracts, the clean
+   summary-free live gate, and the frozen one|nine pilot gate; and
 6. with explicit model-spend authorization, run a configured/onboarded campaign
    using the shipped integration unchanged.
 
-Do not claim the v1 integration complete from documentation, static manifests,
-fixtures, configured CI, or an MCP process that starts without passing these
-gates.
+The bounded one|nine path has passed its local provider-free pilot gates from an
+uncommitted working tree. Do not claim configured/onboarded product benefit from
+documentation, static manifests, fixtures, configured CI, or an MCP process
+that starts without the clean-candidate and agent-outcome gates.

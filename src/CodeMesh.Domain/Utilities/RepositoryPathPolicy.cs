@@ -25,6 +25,7 @@ public static class RepositoryPathPolicy
         "dist",
         "node_modules",
         "obj",
+        "target",
         "venv"
     };
 
