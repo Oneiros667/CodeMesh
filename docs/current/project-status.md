@@ -190,10 +190,18 @@ separate authorization for the model-cost-bearing paired campaign. A passing
 preflight proves configuration and runtime identity, not normal-agent adoption
 or product benefit.
 
+At clean local candidate `de239b7`, all 120 Python tests, Ruff checks, the five-
+case fixture suite, documentation standards, and the frozen six-case, 18-call
+YoutubeDownloader live gate passed provider-free. Primary was not repointed or
+re-indexed: its clean checkout had advanced to `499ae263`, while the retained
+snapshot remains pinned to `e12d0281`, so freshness was correctly stale and the
+configured one|nine preflight was not run. The bounded record is
+[configured evaluator candidate evidence](../evaluation/evidence/configured-evaluator-preflight-de239b7.json).
+
 ## Public Repository And Hosted Evidence
 
 At this review, the public GitHub `main` branch remains at `8e9c0da`, while the
-local checkout is seven commits ahead at configured-evaluator HEAD `3becb88`.
+local configured-evaluator candidate and its documentation remain unpublished.
 The latest hosted baseline-verification success applies to remote `8e9c0da`;
 there is no exact-HEAD hosted workflow evidence for the unpublished local
 commits.
@@ -217,9 +225,9 @@ the security state of the unpublished local commits.
   Kubernetes/Helm ingestion, and broader SDLC intelligence are not implemented.
 - Current source redaction does not replace repository authorization or a
   configurable sensitive-file policy.
-- Hosted workflow success for remote `8e9c0da` is not evidence for the seven
-  unpublished local commits, and an automated scan completing successfully does
-  not resolve or justify its open findings.
+- Hosted workflow success for remote `8e9c0da` is not evidence for unpublished
+  local commits, and an automated scan completing successfully does not resolve
+  or justify its open findings.
 
 ## Status Maintenance
 

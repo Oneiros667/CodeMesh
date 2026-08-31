@@ -49,6 +49,10 @@ next three priorities are:
    repository exploration plus the checkout's existing permitted Graphify
    workflow. Report tool adoption, correctness, safety, elapsed time, tokens,
    fallback behavior, and validation selection.
+   Candidate `de239b7` passed deterministic checks and the frozen
+   YoutubeDownloader gate, but Primary had advanced beyond its retained indexed
+   commit. Select and index the next exact clean Primary candidate and retain a
+   matching reviewed plan before the configured preflight can run.
 2. **Turn measured feedback into bounded improvements.** Review validated
    one|nine feedback and controlled results, select the smallest correction for
    a recurring ranking, relationship, budget, binding, or validation failure,
