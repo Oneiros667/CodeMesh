@@ -102,8 +102,9 @@ a live index.
 
 ## Verification
 
-Use the risk-scaled commands in [Testing](docs/evaluation/testing.md). Current status and
-retained product evidence are summarized in
+Use the supported invocations in [`COMMANDS.md`](COMMANDS.md) and select them
+with the risk-scaled rules in [Testing](docs/evaluation/testing.md). Current
+status and retained product evidence are summarized in
 [Project Status](docs/current/project-status.md); dated results apply only to the
 commits they identify.
 
@@ -117,6 +118,7 @@ commits they identify.
   operator commands.
 - `agent-access`: Python REST, MCP, CLI, ranking, and evaluation surfaces.
 - `tests/CodeMesh.Tests` and `agent-access/tests`: .NET and Python verification.
+- `COMMANDS.md`: supported contributor and coding-agent command index.
 
 Start with [Agent Quickstart](docs/guides/agent-quickstart.md) when working in the
 repository. The [Documentation Hub](docs/README.md) organizes current

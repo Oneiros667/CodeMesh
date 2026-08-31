@@ -10,7 +10,7 @@ readers can tell what CodeMesh does from what it may do later.
 | --- | --- | --- |
 | Evaluating CodeMesh | [`README.md`](../README.md) | [MCP Setup](guides/mcp-setup.md), [Project Status](current/project-status.md) |
 | Using CodeMesh through MCP | [MCP Setup](guides/mcp-setup.md) | [Agent Prompts](guides/agent-prompts.md), [Agent Access Contracts](current/agent-access-contracts.md) |
-| Contributing | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | [Testing](evaluation/testing.md), [Engineering Standards](engineering/standards.md) |
+| Contributing | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | [`COMMANDS.md`](../COMMANDS.md), [Testing](evaluation/testing.md), [Engineering Standards](engineering/standards.md) |
 | Coding agent working in this repository | [Agent Quickstart](guides/agent-quickstart.md) | [`AGENTS.md`](../AGENTS.md), [Architecture](current/architecture.md) |
 | Reviewing product direction | [Project Status](current/project-status.md) | [Next Steps](planning/next-steps.md), then the relevant proposal |
 
@@ -22,16 +22,20 @@ When documents overlap, use this order:
 2. [Agent Access Contracts](current/agent-access-contracts.md) and
    [Architecture](current/architecture.md) describe the current supported surfaces and
    component boundaries.
-3. [Testing](evaluation/testing.md), [MCP Setup](guides/mcp-setup.md), and
-   [Security and Redaction](current/security-and-redaction.md) are current operating
-   guides.
-4. [Project Status](current/project-status.md) records the latest reviewed
+3. [`COMMANDS.md`](../COMMANDS.md) indexes supported repository invocations;
+   [Testing](evaluation/testing.md), [MCP Setup](guides/mcp-setup.md), and
+   [Security and Redaction](current/security-and-redaction.md) are current
+   operating guides.
+4. [Engineering Standards](engineering/standards.md) and the
+   [Software Engineering Methodology](engineering/methodology.md) define
+   contributor policy, evidence states, and authority boundaries.
+5. [Project Status](current/project-status.md) records the latest reviewed
    implementation and evidence position.
-5. [Next Steps](planning/next-steps.md) is the execution-order authority for future
+6. [Next Steps](planning/next-steps.md) is the execution-order authority for future
    product work.
-6. Proposal and roadmap documents describe unimplemented possibilities unless
+7. Proposal and roadmap documents describe unimplemented possibilities unless
    current source and contracts say otherwise.
-7. Dated evidence and publication reviews describe only the commit and time
+8. Dated evidence and publication reviews describe only the commit and time
    they identify.
 
 Document labels have these meanings:
@@ -115,23 +119,30 @@ Document labels have these meanings:
 ### Engineering policy
 
 - [`CONTRIBUTING.md`](../CONTRIBUTING.md) — contribution entry point.
+- [`COMMANDS.md`](../COMMANDS.md) — canonical supported command index.
 - [`SECURITY.md`](../SECURITY.md) — vulnerability reporting and safe operation.
 - [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) — third-party and
   distribution boundaries.
 - [Engineering Standards](engineering/standards.md) — change discipline,
   verification, documentation, and definition of done.
+- [Software Engineering Methodology](engineering/methodology.md) — evidence,
+  authority, guidance placement, and reusable-control admission boundaries.
 - [Conventional Commit Validation](engineering/conventional-commits.md) — local
   commit-message checker.
 - [GitHub Actions Baseline](engineering/github-actions.md) — exact workflow
   scope and evidence boundary.
 - [Markdown Link Checking](engineering/link-checking.md) — deterministic local
   link validation.
+- [Release Notes Template](engineering/release-notes-template.md) — prepared,
+  tagged, published, deployed, and stable-state separation for a future release.
 - [Decision Record Template](decisions/0000-decision-record-template.md) — ADR
   format for implemented architecture decisions.
 
 ## Maintenance Rules
 
-- Keep commands in one canonical guide and link to them elsewhere.
+- Keep supported contributor and agent invocations in the root `COMMANDS.md`;
+  keep ordered operational and evaluation procedures in their controlling
+  guides and link between them.
 - Keep current implementation and evidence in `current/project-status.md`; keep
   future execution order in `planning/next-steps.md`.
 - Mark proposals and historical reviews explicitly near the title.

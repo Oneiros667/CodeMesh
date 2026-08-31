@@ -14,6 +14,8 @@ Before planning larger CodeMesh work, review these repository notes:
 
 - `docs/README.md` is the documentation hub and authority map.
 - `docs/guides/agent-quickstart.md` routes AI agents through the repository.
+- `COMMANDS.md` is the canonical repository command index, while
+  `docs/evaluation/testing.md` defines risk-based check selection.
 - `docs/current/project-status.md` records current implementation and reviewed evidence.
 - `docs/planning/next-steps.md` is the execution-order authority for future product work.
 - `docs/current/architecture.md`, `docs/current/agent-access-contracts.md`, and source/tests
@@ -21,6 +23,8 @@ Before planning larger CodeMesh work, review these repository notes:
 - `docs/evaluation/testing.md`, `docs/current/security-and-redaction.md`, and
   `docs/engineering/standards.md` define verification, safety, and completion
   discipline.
+- `docs/engineering/methodology.md` defines evidence, authority, and
+  reusable-control admission boundaries.
 
 Treat `docs/planning/next-steps.md`,
 `docs/planning/agent-integration-contract.md`,
@@ -38,17 +42,18 @@ Treat `docs/planning/next-steps.md`,
   implemented behavior, passing tests, reviewed evidence, release, deployment,
   and production authority distinct.
 - Do not print `.env` contents, credentials, tokens, private keys, certificates, or local secret values.
-- For implementation changes, run `dotnet run --project tests/CodeMesh.Tests` from the repo root unless clearly irrelevant.
-- For Python Agent Access changes, also run `uv run pytest` from `agent-access`.
+- Use the supported invocations in `COMMANDS.md` and the risk map in
+  `docs/evaluation/testing.md`; do not improvise weaker substitutes for an
+  unavailable required check.
 - For changes crossing .NET/Python contracts, serialization, lifecycle, or
   integration boundaries, run both suites.
-- Use `.\scripts\e2e-smoke.ps1` when changes affect live store wiring, Docker services, repository lifecycle, cleanup, or Agent Access integration.
-- Documentation-only changes usually do not require application tests. Run
-  `npx --yes markdownlint-cli2@0.23.1 "**/*.md"`,
-  `python tools/check_markdown_links.py`, and `git diff --check`.
+- Use the end-to-end smoke path when changes affect live store wiring, Docker
+  services, repository lifecycle, cleanup, or Agent Access integration.
+- Documentation-only changes usually do not require application tests; run the
+  repository standards checks listed in `COMMANDS.md`.
 - Use Conventional Commits for requested commits. Validate a proposed range
-  with `python tools/check_conventional_commit.py --range BASE..HEAD` when
-  relevant; do not install or alter Git hooks implicitly.
+  with the checker listed in `COMMANDS.md` when relevant; do not install or
+  alter Git hooks implicitly.
 - Record consequential implemented architecture decisions under
   `docs/decisions/`; do not use decision records to present planning as current
   behavior.
@@ -60,6 +65,8 @@ Treat `docs/planning/next-steps.md`,
 
 - Update canonical documentation when behavior, commands, contracts, setup,
   architecture, or verified status changes.
+- Use the narrowest truthful evidence state defined in
+  `docs/engineering/methodology.md`; one state never implies a later state.
 - Report passed, failed, skipped, and unavailable checks separately.
 - Review the final diff for accidental or unrelated changes and report the
   final worktree state.

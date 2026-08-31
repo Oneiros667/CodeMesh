@@ -95,6 +95,7 @@ jobs:
           npx --yes markdownlint-cli2@0.23.1 "**/*.md"
           python tools/check_markdown_links.py
           python tools/check_publication_safety.py
+          python tools/check_github_workflows.py .github/workflows/baseline-standards.yml
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             python tools/check_conventional_commit.py --message "$PULL_REQUEST_TITLE"
           else

@@ -3,31 +3,24 @@
 Document type: current operating guide
 
 Use this guide to choose the right verification path after CodeMesh changes.
+The supported invocations are indexed in [`COMMANDS.md`](../../COMMANDS.md);
+this guide defines when to use them, plus the gates around end-to-end and
+evaluation procedures.
 
 ## Default Verification Commands
 
-From the repository root:
-
-```powershell
-dotnet restore CodeMesh.sln --locked-mode
-dotnet build CodeMesh.sln --no-restore
-dotnet run --project tests/CodeMesh.Tests --no-restore
-dotnet format CodeMesh.sln --verify-no-changes --no-restore
-```
+Run the [deterministic .NET commands](../../COMMANDS.md#net) from the repository
+root.
 
 Run these .NET commands serially because projects share intermediate output
 directories.
 
-From `agent-access`:
+Run the [Python Agent Access commands](../../COMMANDS.md#python-agent-access)
+from `agent-access`.
 
-```powershell
-uv sync --locked
-uv run --no-sync pytest
-uv run --no-sync ruff check . ../tools
-uv run --no-sync ruff format --check . ../tools
-```
-
-Run both after most implementation changes.
+Run both after changes that cross .NET/Python contracts, serialization,
+lifecycle, integration, or end-to-end boundaries. For a focused change, run
+the affected surface and report why the other suite was not required.
 
 ## .NET Tests
 
@@ -181,13 +174,7 @@ Common variants:
 ## Documentation-Only Changes
 
 Tests are usually not required for documentation-only changes. Run:
-
-```powershell
-npx --yes markdownlint-cli2@0.23.1 "**/*.md"
-python tools/check_markdown_links.py
-python tools/check_publication_safety.py
-git diff --check
-```
+the [repository standards checks](../../COMMANDS.md#repository-standards).
 
 The link and publication-safety checks are local-only and do not print secret
 values.
@@ -215,9 +202,4 @@ deterministic baseline workflow.
 
 ## Useful Health Checks
 
-```powershell
-dotnet run --project src/CodeMesh.Cli -- doctor
-dotnet run --project src/CodeMesh.Cli -- status
-docker compose ps
-Invoke-RestMethod http://127.0.0.1:8088/health
-```
+Use the [local product health commands](../../COMMANDS.md#local-product-health).
