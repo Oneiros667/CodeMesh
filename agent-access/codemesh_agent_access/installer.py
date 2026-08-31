@@ -185,8 +185,7 @@ def load_installation_plan(path: str | Path) -> InstallationPlan:
         files=files,
         plan_hash=str(payload["plan_hash"]),
     )
-    if plan.plan_hash != _plan_hash(plan):
-        raise ValueError("Installation plan hash does not match its contents.")
+    verify_installation_plan(plan)
     return plan
 
 
@@ -203,6 +202,7 @@ def apply_installation_plan(
     plan: InstallationPlan,
     approved_plan_hash: str,
 ) -> list[str]:
+    verify_installation_plan(plan)
     if approved_plan_hash != plan.plan_hash:
         raise ValueError(
             "Approved plan hash does not match the reviewed installation plan."
@@ -233,6 +233,7 @@ def apply_installation_plan(
 
 
 def verify_plan_applied(plan: InstallationPlan) -> None:
+    verify_installation_plan(plan)
     target = Path(plan.target_root).resolve(strict=True)
     for item in plan.files:
         path = (target / item.path).resolve(strict=False)
@@ -241,6 +242,51 @@ def verify_plan_applied(plan: InstallationPlan) -> None:
             raise ValueError(
                 f"Installed file does not match the reviewed plan: {item.path}."
             )
+
+
+def codex_mcp_overrides(
+    plan: InstallationPlan,
+    *,
+    approve_tools: bool = False,
+) -> tuple[str, ...]:
+    """Render the reviewed launch as isolated Codex CLI configuration overrides."""
+    verify_installation_plan(plan)
+    launch = plan.launch
+    if launch.get("profile") != plan.profile:
+        raise ValueError("Installation launch profile does not match the plan profile.")
+    expected_tools = launch.get("expected_tools")
+    if not isinstance(expected_tools, list) or not expected_tools:
+        raise ValueError("Installation plan has no expected MCP tool surface.")
+    command = launch.get("command")
+    args = launch.get("args")
+    cwd = launch.get("cwd")
+    if not isinstance(command, str) or not command:
+        raise ValueError("Installation plan has no MCP launch command.")
+    if not isinstance(args, list) or not all(isinstance(value, str) for value in args):
+        raise ValueError("Installation plan has invalid MCP launch arguments.")
+    if not isinstance(cwd, str) or not cwd:
+        raise ValueError("Installation plan has no MCP launch working directory.")
+
+    prefix = f"mcp_servers.{plan.server_name}"
+    overrides = [
+        f"{prefix}.command={json.dumps(command)}",
+        f"{prefix}.args={json.dumps(args)}",
+        f"{prefix}.cwd={json.dumps(cwd)}",
+        f"{prefix}.required=true",
+        f"{prefix}.startup_timeout_sec=30",
+        f"{prefix}.tool_timeout_sec=60",
+        f"{prefix}.enabled_tools={json.dumps(expected_tools)}",
+        f"{prefix}.env_vars={json.dumps(_FORWARDED_ENVIRONMENT_NAMES)}",
+        f'{prefix}.env={{ CODEMESH_MODEL_PROVIDER = "none" }}',
+    ]
+    if approve_tools:
+        overrides.append(f'{prefix}.default_tools_approval_mode="approve"')
+    return tuple(overrides)
+
+
+def verify_installation_plan(plan: InstallationPlan) -> None:
+    if plan.plan_hash != _plan_hash(plan):
+        raise ValueError("Installation plan hash does not match its contents.")
 
 
 def _config_block(server_name: str, launch: dict[str, Any]) -> str:

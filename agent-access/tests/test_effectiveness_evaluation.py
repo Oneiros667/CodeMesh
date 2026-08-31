@@ -10,12 +10,18 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+import codemesh_agent_access.evaluation.agent as agent_evaluation
+from codemesh_agent_access.binding import RepositoryBinding
 from codemesh_agent_access.evaluation.agent import (
+    AgentEvaluationContext,
     _condition_prompt,
     _grade_answer,
     _grade_command_policy,
+    _prepare_agent_context,
+    _prepare_configured_integration,
     _run_task_condition,
     classify_agent_results,
+    run_agent_evaluation,
 )
 from codemesh_agent_access.evaluation.codex import (
     AgentRunRequest,
@@ -46,6 +52,10 @@ from codemesh_agent_access.evaluation.models import (
     ValidationCommand,
     load_suite,
     suite_json_schema,
+)
+from codemesh_agent_access.installer import (
+    apply_installation_plan,
+    create_installation_plan,
 )
 
 
@@ -140,6 +150,424 @@ def test_suite_models_reject_incomplete_targets_and_change_tasks() -> None:
             task_type="change",
             prompt="fix it",
         )
+
+
+def test_agent_suite_integration_modes_preserve_prompt_contracts() -> None:
+    task = AgentTask(
+        id="answer",
+        description="answer",
+        task_type="answer",
+        prompt="answer",
+        targets=[RetrievalTarget(file_path="src/A.cs")],
+    )
+
+    assert AgentSuite(name="default", tasks=[task]).resolved_integration_mode == (
+        "spontaneous"
+    )
+    assert (
+        AgentSuite(
+            name="assisted",
+            tasks=[task],
+            treatment_guidance="Use CodeMesh first.",
+        ).resolved_integration_mode
+        == "assisted"
+    )
+    configured = AgentSuite(
+        name="configured",
+        tasks=[task],
+        integration_mode="configured",
+        repository_commit="commit:test",
+        baseline_mcp_servers=["graphify"],
+    )
+    assert configured.resolved_integration_mode == "configured"
+    assert configured.baseline_mcp_servers == ["graphify"]
+    assert _condition_prompt(task.prompt, "control", None) == task.prompt
+    assert _condition_prompt(task.prompt, "treatment", None) == task.prompt
+
+    with pytest.raises(ValidationError, match="shipped repository guidance"):
+        AgentSuite(
+            name="invalid-configured",
+            tasks=[task],
+            integration_mode="configured",
+            repository_commit="commit:test",
+            treatment_guidance="Evaluator-only guidance.",
+        )
+    with pytest.raises(ValidationError, match="require evaluator treatment guidance"):
+        AgentSuite(
+            name="invalid-assisted",
+            tasks=[task],
+            integration_mode="assisted",
+        )
+    with pytest.raises(ValidationError, match="pinned repository commit"):
+        AgentSuite(
+            name="unpinned-configured",
+            tasks=[task],
+            integration_mode="configured",
+        )
+    with pytest.raises(ValidationError, match="only by configured suites"):
+        AgentSuite(
+            name="invalid-baseline",
+            tasks=[task],
+            baseline_mcp_servers=["graphify"],
+        )
+    with pytest.raises(ValidationError, match="non-empty and unique"):
+        AgentSuite(
+            name="duplicate-baseline",
+            tasks=[task],
+            integration_mode="configured",
+            repository_commit="commit:test",
+            baseline_mcp_servers=["graphify", "graphify"],
+        )
+    with pytest.raises(ValidationError, match="letters, digits"):
+        AgentSuite(
+            name="invalid-baseline-name",
+            tasks=[task],
+            integration_mode="configured",
+            repository_commit="commit:test",
+            baseline_mcp_servers=["graphify.server"],
+        )
+
+
+def test_agent_context_rejects_dirty_and_stale_candidates(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    tracked = target / "tracked.txt"
+    tracked.write_text("clean\n", encoding="utf-8")
+    _git(target, "init", "--quiet")
+    _git(target, "config", "user.name", "CodeMesh Test")
+    _git(target, "config", "user.email", "codemesh@example.invalid")
+    _git(target, "add", "tracked.txt")
+    _git(target, "commit", "--quiet", "-m", "fixture")
+    base_commit = _git(target, "rev-parse", "HEAD").strip()
+    suite = AgentSuite(
+        name="configured",
+        repository_commit=base_commit,
+        integration_mode="configured",
+        tasks=[
+            AgentTask(
+                id="answer",
+                description="answer",
+                task_type="answer",
+                prompt="answer",
+                targets=[RetrievalTarget(file_path="tracked.txt")],
+            )
+        ],
+    )
+
+    async def stale_preflight(_repository_id: str) -> dict[str, Any]:
+        return {
+            "freshness": {
+                "indexed_commit": "stale",
+                "current_commit": base_commit,
+                "working_tree_dirty": False,
+            }
+        }
+
+    tracked.write_text("dirty\n", encoding="utf-8")
+    with pytest.raises(EvaluationInfrastructureError, match="clean source checkout"):
+        asyncio.run(
+            _prepare_agent_context(
+                suite,
+                repository_root=target,
+                repository_id=None,
+                configured_plan=None,
+                configured_guidance_paths=None,
+                configured_probe_query="query",
+                configured_expected_paths=None,
+                configured_probe_timeout_seconds=30,
+            )
+        )
+
+    tracked.write_text("clean\n", encoding="utf-8")
+    monkeypatch.setattr(agent_evaluation, "get_repository_preflight", stale_preflight)
+    with pytest.raises(EvaluationInfrastructureError, match="indexed commit"):
+        asyncio.run(
+            _prepare_agent_context(
+                suite,
+                repository_root=target,
+                repository_id=None,
+                configured_plan=None,
+                configured_guidance_paths=None,
+                configured_probe_query="query",
+                configured_expected_paths=None,
+                configured_probe_timeout_seconds=30,
+            )
+        )
+
+
+def test_configured_integration_requires_exact_plan_binding_and_probes(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    (target / "AGENTS.md").write_text("# Configured guidance\n", encoding="utf-8")
+    (target / ".codex").mkdir()
+    (target / ".codex" / "config.toml").write_text(
+        "\n".join(
+            [
+                "[mcp_servers.graphify]",
+                'command = "graphify"',
+                'args = ["mcp"]',
+                f'cwd = "{target.as_posix()}"',
+                "required = true",
+                'enabled_tools = ["graphify_search"]',
+                'env_vars = ["GRAPHIFY_URL"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _git(target, "init", "--quiet")
+    _git(target, "config", "user.name", "CodeMesh Test")
+    _git(target, "config", "user.email", "codemesh@example.invalid")
+    _git(target, "add", "AGENTS.md")
+    _git(target, "commit", "--quiet", "-m", "fixture")
+    base_commit = _git(target, "rev-parse", "HEAD").strip()
+    codemesh_root = Path(__file__).resolve().parents[2]
+    binding = RepositoryBinding(
+        "project:test",
+        "checkout:test",
+        str(target),
+        "view:test",
+    )
+    plan = create_installation_plan(
+        target,
+        codemesh_root,
+        binding,
+        include_onboarding=False,
+    )
+    apply_installation_plan(plan, plan.plan_hash)
+    preflight = {
+        "repository_id": "project:test",
+        "repository": {
+            "project_id": "project:test",
+            "checkout_id": "checkout:test",
+            "root_path": str(target),
+            "source_view_hash": "view:test",
+        },
+    }
+
+    async def fake_positive(received_plan: Any, **kwargs: Any) -> dict[str, Any]:
+        assert received_plan == plan
+        assert kwargs["query"] == "configured query"
+        assert kwargs["expected_paths"] == ["src/A.cs"]
+        return {
+            "schema_version": "codemesh-runtime-probe-v1",
+            "passed": True,
+            "provider_mode": "none",
+            "profile": "normal",
+            "server_name": "codemesh",
+            "project_id": "project:test",
+            "checkout_id": "checkout:test",
+            "repository_root": str(target),
+            "snapshot_id": "snapshot:test",
+            "source_view_hash": "view:test",
+            "indexed_commit": base_commit,
+            "current_commit": base_commit,
+            "freshness_status": "fresh",
+            "binding_status": "accepted",
+            "tools": plan.launch["expected_tools"],
+            "context_query": "configured query",
+            "context_item_count": 1,
+            "returned_paths": ["src/A.cs"],
+            "expected_paths": ["src/A.cs"],
+            "duration_ms": 1.5,
+        }
+
+    async def fake_negative(received_plan: Any, **kwargs: Any) -> dict[str, Any]:
+        assert received_plan == plan
+        assert kwargs["checkout_id"].endswith(":codemesh-eval-rejection")
+        assert kwargs["expected_substrings"] == ["checkout"]
+        return {
+            "schema_version": "codemesh-runtime-rejection-probe-v1",
+            "passed": True,
+            "rejected": True,
+            "provider_mode": "none",
+            "profile": "normal",
+            "checkout_id": kwargs["checkout_id"],
+            "expected_substrings": ["checkout"],
+            "diagnostic": "checkout binding rejected",
+            "duration_ms": 1.0,
+        }
+
+    monkeypatch.setattr(agent_evaluation, "run_runtime_probe", fake_positive)
+    monkeypatch.setattr(agent_evaluation, "run_runtime_rejection_probe", fake_negative)
+
+    metadata, control_overrides, treatment_overrides = asyncio.run(
+        _prepare_configured_integration(
+            plan,
+            root=target,
+            base_commit=base_commit,
+            codemesh_root=codemesh_root,
+            preflight=preflight,
+            guidance_paths=["AGENTS.md"],
+            probe_query="configured query",
+            expected_paths=["src/A.cs"],
+            timeout_seconds=30,
+            baseline_mcp_servers=["graphify"],
+        )
+    )
+
+    assert metadata["plan_hash"] == plan.plan_hash
+    assert metadata["profile"] == "normal"
+    assert metadata["guidance"][0]["path"] == "AGENTS.md"
+    assert len(metadata["guidance"][0]["sha256"]) == 64
+    assert len(metadata["positive_probe"]["report_sha256"]) == 64
+    assert "diagnostic" not in metadata["rejection_probe"]
+    assert metadata["baseline_mcp_servers"][0]["name"] == "graphify"
+    assert any("mcp_servers.graphify.command" in value for value in control_overrides)
+    assert not any("mcp_servers.codemesh" in value for value in control_overrides)
+    assert treatment_overrides[: len(control_overrides)] == control_overrides
+    assert any('"--profile", "normal"' in value for value in treatment_overrides)
+    assert any("default_tools_approval_mode" in value for value in treatment_overrides)
+
+    mismatched = json.loads(json.dumps(preflight))
+    mismatched["repository"]["checkout_id"] = "checkout:other"
+    with pytest.raises(EvaluationInfrastructureError, match="checkout"):
+        asyncio.run(
+            _prepare_configured_integration(
+                plan,
+                root=target,
+                base_commit=base_commit,
+                codemesh_root=codemesh_root,
+                preflight=mismatched,
+                guidance_paths=["AGENTS.md"],
+                probe_query="configured query",
+                expected_paths=["src/A.cs"],
+                timeout_seconds=30,
+                baseline_mcp_servers=["graphify"],
+            )
+        )
+
+    (target / ".codex" / "config.toml").write_text(
+        "# changed after review\n", encoding="utf-8"
+    )
+    with pytest.raises(EvaluationInfrastructureError, match="not applied unchanged"):
+        asyncio.run(
+            _prepare_configured_integration(
+                plan,
+                root=target,
+                base_commit=base_commit,
+                codemesh_root=codemesh_root,
+                preflight=preflight,
+                guidance_paths=["AGENTS.md"],
+                probe_query="configured query",
+                expected_paths=["src/A.cs"],
+                timeout_seconds=30,
+                baseline_mcp_servers=["graphify"],
+            )
+        )
+
+
+def test_configured_agent_report_retains_identity_and_prompt_parity(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
+    repository = tmp_path / "repository"
+    (repository / "src").mkdir(parents=True)
+    (repository / "src" / "A.cs").write_text("class A {}\n", encoding="utf-8")
+    _git(repository, "init", "--quiet")
+    _git(repository, "config", "user.name", "CodeMesh Test")
+    _git(repository, "config", "user.email", "codemesh@example.invalid")
+    _git(repository, "add", "src/A.cs")
+    _git(repository, "commit", "--quiet", "-m", "fixture")
+    base_commit = _git(repository, "rev-parse", "HEAD").strip()
+    suite = AgentSuite(
+        name="configured",
+        repository_commit=base_commit,
+        integration_mode="configured",
+        tasks=[
+            AgentTask(
+                id="answer",
+                description="answer",
+                task_type="answer",
+                prompt="Explain A.",
+                targets=[RetrievalTarget(file_path="src/A.cs")],
+            )
+        ],
+    )
+    configured_identity = {
+        "schema_version": "codemesh-configured-agent-integration-v1",
+        "plan_hash": "plan:test",
+        "profile": "normal",
+    }
+    context = AgentEvaluationContext(
+        root=repository,
+        base_commit=base_commit,
+        preflight={"repository_id": "project:test"},
+        freshness={"current_branch": "main"},
+        mcp_cwd=tmp_path,
+        codemesh_root=tmp_path,
+        codemesh_source_commit="codemesh:test",
+        codemesh_source_branch="main",
+        integration_mode="configured",
+        control_mcp_config=(
+            "mcp_servers={}",
+            'mcp_servers.graphify.command="graphify"',
+        ),
+        treatment_mcp_config=('mcp_servers.codemesh.command="uv"',),
+        configured_integration=configured_identity,
+    )
+
+    async def fake_context(*_args: Any, **_kwargs: Any) -> AgentEvaluationContext:
+        return context
+
+    requests: list[AgentRunRequest] = []
+
+    class FakeRunner:
+        async def run(self, request: AgentRunRequest) -> AgentRunResult:
+            requests.append(request)
+            return AgentRunResult(
+                completed=True,
+                exit_code=0,
+                duration_ms=10,
+                final_message=json.dumps(
+                    {
+                        "answer": "A is implemented here.",
+                        "citations": [
+                            {
+                                "file_path": "src/A.cs",
+                                "start_line": 1,
+                                "end_line": 1,
+                                "stable_key": None,
+                            }
+                        ],
+                    }
+                ),
+                usage={"input_tokens": 5, "output_tokens": 2},
+                mcp_calls=(
+                    ["codemesh.codemesh_get_context_package"]
+                    if request.condition == "treatment"
+                    else []
+                ),
+            )
+
+    monkeypatch.setattr(agent_evaluation, "_prepare_agent_context", fake_context)
+    report = asyncio.run(
+        run_agent_evaluation(
+            suite,
+            tmp_path / "suite.json",
+            model="test-model",
+            repetitions=1,
+            output_dir=tmp_path / "artifacts",
+            runner=FakeRunner(),
+        )
+    )
+
+    assert report.metadata["adoption_mode"] == "configured"
+    assert report.metadata["integration_mode"] == "configured"
+    assert report.metadata["prompt_parity"] is True
+    assert report.metadata["treatment_guidance"] is None
+    assert report.metadata["configured_integration"] == configured_identity
+    assert len(requests) == 2
+    assert {request.prompt for request in requests} == {"Explain A."}
+    control = next(request for request in requests if request.condition == "control")
+    treatment = next(
+        request for request in requests if request.condition == "treatment"
+    )
+    assert control.mcp_config == context.control_mcp_config
+    assert treatment.mcp_config == context.treatment_mcp_config
 
 
 def test_ranking_metrics_and_stability_are_deterministic() -> None:

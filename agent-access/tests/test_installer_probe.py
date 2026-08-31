@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+from dataclasses import replace
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -13,6 +14,7 @@ from codemesh_agent_access import probe
 from codemesh_agent_access.binding import RepositoryBinding
 from codemesh_agent_access.installer import (
     apply_installation_plan,
+    codex_mcp_overrides,
     create_installation_plan,
     load_installation_plan,
     verify_plan_applied,
@@ -53,6 +55,21 @@ def test_installation_requires_reviewed_hash_and_preserves_unmanaged_content(
     assert "codemesh:onboarding:start" in (target / "AGENTS.md").read_text(
         encoding="utf-8"
     )
+
+    overrides = codex_mcp_overrides(plan, approve_tools=True)
+    assert f'mcp_servers.codemesh.command="{plan.launch["command"]}"' in overrides
+    assert any('"--profile", "normal"' in value for value in overrides)
+    assert any("env_vars=" in value for value in overrides)
+    assert any('CODEMESH_MODEL_PROVIDER = "none"' in value for value in overrides)
+    assert 'mcp_servers.codemesh.default_tools_approval_mode="approve"' in overrides
+    assert not any("codemesh_delete_repository" in value for value in overrides)
+
+    tampered = replace(
+        plan,
+        launch={**plan.launch, "args": [*plan.launch["args"], "--unexpected"]},
+    )
+    with pytest.raises(ValueError, match="hash does not match"):
+        codex_mcp_overrides(tampered, approve_tools=True)
 
 
 def test_installation_plan_round_trip_and_concurrent_change_rejection(tmp_path) -> None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any, Literal
 
@@ -11,6 +12,7 @@ SCHEMA_VERSION = "1.0"
 MODEL_BENCHMARK_SCHEMA_VERSION = "1.0"
 
 Difficulty = Literal["easy", "medium", "hard"]
+AgentIntegrationMode = Literal["spontaneous", "assisted", "configured"]
 
 
 class RetrievalTarget(BaseModel):
@@ -132,9 +134,56 @@ class AgentSuite(BaseModel):
     repository_id: str = "code_mesh"
     repository_url: str | None = None
     repository_commit: str | None = None
+    integration_mode: AgentIntegrationMode | None = None
+    baseline_mcp_servers: list[str] = Field(default_factory=list)
     treatment_guidance: str | None = None
     tasks: list[AgentTask]
     thresholds: AgentThresholds = Field(default_factory=AgentThresholds)
+
+    @model_validator(mode="after")
+    def validate_integration_mode(self) -> "AgentSuite":
+        if self.integration_mode == "configured" and self.treatment_guidance:
+            raise ValueError(
+                "Configured agent suites must use shipped repository guidance, "
+                "not evaluator-only treatment guidance."
+            )
+        if self.integration_mode == "configured" and not self.repository_commit:
+            raise ValueError(
+                "Configured agent suites require a pinned repository commit."
+            )
+        if self.baseline_mcp_servers and self.integration_mode != "configured":
+            raise ValueError(
+                "Baseline MCP servers can be selected only by configured suites."
+            )
+        normalized_servers = [value.strip() for value in self.baseline_mcp_servers]
+        if any(not value for value in normalized_servers) or len(
+            set(normalized_servers)
+        ) != len(normalized_servers):
+            raise ValueError("Baseline MCP server names must be non-empty and unique.")
+        if any(
+            re.fullmatch(r"[A-Za-z0-9_-]+", value) is None
+            for value in normalized_servers
+        ):
+            raise ValueError(
+                "Baseline MCP server names may contain only letters, digits, "
+                "underscores, and hyphens."
+            )
+        self.baseline_mcp_servers = normalized_servers
+        if self.integration_mode == "assisted" and not self.treatment_guidance:
+            raise ValueError(
+                "Assisted agent suites require evaluator treatment guidance."
+            )
+        if self.integration_mode == "spontaneous" and self.treatment_guidance:
+            raise ValueError(
+                "Spontaneous agent suites cannot include treatment guidance."
+            )
+        return self
+
+    @property
+    def resolved_integration_mode(self) -> AgentIntegrationMode:
+        if self.integration_mode is not None:
+            return self.integration_mode
+        return "assisted" if self.treatment_guidance else "spontaneous"
 
 
 class CriterionWeights(BaseModel):

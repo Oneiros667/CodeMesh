@@ -2,17 +2,27 @@ from __future__ import annotations
 
 import asyncio
 import fnmatch
+import hashlib
 import json
 import random
 import shutil
 import subprocess
 import tempfile
+import tomllib
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from statistics import median
 from time import perf_counter
 from typing import Any, Literal
 
+from ..installer import (
+    InstallationPlan,
+    codex_mcp_overrides,
+    verify_plan_applied,
+)
+from ..mcp import tool_manifest
+from ..probe import RuntimeProbeError, run_runtime_probe, run_runtime_rejection_probe
 from .codex import AgentRunRequest, AgentRunner, CodexRunner, sanitize_text
 from .live import EvaluationInfrastructureError, get_repository_preflight
 from .metrics import target_matches
@@ -49,6 +59,50 @@ _ANSWER_SCHEMA = {
 }
 
 
+@dataclass(frozen=True)
+class AgentEvaluationContext:
+    root: Path
+    base_commit: str
+    preflight: dict[str, Any]
+    freshness: dict[str, Any]
+    mcp_cwd: Path
+    codemesh_root: Path
+    codemesh_source_commit: str
+    codemesh_source_branch: str
+    integration_mode: str
+    control_mcp_config: tuple[str, ...] | None
+    treatment_mcp_config: tuple[str, ...] | None
+    configured_integration: dict[str, Any] | None
+
+
+async def run_agent_preflight(
+    suite: AgentSuite,
+    *,
+    repository_root: str | Path | None = None,
+    repository_id: str | None = None,
+    configured_plan: InstallationPlan | None = None,
+    configured_guidance_paths: list[str] | None = None,
+    configured_probe_query: str = "repository implementation entry points",
+    configured_expected_paths: list[str] | None = None,
+    configured_probe_timeout_seconds: int = 30,
+) -> dict[str, Any]:
+    if suite.resolved_integration_mode != "configured":
+        raise ValueError(
+            "Provider-free agent preflight is available only for configured suites."
+        )
+    context = await _prepare_agent_context(
+        suite,
+        repository_root=repository_root,
+        repository_id=repository_id,
+        configured_plan=configured_plan,
+        configured_guidance_paths=configured_guidance_paths,
+        configured_probe_query=configured_probe_query,
+        configured_expected_paths=configured_expected_paths,
+        configured_probe_timeout_seconds=configured_probe_timeout_seconds,
+    )
+    return _preflight_report(suite, context)
+
+
 async def run_agent_evaluation(
     suite: AgentSuite,
     suite_path: Path,
@@ -65,43 +119,29 @@ async def run_agent_evaluation(
     keep_raw_traces: bool = False,
     keep_workspaces: bool = False,
     runner: AgentRunner | None = None,
+    configured_plan: InstallationPlan | None = None,
+    configured_guidance_paths: list[str] | None = None,
+    configured_probe_query: str = "repository implementation entry points",
+    configured_expected_paths: list[str] | None = None,
+    configured_probe_timeout_seconds: int = 30,
 ) -> AgentReport:
     if repetitions < 1:
         raise ValueError("Agent evaluation requires repetitions >= 1.")
     started = perf_counter()
-    root = _git_root(Path(repository_root) if repository_root else Path.cwd())
-    if _git(root, "status", "--porcelain"):
-        raise EvaluationInfrastructureError(
-            "Agent evaluation requires a clean source checkout so both conditions use the same commit."
-        )
-    base_commit = _git(root, "rev-parse", "HEAD")
-    resolved_repository = repository_id or suite.repository_id
-    preflight = await get_repository_preflight(resolved_repository)
-    freshness = preflight.get("freshness") or {}
-    if (
-        freshness.get("indexed_commit") != base_commit
-        or freshness.get("current_commit") != base_commit
-    ):
-        raise EvaluationInfrastructureError(
-            "The CodeMesh indexed commit, repository checkout, and benchmark base commit must match."
-        )
-    if suite.repository_commit and base_commit != suite.repository_commit:
-        raise EvaluationInfrastructureError(
-            f"Benchmark commit {base_commit!r} does not match the suite's pinned "
-            f"commit {suite.repository_commit!r}."
-        )
-
+    context = await _prepare_agent_context(
+        suite,
+        repository_root=repository_root,
+        repository_id=repository_id,
+        configured_plan=configured_plan,
+        configured_guidance_paths=configured_guidance_paths,
+        configured_probe_query=configured_probe_query,
+        configured_expected_paths=configured_expected_paths,
+        configured_probe_timeout_seconds=configured_probe_timeout_seconds,
+    )
+    root = context.root
+    base_commit = context.base_commit
     codex_runner = runner or CodexRunner(codex_executable)
     rng = random.Random(seed)
-    mcp_cwd = Path(__file__).resolve().parents[2]
-    codemesh_root = _git_root(mcp_cwd)
-    if _git(codemesh_root, "status", "--porcelain"):
-        raise EvaluationInfrastructureError(
-            "Agent evaluation requires a clean CodeMesh tool-source checkout so "
-            "the treatment surface has a frozen commit identity."
-        )
-    codemesh_source_commit = _git(codemesh_root, "rev-parse", "HEAD")
-    codemesh_source_branch = _git(codemesh_root, "rev-parse", "--abbrev-ref", "HEAD")
     destination = (
         Path(output_dir)
         if output_dir
@@ -126,11 +166,16 @@ async def run_agent_evaluation(
                     model=model,
                     local_provider=local_provider,
                     reasoning_effort=reasoning_effort,
-                    mcp_cwd=mcp_cwd,
+                    mcp_cwd=context.mcp_cwd,
                     keep_raw_traces=keep_raw_traces,
                     keep_workspaces=keep_workspaces,
                     runner=codex_runner,
                     artifact_dir=destination,
+                    mcp_config=(
+                        context.treatment_mcp_config
+                        if condition == "treatment"
+                        else context.control_mcp_config
+                    ),
                     treatment_guidance=suite.treatment_guidance,
                 )
                 runs.append(report)
@@ -147,22 +192,26 @@ async def run_agent_evaluation(
         verdict=verdict,
         passed=verdict != "regressed",
         metadata={
-            "repository_id": preflight.get("repository_id") or resolved_repository,
+            "repository_id": context.preflight.get("repository_id")
+            or repository_id
+            or suite.repository_id,
             "base_commit": base_commit,
             "model_provider": local_provider or "default",
             "codex_executable": codex_executable,
-            "current_branch": freshness.get("current_branch"),
+            "current_branch": context.freshness.get("current_branch"),
             "suite_repository_url": suite.repository_url,
             "suite_repository_commit": suite.repository_commit,
             "raw_traces_retained": keep_raw_traces,
             "source_checkout_modified": False,
-            "codemesh_source_commit": codemesh_source_commit,
-            "codemesh_source_branch": codemesh_source_branch,
+            "codemesh_source_commit": context.codemesh_source_commit,
+            "codemesh_source_branch": context.codemesh_source_branch,
             "codemesh_source_checkout_modified": False,
             "classification_requires_codemesh_adoption": True,
-            "adoption_mode": "assisted" if suite.treatment_guidance else "spontaneous",
-            "prompt_parity": suite.treatment_guidance is None,
+            "adoption_mode": context.integration_mode,
+            "integration_mode": context.integration_mode,
+            "prompt_parity": context.integration_mode != "assisted",
             "treatment_guidance": suite.treatment_guidance,
+            "configured_integration": context.configured_integration,
             "artifact_directory": str(destination.resolve()),
         },
         summary=summary,
@@ -172,6 +221,409 @@ async def run_agent_evaluation(
         json.dumps(report.model_dump(mode="json"), indent=2), encoding="utf-8"
     )
     return report
+
+
+async def _prepare_agent_context(
+    suite: AgentSuite,
+    *,
+    repository_root: str | Path | None,
+    repository_id: str | None,
+    configured_plan: InstallationPlan | None,
+    configured_guidance_paths: list[str] | None,
+    configured_probe_query: str,
+    configured_expected_paths: list[str] | None,
+    configured_probe_timeout_seconds: int,
+) -> AgentEvaluationContext:
+    root = _git_root(Path(repository_root) if repository_root else Path.cwd())
+    if _git(root, "status", "--porcelain"):
+        raise EvaluationInfrastructureError(
+            "Agent evaluation requires a clean source checkout so both conditions "
+            "use the same commit."
+        )
+    base_commit = _git(root, "rev-parse", "HEAD")
+    if suite.repository_commit and base_commit != suite.repository_commit:
+        raise EvaluationInfrastructureError(
+            f"Benchmark commit {base_commit!r} does not match the suite's pinned "
+            f"commit {suite.repository_commit!r}."
+        )
+
+    resolved_repository = repository_id or suite.repository_id
+    preflight = await get_repository_preflight(resolved_repository)
+    freshness = preflight.get("freshness") or {}
+    if (
+        freshness.get("indexed_commit") != base_commit
+        or freshness.get("current_commit") != base_commit
+        or freshness.get("working_tree_dirty") is True
+    ):
+        raise EvaluationInfrastructureError(
+            "The CodeMesh indexed commit, clean repository checkout, and benchmark "
+            "base commit must match."
+        )
+
+    mcp_cwd = Path(__file__).resolve().parents[2]
+    codemesh_root = _git_root(mcp_cwd)
+    if _git(codemesh_root, "status", "--porcelain"):
+        raise EvaluationInfrastructureError(
+            "Agent evaluation requires a clean CodeMesh tool-source checkout so "
+            "the treatment surface has a frozen commit identity."
+        )
+    codemesh_source_commit = _git(codemesh_root, "rev-parse", "HEAD")
+    codemesh_source_branch = _git(codemesh_root, "rev-parse", "--abbrev-ref", "HEAD")
+    integration_mode = suite.resolved_integration_mode
+    configured_integration: dict[str, Any] | None = None
+    control_mcp_config: tuple[str, ...] | None = None
+    treatment_mcp_config: tuple[str, ...] | None = None
+    if integration_mode == "configured":
+        if not suite.repository_commit:
+            raise EvaluationInfrastructureError(
+                "Configured agent evaluation requires a pinned repository commit."
+            )
+        if configured_plan is None:
+            raise EvaluationInfrastructureError(
+                "Configured agent evaluation requires a reviewed installation plan."
+            )
+        (
+            configured_integration,
+            control_mcp_config,
+            treatment_mcp_config,
+        ) = await _prepare_configured_integration(
+            configured_plan,
+            root=root,
+            base_commit=base_commit,
+            codemesh_root=codemesh_root,
+            preflight=preflight,
+            guidance_paths=configured_guidance_paths,
+            probe_query=configured_probe_query,
+            expected_paths=configured_expected_paths,
+            timeout_seconds=configured_probe_timeout_seconds,
+            baseline_mcp_servers=suite.baseline_mcp_servers,
+        )
+    elif configured_plan is not None:
+        raise EvaluationInfrastructureError(
+            "An installation plan can be used only by a configured agent suite."
+        )
+
+    return AgentEvaluationContext(
+        root=root,
+        base_commit=base_commit,
+        preflight=preflight,
+        freshness=freshness,
+        mcp_cwd=mcp_cwd,
+        codemesh_root=codemesh_root,
+        codemesh_source_commit=codemesh_source_commit,
+        codemesh_source_branch=codemesh_source_branch,
+        integration_mode=integration_mode,
+        control_mcp_config=control_mcp_config,
+        treatment_mcp_config=treatment_mcp_config,
+        configured_integration=configured_integration,
+    )
+
+
+async def _prepare_configured_integration(
+    plan: InstallationPlan,
+    *,
+    root: Path,
+    base_commit: str,
+    codemesh_root: Path,
+    preflight: dict[str, Any],
+    guidance_paths: list[str] | None,
+    probe_query: str,
+    expected_paths: list[str] | None,
+    timeout_seconds: int,
+    baseline_mcp_servers: list[str],
+) -> tuple[dict[str, Any], tuple[str, ...], tuple[str, ...]]:
+    if timeout_seconds < 1:
+        raise ValueError("Configured probe timeout must be positive.")
+    if plan.profile != "normal":
+        raise EvaluationInfrastructureError(
+            "Configured agent evaluation requires the shipped normal MCP profile."
+        )
+    try:
+        target_root = Path(plan.target_root).expanduser().resolve(strict=True)
+        plan_codemesh_root = Path(plan.codemesh_root).expanduser().resolve(strict=True)
+        verify_plan_applied(plan)
+        codemesh_config = codex_mcp_overrides(plan, approve_tools=True)
+    except (OSError, ValueError) as exc:
+        raise EvaluationInfrastructureError(
+            f"Configured installation plan is not applied unchanged: {exc}"
+        ) from exc
+    if target_root != root:
+        raise EvaluationInfrastructureError(
+            "Configured installation target does not match the benchmark checkout."
+        )
+    if plan_codemesh_root != codemesh_root:
+        raise EvaluationInfrastructureError(
+            "Configured installation does not use the current CodeMesh tool source."
+        )
+
+    binding = plan.binding
+    source_view_hash = str(binding.get("source_view_hash") or "")
+    if not source_view_hash:
+        raise EvaluationInfrastructureError(
+            "Configured agent evaluation requires an exact source-view binding."
+        )
+    repository = preflight.get("repository") or {}
+    expected_project = repository.get("project_id") or preflight.get("repository_id")
+    checks = {
+        "project": binding.get("project_id") == expected_project,
+        "checkout": binding.get("checkout_id") == repository.get("checkout_id"),
+        "root": _same_path(str(binding.get("repository_root") or ""), root),
+        "registered_root": _same_path(str(repository.get("root_path") or ""), root),
+        "source_view": source_view_hash == repository.get("source_view_hash"),
+    }
+    failed = sorted(name for name, passed in checks.items() if not passed)
+    if failed:
+        raise EvaluationInfrastructureError(
+            "Configured installation binding does not match repository preflight: "
+            + ", ".join(failed)
+            + "."
+        )
+
+    expected_tools = sorted(
+        item["name"] for item in tool_manifest(profile="normal")["tools"]
+    )
+    if (
+        sorted(str(value) for value in plan.launch.get("expected_tools", []))
+        != expected_tools
+    ):
+        raise EvaluationInfrastructureError(
+            "Configured installation tool surface is not the shipped normal profile."
+        )
+    guidance = _guidance_identities(root, guidance_paths or ["AGENTS.md"])
+    baseline_config, baseline_identities = _baseline_mcp_overrides(
+        plan, baseline_mcp_servers
+    )
+    treatment_config = (*baseline_config, *codemesh_config)
+
+    wrong_checkout = f"{binding['checkout_id']}:codemesh-eval-rejection"
+    try:
+        positive = await run_runtime_probe(
+            plan,
+            timeout_seconds=timeout_seconds,
+            query=probe_query,
+            expected_paths=expected_paths or [],
+        )
+        negative = await run_runtime_rejection_probe(
+            plan,
+            timeout_seconds=timeout_seconds,
+            checkout_id=wrong_checkout,
+            expected_substrings=["checkout"],
+        )
+    except (OSError, ValueError, RuntimeProbeError) as exc:
+        raise EvaluationInfrastructureError(
+            f"Configured installation probe failed: {exc}"
+        ) from exc
+    if (
+        positive.get("indexed_commit") != base_commit
+        or positive.get("current_commit") != base_commit
+        or positive.get("source_view_hash") != source_view_hash
+        or positive.get("binding_status") != "accepted"
+    ):
+        raise EvaluationInfrastructureError(
+            "Configured runtime probe identity does not match the benchmark candidate."
+        )
+    if negative.get("passed") is not True or negative.get("rejected") is not True:
+        raise EvaluationInfrastructureError(
+            "Configured rejection probe did not prove fail-closed checkout binding."
+        )
+
+    installation_files = [
+        {"path": item.path, "sha256": item.new_sha256} for item in plan.files
+    ]
+    metadata = {
+        "schema_version": "codemesh-configured-agent-integration-v1",
+        "plan_hash": plan.plan_hash,
+        "plan_schema_version": plan.schema_version,
+        "server_name": plan.server_name,
+        "profile": plan.profile,
+        "binding": dict(binding),
+        "launch_sha256": _identity_hash(plan.launch),
+        "installation_files": installation_files,
+        "guidance": guidance,
+        "baseline_mcp_servers": baseline_identities,
+        "positive_probe": _probe_identity(positive),
+        "rejection_probe": _probe_identity(negative),
+    }
+    return metadata, baseline_config, treatment_config
+
+
+def _preflight_report(
+    suite: AgentSuite, context: AgentEvaluationContext
+) -> dict[str, Any]:
+    return {
+        "schema_version": "codemesh-agent-preflight-v1",
+        "passed": True,
+        "suite": suite.name,
+        "integration_mode": context.integration_mode,
+        "prompt_parity": context.integration_mode != "assisted",
+        "repository_id": context.preflight.get("repository_id") or suite.repository_id,
+        "base_commit": context.base_commit,
+        "current_branch": context.freshness.get("current_branch"),
+        "codemesh_source_commit": context.codemesh_source_commit,
+        "codemesh_source_branch": context.codemesh_source_branch,
+        "configured_integration": context.configured_integration,
+    }
+
+
+def _guidance_identities(root: Path, paths: list[str]) -> list[dict[str, str]]:
+    identities: list[dict[str, str]] = []
+    for value in paths:
+        relative = Path(value)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise EvaluationInfrastructureError(
+                f"Configured guidance path must be repository-relative: {value}."
+            )
+        path = (root / relative).resolve(strict=False)
+        if root != path and root not in path.parents:
+            raise EvaluationInfrastructureError(
+                f"Configured guidance path escapes the repository: {value}."
+            )
+        if not path.is_file():
+            raise EvaluationInfrastructureError(
+                f"Configured guidance file does not exist: {relative.as_posix()}."
+            )
+        tracked = _run_command(
+            [
+                "git",
+                "-C",
+                str(root),
+                "ls-files",
+                "--error-unmatch",
+                "--",
+                relative.as_posix(),
+            ],
+            timeout=30,
+        )
+        if tracked.returncode != 0:
+            raise EvaluationInfrastructureError(
+                f"Configured guidance must be committed: {relative.as_posix()}."
+            )
+        identities.append(
+            {
+                "path": relative.as_posix(),
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            }
+        )
+    if not identities:
+        raise EvaluationInfrastructureError(
+            "Configured agent evaluation requires at least one guidance file."
+        )
+    return identities
+
+
+def _baseline_mcp_overrides(
+    plan: InstallationPlan, server_names: list[str]
+) -> tuple[tuple[str, ...], list[dict[str, Any]]]:
+    overrides = ["mcp_servers={}"]
+    if not server_names:
+        return tuple(overrides), []
+    config_file = next(
+        (item for item in plan.files if item.path == ".codex/config.toml"), None
+    )
+    if config_file is None:
+        raise EvaluationInfrastructureError(
+            "Configured installation plan does not manage .codex/config.toml."
+        )
+    try:
+        payload = tomllib.loads(config_file.content)
+    except tomllib.TOMLDecodeError as exc:
+        raise EvaluationInfrastructureError(
+            f"Configured installation contains invalid Codex configuration: {exc}"
+        ) from exc
+    servers = payload.get("mcp_servers")
+    if not isinstance(servers, dict):
+        raise EvaluationInfrastructureError(
+            "Configured installation contains no MCP server table."
+        )
+
+    identities: list[dict[str, Any]] = []
+    allowed_fields = {
+        "command",
+        "args",
+        "cwd",
+        "required",
+        "startup_timeout_sec",
+        "tool_timeout_sec",
+        "enabled_tools",
+        "disabled_tools",
+        "env_vars",
+    }
+    for name in server_names:
+        if name == plan.server_name:
+            raise EvaluationInfrastructureError(
+                "The configured CodeMesh server cannot also be a control baseline."
+            )
+        config = servers.get(name)
+        if not isinstance(config, dict):
+            raise EvaluationInfrastructureError(
+                f"Configured baseline MCP server is missing: {name}."
+            )
+        unsupported = sorted(set(config) - allowed_fields - {"env"})
+        if unsupported:
+            raise EvaluationInfrastructureError(
+                f"Baseline MCP server '{name}' uses unsupported field(s): "
+                + ", ".join(unsupported)
+                + "."
+            )
+        if config.get("env"):
+            raise EvaluationInfrastructureError(
+                f"Baseline MCP server '{name}' embeds environment values; use "
+                "env_vars names instead."
+            )
+        if not isinstance(config.get("command"), str) or not config["command"]:
+            raise EvaluationInfrastructureError(
+                f"Baseline MCP server '{name}' has no launch command."
+            )
+        prefix = f"mcp_servers.{name}"
+        for key in sorted(allowed_fields):
+            if key not in config:
+                continue
+            overrides.append(f"{prefix}.{key}={_toml_override(config[key])}")
+        overrides.append(f'{prefix}.default_tools_approval_mode="approve"')
+        identities.append(
+            {
+                "name": name,
+                "configuration_sha256": _identity_hash(config),
+                "enabled_tools": list(config.get("enabled_tools") or []),
+                "env_vars": list(config.get("env_vars") or []),
+            }
+        )
+    return tuple(overrides), identities
+
+
+def _toml_override(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (str, int, float, list, dict)):
+        return json.dumps(value, separators=(",", ":"))
+    raise EvaluationInfrastructureError(
+        f"Unsupported MCP configuration value type: {type(value).__name__}."
+    )
+
+
+def _probe_identity(report: dict[str, Any]) -> dict[str, Any]:
+    stable = {
+        key: value
+        for key, value in report.items()
+        if key not in {"diagnostic", "duration_ms"}
+    }
+    return {**stable, "report_sha256": _identity_hash(stable)}
+
+
+def _identity_hash(value: Any) -> str:
+    encoded = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _same_path(value: str, expected: Path) -> bool:
+    if not value:
+        return False
+    return Path(value).expanduser().resolve(strict=False) == expected
 
 
 async def _run_task_condition(

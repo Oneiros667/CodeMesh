@@ -217,7 +217,7 @@ def main() -> None:
         "agent", help="Run paired agent tasks with and without CodeMesh."
     )
     agent_eval_parser.add_argument("--suite", default="codemesh-agent")
-    agent_eval_parser.add_argument("--model", required=True)
+    agent_eval_parser.add_argument("--model")
     agent_eval_parser.add_argument("--local-provider", choices=["lmstudio", "ollama"])
     agent_eval_parser.add_argument("--codex-executable", default="codex")
     agent_eval_parser.add_argument("--reasoning-effort", default="medium")
@@ -228,6 +228,36 @@ def main() -> None:
     agent_eval_parser.add_argument("--output-dir")
     agent_eval_parser.add_argument("--keep-raw-traces", action="store_true")
     agent_eval_parser.add_argument("--keep-workspaces", action="store_true")
+    agent_eval_parser.add_argument(
+        "--configured-plan",
+        help="Reviewed and applied installation plan for a configured suite.",
+    )
+    agent_eval_parser.add_argument(
+        "--configured-guidance-path",
+        action="append",
+        default=[],
+        help="Committed repository guidance file to identify (default: AGENTS.md).",
+    )
+    agent_eval_parser.add_argument(
+        "--configured-probe-query",
+        default="repository implementation entry points",
+    )
+    agent_eval_parser.add_argument(
+        "--configured-expected-path",
+        action="append",
+        default=[],
+    )
+    agent_eval_parser.add_argument(
+        "--configured-probe-timeout-seconds",
+        type=int,
+        default=30,
+    )
+    agent_eval_parser.add_argument(
+        "--preflight-only",
+        action="store_true",
+        help="Verify configured identity and positive/rejection probes without a model.",
+    )
+    agent_eval_parser.add_argument("--preflight-output")
 
     model_eval_parser = eval_modes.add_parser(
         "model", help="Benchmark a model on CodeMesh query and change scenarios."
@@ -622,6 +652,40 @@ def main() -> None:
 
             if args.eval_mode == "agent":
                 suite, suite_path = evaluation.load_suite(args.suite, "agent")
+                configured_plan = (
+                    load_installation_plan(args.configured_plan)
+                    if args.configured_plan
+                    else None
+                )
+                configured_options = {
+                    "configured_plan": configured_plan,
+                    "configured_guidance_paths": args.configured_guidance_path or None,
+                    "configured_probe_query": args.configured_probe_query,
+                    "configured_expected_paths": args.configured_expected_path,
+                    "configured_probe_timeout_seconds": (
+                        args.configured_probe_timeout_seconds
+                    ),
+                }
+                if args.preflight_only:
+                    report = asyncio.run(
+                        evaluation.run_agent_preflight(
+                            suite,
+                            repository_root=args.repository_root,
+                            repository_id=args.repository_id,
+                            **configured_options,
+                        )
+                    )
+                    payload = json.dumps(report, indent=2)
+                    if args.preflight_output:
+                        output_path = Path(args.preflight_output)
+                        output_path.parent.mkdir(parents=True, exist_ok=True)
+                        output_path.write_text(payload + "\n", encoding="utf-8")
+                    print(payload)
+                    return
+                if not args.model:
+                    raise ValueError(
+                        "eval agent requires --model <id> unless --preflight-only is used."
+                    )
                 report = asyncio.run(
                     evaluation.run_agent_evaluation(
                         suite,
@@ -637,6 +701,7 @@ def main() -> None:
                         output_dir=args.output_dir,
                         keep_raw_traces=args.keep_raw_traces,
                         keep_workspaces=args.keep_workspaces,
+                        **configured_options,
                     )
                 )
                 print(json.dumps(report.model_dump(mode="json"), indent=2))

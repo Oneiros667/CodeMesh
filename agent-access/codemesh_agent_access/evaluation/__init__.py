@@ -1,4 +1,4 @@
-from .agent import run_agent_evaluation
+from .agent import run_agent_evaluation, run_agent_preflight
 from .benchmark import (
     compare_model_reports,
     finalize_model_report,
@@ -30,6 +30,7 @@ __all__ = [
     "finalize_model_report",
     "load_suite",
     "run_agent_evaluation",
+    "run_agent_preflight",
     "run_live_evaluation",
     "run_model_benchmark",
     "run_mcp_evaluations",

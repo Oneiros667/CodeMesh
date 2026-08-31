@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from types import SimpleNamespace
 from typing import Any
 
 from codemesh_agent_access import cli
@@ -344,6 +345,59 @@ def test_cli_uses_normal_mcp_profile_by_default(monkeypatch: Any, tmp_path) -> N
     assert captured["profile"] == "normal"
     assert captured["binding"].project_id == "project:test"
     assert captured["binding"].checkout_id == "checkout:test"
+
+
+def test_cli_runs_configured_agent_preflight_without_model(
+    monkeypatch: Any, capsys: Any, tmp_path
+) -> None:
+    captured: dict[str, Any] = {}
+    suite = SimpleNamespace(kind="agent", name="configured")
+    plan = object()
+
+    def fake_load_suite(value: str, kind: str) -> tuple[Any, Any]:
+        assert value == "configured-suite.json"
+        assert kind == "agent"
+        return suite, tmp_path / "configured-suite.json"
+
+    async def fake_preflight(received_suite: Any, **kwargs: Any) -> dict[str, Any]:
+        captured["suite"] = received_suite
+        captured.update(kwargs)
+        return {
+            "schema_version": "codemesh-agent-preflight-v1",
+            "passed": True,
+            "integration_mode": "configured",
+        }
+
+    monkeypatch.setattr(cli.evaluation, "load_suite", fake_load_suite)
+    monkeypatch.setattr(cli, "load_installation_plan", lambda _path: plan)
+    monkeypatch.setattr(cli.evaluation, "run_agent_preflight", fake_preflight)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "codemesh-agent-access",
+            "eval",
+            "agent",
+            "--suite",
+            "configured-suite.json",
+            "--configured-plan",
+            "plan.json",
+            "--configured-guidance-path",
+            "AGENTS.md",
+            "--configured-expected-path",
+            "src/A.py",
+            "--preflight-only",
+        ],
+    )
+
+    cli.main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["passed"] is True
+    assert captured["suite"] is suite
+    assert captured["configured_plan"] is plan
+    assert captured["configured_guidance_paths"] == ["AGENTS.md"]
+    assert captured["configured_expected_paths"] == ["src/A.py"]
 
 
 def test_cli_filter_requires_key_value_pair(monkeypatch: Any) -> None:
