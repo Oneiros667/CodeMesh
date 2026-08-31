@@ -55,6 +55,10 @@ next three priorities are:
    matching reviewed plan before the positive configured preflight can run. The
    configured preflight has independently proven that it rejects this live stale
    state with explicit candidate identities.
+   The authoritative instance registry also still pins Primary `e12d0281` and
+   detached CodeMesh candidate `ee1d4d9`; deliberately repin both identities and
+   record the new source-view hash only after candidate-selection and local-store
+   mutation are explicitly authorized.
 2. **Turn measured feedback into bounded improvements.** Review validated
    one|nine feedback and controlled results, select the smallest correction for
    a recurring ranking, relationship, budget, binding, or validation failure,

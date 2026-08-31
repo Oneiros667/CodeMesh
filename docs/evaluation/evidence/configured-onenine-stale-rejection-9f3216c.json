@@ -24,6 +24,14 @@
     "rejection_class": "stale-index",
     "configured_preflight_rejected": true
   },
+  "instance_registry": {
+    "repository_commit": "515af59b94926f2dea3e1a5b3d28b0316217c554",
+    "pinned_primary_commit": "e12d0281b687e58c2baac85f771a684df6fa8552",
+    "pinned_codemesh_commit": "ee1d4d9306a5fce2322d624ae17648c82ff0918a",
+    "detached_codemesh_candidate_role": "default oneNine CodeMesh candidate worktree",
+    "registry_matches_active_primary": false,
+    "registry_contains_configured_evaluator_candidate": false
+  },
   "diagnostic_contract": {
     "reported_status": true,
     "reported_indexed_commit": true,
@@ -35,6 +43,7 @@
     "model_provider_invoked": false,
     "installation_plan_loaded": false,
     "reindex_or_repoint_onenine": "not_performed",
+    "candidate_or_binding_registry_repin": "not_performed_requires_explicit_authority",
     "model_backed_agent_evaluation": "not_run_requires_explicit_spend_authority",
     "release": "not_authorized",
     "deployment": "not_authorized",

@@ -205,6 +205,14 @@ source-view identity. All 121 Python tests, Ruff checks, and the fixture suite
 passed after the diagnostic correction. See the
 [one|nine stale-rejection evidence](../evaluation/evidence/configured-onenine-stale-rejection-9f3216c.json).
 
+The instance manager remains clean and pins Primary to `e12d0281` and the
+detached CodeMesh pilot candidate to `ee1d4d9`. Its scripts reject both the
+advanced Primary checkout and an unregistered CodeMesh source override. A
+positive configured preflight therefore requires a deliberate candidate
+selection, provider-free re-index that yields the new source-view identity,
+detached CodeMesh candidate repin, binding-registry update, and newly reviewed
+plan. None of those state changes is implied by the stale-rejection result.
+
 ## Public Repository And Hosted Evidence
 
 At this review, the public GitHub `main` branch remains at `8e9c0da`, while the
