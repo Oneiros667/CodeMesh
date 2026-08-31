@@ -83,6 +83,9 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     independent_assisted_agent, independent_assisted_agent_path = load_suite(
         "config-net-cache-assisted-agent", "agent"
     )
+    onenine_configured_agent, onenine_configured_agent_path = load_suite(
+        "onenine-native-replay-configured-agent", "agent"
+    )
     model, model_path = load_suite("codemesh-model", "model-benchmark")
 
     assert live.name == "codemesh-live"
@@ -106,6 +109,12 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
         independent_assisted_agent.repository_commit
         == independent_live.repository_commit
     )
+    assert onenine_configured_agent.resolved_integration_mode == "configured"
+    assert onenine_configured_agent.repository_commit == (
+        "7e3bc5cd91d87f9e1ced26f9f9f4a8bbdd6bfc96"
+    )
+    assert onenine_configured_agent.treatment_guidance is None
+    assert len(onenine_configured_agent.tasks) == 1
     assert independent_live.repository_url != external_live.repository_url
     assert model.name == "codemesh-model"
     assert len(model.questions) == 24
@@ -120,6 +129,7 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert independent_live_path.is_file()
     assert independent_agent_path.is_file()
     assert independent_assisted_agent_path.is_file()
+    assert onenine_configured_agent_path.is_file()
     assert model_path.is_file()
     assert suite_json_schema("live")["title"] == "LiveSuite"
     assert suite_json_schema("agent")["title"] == "AgentSuite"
