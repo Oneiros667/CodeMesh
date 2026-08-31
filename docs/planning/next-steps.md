@@ -37,12 +37,16 @@ pilot gate are implemented. Priority 1 produced clean candidate `ee1d4d9` and
 passed the full deterministic, summary-free live, and one|nine pilot gates. The
 next three priorities are:
 
-1. **Measure configured/onboarded normal-host use.** With explicit model-spend
-   authority, run pinned one|nine paired tasks through the exact checkout-local
-   normal MCP configuration. Keep control and treatment task prompts identical;
-   compare against ordinary repository exploration plus the checkout's existing
-   permitted Graphify workflow. Report tool adoption, correctness, safety,
-   elapsed time, tokens, fallback behavior, and validation selection.
+1. **Implement and measure configured/onboarded normal-host use.** First extend
+   the paired-agent evaluator to select the reviewed checkout-local `normal` MCP
+   installation unchanged and record the configured integration mode, guidance,
+   profile, binding, plan, and probe identities. This implementation and its
+   deterministic tests remain provider-free. Then, with explicit model-spend
+   authority, run pinned one|nine paired tasks through that exact configuration.
+   Keep control and treatment task prompts identical; compare against ordinary
+   repository exploration plus the checkout's existing permitted Graphify
+   workflow. Report tool adoption, correctness, safety, elapsed time, tokens,
+   fallback behavior, and validation selection.
 2. **Turn measured feedback into bounded improvements.** Review validated
    one|nine feedback and controlled results, select the smallest correction for
    a recurring ranking, relationship, budget, binding, or validation failure,
@@ -91,7 +95,7 @@ execution order above.
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |
-| Evaluation harnesses | Implemented | Maintain fixtures and live gates; run paid agent/model campaigns only with authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
+| Evaluation harnesses | Partial for selected v1 | Existing fixture, live, spontaneous, assisted, and model paths are implemented; add configured/onboarded paired mode before the next paid campaign. | [Evaluation](../evaluation/mcp-effectiveness.md) |
 | Repository identity and snapshots | Local profile implemented | Maintain deterministic identity/slot/retention behavior; shared coordinator, tenant security, and private overlays remain deferred. | [Identity and Snapshot Requirements](repository-identity-and-snapshot-retention.md) |
 | Summary-model qualification | Procedure proposed | Implement the runner and qualify a complete deployment profile before default use. | [Summary Model Qualification](summary-model-qualification.md) |
 | Method load and retrieval granularity | Proposal | Calibrate human-maintainability, tokenizer-bound representation, and agent-context thresholds before exposing advisory findings. | [Method Load And Retrieval Granularity](method-load-and-retrieval-granularity.md) |

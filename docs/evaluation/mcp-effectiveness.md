@@ -42,8 +42,10 @@ The evidence position is summarized in [Project Status](../current/project-statu
 
 Explicit repository onboarding is now the selected v1 product contract; see
 [Agent Integration Contract](../planning/agent-integration-contract.md). The
-current product-proof work is to implement that integration and evaluate the
-exact guidance, tool profile, checkout binding, and setup process shipped to
+checkout-local integration and provider-free probes are implemented and passed
+their clean-candidate gates. The current product-proof work is to extend the
+paired-agent evaluator to represent that configured integration, then evaluate
+the exact guidance, tool profile, checkout binding, and setup process shipped to
 normal users. Preserve the same independent task, prompt, grading targets, and
 control behavior. The retained zero-adoption campaign remains negative
 spontaneous-discovery evidence and must not be rewritten as a transport defect

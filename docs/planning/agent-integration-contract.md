@@ -8,9 +8,9 @@ This document selects the v1 integration contract for CodeMesh in coding-agent
 hosts. The MCP server instructions, manual repository guidance in
 [MCP Setup](../guides/mcp-setup.md), normal/diagnostic tool profiles, exact
 checkout binding, fail-closed package freshness, reviewable installation, and
-provider-free probes are implemented in candidate source. Clean-candidate
-verification and configured/onboarded normal-host outcome evaluation remain
-outstanding.
+provider-free probes are implemented and passed their clean-candidate gates at
+`ee1d4d9`. Configured/onboarded evaluator support and normal-host outcome
+evaluation remain outstanding.
 
 ## Decision
 
@@ -149,6 +149,12 @@ the integration mode and the identities of the installed guidance and selected
 tool profile. The frozen task, grading targets, model settings, clean-checkout
 requirements, and summary-free live gate remain unchanged.
 
+The current paired-agent runner does not satisfy that requirement: it selects
+the historical unbound `diagnostic` profile and records only spontaneous or
+evaluator-assisted modes. Implementing the configured mode and its deterministic
+tests is provider-free work; executing the resulting paired campaign remains
+model-cost-bearing and separately authorized.
+
 ## Completion Gates
 
 Complete the product-evidence sequence in this order:
@@ -159,8 +165,11 @@ Complete the product-evidence sequence in this order:
 4. maintain the implemented provider-free positive and rejection probes;
 5. maintain the clean-candidate deterministic contracts, summary-free live
    gate, and frozen one|nine pilot gate passed at `ee1d4d9`; and
-6. with explicit model-spend authorization, run a configured/onboarded campaign
-   using the shipped integration unchanged.
+6. implement configured/onboarded paired-evaluation mode so the runner uses the
+   reviewed normal-profile installation unchanged and retains its exact
+   integration identities; and
+7. with explicit model-spend authorization, run a configured/onboarded campaign
+   using that shipped integration unchanged.
 
 The bounded one|nine path has passed its clean-candidate provider-free gates.
 Do not claim configured/onboarded product benefit from documentation, static

@@ -6,8 +6,8 @@ Reviewed: 2026-08-31
 
 This document defines the bounded one|nine adoption priority selected in
 [Next Steps](next-steps.md). Its initial implementation and provider-free pilot
-gate passed locally; a clean-candidate repeat remains required. Current behavior
-and evidence remain authoritative in
+gate passed from clean candidate `ee1d4d9`. Current behavior and evidence remain
+authoritative in
 [Project Status](../current/project-status.md); this planning record does not
 establish that CodeMesh improves one|nine agent outcomes.
 

@@ -41,7 +41,7 @@ usability evidence, but is no longer the v1 acceptance contract.
 | Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and .NET, Python, and Rust validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
-| Evaluation | Deterministic fixture, live MCP, paired agent, and model benchmark harnesses implemented. | Paid/model-backed runs require explicit authorization; fixtures prove contracts only. |
+| Evaluation | Deterministic fixture, live MCP, spontaneous/evaluator-assisted paired agent, and model benchmark harnesses implemented. | Configured/onboarded paired mode is not implemented. Paid/model-backed runs require explicit authorization; fixtures prove contracts only. |
 | Generated summaries | Complexity-aware prompts and local/online providers implemented. | No summary deployment profile is CodeMesh-qualified. |
 | Security | Pre-persistence value redaction and generated/cache path exclusions implemented. | Known secret-file exclusion and configurable allow/deny policy remain open. |
 | Repository identity | Stable project/checkout markers, deterministic source snapshots, checkout-current and clean branch-head slots, explicit retained slots, legacy migration, and richer local freshness implemented. | Separate clones attach with explicit `--project-id`; shared-service tenant/authorization/privacy controls remain deferred. |
@@ -179,6 +179,30 @@ explicit authorization, clean committed checkouts, a fresh matching index, and
 report metadata that identifies the shipped guidance and tool profile. Unit and
 contract tests for instructions do not substitute for normal-host evidence.
 
+The existing paired-agent runner cannot yet produce that evidence. It selects
+the historical unbound `diagnostic` profile and classifies runs only as
+spontaneous or evaluator-assisted. Before any paid campaign, extend it to use
+the reviewed checkout-local `normal` installation unchanged and retain the
+integration mode, guidance identity, tool profile, binding, installation-plan
+hash, and runtime-probe identity in the report. This provider-free harness work
+is the first remaining implementation step; running it against a model remains
+a separate spend-authority gate.
+
+## Public Repository And Hosted Evidence
+
+At this review, the public GitHub `main` branch remains at `8e9c0da`, while the
+local checkout is four commits ahead at documentation-only HEAD `96335a1`. The
+latest hosted baseline-verification success applies to remote `8e9c0da`; there
+is no exact-HEAD hosted workflow evidence for the local one|nine pilot commits.
+
+The latest hosted CodeQL workflow completed successfully for remote `8e9c0da`,
+which proves that the scan ran, not that the repository is security-clean.
+GitHub still reports 39 open CodeQL alerts: 3 critical command-line-injection
+alerts and 36 high alerts, comprising 35 path-injection findings and one
+reflected-XSS finding. Dependabot and secret scanning report zero open alerts.
+These hosted findings apply to the published remote state and do not establish
+the security state of the unpublished local commits.
+
 ## Current Boundaries
 
 - Generated summaries remain disabled in the core product-proof baseline.
@@ -190,8 +214,9 @@ contract tests for instructions do not substitute for normal-host evidence.
   Kubernetes/Helm ingestion, and broader SDLC intelligence are not implemented.
 - Current source redaction does not replace repository authorization or a
   configurable sensitive-file policy.
-- The historical publication review is not evidence for commits after its
-  recorded snapshot.
+- Hosted workflow success for remote `8e9c0da` is not evidence for the four
+  unpublished local commits, and an automated scan completing successfully does
+  not resolve or justify its open findings.
 
 ## Status Maintenance
 
