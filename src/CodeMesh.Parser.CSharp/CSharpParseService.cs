@@ -38,7 +38,7 @@ public sealed class CSharpParseService
     public static ParserCapability Capability { get; } = new(
         "codemesh-parser-csharp",
         "csharp",
-        "0.2.0",
+        "0.2.1",
         [".cs", ".csproj", ".sln", ".slnx"],
         ["repositoryRoot", "solutionPath", "projectPath"]);
 
