@@ -34,6 +34,7 @@ from codemesh_agent_access.evaluation.live import (
     EvaluationInfrastructureError,
     McpEvaluationClient,
     _run_live_case,
+    get_repository_preflight,
     get_tool_source_identity,
 )
 from codemesh_agent_access.evaluation.metrics import (
@@ -637,6 +638,53 @@ def test_mcp_client_accepts_structured_payload_and_rejects_non_json() -> None:
     )  # type: ignore[assignment]
     with pytest.raises(EvaluationInfrastructureError):
         asyncio.run(client.call("codemesh_search_context", {}))
+
+
+def test_repository_preflight_stale_diagnostic_retains_candidate_identity(
+    monkeypatch: Any,
+) -> None:
+    class FakeClient:
+        async def __aenter__(self) -> "FakeClient":
+            return self
+
+        async def __aexit__(self, *_args: Any) -> None:
+            return None
+
+        def connect(self) -> "FakeClient":
+            return self
+
+        async def call(
+            self, _tool: str, _arguments: dict[str, Any]
+        ) -> tuple[dict[str, Any], float]:
+            return (
+                {
+                    "data": {
+                        "freshness": {
+                            "status": "stale",
+                            "detail": "Candidate identity does not match.",
+                            "indexed_commit": "indexed:test",
+                            "current_commit": "current:test",
+                            "working_tree_dirty": False,
+                            "indexed_source_view_hash": "view:test",
+                        }
+                    }
+                },
+                1.0,
+            )
+
+    monkeypatch.setattr(
+        "codemesh_agent_access.evaluation.live.McpEvaluationClient",
+        lambda **_kwargs: FakeClient(),
+    )
+
+    with pytest.raises(EvaluationInfrastructureError) as captured:
+        asyncio.run(get_repository_preflight("project:test"))
+
+    diagnostic = str(captured.value)
+    assert "indexed_commit='indexed:test'" in diagnostic
+    assert "current_commit='current:test'" in diagnostic
+    assert "working_tree_dirty=False" in diagnostic
+    assert "indexed_source_view_hash='view:test'" in diagnostic
 
 
 def test_live_case_scores_results_and_omits_raw_payloads() -> None:

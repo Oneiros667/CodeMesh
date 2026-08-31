@@ -332,9 +332,23 @@ async def get_repository_preflight(
     data = _data(payload)
     freshness = data.get("freshness") or {}
     if freshness.get("status") != "fresh":
-        raise EvaluationInfrastructureError(
+        identity = "; ".join(
+            f"{key}={freshness.get(key)!r}"
+            for key in (
+                "status",
+                "indexed_commit",
+                "current_commit",
+                "working_tree_dirty",
+                "indexed_source_view_hash",
+            )
+            if key in freshness
+        )
+        detail = (
             freshness.get("detail")
             or "Agent evaluation requires a fresh CodeMesh index."
+        )
+        raise EvaluationInfrastructureError(
+            f"{detail} Candidate identity: {identity}." if identity else detail
         )
     return data
 
