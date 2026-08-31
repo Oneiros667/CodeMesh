@@ -50,6 +50,25 @@ retention, and verified-deletion requirements. Those requirements are proposed
 in [Repository Identity and Snapshot Retention](../planning/repository-identity-and-snapshot-retention.md);
 they are not current shared-service behavior.
 
+## Hosted CodeQL Triage
+
+The latest hosted CodeQL run succeeded for published commit `8e9c0da`, but 39
+alerts remain open on that commit. A read-only review groups them as:
+
+- 13 path findings at the trusted evaluation-suite boundary that warrant safe
+  identifier validation and setup-patch containment;
+- 3 command findings at intentional local argv execution boundaries, with no
+  shell interpolation but an explicit suite/executable trust requirement;
+- 1 reflective-XSS finding that appears escaped in current call sites but needs
+  adversarial route tests before dismissal; and
+- 22 explicit operator-selected or internally controlled path findings that
+  need contract-by-contract review rather than blanket dismissal.
+
+No alerts were dismissed and no security-clean claim is supported. The hosted
+scan covers remote `8e9c0da`, not unpublished local changes. Exact alert numbers,
+classification, and recommended order are retained in the
+[CodeQL triage record](../evaluation/evidence/codeql-triage-8e9c0da.json).
+
 ## Redaction Principles
 
 - Preserve enough structure for useful context.

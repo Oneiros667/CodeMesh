@@ -214,6 +214,12 @@ reflected-XSS finding. Dependabot and secret scanning report zero open alerts.
 These hosted findings apply to the published remote state and do not establish
 the security state of the unpublished local commits.
 
+The separate read-only triage identifies suite-derived artifact paths as the
+first hardening target, keeps explicit local command and path selection within
+its documented trust boundary pending hardening, and requires an adversarial UI
+test before considering the XSS finding dismissible. No alert was dismissed.
+See the [CodeQL triage record](../evaluation/evidence/codeql-triage-8e9c0da.json).
+
 ## Current Boundaries
 
 - Generated summaries remain disabled in the core product-proof baseline.
