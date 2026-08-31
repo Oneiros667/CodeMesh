@@ -33,30 +33,25 @@ so.
 
 The checkout-safe integration, atomic Python-plus-Rust ingestion, Rust parser,
 feedback loop, instance-owned onboarding, and frozen provider-free Primary
-pilot gate are implemented and passed the initial local diagnostic run. The
+pilot gate are implemented. Priority 1 produced clean candidate `ee1d4d9` and
+passed the full deterministic, summary-free live, and one|nine pilot gates. The
 next three priorities are:
 
-1. **Create and verify one exact candidate.** Review and isolate the current
-   implementation, commit it only with explicit commit authority, and repeat
-   the full .NET, Python, documentation, clean summary-free live, and frozen
-   one|nine pilot gates from that clean commit. Record the exact CodeMesh and
-   one|nine commits, snapshot, source view, installation-plan hash, and report
-   hashes. Preserve the YoutubeDownloader and Config.Net zero-adoption and
-   assisted campaigns with their existing evidence boundaries.
-2. **Measure configured/onboarded normal-host use.** With explicit model-spend
+1. **Measure configured/onboarded normal-host use.** With explicit model-spend
    authority, run pinned one|nine paired tasks through the exact checkout-local
    normal MCP configuration. Keep control and treatment task prompts identical;
    compare against ordinary repository exploration plus the checkout's existing
    permitted Graphify workflow. Report tool adoption, correctness, safety,
-   elapsed time, tokens, fallback behavior, and validation selection. Follow
-   with a configured Config.Net replication if the one|nine campaign is valid.
-3. **Turn measured feedback into bounded improvements.** Review validated
+   elapsed time, tokens, fallback behavior, and validation selection.
+2. **Turn measured feedback into bounded improvements.** Review validated
    one|nine feedback and controlled results, select the smallest correction for
    a recurring ranking, relationship, budget, binding, or validation failure,
-   and rerun the frozen gates after every material change. Expand onboarding to
-   Secondary, Tertiary, Release, or Hotfix only with a separate exact binding
-   and a passing checkout-specific probe. Keep Run-only excluded pending a
-   separate acceptance decision.
+   and rerun the frozen gates after every material change.
+3. **Replicate and decide bounded expansion.** If the one|nine campaign is
+   valid, repeat configured/onboarded evaluation on Config.Net. Expand
+   onboarding to Secondary, Tertiary, Release, or Hotfix only with a separate
+   exact binding and passing checkout-specific probe. Keep Run-only excluded
+   pending a separate acceptance decision.
 
 After those priorities, implement the summary-model qualification runner only
 before summaries are considered for default retrieval, and complete default
@@ -91,7 +86,7 @@ execution order above.
 | Markdown parser | Partial | Add links from docs to commands, endpoints, projects, and source when justified. | [Architecture](../current/architecture.md) |
 | Context packages | Implemented baseline | Maintain compact agent output, citations, rationale, and budget behavior. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Local web inspection | Implemented initial slice | Expand only when it serves a measured agent or audit need. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Tool guidance and onboarding | Implemented bounded pilot | Produce a clean exact candidate, then establish configured/onboarded normal-host evidence. | [Agent Integration Contract](agent-integration-contract.md) |
+| Tool guidance and onboarding | Clean candidate verified | Establish configured/onboarded normal-host outcome evidence with explicit model-spend authority. | [Agent Integration Contract](agent-integration-contract.md) |
 | one\|nine agent feedback | Implemented bounded pilot | Review sanitized, provenance-bound packets and connect recurring findings to controlled evidence without automatic roadmap mutation. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |

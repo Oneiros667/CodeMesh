@@ -4,9 +4,7 @@ Document type: current status snapshot
 
 Reviewed: 2026-08-31
 
-Implementation reviewed through: the candidate commit containing this status.
-The initial one|nine pilot evidence below was produced from the preceding local
-working tree and remains subject to the clean-candidate repeat gate.
+Implementation reviewed through: clean candidate `ee1d4d9`.
 
 Retained evidence below remains bound to the exact commits named in each
 evidence section; it does not inherit this implementation baseline.
@@ -55,13 +53,13 @@ are in [Architecture](architecture.md).
 ## Activated one|nine Pilot
 
 The first bounded pilot is active only for the clean Primary checkout at
-`11c6d7682890da9979bbc5b1fbec5e2c33b89fff`. It is bound to project
+`e12d0281b687e58c2baac85f771a684df6fa8552`. It is bound to project
 `prj_a570a726917d4d0ca596085aaf07af50`, checkout
 `chk_70c50c5494de4837ab0627aca021eab2`, and source view
-`2fe26e79a7a0a053bcabf5e9220c0c601c7d82bb22143eb66466249852f2ca98`.
+`ce3c63a66e3e4821bf5431d9997314070d60ec61f9ab8b35aa0cdcafbacace4a`.
 The provider-free ingestion published snapshot
-`snp_bbc561586cc514bfbe960423c8bd5af1d1a8ed650077146d618678f450be8555`
-with 45,408 nodes, 94,571 relationships, 12,691 content items, zero
+`snp_52a2af6a662c8070cea0ccb6db837a68717f45422aa7574fe5db0af2543169e9`
+with 45,492 nodes, 94,774 relationships, 12,766 content items, zero
 embeddings, and zero summaries.
 
 The reviewed installation plan changed only Primary's ignored
@@ -73,19 +71,27 @@ recorded the exact commit/snapshot failure, identifier tokenization was
 corrected, and a superseding recheck returned the target. The feedback summary
 now reports that ranking item as resolved and the onboarding probe as verified.
 
-The instance-owned frozen pilot suite then passed eight provider-free runtime
+The clean CodeMesh candidate `ee1d4d9` and installation plan
+`6d37def879a062f8a93923514376f14707ddf430582e675aff44aa7b2e4ad40a`
+then passed eight provider-free runtime
 gates: accepted fresh Python, Rust, test-selection, and PyO3 retrieval, plus
 fail-closed wrong-checkout, wrong-root, wrong-source-view, and dirty-checkout
 probes. It validated all three retained Primary feedback packets and returned
-the checkout to a clean state. The local report schema is
-`onenine-codemesh-pilot-v1`; the report remains outside version control pending
-an exact committed candidate.
+the checkout to a clean state.
 
-This is local diagnostic pilot evidence from an uncommitted CodeMesh working
-tree. It proves a bounded configured path and feedback/improvement loop, not
-normal-agent adoption, general product benefit, release readiness, deployment
-acceptance, provider authorization, or production fitness. Secondary,
-Tertiary, Release, and Hotfix are not activated; Run-only remains excluded.
+The same clean candidate passed the pinned six-case, 18-call
+YoutubeDownloader summary-free live gate with 1.0 recall, 0.9 MRR, 0.926186
+nDCG, and zero secret leaks. The first candidate run exposed and retained a
+partial-symbol primary-path ranking regression; deterministic canonical source
+selection corrected it before the final pass. The sanitized exact-candidate
+record is
+[one|nine Priority 1 evidence](../evaluation/evidence/onenine-priority1-ee1d4d9.json).
+
+This is provider-free local diagnostic evidence. It proves a bounded configured
+path and feedback/improvement loop, not normal-agent adoption, general product
+benefit, release readiness, deployment acceptance, provider authorization, or
+production fitness. Secondary, Tertiary, Release, and Hotfix are not activated;
+Run-only remains excluded.
 
 ## Retained Product Evidence
 
@@ -148,9 +154,10 @@ transcription is
 Explicit repository onboarding is now implemented for the bounded one|nine
 pilot: the normal profile exposes only context package, repository status,
 repository listing, and node lookup; exact binding and freshness are enforced;
-and installation plus probing are reviewable. The next evidence gap is a clean,
-committed CodeMesh candidate and adopted normal-host agent tasks that compare
-the configured path with ordinary exploration without changing task prompts.
+and installation plus probing are reviewable. The clean committed candidate and
+its provider-free gates now pass. The next evidence gap is adopted normal-host
+agent tasks that compare the configured path with ordinary exploration without
+changing task prompts.
 
 The prompt-parity Config.Net campaign recorded zero MCP calls and zero MCP call
 attempts. Preserve it as negative spontaneous-discovery evidence; do not change
@@ -167,8 +174,6 @@ instructions and tool schemas. The retained campaign therefore cannot attest
 the exact selection context presented to the model, and no CodeMesh transport
 or contract defect has been confirmed.
 
-After committing an exact candidate, repeat the summary-free live gate and the
-pinned one|nine probes from that clean CodeMesh source state.
 The configured/onboarded agent campaign remains model-cost-bearing and requires
 explicit authorization, clean committed checkouts, a fresh matching index, and
 report metadata that identifies the shipped guidance and tool profile. Unit and

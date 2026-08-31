@@ -157,12 +157,12 @@ Complete the product-evidence sequence in this order:
 2. maintain the implemented normal-user and diagnostic tool profiles;
 3. maintain the implemented exact checkout binding and fail-closed freshness;
 4. maintain the implemented provider-free positive and rejection probes;
-5. from a clean committed candidate, repeat deterministic contracts, the clean
-   summary-free live gate, and the frozen one|nine pilot gate; and
+5. maintain the clean-candidate deterministic contracts, summary-free live
+   gate, and frozen one|nine pilot gate passed at `ee1d4d9`; and
 6. with explicit model-spend authorization, run a configured/onboarded campaign
    using the shipped integration unchanged.
 
-The bounded one|nine path has passed its local provider-free pilot gates from an
-uncommitted working tree. Do not claim configured/onboarded product benefit from
-documentation, static manifests, fixtures, configured CI, or an MCP process
-that starts without the clean-candidate and agent-outcome gates.
+The bounded one|nine path has passed its clean-candidate provider-free gates.
+Do not claim configured/onboarded product benefit from documentation, static
+manifests, fixtures, configured CI, or an MCP process that starts without the
+agent-outcome gate.

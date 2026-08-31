@@ -17,7 +17,7 @@ is available under the [MIT License](LICENSE).
 | Optional and environment-dependent | Neo4j, MongoDB, and Qdrant stores; Docker Compose; embeddings through a configured local provider; Python, Rust, Markdown, and deployment-artifact parsing with narrower relationships than C#. |
 | Retained, bounded evidence | Summary-free live retrieval passed on two repositories; assisted campaigns replicated utility after explicit onboarding; spontaneous and prompt-parity campaigns recorded zero CodeMesh adoption; the provider-free one\|nine Primary pilot passed its local retrieval, safety, and feedback gates. These results do not establish broad generalization. |
 | Experimental or unqualified | Generated summaries, online model providers, model-selection benchmarks, and the read-only local web UI as a product surface. No summary model is CodeMesh-qualified. |
-| Planned | A clean exact one\|nine candidate, configured/onboarded normal-host evaluation, configurable ingestion allow/deny policy, shared-service identity controls, and broader parser and SDLC coverage. |
+| Planned | Configured/onboarded normal-host evaluation, feedback-driven bounded expansion, configurable ingestion allow/deny policy, shared-service identity controls, and broader parser and SDLC coverage. |
 
 Passing tests establish the covered local behavior. They do not establish
 hosted CI success, generalized agent benefit, release readiness, deployment

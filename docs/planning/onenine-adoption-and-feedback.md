@@ -178,16 +178,20 @@ attributable correctness, safety, or efficiency improvement.
 
 ## Pilot Gate Result
 
-All six completion gates passed locally on 2026-08-31 against Primary commit
-`11c6d7682890da9979bbc5b1fbec5e2c33b89fff` and the provider-free composite
+All six completion gates passed on 2026-08-31 from clean CodeMesh candidate
+`ee1d4d9` against Primary commit
+`e12d0281b687e58c2baac85f771a684df6fa8552` and the provider-free composite
 snapshot recorded in [Project Status](../current/project-status.md). The frozen
 instance-owned suite passed four positive retrieval cases for Python, Rust,
 test selection, and the PyO3 boundary, plus fail-closed wrong-checkout,
 wrong-root, wrong-source-view, and dirty-checkout cases. It validated three
-feedback packets and produced a provenance-preserving summary.
+feedback packets and produced a provenance-preserving summary. The pinned
+YoutubeDownloader live gate also passed after a discovered partial-symbol
+ranking regression was corrected and retested.
 
-This result is local diagnostic evidence from an uncommitted CodeMesh working
-tree. The next priority is an exact clean candidate and repeat of the gates,
-followed only with explicit model-spend authority by configured/onboarded paired
+This result is clean-candidate provider-free diagnostic evidence. The next
+priority requires explicit model-spend authority for configured/onboarded paired
 agent tasks. Those tasks, not this pilot gate, can test attributable product
-benefit.
+benefit. Exact identities, metrics, report hashes, and the retained failed gate
+are in the
+[Priority 1 evidence record](../evaluation/evidence/onenine-priority1-ee1d4d9.json).
