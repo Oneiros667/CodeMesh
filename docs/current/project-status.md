@@ -4,7 +4,7 @@ Document type: current status snapshot
 
 Reviewed: 2026-08-31
 
-Implementation reviewed through: clean candidate `ee1d4d9`.
+Implementation reviewed through: configured-evaluator candidate `3becb88`.
 
 Retained evidence below remains bound to the exact commits named in each
 evidence section; it does not inherit this implementation baseline.
@@ -41,7 +41,7 @@ usability evidence, but is no longer the v1 acceptance contract.
 | Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and .NET, Python, and Rust validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
-| Evaluation | Deterministic fixture, live MCP, spontaneous/evaluator-assisted paired agent, and model benchmark harnesses implemented. | Configured/onboarded paired mode is not implemented. Paid/model-backed runs require explicit authorization; fixtures prove contracts only. |
+| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | The configured harness is deterministically verified at `3becb88`; it has not yet produced a clean-candidate one\|nine preflight or model-backed outcome report. Paid/model-backed runs require explicit authorization; fixtures prove contracts only. |
 | Generated summaries | Complexity-aware prompts and local/online providers implemented. | No summary deployment profile is CodeMesh-qualified. |
 | Security | Pre-persistence value redaction and generated/cache path exclusions implemented. | Known secret-file exclusion and configurable allow/deny policy remain open. |
 | Repository identity | Stable project/checkout markers, deterministic source snapshots, checkout-current and clean branch-head slots, explicit retained slots, legacy migration, and richer local freshness implemented. | Separate clones attach with explicit `--project-id`; shared-service tenant/authorization/privacy controls remain deferred. |
@@ -174,26 +174,29 @@ instructions and tool schemas. The retained campaign therefore cannot attest
 the exact selection context presented to the model, and no CodeMesh transport
 or contract defect has been confirmed.
 
-The configured/onboarded agent campaign remains model-cost-bearing and requires
-explicit authorization, clean committed checkouts, a fresh matching index, and
-report metadata that identifies the shipped guidance and tool profile. Unit and
-contract tests for instructions do not substitute for normal-host evidence.
+The configured/onboarded evaluator now preserves prompt parity, uses the exact
+reviewed checkout-local `normal` installation, and retains integration mode,
+guidance, baseline MCP, tool-profile, binding, installation-plan, and runtime-
+probe identities. It rejects a dirty or stale target, a dirty CodeMesh source
+checkout, commit or binding mismatch, changed plan files, unexpected tool
+surface, and a failed rejection probe. Historical spontaneous and assisted
+modes retain their prior diagnostic behavior.
 
-The existing paired-agent runner cannot yet produce that evidence. It selects
-the historical unbound `diagnostic` profile and classifies runs only as
-spontaneous or evaluator-assisted. Before any paid campaign, extend it to use
-the reviewed checkout-local `normal` installation unchanged and retain the
-integration mode, guidance identity, tool profile, binding, installation-plan
-hash, and runtime-probe identity in the report. This provider-free harness work
-is the first remaining implementation step; running it against a model remains
-a separate spend-authority gate.
+The next gate is a clean committed CodeMesh candidate and a pinned one|nine
+checkout whose installed plan, indexed snapshot, repository guidance, and
+permitted Graphify baseline all match. Run the provider-free configured
+preflight and frozen one|nine and YoutubeDownloader gates there before seeking
+separate authorization for the model-cost-bearing paired campaign. A passing
+preflight proves configuration and runtime identity, not normal-agent adoption
+or product benefit.
 
 ## Public Repository And Hosted Evidence
 
 At this review, the public GitHub `main` branch remains at `8e9c0da`, while the
-local checkout is four commits ahead at documentation-only HEAD `96335a1`. The
-latest hosted baseline-verification success applies to remote `8e9c0da`; there
-is no exact-HEAD hosted workflow evidence for the local one|nine pilot commits.
+local checkout is seven commits ahead at configured-evaluator HEAD `3becb88`.
+The latest hosted baseline-verification success applies to remote `8e9c0da`;
+there is no exact-HEAD hosted workflow evidence for the unpublished local
+commits.
 
 The latest hosted CodeQL workflow completed successfully for remote `8e9c0da`,
 which proves that the scan ran, not that the repository is security-clean.
@@ -214,7 +217,7 @@ the security state of the unpublished local commits.
   Kubernetes/Helm ingestion, and broader SDLC intelligence are not implemented.
 - Current source redaction does not replace repository authorization or a
   configurable sensitive-file policy.
-- Hosted workflow success for remote `8e9c0da` is not evidence for the four
+- Hosted workflow success for remote `8e9c0da` is not evidence for the seven
   unpublished local commits, and an automated scan completing successfully does
   not resolve or justify its open findings.
 

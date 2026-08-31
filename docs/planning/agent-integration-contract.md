@@ -9,8 +9,9 @@ hosts. The MCP server instructions, manual repository guidance in
 [MCP Setup](../guides/mcp-setup.md), normal/diagnostic tool profiles, exact
 checkout binding, fail-closed package freshness, reviewable installation, and
 provider-free probes are implemented and passed their clean-candidate gates at
-`ee1d4d9`. Configured/onboarded evaluator support and normal-host outcome
-evaluation remain outstanding.
+`ee1d4d9`. Configured/onboarded evaluator support is implemented and
+deterministically verified at `3becb88`; exact-candidate one|nine preflight and
+normal-host outcome evaluation remain outstanding.
 
 ## Decision
 
@@ -144,16 +145,16 @@ Configured/onboarded evidence supports the selected v1 contract. It must not be
 relabeled as spontaneous discovery, and older evaluator-assisted runs must not
 be retroactively relabeled as configured product evidence.
 
-Before another model-cost-bearing campaign, the evaluation harness must record
-the integration mode and the identities of the installed guidance and selected
-tool profile. The frozen task, grading targets, model settings, clean-checkout
-requirements, and summary-free live gate remain unchanged.
+The implemented configured mode records integration mode and exact identities
+for installed guidance, baseline MCP servers, selected tool profile, binding,
+reviewed plan, and positive and rejection probes. It gives control the declared
+baseline servers and treatment the identical baseline plus CodeMesh, without
+changing the task prompt. The frozen task, grading targets, model settings,
+clean-checkout requirements, and summary-free live gate remain unchanged.
 
-The current paired-agent runner does not satisfy that requirement: it selects
-the historical unbound `diagnostic` profile and records only spontaneous or
-evaluator-assisted modes. Implementing the configured mode and its deterministic
-tests is provider-free work; executing the resulting paired campaign remains
-model-cost-bearing and separately authorized.
+The provider-free preflight must pass against the exact candidate before a
+campaign. Executing the resulting paired comparison remains model-cost-bearing
+and separately authorized.
 
 ## Completion Gates
 
@@ -165,9 +166,9 @@ Complete the product-evidence sequence in this order:
 4. maintain the implemented provider-free positive and rejection probes;
 5. maintain the clean-candidate deterministic contracts, summary-free live
    gate, and frozen one|nine pilot gate passed at `ee1d4d9`; and
-6. implement configured/onboarded paired-evaluation mode so the runner uses the
-   reviewed normal-profile installation unchanged and retains its exact
-   integration identities; and
+6. pass configured/onboarded paired-evaluation preflight so the implemented
+   runner proves the reviewed normal-profile installation and its exact
+   integration identities against the candidate; and
 7. with explicit model-spend authorization, run a configured/onboarded campaign
    using that shipped integration unchanged.
 

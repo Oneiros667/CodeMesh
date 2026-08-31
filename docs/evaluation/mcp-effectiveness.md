@@ -43,13 +43,13 @@ The evidence position is summarized in [Project Status](../current/project-statu
 Explicit repository onboarding is now the selected v1 product contract; see
 [Agent Integration Contract](../planning/agent-integration-contract.md). The
 checkout-local integration and provider-free probes are implemented and passed
-their clean-candidate gates. The current product-proof work is to extend the
-paired-agent evaluator to represent that configured integration, then evaluate
-the exact guidance, tool profile, checkout binding, and setup process shipped to
-normal users. Preserve the same independent task, prompt, grading targets, and
-control behavior. The retained zero-adoption campaign remains negative
-spontaneous-discovery evidence and must not be rewritten as a transport defect
-or configured-product result.
+their clean-candidate gates. The paired-agent evaluator now represents that
+configured integration; the current product-proof work is to pass its exact-
+candidate preflight, then evaluate the guidance, tool profile, checkout binding,
+and setup process shipped to normal users. Preserve the same independent task,
+prompt, grading targets, and control behavior. The retained zero-adoption
+campaign remains negative spontaneous-discovery evidence and must not be
+rewritten as a transport defect or configured-product result.
 
 Reports must compare correctness, safety, freshness, citations, elapsed time,
 tokens, tool calls, adoption, and correction loops. A tied-correctness result is
@@ -68,11 +68,11 @@ Classify agent evidence by the integration the treatment actually receives:
   treatment receives the exact repository guidance, tool profile, checkout
   binding, and setup process shipped to normal users.
 
-The current harness records spontaneous and assisted modes. Extend its report
-schema before claiming configured/onboarded evidence so the installed guidance
-and profile identities are retained. Never relabel earlier assisted evidence as
-configured product evidence. If adoption remains zero, retain that negative
-result rather than weakening the comparison.
+The harness records spontaneous, assisted, and configured modes. Configured
+reports retain installed guidance, baseline MCP, profile, binding, plan, and
+probe identities. Never relabel earlier assisted evidence as configured product
+evidence. If adoption remains zero, retain that negative result rather than
+weakening the comparison.
 
 ## Representative External C# Baseline
 
@@ -236,12 +236,47 @@ to CodeMesh. Preserve this as negative discoverability evidence. The sanitized
 transcription is
 [`docs/evaluation/evidence/config-net-prompt-parity-647d83d.json`](evidence/config-net-prompt-parity-647d83d.json).
 
-Before another paid run, implement and verify the selected explicit-onboarding
-contract. The treatment must use the same repository guidance and normal-user
-tool profile shipped outside the evaluator; do not create an evaluator-only
-tool-selection advantage. Record the result as configured/onboarded, not
-spontaneous or evaluator-assisted, and retain the prompt-parity failure
-separately.
+Before another paid run, pass the configured preflight for the selected explicit-
+onboarding contract. The treatment must use the same repository guidance and
+normal-user tool profile shipped outside the evaluator; do not create an
+evaluator-only tool-selection advantage. Record the result as
+configured/onboarded, not spontaneous or evaluator-assisted, and retain the
+prompt-parity failure separately.
+
+## Configured Agent Preflight And Campaign
+
+A configured suite sets `integration_mode` to `configured`, pins
+`repository_commit`, and may list `baseline_mcp_servers`. Named baseline servers
+must be present in the reviewed checkout-local `.codex/config.toml`; control and
+treatment receive the same selected baseline, while treatment additionally
+receives the reviewed CodeMesh normal-profile launch. Embedded environment
+values are rejected for baseline servers; use declared `env_vars` names.
+
+From `agent-access`, run the provider-free gate first:
+
+```powershell
+uv run python -m codemesh_agent_access eval agent `
+  --suite <configured-suite.json> `
+  --repository-root <pinned-checkout> `
+  --configured-plan <reviewed-plan.json> `
+  --configured-guidance-path AGENTS.md `
+  --configured-probe-query "<frozen retrieval query>" `
+  --configured-expected-path <expected-path> `
+  --preflight-only `
+  --preflight-output <preflight-report.json>
+```
+
+This rejects dirty or stale source state, a dirty CodeMesh tool checkout,
+commit, checkout, root, or source-view mismatch, changed installation files, a
+non-normal tool surface, uncommitted guidance, a failed context probe, or a
+failed wrong-checkout rejection probe. The report records stable identities and
+hashes, not raw guidance or MCP payloads.
+
+Only after the preflight and repository-specific frozen retrieval gates pass,
+and only with explicit model-spend authority, remove `--preflight-only`, add
+`--model <model-id>` and `--output-dir <artifact-directory>`, and run the paired
+campaign. The task prompt, model, reasoning effort, temporary checkout, and
+declared baseline MCP servers stay identical across conditions.
 
 ## Deterministic Fixture Suite
 
@@ -340,7 +375,7 @@ that combination. The runner detects older builds that lack
 `--ignore-user-config` and gives local-provider runs a temporary isolated
 `CODEX_HOME`; it never reads the user's Codex configuration in that mode.
 
-Each control and treatment run receives the same task prompt, model, reasoning effort, sandbox, and isolated temporary clone. Both run non-interactively with `--ask-for-approval never`. The control has an empty MCP server map. The treatment adds CodeMesh as a required stdio MCP server, explicitly selects the non-destructive `diagnostic` profile to preserve the frozen historical tool surface, and approves its allowlisted tools so non-interactive calls execute instead of being canceled at the client approval boundary. Under the current report schema, suites without `treatment_guidance` preserve prompt parity and measure spontaneous adoption. Suites with guidance are reported as assisted, preserve the guidance in report metadata, and isolate best-case utility from discoverability. Configured/onboarded mode must be implemented before the runner can represent the selected v1 contract; that future mode must use and record the shipped `normal` profile rather than inheriting the evaluator's diagnostic surface.
+Each control and treatment run receives the same task prompt, model, reasoning effort, sandbox, and isolated temporary clone. Both run non-interactively with `--ask-for-approval never`. Historical spontaneous and assisted suites preserve their frozen behavior: control has an empty MCP map and treatment adds the unbound `diagnostic` profile. Configured suites instead give both conditions the same explicitly selected baseline MCP servers and add only the exact reviewed, bound `normal` CodeMesh installation to treatment. Suites without explicit mode preserve compatibility by deriving spontaneous or assisted classification from `treatment_guidance`; configured suites forbid evaluator-only guidance and preserve prompt parity.
 
 The treatment configuration allowlists CodeMesh read tools and does not expose repository deletion to the benchmark agent.
 

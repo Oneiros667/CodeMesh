@@ -92,7 +92,8 @@ The retained live and existing spontaneous/evaluator-assisted agent suites
 select the `diagnostic` profile explicitly to preserve their frozen tool surface.
 That does not make them configured/onboarded product evidence. The implemented
 configured mode selects the shipped `normal` profile and records that identity
-separately in its installation plan and runtime probe.
+separately in its installation plan and runtime probe. It also runs an
+automatic wrong-checkout rejection probe before a paired run.
 
 For an installed configured checkout, run the reviewed plan's normal-profile
 probe instead. It verifies the exact launch and binding and can gate real target
@@ -108,6 +109,25 @@ uv run python -m codemesh_agent_access mcp-probe `
 This is configured retrieval evidence, not a model-backed agent comparison.
 Record misses through the feedback workflow and retain passing rechecks with an
 explicit superseded feedback id.
+
+Before requesting model-spend authority, run the configured agent preflight
+with the pinned configured suite and reviewed plan. It invokes no model:
+
+```powershell
+uv run python -m codemesh_agent_access eval agent `
+  --suite <configured-suite.json> `
+  --repository-root <pinned-checkout> `
+  --configured-plan <reviewed-plan.json> `
+  --configured-guidance-path AGENTS.md `
+  --configured-expected-path <expected-path> `
+  --preflight-only `
+  --preflight-output <preflight-report.json>
+```
+
+The suite must declare `integration_mode` as `configured`, pin
+`repository_commit`, and may name reviewed `baseline_mcp_servers` that both
+conditions receive. A preflight pass is provider-free configuration and runtime
+evidence only.
 
 The pinned YoutubeDownloader suite is the representative external C# baseline.
 Prepare and ingest the exact checkout as described in

@@ -319,6 +319,21 @@ four-tool surface, exact one-repository listing, accepted/fresh binding, and a
 non-empty context package. `--query` and repeated `--expected-path` options turn
 that package into a repository-specific retrieval gate.
 
+`eval agent --preflight-only --configured-plan PLAN` adds the paired-evaluation
+gate without invoking a model. A configured suite must pin its repository
+commit. The preflight requires clean target and CodeMesh checkouts, exact
+source/index/plan/binding agreement, committed guidance, the normal four-tool
+surface, a passing context probe, and a passing wrong-checkout rejection probe.
+Its report retains hashes and stable identities rather than raw guidance or MCP
+payloads.
+
+Configured suites may declare `baseline_mcp_servers`. Those servers must exist
+in the reviewed checkout-local configuration and are supplied identically to
+control and treatment; treatment then adds CodeMesh. Inline environment values
+are rejected for baseline servers, while declared `env_vars` names may be
+forwarded. Spontaneous and evaluator-assisted suites retain their historical
+isolated diagnostic-profile behavior.
+
 `feedback record` writes `codemesh-feedback/v1` packets only to an ignored
 `.codemesh-feedback/` outbox. Packets contain commit, dirty-state hash, binding,
 snapshot, languages, parser profile, categorized paths, validation result,
