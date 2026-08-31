@@ -2,6 +2,7 @@
   "schema_version": "codemesh-configured-onenine-provider-free-v1",
   "evidence_class": "provider-free-local-configured-integration",
   "recorded_at": "2026-08-31T22:10:21Z",
+  "last_updated_at": "2026-08-31T22:28:22Z",
   "codemesh": {
     "commit": "0bde606cc73b4a0b081067a039822a53672459a1",
     "clean_detached_checkout": true,
@@ -10,7 +11,29 @@
     "ruff_check": "passed",
     "ruff_format": "passed",
     "fixture_suite_cases_passed": 5,
-    "dotnet_suite": "not_run_host_sdk_missing_aspnet_prune_package_data"
+    "dotnet_verification": {
+      "status": "passed_with_warning_and_skip",
+      "evidence_source": "attended_user_supplied_terminal_output",
+      "verification_commit": "9c8aca324d355a2fbb29c93fc6092bd553f05a53",
+      "candidate_dotnet_source_equivalent": true,
+      "candidate_dotnet_source_equivalence_basis": "no_sln_csproj_or_cs_diff_from_0bde606_to_verification_commit",
+      "locked_restore": "passed",
+      "build": {
+        "passed": true,
+        "warning_count": 1,
+        "warnings": [
+          "tests/CodeMesh.Tests/Program.cs:4595 CS8625 null literal to non-nullable reference type"
+        ]
+      },
+      "tests": {
+        "passed": 64,
+        "failed": 0,
+        "skipped": 1,
+        "skip_reason": "CODEMESH_SAMPLE_CSHARP_ROOT not configured for YoutubeDownloader sample; synthetic parser tests passed"
+      },
+      "format_verify_no_changes": "passed_no_diagnostics",
+      "working_tree_clean_after": true
+    }
   },
   "onenine_primary": {
     "commit": "fe2f761583bf78601961ff17934185c4b6a632f9",

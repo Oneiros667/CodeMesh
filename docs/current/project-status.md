@@ -81,7 +81,14 @@ rejection gates, and validated all three retained feedback packets. The same
 candidate passed the pinned six-case, 18-call YoutubeDownloader summary-free
 live gate with 1.0 tool success and recall, 0.9 MRR, 0.926186 nDCG, and zero
 secret leaks. Its final local verification comprised 124 Python tests, Ruff
-check and format, and all five deterministic MCP fixtures.
+check and format, and all five deterministic MCP fixtures. After the missing
+ASP.NET Core targeting pack and runtime were installed, attended deterministic
+.NET verification at documentation commit `9c8aca3` also passed: locked
+restore, build, 64 tests, and format verification completed with zero failures.
+The build retained one `CS8625` nullable warning, and the YoutubeDownloader
+sample test remained skipped because `CODEMESH_SAMPLE_CSHARP_ROOT` was not
+configured. No solution, project, or C# source differed from evaluated
+candidate `0bde606` at that verification commit.
 
 The attended correction path remains evidence: `4eccd80` missed the Rust
 expected path, `a6ebaa5` expected the wrong live rejection diagnostic, and
