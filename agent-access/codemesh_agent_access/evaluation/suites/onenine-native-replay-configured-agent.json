@@ -4,7 +4,7 @@
   "name": "onenine-native-replay-configured-agent",
   "description": "Pinned configured/onboarded one|nine Python-to-Rust native replay change-impact task.",
   "repository_id": "onenine",
-  "repository_commit": "7e3bc5cd91d87f9e1ced26f9f9f4a8bbdd6bfc96",
+  "repository_commit": "fe2f761583bf78601961ff17934185c4b6a632f9",
   "integration_mode": "configured",
   "thresholds": {
     "efficiency_delta": 0.10,

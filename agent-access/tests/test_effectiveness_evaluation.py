@@ -113,7 +113,7 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     )
     assert onenine_configured_agent.resolved_integration_mode == "configured"
     assert onenine_configured_agent.repository_commit == (
-        "7e3bc5cd91d87f9e1ced26f9f9f4a8bbdd6bfc96"
+        "fe2f761583bf78601961ff17934185c4b6a632f9"
     )
     assert onenine_configured_agent.treatment_guidance is None
     assert len(onenine_configured_agent.tasks) == 1
