@@ -1702,10 +1702,25 @@ def _ranked_unique_hits(hits: list[ContextHit], limit: int) -> list[ContextHit]:
 
     ranked = sorted(
         best_by_node_id.values(),
-        key=lambda hit: (hit.score, _kind_weight_from_name(hit.kind), -hit.start_line),
+        key=lambda hit: (
+            hit.score,
+            _raw_relevance_score(hit),
+            _kind_weight_from_name(hit.kind),
+            -hit.start_line,
+        ),
         reverse=True,
     )
     return _diversify_ranked_hits(ranked, limit)
+
+
+def _raw_relevance_score(hit: ContextHit) -> float:
+    return max(
+        (
+            float(hit.score_components.get(name, 0.0))
+            for name in ("vector_score", "lexical_score", "summary_score")
+        ),
+        default=0.0,
+    )
 
 
 def _diversify_ranked_hits(hits: list[ContextHit], limit: int) -> list[ContextHit]:

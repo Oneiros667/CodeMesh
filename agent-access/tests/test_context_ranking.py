@@ -243,6 +243,31 @@ def test_ranked_hits_cover_distinct_files_before_repeating() -> None:
     ]
 
 
+def test_ranked_hits_break_saturated_scores_with_raw_relevance() -> None:
+    incidental = ContextHit(
+        node_id="incidental",
+        stable_key="incidental",
+        kind="Method",
+        file_path="MediaTagInjector.cs",
+        start_line=1,
+        end_line=2,
+        score=1.0,
+        score_components={"lexical_score": 0.745},
+    )
+    exact = ContextHit(
+        node_id="exact",
+        stable_key="exact",
+        kind="Method",
+        file_path="VideoDownloader.cs",
+        start_line=100,
+        end_line=101,
+        score=1.0,
+        score_components={"lexical_score": 0.87},
+    )
+
+    assert _ranked_unique_hits([incidental, exact], 2) == [exact, incidental]
+
+
 def test_lexical_score_ranks_multi_term_coverage() -> None:
     query = "repository cleanup removes indexed data"
     primary = {
