@@ -426,7 +426,7 @@ async def _prepare_configured_integration(
             plan,
             timeout_seconds=timeout_seconds,
             checkout_id=wrong_checkout,
-            expected_substrings=["checkout"],
+            expected_substrings=["bound_repository_missing"],
         )
     except (OSError, ValueError, RuntimeProbeError) as exc:
         raise EvaluationInfrastructureError(

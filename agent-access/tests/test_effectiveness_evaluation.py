@@ -396,7 +396,7 @@ def test_configured_integration_requires_exact_plan_binding_and_probes(
     async def fake_negative(received_plan: Any, **kwargs: Any) -> dict[str, Any]:
         assert received_plan == plan
         assert kwargs["checkout_id"].endswith(":codemesh-eval-rejection")
-        assert kwargs["expected_substrings"] == ["checkout"]
+        assert kwargs["expected_substrings"] == ["bound_repository_missing"]
         return {
             "schema_version": "codemesh-runtime-rejection-probe-v1",
             "passed": True,
@@ -404,8 +404,8 @@ def test_configured_integration_requires_exact_plan_binding_and_probes(
             "provider_mode": "none",
             "profile": "normal",
             "checkout_id": kwargs["checkout_id"],
-            "expected_substrings": ["checkout"],
-            "diagnostic": "checkout binding rejected",
+            "expected_substrings": ["bound_repository_missing"],
+            "diagnostic": "binding rejected: bound_repository_missing",
             "duration_ms": 1.0,
         }
 

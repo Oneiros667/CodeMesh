@@ -183,13 +183,18 @@ def test_rejection_probe_requires_unsafe_binding_to_fail_closed(
         probe.run_runtime_rejection_probe(
             plan,
             checkout_id="checkout:wrong",
-            expected_substrings=["checkout"],
+            expected_substrings=["bound_repository_missing"],
         )
     )
 
     assert report["passed"] is True
     assert report["rejected"] is True
     assert report["checkout_id"] == "checkout:wrong"
+    assert report["rejection_issues"] == [
+        "bound_repository_missing",
+        "snapshot_not_fresh",
+        "snapshot_provenance_unknown",
+    ]
 
 
 class FakeProbeSession:
@@ -290,8 +295,30 @@ class FakeRejectedSession:
         )
 
     async def call_tool(self, *_args: Any, **_kwargs: Any) -> Any:
+        payload = {
+            "ok": True,
+            "data": {
+                "repository_id": self.plan.binding["project_id"],
+                "repository": None,
+                "freshness": {
+                    "status": "missing",
+                    "is_stale": True,
+                    "provenance_status": "unknown",
+                    "detail": "Repository was not found in the CodeMesh registry.",
+                    "binding": {
+                        "status": "rejected",
+                        "issues": [
+                            "bound_repository_missing",
+                            "snapshot_not_fresh",
+                            "snapshot_provenance_unknown",
+                        ],
+                    },
+                },
+            },
+            "error": None,
+        }
         return SimpleNamespace(
-            isError=True,
-            structuredContent=None,
-            content=[SimpleNamespace(text="checkout binding rejected")],
+            isError=False,
+            structuredContent=payload,
+            content=[SimpleNamespace(text=json.dumps(payload))],
         )
