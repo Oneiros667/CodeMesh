@@ -2,7 +2,7 @@
 
 Document type: planning and execution-order authority
 
-Reviewed: 2026-08-31
+Reviewed: 2026-09-01
 
 This document is the canonical order for future CodeMesh work. It does not
 describe implemented behavior; use [Project Status](../current/project-status.md),
@@ -32,33 +32,24 @@ so.
 ## Current Execution Order
 
 The checkout-safe integration, atomic Python-plus-Rust ingestion, Rust parser,
-feedback loop, instance-owned onboarding, and frozen provider-free Primary
-pilot gate are implemented. Priority 1 produced clean candidate `ee1d4d9` and
-passed the full deterministic, summary-free live, and one|nine pilot gates. The
-next three priorities are:
+feedback loop, instance-owned onboarding, and configured provider-free Primary
+gate are implemented. Candidate `0bde606`, exact Primary commit `fe2f761`, the
+configured preflight, the frozen one|nine pilot, and the YoutubeDownloader live
+gate all pass provider-free. The next three priorities are:
 
-1. **Verify and measure configured/onboarded normal-host use.** The paired-agent
-   evaluator now selects the reviewed checkout-local `normal` MCP installation
-   unchanged and records configured integration, guidance, baseline MCP,
-   profile, binding, plan, and probe identities. First run its provider-free
-   preflight from a clean committed CodeMesh candidate against the exact pinned
-   one|nine checkout, then rerun the frozen one|nine and YoutubeDownloader
-   gates. Only after those pass, and with explicit model-spend authority, run
-   pinned one|nine paired tasks through that exact configuration.
+1. **Verify and measure configured/onboarded normal-host use.** With separate
+   explicit model-spend authority, run pinned one|nine paired tasks through the
+   exact `0bde606` CodeMesh candidate, `fe2f761` Primary checkout, reviewed
+   normal-profile plan, guidance hash, source-view identity, and permitted
+   Graphify baseline that passed the provider-free gates.
    Keep control and treatment task prompts identical; compare against ordinary
    repository exploration plus the checkout's existing permitted Graphify
    workflow. Report tool adoption, correctness, safety, elapsed time, tokens,
    fallback behavior, and validation selection.
-   Candidate `de239b7` passed deterministic checks and the frozen
-   YoutubeDownloader gate, but Primary had advanced beyond its retained indexed
-   commit. Select and index the next exact clean Primary candidate and retain a
-   matching reviewed plan before the positive configured preflight can run. The
-   configured preflight has independently proven that it rejects this live stale
-   state with explicit candidate identities.
-   The authoritative instance registry also still pins Primary `e12d0281` and
-   detached CodeMesh candidate `ee1d4d9`; deliberately repin both identities and
-   record the new source-view hash only after candidate-selection and local-store
-   mutation are explicitly authorized.
+   Preserve the claim ceiling: provider-free success does not establish model
+   adoption, agent correctness or efficiency benefit, release readiness, or
+   deployment acceptance. Do not repin or re-index either candidate during the
+   frozen campaign.
 2. **Turn measured feedback into bounded improvements.** Review validated
    one|nine feedback and controlled results, select the smallest correction for
    a recurring ranking, relationship, budget, binding, or validation failure,
@@ -102,12 +93,12 @@ execution order above.
 | Markdown parser | Partial | Add links from docs to commands, endpoints, projects, and source when justified. | [Architecture](../current/architecture.md) |
 | Context packages | Implemented baseline | Maintain compact agent output, citations, rationale, and budget behavior. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Local web inspection | Implemented initial slice | Expand only when it serves a measured agent or audit need. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Tool guidance and onboarding | Clean candidate verified | Establish configured/onboarded normal-host outcome evidence with explicit model-spend authority. | [Agent Integration Contract](agent-integration-contract.md) |
+| Tool guidance and onboarding | Provider-free configured gate verified | Establish configured/onboarded normal-host outcome evidence with explicit model-spend authority. | [Agent Integration Contract](agent-integration-contract.md) |
 | one\|nine agent feedback | Implemented bounded pilot | Review sanitized, provenance-bound packets and connect recurring findings to controlled evidence without automatic roadmap mutation. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |
-| Evaluation harnesses | Implemented for selected v1 contract | Fixture, live, spontaneous, assisted, configured/onboarded, and model paths are implemented; pass the configured clean-candidate preflight and frozen retrieval gates before requesting paid campaign authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
+| Evaluation harnesses | Implemented for selected v1 contract | Fixture, live, spontaneous, assisted, configured/onboarded, and model paths are implemented; the configured clean-candidate preflight and frozen retrieval gates pass, so the remaining immediate gate is the explicitly authorized paired model campaign. | [Evaluation](../evaluation/mcp-effectiveness.md) |
 | Repository identity and snapshots | Local profile implemented | Maintain deterministic identity/slot/retention behavior; shared coordinator, tenant security, and private overlays remain deferred. | [Identity and Snapshot Requirements](repository-identity-and-snapshot-retention.md) |
 | Summary-model qualification | Procedure proposed | Implement the runner and qualify a complete deployment profile before default use. | [Summary Model Qualification](summary-model-qualification.md) |
 | Method load and retrieval granularity | Proposal | Calibrate human-maintainability, tokenizer-bound representation, and agent-context thresholds before exposing advisory findings. | [Method Load And Retrieval Granularity](method-load-and-retrieval-granularity.md) |

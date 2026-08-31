@@ -118,7 +118,7 @@ uv run python -m codemesh_agent_access eval agent `
   --suite <configured-suite.json> `
   --repository-root <pinned-checkout> `
   --configured-plan <reviewed-plan.json> `
-  --configured-guidance-path AGENTS.md `
+  --configured-guidance-path AGENTS.override.md `
   --configured-expected-path <expected-path> `
   --preflight-only `
   --preflight-output <preflight-report.json>
@@ -126,8 +126,11 @@ uv run python -m codemesh_agent_access eval agent `
 
 The suite must declare `integration_mode` as `configured`, pin
 `repository_commit`, and may name reviewed `baseline_mcp_servers` that both
-conditions receive. A preflight pass is provider-free configuration and runtime
-evidence only.
+conditions receive. Guidance may be committed or an explicitly installed
+ignored file such as instance-generated `AGENTS.override.md`; both temporary
+conditions receive identical reviewed bytes, while the report retains its path,
+source classification, and hash rather than raw content. A preflight pass is
+provider-free configuration and runtime evidence only.
 
 The pinned YoutubeDownloader suite is the representative external C# baseline.
 Prepare and ingest the exact checkout as described in

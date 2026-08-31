@@ -114,7 +114,11 @@ Search diagnostics:
 - `selected_project_id` and `selected_snapshot_id`: the project provenance and
   exact snapshot namespace selected for the response when available.
 
-Agent Access merges vector hits, lexical graph hits, and MongoDB generated-summary hits, then dedupes by `node_id`.
+Agent Access merges vector hits, lexical graph hits, and MongoDB generated-summary
+hits, then dedupes by `node_id`. When final scores tie, raw vector, lexical, and
+summary relevance break the tie before kind and source-line ordering. Context
+package selection covers distinct files before taking repeated items from the
+same file when eligible alternatives remain.
 
 ## Summary Coverage
 

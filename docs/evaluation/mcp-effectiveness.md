@@ -44,12 +44,14 @@ Explicit repository onboarding is now the selected v1 product contract; see
 [Agent Integration Contract](../planning/agent-integration-contract.md). The
 checkout-local integration and provider-free probes are implemented and passed
 their clean-candidate gates. The paired-agent evaluator now represents that
-configured integration; the current product-proof work is to pass its exact-
-candidate preflight, then evaluate the guidance, tool profile, checkout binding,
-and setup process shipped to normal users. Preserve the same independent task,
-prompt, grading targets, and control behavior. The retained zero-adoption
-campaign remains negative spontaneous-discovery evidence and must not be
-rewritten as a transport defect or configured-product result.
+configured integration; its exact-candidate preflight and frozen one|nine and
+YoutubeDownloader provider-free gates pass at candidate `0bde606`. The current
+product-proof work is the separately authorized paired model campaign that
+evaluates the guidance, tool profile, checkout binding, and setup process
+shipped to normal users. Preserve the same independent task, prompt, grading
+targets, and control behavior. The retained zero-adoption campaign remains
+negative spontaneous-discovery evidence and must not be rewritten as a
+transport defect or configured-product result.
 
 Reports must compare correctness, safety, freshness, citations, elapsed time,
 tokens, tool calls, adoption, and correction loops. A tied-correctness result is
@@ -236,10 +238,11 @@ to CodeMesh. Preserve this as negative discoverability evidence. The sanitized
 transcription is
 [`docs/evaluation/evidence/config-net-prompt-parity-647d83d.json`](evidence/config-net-prompt-parity-647d83d.json).
 
-Before another paid run, pass the configured preflight for the selected explicit-
-onboarding contract. The treatment must use the same repository guidance and
-normal-user tool profile shipped outside the evaluator; do not create an
-evaluator-only tool-selection advantage. Record the result as
+Candidate `0bde606` passed the configured preflight for the selected explicit-
+onboarding contract against exact Primary commit `fe2f761`. Preserve that
+frozen identity for the next paid run. The treatment must use the same
+repository guidance and normal-user tool profile shipped outside the evaluator;
+do not create an evaluator-only tool-selection advantage. Record the result as
 configured/onboarded, not spontaneous or evaluator-assisted, and retain the
 prompt-parity failure separately.
 
@@ -259,14 +262,19 @@ uv run python -m codemesh_agent_access eval agent `
   --suite <configured-suite.json> `
   --repository-root <pinned-checkout> `
   --configured-plan <reviewed-plan.json> `
-  --configured-guidance-path AGENTS.md `
+  --configured-guidance-path AGENTS.override.md `
   --configured-probe-query "<frozen retrieval query>" `
   --configured-expected-path <expected-path> `
   --preflight-only `
   --preflight-output <preflight-report.json>
 ```
 
-This rejects dirty or stale source state, a dirty CodeMesh tool checkout,
+The guidance path may be a committed repository file or an explicitly installed
+ignored file such as instance-generated `AGENTS.override.md`. The evaluator
+copies the same reviewed bytes into both temporary conditions and records the
+path, source classification, and SHA-256 hash rather than raw guidance.
+
+The preflight rejects dirty or stale source state, a dirty CodeMesh tool checkout,
 commit, checkout, root, or source-view mismatch, changed installation files, a
 non-normal tool surface, uncommitted guidance, a failed context probe, or a
 failed wrong-checkout rejection probe. The report records stable identities and

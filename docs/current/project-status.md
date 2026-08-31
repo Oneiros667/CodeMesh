@@ -2,9 +2,9 @@
 
 Document type: current status snapshot
 
-Reviewed: 2026-08-31
+Reviewed: 2026-09-01
 
-Implementation reviewed through: configured-evaluator candidate `9f3216c`.
+Implementation reviewed through: configured-evaluator candidate `0bde606`.
 
 Retained evidence below remains bound to the exact commits named in each
 evidence section; it does not inherit this implementation baseline.
@@ -41,7 +41,7 @@ usability evidence, but is no longer the v1 acceptance contract.
 | Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and .NET, Python, and Rust validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
-| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | The configured harness and live stale-candidate rejection are verified through `9f3216c`; it has not yet produced a clean-candidate one\|nine positive preflight or model-backed outcome report. Paid/model-backed runs require explicit authorization; fixtures prove contracts only. |
+| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | Candidate `0bde606` passed the configured one\|nine preflight and both frozen provider-free retrieval gates. No configured model-backed outcome report exists. Paid/model-backed runs require explicit authorization; fixtures and provider-free gates prove their bounded contracts only. |
 | Generated summaries | Complexity-aware prompts and local/online providers implemented. | No summary deployment profile is CodeMesh-qualified. |
 | Security | Pre-persistence value redaction and generated/cache path exclusions implemented. | Known secret-file exclusion and configurable allow/deny policy remain open. |
 | Repository identity | Stable project/checkout markers, deterministic source snapshots, checkout-current and clean branch-head slots, explicit retained slots, legacy migration, and richer local freshness implemented. | Separate clones attach with explicit `--project-id`; shared-service tenant/authorization/privacy controls remain deferred. |
@@ -52,40 +52,42 @@ are in [Architecture](architecture.md).
 
 ## Activated one|nine Pilot
 
-The first bounded pilot is active only for the clean Primary checkout at
-`e12d0281b687e58c2baac85f771a684df6fa8552`. It is bound to project
+The bounded pilot is active only for the clean Primary checkout at
+`fe2f761583bf78601961ff17934185c4b6a632f9`. It is bound to project
 `prj_a570a726917d4d0ca596085aaf07af50`, checkout
 `chk_70c50c5494de4837ab0627aca021eab2`, and source view
-`ce3c63a66e3e4821bf5431d9997314070d60ec61f9ab8b35aa0cdcafbacace4a`.
-The provider-free ingestion published snapshot
-`snp_52a2af6a662c8070cea0ccb6db837a68717f45422aa7574fe5db0af2543169e9`
-with 45,492 nodes, 94,774 relationships, 12,766 content items, zero
-embeddings, and zero summaries.
+`fea1951d1eeb93ac265112aef7000dcac1a9832b000ea81b360b0851df56e69b`.
+Provider-free ingestion run
+`98b439c4b0d484297852dae7723be555e75bf8fcf7c565c96a9b0bad43b66062`
+published snapshot
+`snp_bf026d3f2e2b5a40f3c9fa112ae36b7e026b0f5a0f0483a23796b0a6adc9243e`
+with 45,650 nodes, 95,218 relationships, 12,873 content items, zero
+embeddings, and zero summaries. It redacted 324 content items before
+persistence.
 
-The reviewed installation plan changed only Primary's ignored
-`.codex/config.toml`. The normal-profile stdio probe accepted the exact binding,
-reported fresh commit/source provenance, exposed exactly four tools, and
-returned real Python and Rust context. A focused test-selection probe initially
-missed `tests/test_feed_hub_native_replay_adapter.py`; a feedback packet
-recorded the exact commit/snapshot failure, identifier tokenization was
-corrected, and a superseding recheck returned the target. The feedback summary
-now reports that ranking item as resolved and the onboarding probe as verified.
+The reviewed plan at hash
+`6f5e68c225f88b6162f386e4c3bfb9ae1d974f70d56b04a50c142be7542c004e`
+changed only Primary's ignored `.codex/config.toml`. The normal-profile probe
+accepted the exact fresh binding and the configured preflight preserved prompt
+parity. Its installed ignored `AGENTS.override.md` guidance was retained by
+source classification and hash, not raw content. The positive gate returned
+both `app/feed_hub/native_replay.py` and
+`native/feed_hub_replay/src/lib.rs`; the wrong-checkout gate failed closed with
+the live binding, freshness, and provenance issue codes.
 
-The clean CodeMesh candidate `ee1d4d9` and installation plan
-`6d37def879a062f8a93923514376f14707ddf430582e675aff44aa7b2e4ad40a`
-then passed eight provider-free runtime
-gates: accepted fresh Python, Rust, test-selection, and PyO3 retrieval, plus
-fail-closed wrong-checkout, wrong-root, wrong-source-view, and dirty-checkout
-probes. It validated all three retained Primary feedback packets and returned
-the checkout to a clean state.
+Clean detached CodeMesh candidate `0bde606` passed all eight frozen one|nine
+provider-free gates, comprising four positive retrieval gates and four
+rejection gates, and validated all three retained feedback packets. The same
+candidate passed the pinned six-case, 18-call YoutubeDownloader summary-free
+live gate with 1.0 tool success and recall, 0.9 MRR, 0.926186 nDCG, and zero
+secret leaks. Its final local verification comprised 124 Python tests, Ruff
+check and format, and all five deterministic MCP fixtures.
 
-The same clean candidate passed the pinned six-case, 18-call
-YoutubeDownloader summary-free live gate with 1.0 recall, 0.9 MRR, 0.926186
-nDCG, and zero secret leaks. The first candidate run exposed and retained a
-partial-symbol primary-path ranking regression; deterministic canonical source
-selection corrected it before the final pass. The sanitized exact-candidate
-record is
-[one|nine Priority 1 evidence](../evaluation/evidence/onenine-priority1-ee1d4d9.json).
+The attended correction path remains evidence: `4eccd80` missed the Rust
+expected path, `a6ebaa5` expected the wrong live rejection diagnostic, and
+`854d678` failed the YoutubeDownloader MRR threshold at 0.766667. No model was
+invoked in those attempts or the final pass. The sanitized exact-candidate
+record is [configured one|nine provider-free evidence](../evaluation/evidence/configured-onenine-provider-free-0bde606.json).
 
 This is provider-free local diagnostic evidence. It proves a bounded configured
 path and feedback/improvement loop, not normal-agent adoption, general product
@@ -151,13 +153,14 @@ transcription is
 
 ## Current Gap
 
-Explicit repository onboarding is now implemented for the bounded one|nine
-pilot: the normal profile exposes only context package, repository status,
-repository listing, and node lookup; exact binding and freshness are enforced;
-and installation plus probing are reviewable. The clean committed candidate and
-its provider-free gates now pass. The next evidence gap is adopted normal-host
-agent tasks that compare the configured path with ordinary exploration without
-changing task prompts.
+Explicit repository onboarding is implemented for the bounded one|nine pilot:
+the normal profile exposes only context package, repository status, repository
+listing, and node lookup; exact binding and freshness are enforced; and
+installation plus probing are reviewable. Clean candidate `0bde606`, exact
+Primary commit `fe2f761`, the configured preflight, the eight-gate frozen
+one|nine pilot, and the YoutubeDownloader live gate all pass provider-free. The
+next evidence gap is adopted normal-host agent tasks that compare this exact
+configured path with ordinary exploration without changing task prompts.
 
 The prompt-parity Config.Net campaign recorded zero MCP calls and zero MCP call
 attempts. Preserve it as negative spontaneous-discovery evidence; do not change
@@ -182,36 +185,21 @@ checkout, commit or binding mismatch, changed plan files, unexpected tool
 surface, and a failed rejection probe. Historical spontaneous and assisted
 modes retain their prior diagnostic behavior.
 
-The next gate is a clean committed CodeMesh candidate and a pinned one|nine
-checkout whose installed plan, indexed snapshot, repository guidance, and
-permitted Graphify baseline all match. Run the provider-free configured
-preflight and frozen one|nine and YoutubeDownloader gates there before seeking
-separate authorization for the model-cost-bearing paired campaign. A passing
-preflight proves configuration and runtime identity, not normal-agent adoption
-or product benefit.
+The clean provider-free gate is complete. The authoritative instance registry
+pins Primary `fe2f761`, detached CodeMesh candidate `0bde606`, and the matching
+source-view identity; those identities must remain frozen for the next
+campaign. The immediate next gate is the model-cost-bearing paired one|nine
+campaign through that exact configured installation, which requires separate
+explicit model-spend authority. Its passing provider-free preflight proves
+configuration and runtime identity only, not normal-agent adoption or product
+benefit.
 
-At clean local candidate `de239b7`, all 120 Python tests, Ruff checks, the five-
-case fixture suite, documentation standards, and the frozen six-case, 18-call
-YoutubeDownloader live gate passed provider-free. Primary was not repointed or
-re-indexed: its clean checkout had advanced to `499ae263`, while the retained
-snapshot remains pinned to `e12d0281`, so freshness was correctly stale and the
-configured one|nine preflight was not run. The bounded record is
-[configured evaluator candidate evidence](../evaluation/evidence/configured-evaluator-preflight-de239b7.json).
-
-Candidate `9f3216c` then exercised the real configured preflight against that
-unchanged stale Primary state. It rejected before loading a plan or invoking a
-model and reported the indexed commit, current commit, dirty state, and indexed
-source-view identity. All 121 Python tests, Ruff checks, and the fixture suite
-passed after the diagnostic correction. See the
-[one|nine stale-rejection evidence](../evaluation/evidence/configured-onenine-stale-rejection-9f3216c.json).
-
-The instance manager remains clean and pins Primary to `e12d0281` and the
-detached CodeMesh pilot candidate to `ee1d4d9`. Its scripts reject both the
-advanced Primary checkout and an unregistered CodeMesh source override. A
-positive configured preflight therefore requires a deliberate candidate
-selection, provider-free re-index that yields the new source-view identity,
-detached CodeMesh candidate repin, binding-registry update, and newly reviewed
-plan. None of those state changes is implied by the stale-rejection result.
+Run the configured Config.Net replication only after a valid one|nine paired
+campaign. Expand onboarding to another one|nine checkout only with separate
+authority, exact binding, fresh ingestion, and a passing checkout-specific
+probe. The earlier `de239b7` stale state and `9f3216c` stale-candidate rejection
+remain useful historical diagnostics; they are not the current candidate
+state.
 
 ## Public Repository And Hosted Evidence
 

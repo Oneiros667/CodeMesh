@@ -1,0 +1,127 @@
+{
+  "schema_version": "codemesh-configured-onenine-provider-free-v1",
+  "evidence_class": "provider-free-local-configured-integration",
+  "recorded_at": "2026-08-31T22:10:21Z",
+  "codemesh": {
+    "commit": "0bde606cc73b4a0b081067a039822a53672459a1",
+    "clean_detached_checkout": true,
+    "python_tests_passed": 124,
+    "python_test_warnings": 2,
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "fixture_suite_cases_passed": 5,
+    "dotnet_suite": "not_run_host_sdk_missing_aspnet_prune_package_data"
+  },
+  "onenine_primary": {
+    "commit": "fe2f761583bf78601961ff17934185c4b6a632f9",
+    "clean_checkout": true,
+    "project_id": "prj_a570a726917d4d0ca596085aaf07af50",
+    "checkout_id": "chk_70c50c5494de4837ab0627aca021eab2",
+    "snapshot_id": "snp_bf026d3f2e2b5a40f3c9fa112ae36b7e026b0f5a0f0483a23796b0a6adc9243e",
+    "source_view_hash": "fea1951d1eeb93ac265112aef7000dcac1a9832b000ea81b360b0851df56e69b",
+    "ingestion_run_id": "98b439c4b0d484297852dae7723be555e75bf8fcf7c565c96a9b0bad43b66062",
+    "parser_profile": "codemesh-parser-composite-v1[python=codemesh-parser-python;rust=codemesh-parser-rust]",
+    "node_count": 45650,
+    "relationship_count": 95218,
+    "content_count": 12873,
+    "embedding_count": 0,
+    "summary_count": 0,
+    "redacted_content_item_count": 324,
+    "freshness_status": "fresh"
+  },
+  "configured_preflight": {
+    "passed": true,
+    "integration_mode": "configured",
+    "prompt_parity": true,
+    "profile": "normal",
+    "provider": "none",
+    "plan_hash": "6f5e68c225f88b6162f386e4c3bfb9ae1d974f70d56b04a50c142be7542c004e",
+    "installation_file_sha256": "f27c4060e9ae39f6d055e8fb7b052e0784a768ce61a79cb671cd19e71a755dfc",
+    "guidance": {
+      "path": "AGENTS.override.md",
+      "source": "installed-ignored",
+      "sha256": "dbd0faca021b144f57594d91eb04b02a089fd6599234b713efe78693c92deb76"
+    },
+    "expected_paths": [
+      "app/feed_hub/native_replay.py",
+      "native/feed_hub_replay/src/lib.rs"
+    ],
+    "returned_path_count": 8,
+    "wrong_checkout_rejected": true,
+    "rejection_issues": [
+      "bound_repository_missing",
+      "snapshot_not_fresh",
+      "snapshot_provenance_unknown"
+    ],
+    "report_sha256": "3c50bec4131309ceaf65b7ebc90073fa2979841d71a9e9cd075a178194cdad19"
+  },
+  "onenine_frozen_pilot": {
+    "passed": true,
+    "gate_count": 8,
+    "positive_gate_count": 4,
+    "rejection_gate_count": 4,
+    "feedback_packets_valid": 3,
+    "report_sha256": "d0294c8993bbab1e575dd66b899fe08d74733945e4999878e0ddaa20fd10b4bf"
+  },
+  "youtube_downloader_live": {
+    "passed": true,
+    "comparable": true,
+    "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+    "case_count": 6,
+    "tool_call_count": 18,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 0.9,
+    "mean_ndcg_at_k": 0.926186,
+    "secret_leaks": 0,
+    "provider": "none",
+    "report_sha256": "ddd99511b894121f261bb5604d27f44e0424bbf2d731587ffb2e831779ae8e1e"
+  },
+  "retained_attended_failures": [
+    {
+      "codemesh_commit": "4eccd80fc25fe9d7cd07633735e0250a50c278cf",
+      "stage": "configured_positive_probe",
+      "result": "failed_missing_rust_expected_path",
+      "model_invoked": false
+    },
+    {
+      "codemesh_commit": "a6ebaa56ee7f98c729d8f785671254fe80b61ccd",
+      "stage": "configured_wrong_checkout_probe",
+      "result": "failed_expected_diagnostic_did_not_match_live_issue_code",
+      "model_invoked": false
+    },
+    {
+      "codemesh_commit": "854d6789965dcd818b69304a129f83d4a773c361",
+      "stage": "youtube_downloader_live",
+      "result": "failed_mean_mrr_threshold",
+      "mean_mrr": 0.766667,
+      "required_mean_mrr": 0.8,
+      "report_sha256": "70946a43c92b389f9521be3ab168869d5572cb8cf915fe62d0e7933b0efe5b16"
+    }
+  ],
+  "claim_ceiling": {
+    "established": [
+      "provider_free_configured_plan_and_runtime_identity",
+      "prompt_parity_preflight_configuration",
+      "frozen_onenine_retrieval_and_rejection_gates",
+      "comparable_youtube_downloader_retrieval_gate"
+    ],
+    "not_established": [
+      "normal_agent_codemesh_adoption",
+      "model_backed_correctness_or_efficiency_benefit",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "boundaries": {
+    "raw_prompts_or_payloads_retained": false,
+    "model_provider_invoked": false,
+    "model_backed_agent_evaluation": "not_run_requires_explicit_spend_authority",
+    "config_net_configured_replication": "not_run_requires_valid_onenine_model_campaign_first",
+    "secondary_tertiary_release_hotfix_onboarding": "not_authorized",
+    "run_only": "excluded",
+    "release": "not_authorized",
+    "deployment": "not_authorized",
+    "live_trading": "not_authorized"
+  }
+}
