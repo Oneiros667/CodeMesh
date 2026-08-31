@@ -364,7 +364,9 @@ class Neo4jGraphStore:
                              toLower(coalesce(n.id, "")),
                              toLower(coalesce(n.stableKey, "")),
                              toLower(coalesce(n.name, "")),
-                             toLower(coalesce(n.filePath, ""))
+                             toLower(coalesce(n.filePath, "")),
+                             toLower(coalesce(n.language, "")),
+                             toLower(coalesce(n.metadataJson, ""))
                          ] WHERE value CONTAINS term)] AS matched_terms
                     WHERE
                         (size($search_terms) = 0 OR size(matched_terms) > 0)

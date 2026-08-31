@@ -17,6 +17,7 @@ from codemesh_agent_access.models import (
 from codemesh_agent_access.store import (
     CodeMeshReadStore,
     _diversify_lexical_nodes,
+    _diversify_ranked_hits,
     _lexical_score,
     _prioritize_context_relationships,
     _ranked_unique_hits,
@@ -204,6 +205,44 @@ def test_ranked_unique_hits_keeps_best_expanded_context() -> None:
     assert _ranked_unique_hits([lower, higher], 5) == [higher]
 
 
+def test_ranked_hits_cover_distinct_files_before_repeating() -> None:
+    hits = [
+        ContextHit(
+            node_id="a-1",
+            stable_key="a-1",
+            kind="Method",
+            file_path="A.py",
+            start_line=1,
+            end_line=2,
+            score=0.9,
+        ),
+        ContextHit(
+            node_id="a-2",
+            stable_key="a-2",
+            kind="Method",
+            file_path="A.py",
+            start_line=3,
+            end_line=4,
+            score=0.8,
+        ),
+        ContextHit(
+            node_id="b-1",
+            stable_key="b-1",
+            kind="Method",
+            file_path="B.rs",
+            start_line=1,
+            end_line=2,
+            score=0.7,
+        ),
+    ]
+
+    assert [hit.node_id for hit in _diversify_ranked_hits(hits, 3)] == [
+        "a-1",
+        "b-1",
+        "a-2",
+    ]
+
+
 def test_lexical_score_ranks_multi_term_coverage() -> None:
     query = "repository cleanup removes indexed data"
     primary = {
@@ -239,6 +278,43 @@ def test_lexical_score_prefers_terms_in_symbol_and_file_names() -> None:
 
     assert _lexical_score(explicit_boundary, query) > _lexical_score(
         incidental_signature, query
+    )
+
+
+def test_lexical_score_uses_language_signature_and_inflection_for_native_boundary() -> (
+    None
+):
+    query = (
+        "Allow four workers in native feed-hub replay parallel processing across "
+        "Python PyO3 Rust telemetry evidence and tests"
+    )
+    rust_boundary = {
+        "id": "rust:fn:crate::native::feed_hub_replay::src:process_mbo_v3_parallel",
+        "stableKey": (
+            "rust:fn:crate::native::feed_hub_replay::src:process_mbo_v3_parallel"
+        ),
+        "name": "process_mbo_v3_parallel",
+        "filePath": "native/feed_hub_replay/src/lib.rs",
+        "language": "rust",
+        "metadataJson": json.dumps(
+            {
+                "signature": (
+                    "fn process_mbo_v3_parallel(py: Python, worker_count: usize)"
+                ),
+                "attributes": "#[allow(clippy::too_many_arguments)]",
+            }
+        ),
+    }
+    broad_python_test = {
+        "id": "python:testcase:tests.test_feed_hub_native_replay_adapter",
+        "stableKey": "python:testcase:tests.test_feed_hub_native_replay_adapter",
+        "name": "test_adapter_validates_parallel_limits_and_telemetry",
+        "filePath": "tests/test_feed_hub_native_replay_adapter.py",
+        "language": "python",
+    }
+
+    assert _lexical_score(rust_boundary, query) > _lexical_score(
+        broad_python_test, query
     )
 
 

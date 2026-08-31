@@ -1700,11 +1700,35 @@ def _ranked_unique_hits(hits: list[ContextHit], limit: int) -> list[ContextHit]:
         else:
             best_by_node_id[hit.node_id] = _merge_hit_score_components(existing, hit)
 
-    return sorted(
+    ranked = sorted(
         best_by_node_id.values(),
         key=lambda hit: (hit.score, _kind_weight_from_name(hit.kind), -hit.start_line),
         reverse=True,
-    )[:limit]
+    )
+    return _diversify_ranked_hits(ranked, limit)
+
+
+def _diversify_ranked_hits(hits: list[ContextHit], limit: int) -> list[ContextHit]:
+    if limit <= 0:
+        return []
+
+    buckets: dict[str, list[ContextHit]] = {}
+    for hit in hits:
+        key = hit.file_path.replace("\\", "/").casefold() or hit.node_id
+        buckets.setdefault(key, []).append(hit)
+
+    selected: list[ContextHit] = []
+    while len(selected) < limit:
+        added = False
+        for bucket in buckets.values():
+            if bucket:
+                selected.append(bucket.pop(0))
+                added = True
+            if len(selected) >= limit:
+                break
+        if not added:
+            break
+    return selected
 
 
 def _merge_hit_score_components(
@@ -1941,11 +1965,17 @@ def _lexical_score(node: dict[str, Any], search_text: str) -> float:
 
     normalized_search_text = search_text.casefold()
 
+    metadata = _metadata(node.get("metadataJson"))
     fields = [
         str(node.get("id") or "").casefold(),
         str(node.get("stableKey") or "").casefold(),
         str(node.get("name") or "").casefold(),
         str(node.get("filePath") or "").casefold(),
+        str(node.get("language") or "").casefold(),
+        str(metadata.get("signature") or "").casefold(),
+        str(metadata.get("display") or "").casefold(),
+        str(metadata.get("pythonExportName") or "").casefold(),
+        str(metadata.get("attributes") or "").casefold(),
     ]
 
     if any(field == normalized_search_text for field in fields):
@@ -1959,24 +1989,50 @@ def _lexical_score(node: dict[str, Any], search_text: str) -> float:
     if not terms:
         return 0.0
 
-    matched_terms = sum(1 for term in terms if any(term in field for field in fields))
+    matched_terms = sum(1 for term in terms if _lexical_term_matches(term, fields))
     coverage = matched_terms / len(terms)
     best_field_coverage = max(
-        (sum(1 for term in terms if term in field) / len(terms) for field in fields),
+        (
+            sum(1 for term in terms if _lexical_term_matches(term, [field]))
+            / len(terms)
+            for field in fields
+        ),
         default=0.0,
     )
     file_name = fields[3].rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
     identifier_fields = [fields[2], file_name]
     identifier_coverage = sum(
-        1 for term in terms if any(term in field for field in identifier_fields)
+        1 for term in terms if _lexical_term_matches(term, identifier_fields)
+    ) / len(terms)
+    semantic_fields = fields[4:]
+    semantic_coverage = sum(
+        1 for term in terms if _lexical_term_matches(term, semantic_fields)
     ) / len(terms)
     return min(
         0.95,
         0.15
         + (coverage * 0.55)
         + (best_field_coverage * 0.10)
-        + (identifier_coverage * 0.25),
+        + (identifier_coverage * 0.25)
+        + (semantic_coverage * 0.18),
     )
+
+
+def _lexical_term_matches(term: str, fields: list[str]) -> bool:
+    return any(
+        variant in field for variant in _lexical_term_variants(term) for field in fields
+    )
+
+
+def _lexical_term_variants(term: str) -> tuple[str, ...]:
+    variants = [term]
+    if len(term) > 4 and term.endswith("ing"):
+        variants.append(term[:-3])
+    if len(term) > 4 and term.endswith("ies"):
+        variants.append(f"{term[:-3]}y")
+    elif len(term) > 4 and term.endswith("s") and not term.endswith("ss"):
+        variants.append(term[:-1])
+    return tuple(dict.fromkeys(variants))
 
 
 def _symbol_score(node: dict[str, Any], search_text: str) -> float:
