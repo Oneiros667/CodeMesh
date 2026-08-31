@@ -73,6 +73,14 @@ class AgentEvaluationContext:
     control_mcp_config: tuple[str, ...] | None
     treatment_mcp_config: tuple[str, ...] | None
     configured_integration: dict[str, Any] | None
+    configured_guidance_files: tuple[ConfiguredGuidanceFile, ...] = ()
+
+
+@dataclass(frozen=True)
+class ConfiguredGuidanceFile:
+    path: str
+    content: bytes
+    sha256: str
 
 
 async def run_agent_preflight(
@@ -177,6 +185,7 @@ async def run_agent_evaluation(
                         else context.control_mcp_config
                     ),
                     treatment_guidance=suite.treatment_guidance,
+                    configured_guidance_files=context.configured_guidance_files,
                 )
                 runs.append(report)
 
@@ -271,6 +280,7 @@ async def _prepare_agent_context(
     codemesh_source_branch = _git(codemesh_root, "rev-parse", "--abbrev-ref", "HEAD")
     integration_mode = suite.resolved_integration_mode
     configured_integration: dict[str, Any] | None = None
+    configured_guidance_files: tuple[ConfiguredGuidanceFile, ...] = ()
     control_mcp_config: tuple[str, ...] | None = None
     treatment_mcp_config: tuple[str, ...] | None = None
     if integration_mode == "configured":
@@ -286,6 +296,7 @@ async def _prepare_agent_context(
             configured_integration,
             control_mcp_config,
             treatment_mcp_config,
+            configured_guidance_files,
         ) = await _prepare_configured_integration(
             configured_plan,
             root=root,
@@ -316,6 +327,7 @@ async def _prepare_agent_context(
         control_mcp_config=control_mcp_config,
         treatment_mcp_config=treatment_mcp_config,
         configured_integration=configured_integration,
+        configured_guidance_files=configured_guidance_files,
     )
 
 
@@ -331,7 +343,12 @@ async def _prepare_configured_integration(
     expected_paths: list[str] | None,
     timeout_seconds: int,
     baseline_mcp_servers: list[str],
-) -> tuple[dict[str, Any], tuple[str, ...], tuple[str, ...]]:
+) -> tuple[
+    dict[str, Any],
+    tuple[str, ...],
+    tuple[str, ...],
+    tuple[ConfiguredGuidanceFile, ...],
+]:
     if timeout_seconds < 1:
         raise ValueError("Configured probe timeout must be positive.")
     if plan.profile != "normal":
@@ -389,7 +406,9 @@ async def _prepare_configured_integration(
         raise EvaluationInfrastructureError(
             "Configured installation tool surface is not the shipped normal profile."
         )
-    guidance = _guidance_identities(root, guidance_paths or ["AGENTS.md"])
+    guidance, guidance_files = _guidance_identities(
+        root, guidance_paths or ["AGENTS.md"]
+    )
     baseline_config, baseline_identities = _baseline_mcp_overrides(
         plan, baseline_mcp_servers
     )
@@ -444,7 +463,7 @@ async def _prepare_configured_integration(
         "positive_probe": _probe_identity(positive),
         "rejection_probe": _probe_identity(negative),
     }
-    return metadata, baseline_config, treatment_config
+    return metadata, baseline_config, treatment_config, guidance_files
 
 
 def _preflight_report(
@@ -465,8 +484,11 @@ def _preflight_report(
     }
 
 
-def _guidance_identities(root: Path, paths: list[str]) -> list[dict[str, str]]:
+def _guidance_identities(
+    root: Path, paths: list[str]
+) -> tuple[list[dict[str, str]], tuple[ConfiguredGuidanceFile, ...]]:
     identities: list[dict[str, str]] = []
+    guidance_files: list[ConfiguredGuidanceFile] = []
     for value in paths:
         relative = Path(value)
         if relative.is_absolute() or ".." in relative.parts:
@@ -494,21 +516,48 @@ def _guidance_identities(root: Path, paths: list[str]) -> list[dict[str, str]]:
             ],
             timeout=30,
         )
+        source = "tracked"
         if tracked.returncode != 0:
-            raise EvaluationInfrastructureError(
-                f"Configured guidance must be committed: {relative.as_posix()}."
+            ignored = _run_command(
+                [
+                    "git",
+                    "-C",
+                    str(root),
+                    "check-ignore",
+                    "--quiet",
+                    "--no-index",
+                    "--",
+                    relative.as_posix(),
+                ],
+                timeout=30,
             )
+            if ignored.returncode != 0:
+                raise EvaluationInfrastructureError(
+                    "Configured guidance must be committed or an explicitly "
+                    f"ignored installed file: {relative.as_posix()}."
+                )
+            source = "installed-ignored"
+        content = path.read_bytes()
+        sha256 = hashlib.sha256(content).hexdigest()
         identities.append(
             {
                 "path": relative.as_posix(),
-                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "sha256": sha256,
+                "source": source,
             }
+        )
+        guidance_files.append(
+            ConfiguredGuidanceFile(
+                path=relative.as_posix(),
+                content=content,
+                sha256=sha256,
+            )
         )
     if not identities:
         raise EvaluationInfrastructureError(
             "Configured agent evaluation requires at least one guidance file."
         )
-    return identities
+    return identities, tuple(guidance_files)
 
 
 def _baseline_mcp_overrides(
@@ -644,6 +693,7 @@ async def _run_task_condition(
     artifact_dir: Path,
     mcp_config: tuple[str, ...] | None = None,
     treatment_guidance: str | None = None,
+    configured_guidance_files: tuple[ConfiguredGuidanceFile, ...] = (),
 ) -> AgentExecutionReport:
     temp_parent = Path(tempfile.mkdtemp(prefix="codemesh-eval-"))
     workspace = temp_parent / "workspace"
@@ -670,6 +720,7 @@ async def _run_task_condition(
                 base_commit,
             ]
         )
+        _materialize_configured_guidance(workspace, configured_guidance_files)
         if task.setup_patch:
             patch_path = (suite_path.parent / task.setup_patch).resolve()
             if not patch_path.is_file():
@@ -823,6 +874,24 @@ async def _run_task_condition(
     finally:
         if temp_parent.exists():
             shutil.rmtree(temp_parent)
+
+
+def _materialize_configured_guidance(
+    workspace: Path, guidance_files: tuple[ConfiguredGuidanceFile, ...]
+) -> None:
+    for item in guidance_files:
+        relative = Path(item.path)
+        target = (workspace / relative).resolve(strict=False)
+        if workspace != target and workspace not in target.parents:
+            raise EvaluationInfrastructureError(
+                f"Configured guidance path escapes evaluation workspace: {item.path}."
+            )
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(item.content)
+        if hashlib.sha256(target.read_bytes()).hexdigest() != item.sha256:
+            raise EvaluationInfrastructureError(
+                f"Configured guidance identity changed while preparing: {item.path}."
+            )
 
 
 def classify_agent_results(

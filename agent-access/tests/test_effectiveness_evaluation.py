@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -14,6 +15,7 @@ import codemesh_agent_access.evaluation.agent as agent_evaluation
 from codemesh_agent_access.binding import RepositoryBinding
 from codemesh_agent_access.evaluation.agent import (
     AgentEvaluationContext,
+    ConfiguredGuidanceFile,
     _condition_prompt,
     _grade_answer,
     _grade_command_policy,
@@ -314,6 +316,10 @@ def test_configured_integration_requires_exact_plan_binding_and_probes(
     target = tmp_path / "target"
     target.mkdir()
     (target / "AGENTS.md").write_text("# Configured guidance\n", encoding="utf-8")
+    (target / ".gitignore").write_text("/AGENTS.override.md\n", encoding="utf-8")
+    (target / "AGENTS.override.md").write_text(
+        "# Installed CodeMesh guidance\n", encoding="utf-8"
+    )
     (target / ".codex").mkdir()
     (target / ".codex" / "config.toml").write_text(
         "\n".join(
@@ -333,7 +339,7 @@ def test_configured_integration_requires_exact_plan_binding_and_probes(
     _git(target, "init", "--quiet")
     _git(target, "config", "user.name", "CodeMesh Test")
     _git(target, "config", "user.email", "codemesh@example.invalid")
-    _git(target, "add", "AGENTS.md")
+    _git(target, "add", "AGENTS.md", ".gitignore")
     _git(target, "commit", "--quiet", "-m", "fixture")
     base_commit = _git(target, "rev-parse", "HEAD").strip()
     codemesh_root = Path(__file__).resolve().parents[2]
@@ -406,14 +412,14 @@ def test_configured_integration_requires_exact_plan_binding_and_probes(
     monkeypatch.setattr(agent_evaluation, "run_runtime_probe", fake_positive)
     monkeypatch.setattr(agent_evaluation, "run_runtime_rejection_probe", fake_negative)
 
-    metadata, control_overrides, treatment_overrides = asyncio.run(
+    metadata, control_overrides, treatment_overrides, guidance_files = asyncio.run(
         _prepare_configured_integration(
             plan,
             root=target,
             base_commit=base_commit,
             codemesh_root=codemesh_root,
             preflight=preflight,
-            guidance_paths=["AGENTS.md"],
+            guidance_paths=["AGENTS.override.md"],
             probe_query="configured query",
             expected_paths=["src/A.cs"],
             timeout_seconds=30,
@@ -423,8 +429,10 @@ def test_configured_integration_requires_exact_plan_binding_and_probes(
 
     assert metadata["plan_hash"] == plan.plan_hash
     assert metadata["profile"] == "normal"
-    assert metadata["guidance"][0]["path"] == "AGENTS.md"
+    assert metadata["guidance"][0]["path"] == "AGENTS.override.md"
     assert len(metadata["guidance"][0]["sha256"]) == 64
+    assert metadata["guidance"][0]["source"] == "installed-ignored"
+    assert guidance_files[0].content == b"# Installed CodeMesh guidance\n"
     assert len(metadata["positive_probe"]["report_sha256"]) == 64
     assert "diagnostic" not in metadata["rejection_probe"]
     assert metadata["baseline_mcp_servers"][0]["name"] == "graphify"
@@ -519,16 +527,27 @@ def test_configured_agent_report_retains_identity_and_prompt_parity(
         ),
         treatment_mcp_config=('mcp_servers.codemesh.command="uv"',),
         configured_integration=configured_identity,
+        configured_guidance_files=(
+            ConfiguredGuidanceFile(
+                path="AGENTS.override.md",
+                content=b"# Installed CodeMesh guidance\n",
+                sha256=hashlib.sha256(b"# Installed CodeMesh guidance\n").hexdigest(),
+            ),
+        ),
     )
 
     async def fake_context(*_args: Any, **_kwargs: Any) -> AgentEvaluationContext:
         return context
 
     requests: list[AgentRunRequest] = []
+    observed_guidance: list[str] = []
 
     class FakeRunner:
         async def run(self, request: AgentRunRequest) -> AgentRunResult:
             requests.append(request)
+            observed_guidance.append(
+                (request.cwd / "AGENTS.override.md").read_text(encoding="utf-8")
+            )
             return AgentRunResult(
                 completed=True,
                 exit_code=0,
@@ -573,6 +592,10 @@ def test_configured_agent_report_retains_identity_and_prompt_parity(
     assert report.metadata["configured_integration"] == configured_identity
     assert len(requests) == 2
     assert {request.prompt for request in requests} == {"Explain A."}
+    assert observed_guidance == [
+        "# Installed CodeMesh guidance\n",
+        "# Installed CodeMesh guidance\n",
+    ]
     control = next(request for request in requests if request.condition == "control")
     treatment = next(
         request for request in requests if request.condition == "treatment"
