@@ -3494,17 +3494,6 @@ static async Task TestCSharpParserSeparatesPartialDeclarations()
     try
     {
         await File.WriteAllTextAsync(
-            Path.Combine(root, "Customer.cs"),
-            """
-            namespace Sample;
-
-            public sealed partial class Customer
-            {
-                public string Name { get; set; } = "";
-            }
-            """);
-
-        await File.WriteAllTextAsync(
             Path.Combine(root, "Customer.Validation.cs"),
             """
             namespace Sample;
@@ -3512,6 +3501,17 @@ static async Task TestCSharpParserSeparatesPartialDeclarations()
             public sealed partial class Customer
             {
                 public bool IsValid() => !string.IsNullOrWhiteSpace(Name);
+            }
+            """);
+
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "Customer.cs"),
+            """
+            namespace Sample;
+
+            public sealed partial class Customer
+            {
+                public string Name { get; set; } = "";
             }
             """);
 
@@ -3524,6 +3524,10 @@ static async Task TestCSharpParserSeparatesPartialDeclarations()
             new Dictionary<string, string>()));
 
         Equal(1, result.Nodes.Count(node => string.Equals(node.Id, "csharp:type:Sample.Customer", StringComparison.Ordinal)), "Expected one logical Customer type node.");
+        Equal(
+            "Customer.cs",
+            result.Nodes.Single(node => string.Equals(node.Id, "csharp:type:Sample.Customer", StringComparison.Ordinal)).Span.FilePath,
+            "The logical Customer type should use the canonical main declaration path.");
         Equal(2, result.Nodes.Count(node =>
             node.Kind == CodeNodeKind.Declaration &&
             node.Metadata.TryGetValue("symbolId", out var symbolId) &&

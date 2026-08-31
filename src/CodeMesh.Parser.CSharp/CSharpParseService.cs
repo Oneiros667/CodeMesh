@@ -377,6 +377,8 @@ public sealed class CSharpParseService
                 }
             }
 
+            files.Sort((left, right) => CompareSourcePaths(left.RelativePath, right.RelativePath));
+
             if (files.Count > 0)
             {
                 contexts.Add(new ProjectParseContext(project.Name, compilation, files));
@@ -534,7 +536,31 @@ public sealed class CSharpParseService
     private static IEnumerable<string> EnumerateCSharpFiles(string repositoryRoot)
     {
         return Directory.EnumerateFiles(repositoryRoot, "*.cs", SearchOption.AllDirectories)
-            .Where(file => !IsGeneratedOutputPath(repositoryRoot, file));
+            .Where(file => !IsGeneratedOutputPath(repositoryRoot, file))
+            .OrderBy(file => file, Comparer<string>.Create(CompareSourcePaths));
+    }
+
+    private static int CompareSourcePaths(string left, string right)
+    {
+        var leftStem = Path.GetFileNameWithoutExtension(left);
+        var rightStem = Path.GetFileNameWithoutExtension(right);
+        var segmentComparison = leftStem.Count(character => character == '.')
+            .CompareTo(rightStem.Count(character => character == '.'));
+        if (segmentComparison != 0)
+        {
+            return segmentComparison;
+        }
+
+        var lengthComparison = leftStem.Length.CompareTo(rightStem.Length);
+        if (lengthComparison != 0)
+        {
+            return lengthComparison;
+        }
+
+        var insensitiveComparison = StringComparer.OrdinalIgnoreCase.Compare(left, right);
+        return insensitiveComparison != 0
+            ? insensitiveComparison
+            : StringComparer.Ordinal.Compare(left, right);
     }
 
     private static string FileNodeId(string relativePath)
