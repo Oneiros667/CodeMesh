@@ -31,6 +31,30 @@ The current local-first ingestion path redacts sensitive-looking values before c
 Current behavior:
 
 - A shared repository path policy excludes generated, cache, virtual-environment, smoke, and temporary directories before supported parsers enumerate files.
+- Files and directories reached through repository symlinks, junctions, or
+  other reparse points are excluded fail closed, including links that would
+  traverse to content outside the selected repository root.
+- C# solution and project discovery uses the same containment policy. An
+  explicitly selected solution or project file is rejected when it is outside
+  that policy rather than being opened by MSBuild.
+- Known secret files are excluded by default, including `.env` variants,
+  credential and secret data files, common private-key and keystore formats,
+  Terraform state, and selected local cloud or container credential files.
+  Safe environment templates such as `.env.example`, `.env.sample`, and
+  `.env.template` remain eligible.
+- Repeated `--allow-path <glob>` options restrict ingestion to matching
+  repository-relative paths. Repeated `--deny-path <glob>` options add
+  exclusions and take precedence over allow patterns.
+- Path patterns support `*`, `?`, and `**`, match case-insensitively, and reject
+  absolute paths or parent traversal. They are anchored at the repository root:
+  use `README.md` for only the root file and `**/README.md` for that basename at
+  any depth. Generated/cache exclusions cannot be overridden by an allow
+  pattern, and allow patterns cannot opt linked paths back into scope.
+- `--include-known-secret-files` explicitly disables only the default known-
+  secret-file exclusions. It does not bypass generated/cache exclusions,
+  configured deny patterns, value redaction, or repository authorization.
+- The normalized filter configuration and path-policy version participate in
+  snapshot identity, and watch uses the same effective filter as ingestion.
 - Private key blocks are replaced with `<redacted>`.
 - Environment-style assignments with names containing `SECRET`, `PASSWORD`, `PASSWD`, `TOKEN`, `API_KEY`, `PRIVATE_KEY`, or `CONNECTION_STRING` are redacted.
 - JSON string values with sensitive-looking key names are redacted.
@@ -39,11 +63,20 @@ Current behavior:
 - Redacted content receives a new content hash, and graph nodes are remapped to that redacted content hash before store writes, embeddings, and summaries.
 - Ingestion emits diagnostic `CMSEC001` when redaction changes one or more content items.
 
-The following behavior remains planned in [Next Steps](../planning/next-steps.md):
+Repository-specific sensitive-file conventions still require reviewed deny
+patterns; CodeMesh does not infer every proprietary credential or artifact
+name safely.
 
-- Configurable allowlists and denylists for ingestion.
-- Default exclusion for known secret files in addition to the current generated-directory exclusions.
-- Broader tests for additional secret formats and false-positive control.
+Example restricted ingestion:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- ingest `
+  --root C:\path\to\repository `
+  --allow-path "src/**" `
+  --allow-path "tests/**" `
+  --deny-path "src/generated/**" `
+  --skip-embeddings
+```
 
 Shared multi-user storage adds tenant isolation, path privacy, authorization,
 retention, and verified-deletion requirements. Those requirements are proposed

@@ -34,9 +34,9 @@ execution order or the user activates it.
 | --- | --- |
 | REST, MCP, Python CLI, ranking, formatting, or context packages | `agent-access/codemesh_agent_access` and `docs/current/agent-access-contracts.md` |
 | .NET Agent Access client contracts | `src/CodeMesh.Domain/Contracts` and `src/CodeMesh.Control/AgentAccess` |
-| Ingestion, cleanup, embeddings, or summaries | `src/CodeMesh.Ingestion` |
+| Ingestion, cleanup, embeddings, summaries, or summary qualification | `src/CodeMesh.Ingestion` and `COMMANDS.md` |
 | C# semantic graph behavior | `src/CodeMesh.Parser.CSharp` |
-| Python, Markdown, or deployment parsing | The matching `src/CodeMesh.Parser.*` project |
+| Python, Rust, Markdown, or deployment parsing | The matching `src/CodeMesh.Parser.*` project |
 | Store reads, writes, or cleanup | `src/CodeMesh.Storage` |
 | CLI workflow or repository discovery | `src/CodeMesh.Cli` and `src/CodeMesh.Control` |
 | Product direction | `docs/current/project-status.md`, then `docs/planning/next-steps.md` |

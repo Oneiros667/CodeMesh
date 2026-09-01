@@ -65,6 +65,23 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
   --skip-embeddings
 ```
 
+Known secret files are excluded by default. To restrict a repository further,
+repeat repository-relative allow or deny globs; deny patterns take precedence:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- ingest `
+  --root $repositoryRoot `
+  --languages python,rust `
+  --allow-path "app/**" `
+  --allow-path "native/**" `
+  --deny-path "app/generated/**" `
+  --skip-embeddings
+```
+
+Use `--include-known-secret-files` only after reviewing the broadened scope. It
+does not disable value redaction, configured deny patterns, or generated/cache
+directory exclusions. See [Security and Redaction](../current/security-and-redaction.md).
+
 Verify repository discovery:
 
 ```powershell

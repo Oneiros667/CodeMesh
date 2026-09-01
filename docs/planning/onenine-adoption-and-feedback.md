@@ -2,12 +2,13 @@
 
 Document type: owner-activated implementation plan and pilot gate
 
-Reviewed: 2026-08-31
+Reviewed: 2026-09-01
 
 This document defines the bounded one|nine adoption priority selected in
 [Next Steps](next-steps.md). Its initial implementation and provider-free pilot
-gate passed from clean candidate `ee1d4d9`. Current behavior and evidence remain
-authoritative in
+gate passed from clean candidate `ee1d4d9`; the later configured-evaluator
+candidate and frozen provider-free gates were finalized at `0bde606`. Current
+behavior and evidence remain authoritative in
 [Project Status](../current/project-status.md); this planning record does not
 establish that CodeMesh improves one|nine agent outcomes.
 
@@ -151,9 +152,10 @@ and relationships for:
 Compare the pilot with ordinary repository exploration plus the existing
 Graphify integration. Use feedback packets to find candidate improvements, but
 retain controlled suites, prompts, gold targets, commits, snapshots, and
-outcomes separately. With explicit model-spend authorization, a later paired
-campaign may evaluate the shipped configured/onboarded integration using
-identical control and treatment task prompts.
+outcomes separately. The first explicitly authorized configured/onboarded
+campaign used identical control and treatment task prompts and completed safely,
+but no treatment retrieved context. Treat that as measured handoff evidence,
+not product-benefit evidence.
 
 ## Completion Gates
 
@@ -189,9 +191,23 @@ feedback packets and produced a provenance-preserving summary. The pinned
 YoutubeDownloader live gate also passed after a discovered partial-symbol
 ranking regression was corrected and retested.
 
-This result is clean-candidate provider-free diagnostic evidence. The next
-priority requires explicit model-spend authority for configured/onboarded paired
-agent tasks. Those tasks, not this pilot gate, can test attributable product
+This result is clean-candidate provider-free diagnostic evidence. Configured/
+onboarded paired agent tasks, not this pilot gate, can test attributable product
 benefit. Exact identities, metrics, report hashes, and the retained failed gate
 are in the
 [Priority 1 evidence record](../evaluation/evidence/onenine-priority1-ee1d4d9.json).
+
+Subsequent configured-evaluator corrections preserved the initial gate as
+historical evidence and finalized the frozen campaign at CodeMesh candidate
+`0bde606` against Primary commit `fe2f761`. That provider-free preflight, all
+eight one|nine retrieval and rejection gates, and the pinned YoutubeDownloader
+live gate passed. The exact final identities and claim ceiling are retained in
+the [configured one|nine evidence record](../evaluation/evidence/configured-onenine-provider-free-0bde606.json).
+
+The first authorized paired model campaign from those exact identities
+completed three correct and safe pairs. Two treatments called repository status,
+none called the context-package tool, and the verdict was `insufficient` with no
+attributable wins. The next priority is the smallest status-to-context handoff
+correction, full clean-candidate provider-free verification, and only then a
+separately authorized model rerun. The sanitized outcome is retained in the
+[configured agent evidence record](../evaluation/evidence/configured-onenine-agent-0bde606.json).

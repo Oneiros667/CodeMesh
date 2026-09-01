@@ -2,7 +2,7 @@
 
 Document type: selected product contract and implementation plan
 
-Reviewed: 2026-08-31
+Reviewed: 2026-09-01
 
 This document selects the v1 integration contract for CodeMesh in coding-agent
 hosts. The MCP server instructions, manual repository guidance in
@@ -10,9 +10,11 @@ hosts. The MCP server instructions, manual repository guidance in
 checkout binding, fail-closed package freshness, reviewable installation, and
 provider-free probes are implemented and passed their clean-candidate gates at
 `ee1d4d9`. Configured/onboarded evaluator support is implemented and its live
-stale-candidate rejection is verified through `9f3216c`; exact-candidate
-one|nine positive preflight and normal-host outcome evaluation remain
-outstanding.
+stale-candidate rejection is verified through `9f3216c`. Exact-candidate
+preflight, the frozen one|nine retrieval and rejection gates, and the pinned
+YoutubeDownloader live gate passed at `0bde606`. The first configured normal-
+host campaign completed safely and correctly but was insufficient because two
+treatments stopped after status and none retrieved task context.
 
 ## Decision
 
@@ -154,8 +156,10 @@ changing the task prompt. The frozen task, grading targets, model settings,
 clean-checkout requirements, and summary-free live gate remain unchanged.
 
 The provider-free preflight must pass against the exact candidate before a
-campaign. Executing the resulting paired comparison remains model-cost-bearing
-and separately authorized.
+campaign. The first authorized configured campaign established status adoption
+in two of three treatments but no context-package adoption or attributable win.
+Executing a corrected paired comparison remains model-cost-bearing and
+separately authorized.
 
 ## Completion Gates
 
@@ -166,14 +170,20 @@ Complete the product-evidence sequence in this order:
 3. maintain the implemented exact checkout binding and fail-closed freshness;
 4. maintain the implemented provider-free positive and rejection probes;
 5. maintain the clean-candidate deterministic contracts, summary-free live
-   gate, and frozen one|nine pilot gate passed at `ee1d4d9`; and
-6. pass configured/onboarded paired-evaluation preflight so the implemented
-   runner proves the reviewed normal-profile installation and its exact
-   integration identities against the candidate; and
-7. with explicit model-spend authorization, run a configured/onboarded campaign
-   using that shipped integration unchanged.
+   gate, and frozen one|nine pilot gate finalized at `0bde606`;
+6. maintain the passing configured/onboarded paired-evaluation preflight so the
+   implemented runner continues to prove the reviewed normal-profile
+   installation and its exact integration identities against the candidate;
+7. verify from a new exact clean candidate that a fresh accepted status result
+   directs agents immediately to an agent-format context package while every
+   other state fails closed; and
+8. with explicit model-spend authorization, rerun the configured/onboarded
+   campaign and require context-package adoption before assessing attributable
+   outcome benefit.
 
-The bounded one|nine path has passed its clean-candidate provider-free gates.
-Do not claim configured/onboarded product benefit from documentation, static
-manifests, fixtures, configured CI, or an MCP process that starts without the
-agent-outcome gate.
+The bounded one|nine path and configured preflight have passed their clean-
+candidate provider-free gates. The retained first campaign is valid
+configured/onboarded evidence, but its `insufficient` verdict establishes no
+product benefit. Do not claim benefit from documentation, static manifests,
+fixtures, configured CI, status-only adoption, or an MCP process that starts
+without the context-adopting agent-outcome gate.

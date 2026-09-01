@@ -45,11 +45,12 @@ Explicit repository onboarding is now the selected v1 product contract; see
 checkout-local integration and provider-free probes are implemented and passed
 their clean-candidate gates. The paired-agent evaluator now represents that
 configured integration; its exact-candidate preflight and frozen one|nine and
-YoutubeDownloader provider-free gates pass at candidate `0bde606`. The current
-product-proof work is the separately authorized paired model campaign that
-evaluates the guidance, tool profile, checkout binding, and setup process
-shipped to normal users. Preserve the same independent task, prompt, grading
-targets, and control behavior. The retained zero-adoption campaign remains
+YoutubeDownloader provider-free gates pass at candidate `0bde606`. The first
+configured campaign completed all three pairs correctly and safely but was
+insufficient: two treatments called repository status, none retrieved a context
+package, and there were no attributable wins. Preserve the same independent
+task, prompt, grading targets, and control behavior when evaluating the bounded
+handoff correction. The retained zero-adoption campaign remains
 negative spontaneous-discovery evidence and must not be rewritten as a
 transport defect or configured-product result.
 
@@ -239,12 +240,15 @@ transcription is
 [`docs/evaluation/evidence/config-net-prompt-parity-647d83d.json`](evidence/config-net-prompt-parity-647d83d.json).
 
 Candidate `0bde606` passed the configured preflight for the selected explicit-
-onboarding contract against exact Primary commit `fe2f761`. Preserve that
-frozen identity for the next paid run. The treatment must use the same
-repository guidance and normal-user tool profile shipped outside the evaluator;
-do not create an evaluator-only tool-selection advantage. Record the result as
-configured/onboarded, not spontaneous or evaluator-assisted, and retain the
-prompt-parity failure separately.
+onboarding contract against exact Primary commit `fe2f761`. Its first paid run
+completed three correct and safe pairs, with repository-status adoption in two
+treatments, no context-package calls, no attributable wins, and verdict
+`insufficient`. The sanitized record is
+[configured one|nine agent evidence](evidence/configured-onenine-agent-0bde606.json).
+Preserve that frozen identity and result. A corrected run must use a new exact
+clean candidate while keeping repository guidance, task prompt, grading,
+normal-user tool profile, model settings, and control behavior fixed; do not
+create an evaluator-only tool-selection advantage.
 
 ## Configured Agent Preflight And Campaign
 

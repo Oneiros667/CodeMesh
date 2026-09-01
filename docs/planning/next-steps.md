@@ -35,35 +35,35 @@ The checkout-safe integration, atomic Python-plus-Rust ingestion, Rust parser,
 feedback loop, instance-owned onboarding, and configured provider-free Primary
 gate are implemented. Candidate `0bde606`, exact Primary commit `fe2f761`, the
 configured preflight, the frozen one|nine pilot, and the YoutubeDownloader live
-gate all pass provider-free. The next three priorities are:
+gate all pass provider-free. Its first authorized configured model campaign
+completed three correct and safe pairs but was insufficient: two treatments
+called status only, no treatment retrieved context, and there were no
+CodeMesh-attributable wins. The next three priorities are:
 
-1. **Verify and measure configured/onboarded normal-host use.** With separate
-   explicit model-spend authority, run pinned one|nine paired tasks through the
-   exact `0bde606` CodeMesh candidate, `fe2f761` Primary checkout, reviewed
-   normal-profile plan, guidance hash, source-view identity, and permitted
-   Graphify baseline that passed the provider-free gates.
-   Keep control and treatment task prompts identical; compare against ordinary
-   repository exploration plus the checkout's existing permitted Graphify
-   workflow. Report tool adoption, correctness, safety, elapsed time, tokens,
-   fallback behavior, and validation selection.
-   Preserve the claim ceiling: provider-free success does not establish model
-   adoption, agent correctness or efficiency benefit, release readiness, or
-   deployment acceptance. Do not repin or re-index either candidate during the
-   frozen campaign.
-2. **Turn measured feedback into bounded improvements.** Review validated
-   one|nine feedback and controlled results, select the smallest correction for
-   a recurring ranking, relationship, budget, binding, or validation failure,
-   and rerun the frozen gates after every material change.
-3. **Replicate and decide bounded expansion.** If the one|nine campaign is
-   valid, repeat configured/onboarded evaluation on Config.Net. Expand
-   onboarding to Secondary, Tertiary, Release, or Hotfix only with a separate
-   exact binding and passing checkout-specific probe. Keep Run-only excluded
-   pending a separate acceptance decision.
+1. **Verify the measured status-to-context correction.** Maintain the small
+   MCP status-result action that sends a fresh accepted binding directly to
+   `codemesh_get_context_package` and sends every other state to fallback. Run
+   the full deterministic checks, then create a new exact clean candidate and
+   rerun the configured provider-free preflight and frozen retrieval/rejection
+   gates. Preserve candidate `0bde606` and its insufficient campaign unchanged.
+2. **Rerun configured/onboarded normal-host measurement.** With separate
+   explicit model-spend authority, rerun the pinned one|nine paired task through
+   the newly verified candidate and the same Primary source identity. Keep task
+   prompts, model settings, grading, control behavior, normal-profile guidance,
+   and permitted Graphify baseline fixed. Require actual context retrieval
+   before attributing timing, token, correctness, or validation differences to
+   CodeMesh.
+3. **Replicate and decide bounded expansion.** Only after a valid one|nine
+   context-adopting result, repeat configured/onboarded evaluation on Config.Net.
+   Expand onboarding to Secondary, Tertiary, Release, or Hotfix only with a
+   separate exact binding and passing checkout-specific probe. Keep Run-only
+   excluded pending a separate acceptance decision.
 
-After those priorities, implement the summary-model qualification runner only
-before summaries are considered for default retrieval, and complete default
-secret-file exclusion plus configurable ingestion allow/deny policy before
-broad artifact ingestion or shared proprietary workspace storage.
+After those priorities, use the implemented summary-model qualification runner
+to qualify a complete deployment profile before summaries are considered for
+default retrieval. Maintain the implemented default secret-file exclusion and
+configurable ingestion path policy before broad artifact ingestion or shared
+proprietary workspace storage.
 
 Defer method-load and retrieval-granularity analysis, Kubernetes/Helm, parser
 breadth beyond the activated Python/Rust pilot, UI expansion, outcome memory,
@@ -86,21 +86,21 @@ execution order above.
 | Self-ingestion and smoke | Implemented | Maintain source-free smoke and fresh-index behavior. | [Self-Analysis](../guides/self-analysis.md) |
 | MCP client setup | Implemented | Maintain host examples and troubleshoot environment differences. | [MCP Setup](../guides/mcp-setup.md) |
 | Repository status and freshness | Implemented locally | Older records remain unknown until re-ingested; shared freshness is future work. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Redaction and sensitive-file policy | Partial | Add known-secret-file exclusion, configurable allow/deny policy, and broader tests. | [Security and Redaction](../current/security-and-redaction.md) |
+| Redaction and sensitive-file policy | Implemented local baseline | Maintain default known-secret exclusions, reviewed repository-relative allow/deny patterns, pre-persistence redaction, and path-policy identity; extend only for evidenced repository conventions. | [Security and Redaction](../current/security-and-redaction.md) |
 | Python parser | Implemented bounded pilot | Maintain imports, calls, tests, and PyO3 boundary relationships; keep unrelated breadth evidence-driven. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Rust parser | Implemented bounded pilot | Maintain the heuristic structural, relationship, test, path-exclusion, and PyO3 contract; broaden only from measured gaps. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Multi-language ingestion | Implemented | Maintain atomic language-set publication and language preservation during refresh and watch. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Markdown parser | Partial | Add links from docs to commands, endpoints, projects, and source when justified. | [Architecture](../current/architecture.md) |
 | Context packages | Implemented baseline | Maintain compact agent output, citations, rationale, and budget behavior. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Local web inspection | Implemented initial slice | Expand only when it serves a measured agent or audit need. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Tool guidance and onboarding | Provider-free configured gate verified | Establish configured/onboarded normal-host outcome evidence with explicit model-spend authority. | [Agent Integration Contract](agent-integration-contract.md) |
+| Tool guidance and onboarding | Status adoption observed; context handoff correction implemented locally | Verify the correction from a new clean candidate, then establish context-adopting normal-host outcome evidence with explicit model-spend authority. | [Agent Integration Contract](agent-integration-contract.md) |
 | one\|nine agent feedback | Implemented bounded pilot | Review sanitized, provenance-bound packets and connect recurring findings to controlled evidence without automatic roadmap mutation. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |
-| Evaluation harnesses | Implemented for selected v1 contract | Fixture, live, spontaneous, assisted, configured/onboarded, and model paths are implemented; the configured clean-candidate preflight and frozen retrieval gates pass, so the remaining immediate gate is the explicitly authorized paired model campaign. | [Evaluation](../evaluation/mcp-effectiveness.md) |
+| Evaluation harnesses | Implemented for selected v1 contract | The first configured campaign was valid but insufficient because it observed status-only adoption and no context retrieval. Verify the bounded handoff correction, then rerun with separate model-spend authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
 | Repository identity and snapshots | Local profile implemented | Maintain deterministic identity/slot/retention behavior; shared coordinator, tenant security, and private overlays remain deferred. | [Identity and Snapshot Requirements](repository-identity-and-snapshot-retention.md) |
-| Summary-model qualification | Procedure proposed | Implement the runner and qualify a complete deployment profile before default use. | [Summary Model Qualification](summary-model-qualification.md) |
+| Summary-model qualification | Runner implemented; no profile qualified | Freeze a reviewed corpus and profile, obtain provider/source/spend authority, complete two blinded reviews, isolated live-retrieval comparison with query-level assessment, and resource/cost measurement, then pass every gate before default use. | [Summary Model Qualification](summary-model-qualification.md) |
 | Method load and retrieval granularity | Proposal | Calibrate human-maintainability, tokenizer-bound representation, and agent-context thresholds before exposing advisory findings. | [Method Load And Retrieval Granularity](method-load-and-retrieval-granularity.md) |
 | Graph analysis and outcome memory | Proposal | Activate only when measured relationship or impact limitations justify it. | [Graph Intelligence Design](graph-intelligence-design.md) |
 | Broader SDLC intelligence | Deferred roadmap | Add contract, persistence, operations, security, and ownership artifacts only after activation. | [SDLC Roadmap](sdlc-roadmap.md) |

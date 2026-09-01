@@ -13,11 +13,11 @@ is available under the [MIT License](LICENSE).
 
 | Status | Capability |
 | --- | --- |
-| Implemented and locally verified | C# ingestion through Roslyn; atomic multi-language ingestion; bounded Python and Rust parsing with PyO3 links; graph/content persistence; stable checkout identity and bounded local snapshots; exact checkout binding and fail-closed freshness; REST, MCP, CLI, and .NET Agent Access; normal and diagnostic MCP profiles; reviewable installation and provider-free probes; agent feedback recording and summarization; source-backed context packages; deterministic fixture evaluation; security redaction tests. |
+| Implemented and locally verified | C# ingestion through Roslyn; atomic multi-language ingestion; bounded Python and Rust parsing with PyO3 links; graph/content persistence; stable checkout identity and bounded local snapshots; exact checkout binding and fail-closed freshness; REST, MCP, CLI, and .NET Agent Access; normal and diagnostic MCP profiles; reviewable installation and provider-free probes; agent feedback recording and summarization; source-backed context packages; deterministic fixture evaluation; pre-persistence redaction, default known-secret-file exclusion, repository-relative path filters, and the provider-neutral summary qualification runner/report compiler. |
 | Optional and environment-dependent | Neo4j, MongoDB, and Qdrant stores; Docker Compose; embeddings through a configured local provider; Python, Rust, Markdown, and deployment-artifact parsing with narrower relationships than C#. |
-| Retained, bounded evidence | Summary-free live retrieval passed on two repositories; assisted campaigns replicated utility after explicit onboarding; spontaneous and prompt-parity campaigns recorded zero CodeMesh adoption; the provider-free one\|nine Primary pilot passed its local retrieval, safety, and feedback gates. These results do not establish broad generalization. |
+| Retained, bounded evidence | Summary-free live retrieval passed on two repositories; assisted campaigns replicated utility after explicit onboarding; spontaneous and prompt-parity campaigns recorded zero CodeMesh adoption; the provider-free one\|nine Primary pilot passed its local retrieval, safety, and feedback gates; the first configured/onboarded one\|nine campaign completed safely and correctly but was insufficient because no treatment retrieved a context package. These results do not establish broad generalization. |
 | Experimental or unqualified | Generated summaries, online model providers, model-selection benchmarks, and the read-only local web UI as a product surface. No summary model is CodeMesh-qualified. |
-| Planned | Configured/onboarded normal-host evaluation, feedback-driven bounded expansion, configurable ingestion allow/deny policy, shared-service identity controls, and broader parser and SDLC coverage. |
+| Planned | Verify the measured status-to-context onboarding correction, rerun configured/onboarded normal-host evaluation with separate model-spend authority, then consider feedback-driven bounded expansion; shared-service identity controls and broader parser and SDLC coverage remain deferred. |
 
 Passing tests establish the covered local behavior. They do not establish
 hosted CI success, generalized agent benefit, release readiness, deployment
@@ -97,6 +97,9 @@ a live index.
 - Source-scoped MCP context packages with freshness and redaction diagnostics.
 - Deterministic fixture, live retrieval, and opt-in agent/model evaluation
   layers with explicit evidence boundaries.
+- Provider-neutral summary qualification orchestration with clean-source,
+  corpus/profile, blinded-review, retrieval, and comparison gates; no model is
+  qualified by the runner's existence.
 - Local-first processing by default; generated summaries and external model
   providers are opt-in and unqualified.
 
@@ -111,6 +114,10 @@ commits they identify.
 ## Repository map
 
 - `src/CodeMesh.Parser.CSharp`: Roslyn parser worker.
+- `src/CodeMesh.Parser.Python` and `src/CodeMesh.Parser.Rust`: bounded local
+  source-structural parsers used by the activated one|nine pilot.
+- `src/CodeMesh.Parser.Markdown` and `src/CodeMesh.Parser.Deployment`: bounded
+  documentation and runtime-artifact parsers.
 - `src/CodeMesh.Ingestion`: ingestion, cleanup, redaction, embeddings, and
   optional summary generation.
 - `src/CodeMesh.Storage`: Neo4j, MongoDB, Qdrant, and in-memory adapters.

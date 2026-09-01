@@ -44,6 +44,11 @@ not source truth.
 - Health contracts.
 - Hashing, fingerprinting, and repository alias utilities.
 - A shared repository path policy for excluding generated, cache, virtual-environment, smoke, and temporary directories.
+- Default known-secret-file exclusion plus repository-relative allow and deny
+  patterns shared by parsing, snapshot identity, refresh, and watch.
+- Fail-closed exclusion of symlink, junction, and reparse-point path components
+  below the selected repository root, including discovered and explicitly
+  selected C# solution/project manifests.
 
 ### Ingestion
 
@@ -56,6 +61,8 @@ not source truth.
 - Resolves persistent project, alias, and checkout identity from private
   Git/local markers.
 - Computes deterministic source snapshots and stages cross-store generations.
+- Includes the effective path-policy version and normalized filter configuration
+  in snapshot identity.
 - Publishes checkout-current and clean branch-head slots with compare-and-swap semantics.
 - Writes graph, content, vector, summary, registry, and run data.
 - Performs incremental skip logic for unchanged records.
@@ -65,6 +72,10 @@ not source truth.
 - Assigns versioned summary complexity tiers from node kind, source size,
   truncation, and available parser metadata; the selected token budgets are
   persisted with each generated summary.
+- Runs summary-model qualification through the same prompt, parser, budget,
+  provider, and redaction path; records immutable suite/profile/source identity,
+  emits restricted blinded-review artifacts, and compiles sanitized reports
+  only after compatible live-retrieval evidence is bound.
 
 ### Parser Workers
 

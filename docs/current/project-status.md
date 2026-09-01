@@ -4,7 +4,8 @@ Document type: current status snapshot
 
 Reviewed: 2026-09-01
 
-Implementation reviewed through: configured-evaluator candidate `0bde606`.
+Implementation status is reviewed against the current inspected worktree.
+Configured-evaluator evidence remains bound to candidate `0bde606`.
 
 Retained evidence below remains bound to the exact commits named in each
 evidence section; it does not inherit this implementation baseline.
@@ -41,9 +42,9 @@ usability evidence, but is no longer the v1 acceptance contract.
 | Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and .NET, Python, and Rust validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
-| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | Candidate `0bde606` passed the configured one\|nine preflight and both frozen provider-free retrieval gates. No configured model-backed outcome report exists. Paid/model-backed runs require explicit authorization; fixtures and provider-free gates prove their bounded contracts only. |
-| Generated summaries | Complexity-aware prompts and local/online providers implemented. | No summary deployment profile is CodeMesh-qualified. |
-| Security | Pre-persistence value redaction and generated/cache path exclusions implemented. | Known secret-file exclusion and configurable allow/deny policy remain open. |
+| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | Candidate `0bde606` passed the configured one\|nine preflight and both frozen provider-free retrieval gates. Its first configured model campaign completed all three pairs but was insufficient: all runs were correct and safe, two treatments called status only, and none retrieved context. A correction and any model-backed rerun require new exact-candidate verification and separate authorization. |
+| Generated summaries | Complexity-aware prompts, local/online providers, and a provider-neutral qualification runner/report compiler are implemented. The runner uses the production prompt/parser, requires calibration and held-out qualification partitions, redacts inputs, records immutable suite/profile/source identity, creates typed blinded review packets, and binds isolated live-retrieval plus resource/cost evidence before applying quality, safety, retrieval, and deployment gates. | No summary deployment profile is CodeMesh-qualified. Provider-backed execution, a complete reviewed corpus, two blinded reviews, isolated indexes, query-level retrieval assessment, deployment measurements, and model/source/spend authority remain separate requirements. |
+| Security | Pre-persistence value redaction, immutable generated/cache exclusions, default known-secret-file exclusion, repository-relative allow/deny globs, fail-fast pattern validation, and path-policy-bound snapshot identity implemented. | Explicitly including known secret files requires a separate CLI flag and does not weaken redaction or repository authorization requirements. |
 | Repository identity | Stable project/checkout markers, deterministic source snapshots, checkout-current and clean branch-head slots, explicit retained slots, legacy migration, and richer local freshness implemented. | Separate clones attach with explicit `--project-id`; shared-service tenant/authorization/privacy controls remain deferred. |
 
 Detailed current interfaces are in
@@ -75,6 +76,15 @@ both `app/feed_hub/native_replay.py` and
 `native/feed_hub_replay/src/lib.rs`; the wrong-checkout gate failed closed with
 the live binding, freshness, and provenance issue codes.
 
+An execution-readiness recheck on 2026-09-01 found the detached CodeMesh
+candidate still clean at `0bde606` and confirmed that the reviewed plan,
+installed configuration, installed guidance, and retained preflight still
+matched their recorded hashes. Primary had advanced to `011f562` on `main`; its
+branch tip was preserved while the checkout was temporarily restored to exact
+`fe2f761`. The exact configured preflight passed again without repinning or
+re-indexing, and Primary was returned to clean `main` at `011f562` after the
+campaign.
+
 Clean detached CodeMesh candidate `0bde606` passed all eight frozen one|nine
 provider-free gates, comprising four positive retrieval gates and four
 rejection gates, and validated all three retained feedback packets. The same
@@ -96,11 +106,24 @@ expected path, `a6ebaa5` expected the wrong live rejection diagnostic, and
 invoked in those attempts or the final pass. The sanitized exact-candidate
 record is [configured one|nine provider-free evidence](../evaluation/evidence/configured-onenine-provider-free-0bde606.json).
 
-This is provider-free local diagnostic evidence. It proves a bounded configured
-path and feedback/improvement loop, not normal-agent adoption, general product
-benefit, release readiness, deployment acceptance, provider authorization, or
-production fitness. Secondary, Tertiary, Release, and Hotfix are not activated;
-Run-only remains excluded.
+The authorized `gpt-5.6-sol` medium-reasoning configured campaign then completed
+three paired repetitions. All six executions were correct and safe, with no
+failed MCP calls or command-policy violations. Two of three treatments called
+`codemesh_get_repository_status`, but no treatment called
+`codemesh_get_context_package`; the third treatment made no CodeMesh call.
+The verdict was therefore `insufficient`, with zero treatment wins and zero
+CodeMesh-attributable wins. On the two status-adopting pairs, treatment medians
+were 2.22% slower and used 6.14% more tokens; overall medians were 30.29% slower
+and used 46.61% more tokens. Those differences are diagnostic because no
+context retrieval occurred. The sanitized record is
+[configured one|nine agent evidence](../evaluation/evidence/configured-onenine-agent-0bde606.json).
+
+Together, the provider-free and model-backed records prove the bounded
+configuration, runtime identity, safety, and status adoption observed in this
+campaign. They do not establish context-package adoption, correctness or
+efficiency benefit, repeatability, release readiness, deployment acceptance,
+provider authorization, or production fitness. Secondary, Tertiary, Release,
+and Hotfix are not activated; Run-only remains excluded.
 
 ## Retained Product Evidence
 
@@ -166,23 +189,25 @@ listing, and node lookup; exact binding and freshness are enforced; and
 installation plus probing are reviewable. Clean candidate `0bde606`, exact
 Primary commit `fe2f761`, the configured preflight, the eight-gate frozen
 one|nine pilot, and the YoutubeDownloader live gate all pass provider-free. The
-next evidence gap is adopted normal-host agent tasks that compare this exact
-configured path with ordinary exploration without changing task prompts.
+first configured normal-host campaign was valid but insufficient because two
+treatments stopped after repository status and none retrieved task context.
 
 The prompt-parity Config.Net campaign recorded zero MCP calls and zero MCP call
 attempts. Preserve it as negative spontaneous-discovery evidence; do not change
-the frozen task prompt, grading, or targets to manufacture adoption. The next
-product-proof campaign should instead evaluate the exact configured/onboarded
-integration shipped to normal users, while retaining the same task prompt for
-control and treatment.
+the frozen task prompt, grading, or targets to manufacture adoption. The
+configured one|nine campaign has now evaluated the shipped onboarding path and
+isolated a status-to-context handoff gap. Preserve the same task prompt for
+control and treatment when evaluating its correction.
 
-The evaluated required MCP configuration completed without a harness failure,
-and the CodeMesh manifest publishes the intended instructions and tool
-contracts. Current Codex documentation says the host reads MCP server
-instructions, but its prompt-input diagnostic does not expose the separate base
-instructions and tool schemas. The retained campaign therefore cannot attest
-the exact selection context presented to the model, and no CodeMesh transport
-or contract defect has been confirmed.
+The evaluated MCP configuration completed without a harness failure, and the
+CodeMesh manifest published the intended instructions and tool contracts. The
+measured transition failure was narrower: a fresh accepted status response did
+not itself state the next tool action. The current implementation adds an MCP-only
+`codemesh_next_action` status field that directs a fresh accepted binding to
+continue immediately to an agent-format context package and directs every
+other state to fall back. This correction is committed locally and covered by
+deterministic contract tests; it is not part of candidate `0bde606` and has not
+been evaluated in a paid campaign.
 
 The configured/onboarded evaluator now preserves prompt parity, uses the exact
 reviewed checkout-local `normal` installation, and retains integration mode,
@@ -192,14 +217,12 @@ checkout, commit or binding mismatch, changed plan files, unexpected tool
 surface, and a failed rejection probe. Historical spontaneous and assisted
 modes retain their prior diagnostic behavior.
 
-The clean provider-free gate is complete. The authoritative instance registry
-pins Primary `fe2f761`, detached CodeMesh candidate `0bde606`, and the matching
-source-view identity; those identities must remain frozen for the next
-campaign. The immediate next gate is the model-cost-bearing paired one|nine
-campaign through that exact configured installation, which requires separate
-explicit model-spend authority. Its passing provider-free preflight proves
-configuration and runtime identity only, not normal-agent adoption or product
-benefit.
+The immediate next work is to verify the status-to-context correction through
+the full deterministic and provider-free gates from a new exact clean candidate.
+Only after those gates pass should a separately authorized model-cost-bearing
+one|nine rerun test whether treatments retrieve context and produce attributable
+benefit. Preserve the original `0bde606` campaign and its insufficient result;
+do not rewrite or overwrite its identities.
 
 Run the configured Config.Net replication only after a valid one|nine paired
 campaign. Expand onboarding to another one|nine checkout only with separate
@@ -239,8 +262,8 @@ See the [CodeQL triage record](../evaluation/evidence/codeql-triage-8e9c0da.json
   silently expanded or repointed when either checkout advances.
 - Shared multi-user stores, portable snapshot artifacts, outcome memory,
   Kubernetes/Helm ingestion, and broader SDLC intelligence are not implemented.
-- Current source redaction does not replace repository authorization or a
-  configurable sensitive-file policy.
+- Current source redaction and path filtering do not replace repository
+  authorization or review of an explicitly broadened ingestion scope.
 - Hosted workflow success for remote `8e9c0da` is not evidence for unpublished
   local commits, and an automated scan completing successfully does not resolve
   or justify its open findings.
