@@ -12,9 +12,11 @@ provider-free probes are implemented and passed their clean-candidate gates at
 `ee1d4d9`. Configured/onboarded evaluator support is implemented and its live
 stale-candidate rejection is verified through `9f3216c`. Exact-candidate
 preflight, the frozen one|nine retrieval and rejection gates, and the pinned
-YoutubeDownloader live gate passed at `0bde606`. The first configured normal-
-host campaign completed safely and correctly but was insufficient because two
-treatments stopped after status and none retrieved task context.
+YoutubeDownloader live gate passed again with the status-to-context correction
+at exact clean candidate `0378740`. The first configured normal-host campaign
+remains frozen at `0bde606`; it completed safely and correctly but was
+insufficient because two treatments stopped after status and none retrieved
+task context.
 
 ## Decision
 
@@ -170,14 +172,12 @@ Complete the product-evidence sequence in this order:
 3. maintain the implemented exact checkout binding and fail-closed freshness;
 4. maintain the implemented provider-free positive and rejection probes;
 5. maintain the clean-candidate deterministic contracts, summary-free live
-   gate, and frozen one|nine pilot gate finalized at `0bde606`;
+   gate, and frozen one|nine pilot gate verified for the correction at
+   `0378740`;
 6. maintain the passing configured/onboarded paired-evaluation preflight so the
    implemented runner continues to prove the reviewed normal-profile
    installation and its exact integration identities against the candidate;
-7. verify from a new exact clean candidate that a fresh accepted status result
-   directs agents immediately to an agent-format context package while every
-   other state fails closed; and
-8. with explicit model-spend authorization, rerun the configured/onboarded
+7. with explicit model-spend authorization, rerun the configured/onboarded
    campaign and require context-package adoption before assessing attributable
    outcome benefit.
 

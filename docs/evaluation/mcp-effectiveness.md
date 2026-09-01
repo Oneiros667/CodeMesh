@@ -44,13 +44,14 @@ Explicit repository onboarding is now the selected v1 product contract; see
 [Agent Integration Contract](../planning/agent-integration-contract.md). The
 checkout-local integration and provider-free probes are implemented and passed
 their clean-candidate gates. The paired-agent evaluator now represents that
-configured integration; its exact-candidate preflight and frozen one|nine and
-YoutubeDownloader provider-free gates pass at candidate `0bde606`. The first
-configured campaign completed all three pairs correctly and safely but was
-insufficient: two treatments called repository status, none retrieved a context
-package, and there were no attributable wins. Preserve the same independent
-task, prompt, grading targets, and control behavior when evaluating the bounded
-handoff correction. The retained zero-adoption campaign remains
+configured integration. The bounded status-to-context correction and its
+exact-candidate preflight, frozen one|nine gates, and YoutubeDownloader
+provider-free gate pass at candidate `0378740`. The first configured campaign,
+retained at candidate `0bde606`, completed all three pairs correctly and safely
+but was insufficient: two treatments called repository status, none retrieved a
+context package, and there were no attributable wins. Preserve the same
+independent task, prompt, grading targets, and control behavior in a separately
+authorized rerun. The retained zero-adoption campaign remains
 negative spontaneous-discovery evidence and must not be rewritten as a
 transport defect or configured-product result.
 
@@ -249,6 +250,15 @@ Preserve that frozen identity and result. A corrected run must use a new exact
 clean candidate while keeping repository guidance, task prompt, grading,
 normal-user tool profile, model settings, and control behavior fixed; do not
 create an evaluator-only tool-selection advantage.
+
+Clean detached candidate `0378740` contains the bounded status-to-context
+correction and passed the full deterministic checks, configured preflight, all
+eight frozen one|nine retrieval and rejection gates, all three retained feedback
+packet validations, and the pinned YoutubeDownloader live gate with provider
+mode `none`. The sanitized record is
+[corrected provider-free evidence](evidence/configured-onenine-provider-free-0378740.json).
+This establishes readiness to request a new model-spend decision; it does not
+establish agent context adoption or product benefit.
 
 ## Configured Agent Preflight And Campaign
 

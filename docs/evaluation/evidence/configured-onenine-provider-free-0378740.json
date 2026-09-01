@@ -1,0 +1,131 @@
+{
+  "schema_version": "codemesh-configured-onenine-provider-free-v1",
+  "evidence_class": "provider-free-local-configured-integration",
+  "recorded_at": "2026-09-01T09:06:15Z",
+  "codemesh": {
+    "commit": "03787409bfb1bbbb53ba83ea1a3de4f3bf8f6fc9",
+    "clean_detached_checkout": true,
+    "status_to_context_correction_included": true,
+    "python_tests_passed": 125,
+    "python_test_warnings": 2,
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "fixture_suite_cases_passed": 5,
+    "dotnet_verification": {
+      "status": "passed_with_warning_and_skip",
+      "locked_restore": "passed",
+      "build_passed": true,
+      "build_warning_count": 1,
+      "tests_passed": 69,
+      "tests_failed": 0,
+      "tests_skipped": 1,
+      "skip_reason": "CODEMESH_SAMPLE_CSHARP_ROOT not configured for YoutubeDownloader sample; synthetic parser tests passed",
+      "format_verify_no_changes": true
+    },
+    "repository_standards": {
+      "markdownlint": "passed",
+      "links": "passed",
+      "publication_safety": "passed",
+      "workflow_policy": "passed",
+      "diff_check": "passed"
+    }
+  },
+  "onenine_primary": {
+    "commit": "fe2f761583bf78601961ff17934185c4b6a632f9",
+    "clean_detached_checkout_during_gates": true,
+    "restored_main_commit": "02971901b9c5f14269ebefc89bd670bf2a543a2e",
+    "project_id": "prj_a570a726917d4d0ca596085aaf07af50",
+    "checkout_id": "chk_70c50c5494de4837ab0627aca021eab2",
+    "snapshot_id": "snp_bf026d3f2e2b5a40f3c9fa112ae36b7e026b0f5a0f0483a23796b0a6adc9243e",
+    "source_view_hash": "fea1951d1eeb93ac265112aef7000dcac1a9832b000ea81b360b0851df56e69b",
+    "freshness_status": "fresh"
+  },
+  "configured_preflight": {
+    "passed": true,
+    "integration_mode": "configured",
+    "prompt_parity": true,
+    "profile": "normal",
+    "provider": "none",
+    "plan_hash": "a535de566f63be65c20bb2a01f398f6fcef8b4da571970bc573ced9a6809e248",
+    "installation_file_sha256": "7b8a9df8aec48670c5e4558de05fe5281d19b1173462259791e82c7fb3942807",
+    "guidance": {
+      "path": "AGENTS.override.md",
+      "source": "installed-ignored",
+      "sha256": "dbd0faca021b144f57594d91eb04b02a089fd6599234b713efe78693c92deb76"
+    },
+    "expected_paths": [
+      "app/feed_hub/native_replay.py",
+      "native/feed_hub_replay/src/lib.rs"
+    ],
+    "returned_path_count": 8,
+    "wrong_checkout_rejected": true,
+    "report_sha256": "ffc33889f61e284b07da8e1e9b35f1e2ab6ab92c4b67fbcc0a7fd2c499382416"
+  },
+  "onenine_frozen_pilot": {
+    "passed": true,
+    "gate_count": 8,
+    "positive_gate_count": 4,
+    "rejection_gate_count": 4,
+    "feedback_packets_valid": 3,
+    "positive_report_sha256": [
+      "358323fc78b1c721ac44665e0a717d3c22370cd08858342bacdafe669cc92ff5",
+      "1f40c5e5f49d2c2a15a5bf2a8fc69e4b789a4ec5e869b5e1945fffffaaafd7f5",
+      "20c53d821cf9522aa56b6efd55ac1ce9423819fe9b2a01523e14608b57f1156a",
+      "9f8688f07dd2bea243c124de8376290dd182af36e1573e1179e14ac341455670"
+    ],
+    "rejection_report_sha256": [
+      "f72c3851c0f6f7cb5b4b83176f92499b654b6f39d565e9dea6de96b9e2657740",
+      "88e4c22275231c81bfcaee20ae08b08fdecdad1baa19c2bc19be3ca010a0a011",
+      "4fd7ca020a92614754195a601d691745d0b2fbbf1eea77668d2d84797ac53ccf",
+      "5d2434386cc7e3c2eb56de2439426adc49b060a9c49df6ff11bf400a03b06712"
+    ],
+    "feedback_validation_report_sha256": "7640482902c08935902527bd4ddc38ecc709a5a29d8385c4385151d9ac5318ad",
+    "feedback_summary_report_sha256": "572790433c75207000467344d66458be0727947d3d7c114c68be2137ae9a4b63"
+  },
+  "youtube_downloader_live": {
+    "passed": true,
+    "comparable": true,
+    "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+    "case_count": 6,
+    "tool_call_count": 18,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 0.9,
+    "mean_ndcg_at_k": 0.926186,
+    "secret_leaks": 0,
+    "provider": "none",
+    "report_sha256": "2663476baa6e216d10f5f26dc5831cfd6af64f034191983b60dd1f59985a462d"
+  },
+  "retained_prior_campaign": {
+    "codemesh_commit": "0bde606cc73b4a0b081067a039822a53672459a1",
+    "verdict": "insufficient",
+    "context_retrieval_call_count": 0,
+    "preserved_unchanged": true
+  },
+  "claim_ceiling": {
+    "established": [
+      "provider_free_status_to_context_candidate_verification",
+      "provider_free_configured_plan_and_runtime_identity",
+      "prompt_parity_preflight_configuration",
+      "frozen_onenine_retrieval_and_rejection_gates",
+      "comparable_youtube_downloader_retrieval_gate"
+    ],
+    "not_established": [
+      "normal_agent_context_package_adoption",
+      "model_backed_correctness_or_efficiency_benefit",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "boundaries": {
+    "raw_prompts_or_payloads_retained": false,
+    "model_provider_invoked": false,
+    "model_backed_agent_evaluation": "not_run_requires_new_explicit_spend_authority",
+    "config_net_configured_replication": "not_run_requires_valid_onenine_model_campaign_first",
+    "secondary_tertiary_release_hotfix_onboarding": "not_authorized",
+    "run_only": "excluded",
+    "release": "not_authorized",
+    "deployment": "not_authorized",
+    "live_trading": "not_authorized"
+  }
+}

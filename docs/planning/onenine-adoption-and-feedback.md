@@ -7,8 +7,9 @@ Reviewed: 2026-09-01
 This document defines the bounded one|nine adoption priority selected in
 [Next Steps](next-steps.md). Its initial implementation and provider-free pilot
 gate passed from clean candidate `ee1d4d9`; the later configured-evaluator
-candidate and frozen provider-free gates were finalized at `0bde606`. Current
-behavior and evidence remain authoritative in
+campaign was finalized at `0bde606`, and the bounded status-to-context
+correction passed the same provider-free gates at `0378740`. Current behavior
+and evidence remain authoritative in
 [Project Status](../current/project-status.md); this planning record does not
 establish that CodeMesh improves one|nine agent outcomes.
 
@@ -204,10 +205,17 @@ eight one|nine retrieval and rejection gates, and the pinned YoutubeDownloader
 live gate passed. The exact final identities and claim ceiling are retained in
 the [configured one|nine evidence record](../evaluation/evidence/configured-onenine-provider-free-0bde606.json).
 
+The bounded status-to-context correction is frozen at clean candidate
+`0378740`. The full deterministic checks, configured preflight, eight one|nine
+gates, three retained feedback packets, and pinned YoutubeDownloader live gate
+all passed again without invoking a model provider. The exact identities and
+claim ceiling are retained in the
+[corrected provider-free evidence record](../evaluation/evidence/configured-onenine-provider-free-0378740.json).
+
 The first authorized paired model campaign from those exact identities
 completed three correct and safe pairs. Two treatments called repository status,
 none called the context-package tool, and the verdict was `insufficient` with no
-attributable wins. The next priority is the smallest status-to-context handoff
-correction, full clean-candidate provider-free verification, and only then a
-separately authorized model rerun. The sanitized outcome is retained in the
-[configured agent evidence record](../evaluation/evidence/configured-onenine-agent-0bde606.json).
+attributable wins. The handoff correction now has full clean-candidate
+provider-free verification; the next priority is a separately authorized model
+rerun through exact candidate `0378740`. The sanitized historical outcome is
+retained in the [configured agent evidence record](../evaluation/evidence/configured-onenine-agent-0bde606.json).
