@@ -46,17 +46,23 @@ adoption in all three treatments and passed all six executions safely. Its
 verdict was `neutral`: there were no attributable wins or regressions, median
 duration was 1.39% lower, and median tokens were 4.13% higher. Both deltas are
 inside the 10% neutrality band.
+Exact clean candidate `b16eee7` now adds the configured Config.Net suite while
+preserving the frozen prompt, targets, thresholds, and source identity. Its
+reviewed normal-profile installation, configured preflight, fail-closed probe,
+and six-case/18-call live gate pass provider-free with recall, MRR, and nDCG of
+1.0 and zero secret leaks.
 The next priorities are:
 
-1. **Prepare configured Config.Net replication provider-free.** Select and
-   index an exact clean Config.Net source identity, create and review its
-   normal-profile installation and repository-owned guidance, then pass the
-   configured preflight and pinned live retrieval gate. Do not relabel the
-   earlier assisted or prompt-parity campaigns as configured evidence.
-2. **Replicate only after a new authority gate.** With separate explicit
-   model-spend authority, run a prompt-parity configured/onboarded Config.Net
-   comparison. Require context-package adoption and an attributable correctness
-   or efficiency win before claiming replicated product benefit.
+1. **Replicate only after a new authority gate.** With separate explicit
+   model-spend authority, run the prompt-parity configured/onboarded Config.Net
+   comparison at exact candidate `b16eee7`. Require context-package adoption
+   and an attributable correctness or efficiency win before claiming replicated
+   product benefit. Preserve the earlier assisted and prompt-parity campaigns
+   in their original evidence classes.
+2. **Evaluate the cross-repository result.** If Config.Net is adopted but
+   neutral, preserve it and select the smallest evidenced task or integration
+   correction rather than claiming benefit. If it produces an attributable
+   win, require another task family before broad product claims.
 3. **Decide bounded expansion.** Expand onboarding to Secondary, Tertiary,
    Release, or Hotfix only with separate authority, an exact role-specific
    binding, and a passing checkout-specific probe. Keep Run-only excluded
@@ -101,7 +107,7 @@ execution order above.
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |
-| Evaluation harnesses | Implemented for selected v1 contract | Preserve the two insufficient status-first campaigns and the neutral, fully adopted one-step campaign. Prepare Config.Net provider-free, then require separate model-spend authority for configured replication. | [Evaluation](../evaluation/mcp-effectiveness.md) |
+| Evaluation harnesses | Implemented for selected v1 contract | Preserve the two insufficient status-first campaigns and the neutral, fully adopted one-step campaign. Config.Net configured provider-free gates pass at `b16eee7`; its paired campaign requires separate model-spend authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
 | Repository identity and snapshots | Local profile implemented | Maintain deterministic identity/slot/retention behavior; shared coordinator, tenant security, and private overlays remain deferred. | [Identity and Snapshot Requirements](repository-identity-and-snapshot-retention.md) |
 | Summary-model qualification | Runner implemented; no profile qualified | Freeze a reviewed corpus and profile, obtain provider/source/spend authority, complete two blinded reviews, isolated live-retrieval comparison with query-level assessment, and resource/cost measurement, then pass every gate before default use. | [Summary Model Qualification](summary-model-qualification.md) |
 | Method load and retrieval granularity | Proposal | Calibrate human-maintainability, tokenizer-bound representation, and agent-context thresholds before exposing advisory findings. | [Method Load And Retrieval Granularity](method-load-and-retrieval-granularity.md) |

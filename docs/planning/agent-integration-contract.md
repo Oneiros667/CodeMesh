@@ -195,8 +195,9 @@ Complete the product-evidence sequence in this order:
 8. retain the consumed `8844c21` configured/onboarded campaign that established
    context-package adoption and a neutral outcome for the selected one|nine
    task; and
-9. prepare a configured Config.Net replication provider-free, then run its
-   paired comparison only with separate explicit model-spend authorization.
+9. maintain the configured Config.Net preflight and live gate verified
+   provider-free at `b16eee7`, then run its paired comparison only with
+   separate explicit model-spend authorization.
 
 The bounded one|nine path and configured preflight have passed their clean-
 candidate provider-free gates. The two status-first campaigns remain valid but

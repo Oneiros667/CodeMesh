@@ -173,7 +173,8 @@ uv run python -m codemesh_agent_access eval agent `
 
 ## Independent Replication And Discoverability
 
-The `config-net-cache-live` and `config-net-cache-assisted-agent` suites pin the
+The `config-net-cache-live`, `config-net-cache-assisted-agent`,
+`config-net-cache-agent`, and `config-net-cache-configured-agent` suites pin the
 MIT-licensed Config.Net repository at commit
 `ae0af7d4b3781c66233bbb677b6e11df1f5b416b`. This is a separate repository,
 author, architecture, and task family from YoutubeDownloader. The task traces
@@ -246,6 +247,17 @@ to CodeMesh. Preserve this as negative discoverability evidence. The sanitized
 transcription is
 [`docs/evaluation/evidence/config-net-prompt-parity-647d83d.json`](evidence/config-net-prompt-parity-647d83d.json).
 
+Exact clean candidate `b16eee7` adds the configured suite while preserving that
+prompt, target set, threshold, and source commit. Its reviewed normal-profile
+plan and ignored repository guidance passed the configured preflight with
+prompt parity, a fresh exact binding, positive context retrieval, and
+fail-closed rejection. The full six-case live gate then passed all 18 calls
+with recall, MRR, and nDCG of 1.0 and zero secret leaks. No model provider was
+invoked. The sanitized record is
+[configured Config.Net provider-free evidence](evidence/configured-config-net-provider-free-b16eee7.json).
+This establishes readiness only; the configured agent campaign requires
+separate explicit model-spend authorization.
+
 Candidate `0bde606` passed the configured preflight for the selected explicit-
 onboarding contract against exact Primary commit `fe2f761`. Its first paid run
 completed three correct and safe pairs, with repository-status adoption in two
@@ -291,8 +303,9 @@ no attributable win or regression, so the verdict was `neutral`; both median
 efficiency deltas remained inside the 10% threshold. The sanitized record is
 [one-step configured campaign evidence](evidence/configured-onenine-agent-8844c21.json).
 This establishes adoption for the selected one|nine task, not product benefit
-or cross-repository repeatability. Prepare Config.Net configured integration
-provider-free before requesting separate model-spend authority for replication.
+or cross-repository repeatability. Config.Net configured integration now passes
+provider-free at `b16eee7`; request separate model-spend authority before its
+paired replication.
 
 ## Configured Agent Preflight And Campaign
 

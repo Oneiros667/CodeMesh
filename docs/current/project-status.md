@@ -44,7 +44,7 @@ usability evidence, but is no longer the v1 acceptance contract.
 | Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and .NET, Python, and Rust validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
-| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | The authorized `8844c21` campaign achieved context-package adoption in all three treatments and passed all six executions safely. Its verdict was `neutral`, with no attributable wins or regressions. Cross-repository model-backed replication requires separate authorization. |
+| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | The authorized `8844c21` campaign achieved context-package adoption in all three treatments and passed all six executions safely. Its verdict was `neutral`, with no attributable wins or regressions. Config.Net configured preflight and live retrieval pass provider-free at `b16eee7`; its model campaign requires separate authorization. |
 | Generated summaries | Complexity-aware prompts, local/online providers, and a provider-neutral qualification runner/report compiler are implemented. The runner uses the production prompt/parser, requires calibration and held-out qualification partitions, redacts inputs, records immutable suite/profile/source identity, creates typed blinded review packets, and binds isolated live-retrieval plus resource/cost evidence before applying quality, safety, retrieval, and deployment gates. | No summary deployment profile is CodeMesh-qualified. Provider-backed execution, a complete reviewed corpus, two blinded reviews, isolated indexes, query-level retrieval assessment, deployment measurements, and model/source/spend authority remain separate requirements. |
 | Security | Pre-persistence value redaction, immutable generated/cache exclusions, default known-secret-file exclusion, repository-relative allow/deny globs, fail-fast pattern validation, and path-policy-bound snapshot identity implemented. | Explicitly including known secret files requires a separate CLI flag and does not weaken redaction or repository authorization requirements. |
 | Repository identity | Stable project/checkout markers, deterministic source snapshots, checkout-current and clean branch-head slots, explicit retained slots, legacy migration, and richer local freshness implemented. | Separate clones attach with explicit `--project-id`; shared-service tenant/authorization/privacy controls remain deferred. |
@@ -238,6 +238,23 @@ assisted CodeMesh workflow or a broad product verdict. The sanitized
 transcription is
 [`docs/evaluation/evidence/config-net-prompt-parity-647d83d.json`](../evaluation/evidence/config-net-prompt-parity-647d83d.json).
 
+### Configured replication readiness
+
+- Exact clean CodeMesh candidate `b16eee7` adds a configured/onboarded suite
+  while preserving the frozen Config.Net prompt, targets, thresholds, and
+  source commit.
+- The reviewed local normal-profile installation and ignored repository
+  guidance bind exact Config.Net commit `ae0af7d`, project `prj_e5d8c8`,
+  checkout `chk_6d1d16`, and source view `b4981658`.
+- The configured preflight passed with prompt parity, fresh accepted binding,
+  the four-tool normal profile, a positive context package, and fail-closed
+  rejection. The six-case live gate then passed all 18 calls with recall, MRR,
+  and nDCG of 1.0 and zero secret leaks.
+
+This is provider-free configured-integration readiness, not agent adoption or
+product-benefit evidence. The exact sanitized record is
+[configured Config.Net provider-free evidence](../evaluation/evidence/configured-config-net-provider-free-b16eee7.json).
+
 ## Current Gap
 
 Explicit repository onboarding is implemented for the bounded one|nine pilot:
@@ -294,12 +311,13 @@ checkout, commit or binding mismatch, changed plan files, unexpected tool
 surface, and a failed rejection probe. Historical spontaneous and assisted
 modes retain their prior diagnostic behavior.
 
-The immediate next work is provider-free preparation of a configured/onboarded
-Config.Net replication: select an exact clean source identity, create and review
-its normal-profile binding and repository guidance, then pass the configured
-preflight and pinned live retrieval gate. Preserve all three one|nine campaigns
-as consumed artifacts. A Config.Net paired model campaign requires separate
-explicit model-spend authorization after those provider-free gates pass.
+The immediate next gate is separate explicit model-spend authorization for the
+configured/onboarded Config.Net campaign at exact candidate `b16eee7`. Preserve
+all three one|nine campaigns and the earlier Config.Net assisted and
+prompt-parity campaigns as consumed artifacts. Keep the frozen Config.Net task,
+targets, thresholds, repository commit, model settings, grading, and control
+behavior unchanged, and require context-package adoption plus an attributable
+correctness or efficiency win before claiming replicated product benefit.
 
 Expand onboarding to another one|nine checkout only with separate authority,
 exact binding, fresh ingestion, and a passing checkout-specific probe. The

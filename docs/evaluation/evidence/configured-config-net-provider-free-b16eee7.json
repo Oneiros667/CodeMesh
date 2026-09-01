@@ -1,0 +1,110 @@
+{
+  "schema_version": "codemesh-configured-config-net-provider-free-v1",
+  "evidence_class": "provider-free-local-configured-integration",
+  "recorded_at": "2026-09-01T12:54:23Z",
+  "codemesh": {
+    "commit": "b16eee7c82ee1c43e5dd73e9c92ff4c7451edae2",
+    "clean_detached_checkout": true,
+    "configured_suite_added": "config-net-cache-configured-agent",
+    "frozen_prompt_targets_thresholds_and_repository_commit_preserved": true,
+    "python_tests_passed": 125,
+    "python_test_warnings": 2,
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "fixture_suite_cases_passed": 5,
+    "dotnet_verification": "not_selected_evaluation_fixture_only_change"
+  },
+  "config_net": {
+    "repository_url": "https://github.com/aloneguid/config.git",
+    "commit": "ae0af7d4b3781c66233bbb677b6e11df1f5b416b",
+    "clean_detached_checkout_during_gates": true,
+    "restored_branch": "master",
+    "restored_commit": "ae0af7d4b3781c66233bbb677b6e11df1f5b416b",
+    "project_id": "prj_e5d8c89734dc41958892d6f8f9878b89",
+    "checkout_id": "chk_6d1d16158afa4964bd19c9bf4d3e9193",
+    "snapshot_id": "snp_165b1edc656765c92df79fa4369c7f49b0a99b1c9a6c884c96c2ab55b1cb0ec5",
+    "source_view_hash": "b4981658b9c7ae39100f3b92d871727234e4b6ec4adaee4e9918789187173e57",
+    "freshness_status": "fresh",
+    "tracked_files_changed": false
+  },
+  "configured_installation": {
+    "profile": "normal",
+    "provider": "none",
+    "plan_hash": "5b5f45a664a3e967175ca9dc43d281531925736fb28fe8ea4ad1f2188c966f02",
+    "plan_report_sha256": "6feb780b9a8111a46aac65e2409780de0cb60b8d53417b659c994667b4aeaf93",
+    "installation_file": {
+      "path": ".codex/config.toml",
+      "source": "installed-ignored",
+      "sha256": "ccbba4f6ab343b57134198bcfc796e32dfc185936d9805258cf1cbc974c18eb0"
+    },
+    "guidance": {
+      "path": "AGENTS.override.md",
+      "source": "installed-ignored",
+      "sha256": "f5ae3d36c08466b33db4459ec25f52954300b11d9f9fdc70630575e7a00f9961"
+    },
+    "expected_tools": [
+      "codemesh_get_context_package",
+      "codemesh_get_repository_status",
+      "codemesh_list_repositories",
+      "codemesh_get_node"
+    ]
+  },
+  "configured_preflight": {
+    "passed": true,
+    "integration_mode": "configured",
+    "prompt_parity": true,
+    "provider": "none",
+    "probe_query": "IoHandler CacheFor Read Write",
+    "expected_paths": [
+      "src/Config.Net/Core/IoHandler.cs"
+    ],
+    "returned_path_count": 8,
+    "wrong_checkout_rejected": true,
+    "report_sha256": "71396b0e59f58520dd9060c0e77f1709e9b0b3c3ad8bc8d17baa770c35a95b13"
+  },
+  "config_net_live": {
+    "passed": true,
+    "comparable": true,
+    "suite": "config-net-cache-live",
+    "case_count": 6,
+    "tool_call_count": 18,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 1.0,
+    "mean_ndcg_at_k": 1.0,
+    "secret_leaks": 0,
+    "p50_latency_ms": 4451.787,
+    "p95_latency_ms": 4640.26,
+    "model_providers": [],
+    "report_sha256": "fb6f45211bc732f387f21916604345a0be04e1f050d498397ca2f19d41d2b124"
+  },
+  "retained_diagnostic": {
+    "stage": "configured_positive_probe_query_selection",
+    "model_provider_invoked": false,
+    "result": "The first broad task query returned tests but missed the two requested implementation paths. The accepted preflight used the existing canonical IoHandler live-suite query and target; the full live gate separately passed every frozen implementation and test case."
+  },
+  "claim_ceiling": {
+    "established": [
+      "provider_free_configured_plan_and_runtime_identity",
+      "prompt_parity_preflight_configuration",
+      "fresh_fail_closed_config_net_binding",
+      "comparable_config_net_retrieval_gate"
+    ],
+    "not_established": [
+      "normal_agent_context_package_adoption_on_config_net",
+      "codemesh_correctness_or_efficiency_benefit_on_config_net",
+      "repeatable_cross_repository_product_benefit",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "boundaries": {
+    "raw_prompts_or_payloads_retained": false,
+    "model_provider_invoked": false,
+    "config_net_model_campaign": "not_run_requires_separate_explicit_model_spend_authority",
+    "additional_onenine_checkout_onboarding": "not_authorized",
+    "release": "not_authorized",
+    "deployment": "not_authorized",
+    "live_trading": "not_authorized"
+  }
+}

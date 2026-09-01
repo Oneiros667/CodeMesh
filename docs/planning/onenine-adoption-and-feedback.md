@@ -242,5 +242,6 @@ lower and median tokens were 4.13% higher, both within the configured 10%
 threshold. This establishes the selected one|nine handoff, not product benefit.
 Preserve the consumed result in the
 [one-step configured agent evidence record](../evaluation/evidence/configured-onenine-agent-8844c21.json).
-The next work is provider-free configured Config.Net preparation. Its paired
-model campaign requires separate explicit model-spend authority.
+Configured Config.Net preparation now passes provider-free at exact candidate
+`b16eee7`. Its paired model campaign is the next authority gate and requires
+separate explicit model-spend authorization.
