@@ -101,9 +101,10 @@ hold:
    matching repository snapshot.
 5. Agents begin relevant tasks with a context package, verify consequential
    findings against current source, and fall back to normal repository
-   exploration when CodeMesh is unavailable, stale, or ambiguous. Multi-part
-   tasks use a small set of focused implementation and test package queries
-   rather than one long full-task query.
+   exploration when CodeMesh is unavailable, stale, or ambiguous. Agents start
+   with one concise task-shaped package and stop retrieving when it covers every
+   required facet. A specific unresolved implementation or test facet permits
+   one focused follow-up, with at most three non-overlapping packages per task.
 
 The supported claim should remain bounded:
 

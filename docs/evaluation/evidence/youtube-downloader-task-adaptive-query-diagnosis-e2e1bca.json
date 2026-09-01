@@ -1,0 +1,124 @@
+{
+  "schema_version": "1.0",
+  "evidence_kind": "sanitized-provider-free-task-adaptive-query-diagnosis",
+  "generated_at": "2026-09-01T15:34:07.294880+00:00",
+  "frozen_boundary": {
+    "codemesh_base_commit": "e2e1bca70b1bc7d060942f147e45359591e74ccb",
+    "codemesh_source_modified_for_diagnosis": true,
+    "repository_url": "https://github.com/Tyrrrz/YoutubeDownloader.git",
+    "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+    "repository_working_tree_dirty": false,
+    "project_id": "prj_3425db238d0d4a5fbcc1e3c9a28d1945",
+    "checkout_id": "chk_7e4ecde2ae4e45b4b9e475e0a587aa47",
+    "snapshot_id": "snp_1c7772010bcb7c8430fe062d975094271762a68627dbc53f4e2b9f0557687eae",
+    "source_view_hash": "d741906fcdcc5aa33a9d14f8a5e0cbdf7d2e572266a098beadddb595ce6853d9",
+    "freshness_status": "fresh",
+    "provider": "none",
+    "required_target_count": 6,
+    "thresholds": {
+      "min_tool_success_rate": 1.0,
+      "min_recall_at_k": 0.85,
+      "min_mrr": 0.75,
+      "max_primary_rank": 3,
+      "max_secret_leaks": 0
+    }
+  },
+  "comparison_suite": {
+    "name": "youtube-downloader-impact-adaptive-live",
+    "definition_status": "uncommitted_diagnostic_definition",
+    "definition_sha256": "40b4d994ee704c7db22a973538c0a34f3bb28b6cab305857d553f2928f392ea8",
+    "repetitions": 1,
+    "warmup_calls": 0,
+    "provider_free": true,
+    "tool_success_rate": 1.0,
+    "secret_leaks": 0,
+    "raw_report_sha256": "ba740259283e38ed26ff820fa88ee130d9b0a3db75a09a8996bcc095f1db3cec"
+  },
+  "task_shaped_package": {
+    "query_term_count": 29,
+    "call_count": 1,
+    "limit": 12,
+    "maximum_characters": 12000,
+    "required_targets_covered": 6,
+    "required_target_count": 6,
+    "recall_at_k": 1.0,
+    "reciprocal_rank": 1.0,
+    "ndcg_at_k": 0.891323,
+    "primary_rank": 2,
+    "target_ranks": {
+      "YoutubeDownloader.Core/Downloading/VideoDownloadOption.cs": 2,
+      "YoutubeDownloader.Core/Downloading/VideoDownloadPreference.cs": 1,
+      "YoutubeDownloader/ViewModels/Dialogs/DownloadMultipleSetupViewModel.cs": 8,
+      "YoutubeDownloader/ViewModels/Dialogs/DownloadSingleSetupViewModel.cs": 7,
+      "YoutubeDownloader/Services/SettingsService.cs": 5,
+      "YoutubeDownloader/ViewModels/Components/DashboardViewModel.cs": 11
+    },
+    "latency_ms": 17177.121,
+    "ranked_item_occurrences": 12,
+    "snippet_characters": 11173,
+    "agent_formatted_characters": 12000,
+    "duplicate_item_occurrences": 0
+  },
+  "focused_package_set": {
+    "query_count": 3,
+    "query_term_count_total": 22,
+    "call_count": 3,
+    "per_package_limit": 8,
+    "per_package_maximum_characters": 12000,
+    "required_targets_covered": 6,
+    "required_target_count": 6,
+    "target_best_ranks": {
+      "YoutubeDownloader.Core/Downloading/VideoDownloadOption.cs": 1,
+      "YoutubeDownloader.Core/Downloading/VideoDownloadPreference.cs": 2,
+      "YoutubeDownloader/ViewModels/Dialogs/DownloadMultipleSetupViewModel.cs": 1,
+      "YoutubeDownloader/ViewModels/Dialogs/DownloadSingleSetupViewModel.cs": 2,
+      "YoutubeDownloader/Services/SettingsService.cs": 5,
+      "YoutubeDownloader/ViewModels/Components/DashboardViewModel.cs": 2
+    },
+    "latency_ms_total": 18669.373,
+    "ranked_item_occurrences": 24,
+    "unique_ranked_items": 19,
+    "duplicate_item_occurrences": 5,
+    "duplicate_item_fraction": 0.208333,
+    "duplicate_snippet_characters": 5995,
+    "snippet_characters_total": 29270,
+    "agent_formatted_characters_total": 35991
+  },
+  "decision": {
+    "preferred_entry": "one_task_shaped_context_package",
+    "stop_condition": "the_first_package_covers_every_required_facet",
+    "decomposition_condition": "a_specific_implementation_or_test_facet_remains_unresolved",
+    "maximum_context_packages_per_task": 3,
+    "overlapping_follow_up_queries_allowed": false,
+    "smallest_correction": "replace_proactive_multi_query_guidance_with_task_adaptive_stop_and_decompose_guidance"
+  },
+  "claim_ceiling": {
+    "established": [
+      "one_frozen_task_shaped_package_covers_all_six_required_targets",
+      "three_proactive_focused_packages_also_cover_all_six_targets_but_repeat_five_ranked_items",
+      "the_focused_set_uses_three_times_the_agent_formatted_package_budget",
+      "the_bounded_guidance_correction_is_supported_for_clean_candidate_verification"
+    ],
+    "not_established": [
+      "exact_clean_candidate_verification",
+      "normal_agent_compliance_with_task_adaptive_guidance",
+      "correctness_or_efficiency_benefit",
+      "causality_for_the_retained_paid_campaign_regression",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "limitations": [
+    "The diagnosis used one measured repetition and no warmup because it compares deterministic lexical retrieval shapes rather than latency distributions.",
+    "The CodeMesh source checkout contained the diagnostic suite and guidance edits, so the report is intentionally non-comparable as exact-candidate evidence.",
+    "The retained paid campaign did not preserve raw context-package arguments or payloads, so this diagnosis does not establish the cause of its efficiency regression."
+  ],
+  "boundaries": {
+    "model_provider_invoked": false,
+    "paid_campaign_started": false,
+    "clean_candidate_verification": "pending",
+    "push": "not_performed",
+    "release": "not_performed",
+    "deployment": "not_performed"
+  }
+}

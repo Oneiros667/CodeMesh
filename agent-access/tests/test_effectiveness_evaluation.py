@@ -66,6 +66,9 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     live, live_path = load_suite("codemesh-live", "live")
     external_live, external_live_path = load_suite("youtube-downloader-live", "live")
     impact_live, impact_live_path = load_suite("youtube-downloader-impact-live", "live")
+    adaptive_impact_live, adaptive_impact_live_path = load_suite(
+        "youtube-downloader-impact-adaptive-live", "live"
+    )
     agent, agent_path = load_suite("codemesh-agent", "agent")
     external_agent, external_agent_path = load_suite(
         "youtube-downloader-agent", "agent"
@@ -105,6 +108,8 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert external_live.repository_commit
     assert len(impact_live.cases) == 2
     assert impact_live.repository_commit == external_live.repository_commit
+    assert len(adaptive_impact_live.cases) == 5
+    assert adaptive_impact_live.repository_commit == external_live.repository_commit
     assert agent.name == "codemesh-agent"
     assert {task.task_type for task in agent.tasks} == {"answer", "change"}
     assert len(external_agent.tasks) == 3
@@ -160,6 +165,7 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert live_path.is_file()
     assert external_live_path.is_file()
     assert impact_live_path.is_file()
+    assert adaptive_impact_live_path.is_file()
     assert agent_path.is_file()
     assert external_agent_path.is_file()
     assert impact_agent_path.is_file()

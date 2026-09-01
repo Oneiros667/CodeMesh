@@ -56,10 +56,10 @@ def test_installation_requires_reviewed_hash_and_preserves_unmanaged_content(
         encoding="utf-8"
     )
     onboarding = (target / "AGENTS.md").read_text(encoding="utf-8")
-    assert "1. Start with `codemesh_get_context_package`" in onboarding
-    assert "concise" in onboarding
-    assert "focused package queries" in onboarding
-    assert "instead of one long full-task query" in onboarding
+    assert "1. Start with one `codemesh_get_context_package` call" in onboarding
+    assert "covers every required facet" in onboarding
+    assert "at most three" in onboarding
+    assert "avoid overlapping queries" in onboarding
     assert "fails closed when they are not accepted" in onboarding
     assert "only for explicit diagnostics" in onboarding
     assert onboarding.index("codemesh_get_context_package") < onboarding.index(
