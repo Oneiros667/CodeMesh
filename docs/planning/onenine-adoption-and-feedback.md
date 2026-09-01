@@ -268,11 +268,14 @@ adoption, and no safety failure at exact candidate `64d4052`. Treatment medians
 were nevertheless 49.79% slower and used 41.00% more tokens across all three
 pairs, producing an efficiency-driven `regressed` verdict. This strengthens
 cross-repository handoff evidence but still does not establish repeatable
-product benefit. Preserve the consumed campaign and diagnose task-adaptive
-query decomposition provider-free before any further model spend. That
-diagnosis and its smallest guidance correction now pass the exact-candidate
-provider-free gates at `fbc1433`: one task-shaped package covered all six frozen
-targets, while three proactive focused packages repeated content and consumed
-three times the formatted package budget. This is correction readiness, not
-agent compliance or benefit. Any further paired campaign requires fresh
-explicit model-spend authorization and must not run automatically.
+product benefit. Preserve the consumed campaign. The required task-adaptive
+provider-free diagnosis and its smallest guidance correction now pass the
+exact-candidate gates at `fbc1433`: one task-shaped package covered all six
+frozen targets, while three proactive focused packages repeated content and
+consumed three times the formatted package budget. Its separately authorized
+configured campaign then completed all six runs correctly and safely with one
+package in every treatment. Median tokens fell 6.63%, but median duration rose
+10.0192%, producing another efficiency-driven `regressed` verdict. The campaign
+also exceeded its authorized 1.6M aggregate reported-token ceiling because the
+evaluator lacked a hard stop. Preserve the consumed result, diagnose overhead
+provider-free, and add a tested hard token stop before any future model spend.

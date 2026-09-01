@@ -88,27 +88,35 @@ characters versus 12,000. Its deterministic checks, reviewed configured
 preflight, positive and rejection probes, adaptive gate, unchanged impact gate,
 and unchanged canonical gate all pass provider-free. This is correction
 readiness, not proof that agents follow the guidance or benefit from it.
+Its separately authorized configured campaign then completed all three pairs
+correctly and safely, with exactly one context-package attempt in every
+treatment. Median treatment tokens were 6.63% lower, but median duration was
+10.0192% higher, just beyond the frozen 10% threshold, so the verdict was
+`regressed`. The six executions also reported 2,596,056 aggregate tokens and
+exceeded the authorized 1.6M reported-token ceiling because the evaluator had
+no hard aggregate-token stop. The result is consumed and must not be retried.
 The next priorities are:
 
 1. **Preserve all configured campaign outcomes.** Retain `b16eee7` as the
    Config.Net correctness regression, `3804028` as the separately improved
    Config.Net campaign, and `64d4052` as the independently replicated
-   YoutubeDownloader efficiency regression. Do not pool or selectively discard
-   them, and do not infer query-guidance causality from reports without raw
-   query arguments.
-2. **Keep another paired campaign separately gated.** The provider-free
-   task-adaptive diagnosis and correction are complete at `fbc1433`. A new
-   configured campaign may test normal-agent compliance and outcomes only after
-   fresh explicit model-spend authorization; do not treat the provider-free
-   result as benefit evidence or retry the consumed `64d4052` campaign.
+   YoutubeDownloader efficiency regression, and `fbc1433` as the separately
+   duration-regressed adaptive campaign and token-ceiling control failure. Do
+   not pool or selectively discard them, and do not infer query-guidance
+   causality from reports without raw query arguments.
+2. **Close the measured overhead and budget-control gaps provider-free.** Profile
+   the single-package latency and surrounding agent workflow without assuming
+   causality. Add and deterministically verify a hard aggregate-token campaign
+   stop before any future model-backed evaluation is considered. Do not retry
+   either consumed YoutubeDownloader campaign.
 3. **Require separate authority for expansion.** Expand onboarding to Secondary, Tertiary,
    Release, or Hotfix only with separate authority, an exact role-specific
    binding, and a passing checkout-specific probe. Keep Run-only excluded
    pending a separate acceptance decision.
 
-Do not run another paid campaign automatically. The provider-free adaptive-query
-implementation lane is complete; preserve deferred breadth work unless explicit
-owner direction changes this order.
+Do not run another paid campaign automatically. No additional model spend is
+authorized, and the aggregate-token control gap must fail closed first. Preserve
+deferred breadth work unless explicit owner direction changes this order.
 
 After those priorities, use the implemented summary-model qualification runner
 to qualify a complete deployment profile before summaries are considered for
@@ -144,12 +152,12 @@ execution order above.
 | Markdown parser | Partial | Add links from docs to commands, endpoints, projects, and source when justified. | [Architecture](../current/architecture.md) |
 | Context packages | Implemented baseline | Maintain compact agent output, citations, rationale, and budget behavior. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Local web inspection | Implemented initial slice | Expand only when it serves a measured agent or audit need. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Tool guidance and onboarding | One-step fail-closed context-package entry and task-adaptive stop/decompose guidance verified provider-free; configured outcomes range from improved to neutral to regressed | Require fresh model-spend authority before testing agent compliance and outcomes again. | [Agent Integration Contract](agent-integration-contract.md) |
+| Tool guidance and onboarding | One-step fail-closed context-package entry and task-adaptive stop/decompose guidance verified provider-free; `fbc1433` achieved one-package adoption and correct/safe completion but regressed duration | Diagnose overhead provider-free; do not retry the consumed campaign. | [Agent Integration Contract](agent-integration-contract.md) |
 | one\|nine agent feedback | Implemented bounded pilot | Review sanitized, provenance-bound packets and connect recurring findings to controlled evidence without automatic roadmap mutation. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |
-| Evaluation harnesses | Implemented for selected v1 contract | Preserve the two insufficient status-first campaigns, neutral one-step campaign, both Config.Net outcomes, the `64d4052` YoutubeDownloader efficiency regression, and the `fbc1433` provider-free correction evidence. Require fresh authority before more model spend. | [Evaluation](../evaluation/mcp-effectiveness.md) |
+| Evaluation harnesses | Implemented for selected v1 contract; hard aggregate-token stopping is missing | Preserve every configured outcome, including both YoutubeDownloader regressions and the `fbc1433` token-ceiling breach. Add a tested hard stop before any future model spend. | [Evaluation](../evaluation/mcp-effectiveness.md) |
 | Repository identity and snapshots | Local profile implemented | Maintain deterministic identity/slot/retention behavior; shared coordinator, tenant security, and private overlays remain deferred. | [Identity and Snapshot Requirements](repository-identity-and-snapshot-retention.md) |
 | Summary-model qualification | Runner implemented; no profile qualified | Freeze a reviewed corpus and profile, obtain provider/source/spend authority, complete two blinded reviews, isolated live-retrieval comparison with query-level assessment, and resource/cost measurement, then pass every gate before default use. | [Summary Model Qualification](summary-model-qualification.md) |
 | Method load and retrieval granularity | Proposal | Calibrate human-maintainability, tokenizer-bound representation, and agent-context thresholds before exposing advisory findings. | [Method Load And Retrieval Granularity](method-load-and-retrieval-granularity.md) |

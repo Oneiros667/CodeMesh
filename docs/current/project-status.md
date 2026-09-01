@@ -5,9 +5,11 @@ Document type: current status snapshot
 Reviewed: 2026-09-01
 
 Implementation status is reviewed against the current inspected worktree.
-Current configured/onboarded evidence is bound separately to one-step one|nine
-candidate `8844c21` and Config.Net candidate `b16eee7`; retained earlier paid
-campaigns remain bound separately to candidates `0bde606` and `0378740`.
+Provider-free and configured/onboarded task-adaptive evidence is bound to
+candidate `fbc1433`. Other configured/onboarded agent evidence remains bound
+separately to one-step one|nine candidate `8844c21`, Config.Net candidates
+`b16eee7` and `3804028`, and YoutubeDownloader candidate `64d4052`; earlier paid
+campaigns remain bound to candidates `0bde606` and `0378740`.
 
 Retained evidence below remains bound to the exact commits named in each
 evidence section; it does not inherit this implementation baseline.
@@ -44,7 +46,7 @@ usability evidence, but is no longer the v1 acceptance contract.
 | Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, task-adaptive package guidance with a three-package ceiling, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and .NET, Python, and Rust validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
-| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | Configured outcomes include neutral one\|nine, regressed and improved Config.Net, and an efficiency-regressed YoutubeDownloader campaign. None establishes repeatable benefit; the `fbc1433` provider-free correction is not agent-outcome evidence. |
+| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | Configured outcomes include neutral one\|nine, regressed and improved Config.Net, and two duration-regressed YoutubeDownloader campaigns. None establishes repeatable benefit; the evaluator does not yet enforce a hard aggregate-token ceiling. |
 | Generated summaries | Complexity-aware prompts, local/online providers, and a provider-neutral qualification runner/report compiler are implemented. The runner uses the production prompt/parser, requires calibration and held-out qualification partitions, redacts inputs, records immutable suite/profile/source identity, creates typed blinded review packets, and binds isolated live-retrieval plus resource/cost evidence before applying quality, safety, retrieval, and deployment gates. | No summary deployment profile is CodeMesh-qualified. Provider-backed execution, a complete reviewed corpus, two blinded reviews, isolated indexes, query-level retrieval assessment, deployment measurements, and model/source/spend authority remain separate requirements. |
 | Security | Pre-persistence value redaction, immutable generated/cache exclusions, default known-secret-file exclusion, repository-relative allow/deny globs, fail-fast pattern validation, and path-policy-bound snapshot identity implemented. | Explicitly including known secret files requires a separate CLI flag and does not weaken redaction or repository authorization requirements. |
 | Repository identity | Stable project/checkout markers, deterministic source snapshots, checkout-current and clean branch-head slots, explicit retained slots, legacy migration, and richer local freshness implemented. | Separate clones attach with explicit `--project-id`; shared-service tenant/authorization/privacy controls remain deferred. |
@@ -176,11 +178,11 @@ sanitized record is
 [one-step configured campaign evidence](../evaluation/evidence/configured-onenine-agent-8844c21.json).
 
 Together, the provider-free and model-backed records prove the bounded
-configuration, runtime identity, safety, and status adoption observed across
-the campaigns. They do not establish context-package adoption, correctness or
-efficiency benefit, repeatability, release readiness, deployment acceptance,
-provider authorization, or production fitness. Secondary, Tertiary, Release,
-and Hotfix are not activated; Run-only remains excluded.
+configuration, runtime identity, safety, and adoption observed across the
+campaigns. They do not establish attributable correctness or efficiency
+benefit, repeatability, release readiness, deployment acceptance, provider
+authorization, or production fitness. Secondary, Tertiary, Release, and Hotfix
+are not activated; Run-only remains excluded.
 
 ## Retained Product Evidence
 
@@ -315,6 +317,19 @@ unchanged canonical gate retained recall 1.0, MRR 0.9, and nDCG 0.926186.
 No model provider was invoked. Exact hashes and identities are in the
 [task-adaptive provider-free evidence](../evaluation/evidence/youtube-downloader-task-adaptive-provider-free-fbc1433.json).
 
+The separately authorized `fbc1433` configured campaign then completed all
+three pairs with 100% control and treatment correctness, one successful context
+package in every treatment, and no safety, MCP, or command-policy failure. It
+had no correctness win or regression. Median treatment tokens were 6.63% lower,
+but median duration was 10.0192% higher, crossing the frozen 10% threshold by
+0.0192 percentage points and producing a `regressed` verdict. The campaign also
+reported 2,596,056 aggregate tokens, including 2,219,264 cached-input tokens,
+and therefore exceeded its authorized 1.6M reported-token ceiling. The current
+evaluator had no hard aggregate-token stop; this is a control failure, not a
+reason to discard or retry the consumed result. Raw traces and query arguments
+were not retained. The sanitized record is
+[task-adaptive configured campaign evidence](../evaluation/evidence/configured-youtube-downloader-agent-fbc1433.json).
+
 ## Current Gap
 
 Explicit repository onboarding is implemented for the bounded one|nine pilot:
@@ -413,14 +428,19 @@ caused the result or that product benefit is repeatable. The sanitized record is
 Preserve all one|nine and Config.Net campaigns in their original evidence
 classes. This retest is consumed; no further model spend is authorized.
 
-The independent configured YoutubeDownloader campaign is also consumed. Its
-full adoption and correctness strengthen the normal-host handoff evidence, but
-its 49.79% duration and 41.00% token regressions prevent a repeatable-benefit
-claim. The provider-free task-adaptive diagnosis and exact-candidate correction
-are now complete at `fbc1433`; they do not establish normal-agent compliance,
-causality for that regression, or product benefit. Another paired campaign is
-the next possible product-evidence step, but it remains model-cost-bearing and
-requires fresh explicit model-spend authorization. Do not retry automatically.
+Both configured YoutubeDownloader campaigns are consumed. Candidate `64d4052`
+preserved full adoption and correctness but regressed duration by 49.79% and
+tokens by 41.00%. Candidate `fbc1433` reduced each treatment to one context
+package and lowered median tokens by 6.63%, but its 10.0192% duration regression
+still failed the frozen threshold. It also exceeded its authorized aggregate
+reported-token ceiling because the evaluator did not enforce a hard stop. These
+records establish configured adoption and correct/safe completion, not
+repeatable benefit or efficiency causality. No paid retry is authorized.
+
+The next bounded work is provider-free: retain both results, diagnose the
+single-package latency and surrounding agent overhead without assuming cause,
+and add a tested hard aggregate-token campaign stop before any future paid
+evaluation is considered.
 
 Expand onboarding to another one|nine checkout only with separate authority,
 exact binding, fresh ingestion, and a passing checkout-specific probe. The

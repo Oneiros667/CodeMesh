@@ -16,8 +16,8 @@ summary generation is not equivalent to autonomous MCP tool use or repair
 ability. [Summary Model Qualification](../planning/summary-model-qualification.md) defines
 a provider-neutral procedure for local and online candidates, including factual
 accuracy, reliability, speed, token efficiency, privacy, cost, and downstream
-retrieval gates. The dedicated qualification runner described there is planned
-and is not an available CLI command yet.
+retrieval gates. The dedicated qualification runner and report compiler are
+implemented, but no summary deployment profile is CodeMesh-qualified.
 
 ## Product Decision Role
 
@@ -38,9 +38,15 @@ The evidence position is summarized in [Project Status](../current/project-statu
   recorded zero CodeMesh calls or call attempts, so it is negative
   discoverability evidence and its overall efficiency variance is not
   attributable to CodeMesh;
-- the configured Config.Net campaign achieved context-package adoption in all
-  three treatments but regressed correctness in two treatments, so configured
-  cross-repository adoption is established while product benefit is not; and
+- the first configured Config.Net campaign achieved full adoption but regressed
+  correctness in two treatments; its separately corrected campaign improved
+  with one attributable win, but that bounded result is not repeatable benefit;
+- the first independent configured YoutubeDownloader campaign preserved full
+  correctness and adoption but regressed duration and token efficiency;
+- the `fbc1433` task-adaptive campaign preserved full correctness and adoption,
+  reduced each treatment to one package and median tokens by 6.63%, but
+  regressed median duration by 10.0192% and exceeded its authorized aggregate
+  reported-token ceiling because the evaluator lacked a hard stop; and
 - no summary model is qualified, so the core baseline remains summary-free.
 
 Explicit repository onboarding is now the selected v1 product contract; see
@@ -287,10 +293,10 @@ wins. On the only jointly successful pair, treatment duration was 21.31% higher
 and token use was 117.18% higher. The sanitized record is
 [configured Config.Net agent evidence](evidence/configured-config-net-agent-b16eee7.json).
 Preserve this consumed negative configured-product artifact and do not retry it
-automatically. The next work is provider-free reproduction of full-task
+automatically. This result activated provider-free reproduction of full-task
 context-package coverage against every required target, correlated with the
 retained broad-query miss but without claiming a cause that raw campaign
-packages and final messages cannot establish.
+packages and final messages could not establish.
 
 That provider-free diagnosis is now retained separately. The exact frozen
 58-term task query returned eight test paths and only `LogicTest.cs` from the
@@ -380,10 +386,25 @@ with recall and MRR 1.0 and nDCG 0.891323; the unchanged canonical suite passed
 all 18 calls with recall 1.0, MRR 0.9, and nDCG 0.926186. No model provider was
 invoked. The sanitized record is
 [task-adaptive provider-free evidence](evidence/youtube-downloader-task-adaptive-provider-free-fbc1433.json).
-This is exact-candidate correction readiness, not evidence of normal-agent
-guidance compliance, efficiency benefit, or causality for the retained
-`64d4052` regression. Another campaign requires fresh explicit model-spend
-authorization and must not be started automatically.
+
+The separately authorized configured campaign at the same exact candidate then
+completed all three pairs and all six executions correctly and safely. Every
+treatment made exactly one successful context-package call, with no MCP or
+command-policy failure. There were no treatment wins, attributable wins, or
+regressions. Median treatment tokens fell 6.63%, while median duration rose
+10.0192%, exceeding the frozen 10% threshold by 0.0192 percentage points and
+producing a `regressed` verdict. The six runs reported 2,596,056 aggregate
+tokens, including 2,219,264 cached-input tokens, and exceeded the authorized
+1.6M reported-token ceiling. The evaluator had no hard aggregate-token stop;
+record that control failure and do not retry the consumed campaign. Raw traces
+and exact query arguments were not retained. The sanitized record is
+[task-adaptive configured campaign evidence](evidence/configured-youtube-downloader-agent-fbc1433.json).
+
+This establishes configured single-package adoption and correct/safe completion
+for the frozen task. It does not establish overall efficiency benefit,
+causality, repeatability, release readiness, or production fitness. Before any
+future paid campaign, add a tested hard aggregate-token stop and diagnose the
+observed duration overhead provider-free.
 
 Candidate `0bde606` passed the configured preflight for the selected explicit-
 onboarding contract against exact Primary commit `fe2f761`. Its first paid run

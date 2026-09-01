@@ -71,6 +71,15 @@ adaptive, unchanged impact, and unchanged canonical gates all pass without a
 model provider. This establishes correction readiness, not agent compliance or
 product benefit.
 
+The separately authorized configured campaign at exact candidate `fbc1433`
+then completed all six runs correctly and safely with one context package in
+every treatment. Median treatment tokens fell 6.63%, but median duration rose
+10.0192%, just beyond the frozen regression threshold. Its `regressed` verdict
+is an efficiency result, not a correctness regression. The campaign also
+exceeded its authorized 1.6M aggregate reported-token ceiling because the
+evaluator lacked a hard stop. Preserve the consumed result and control failure;
+do not retry it.
+
 ## Decision
 
 CodeMesh v1 requires explicit, repository-owned agent onboarding. A configured
@@ -226,9 +235,11 @@ attributable win and zero regressions, but its single-task result does not make
 benefit repeatable. The independent `64d4052` YoutubeDownloader campaign then
 preserved full adoption and correctness on a different C# repository, but its
 49.79% median duration regression and 41.00% median token regression produced a
-`regressed` verdict. The `fbc1433` provider-free task-adaptive correction now
-passes its exact-candidate gates, but it does not authorize an automatic paid
-retry or establish agent outcomes.
+`regressed` verdict. The separate `fbc1433` task-adaptive campaign reduced
+treatments to one package and lowered median tokens by 6.63%, but its 10.0192%
+median duration regression also produced a `regressed` verdict. It exceeded its
+authorized aggregate reported-token ceiling because the evaluator lacked a
+hard stop. No automatic paid retry is authorized.
 
 ## Completion Gates
 
@@ -253,11 +264,10 @@ Complete the product-evidence sequence in this order:
 9. retain the consumed configured Config.Net campaign at exact candidate
    `b16eee7`, which established full context-package adoption but regressed in
    two treatments; and
-10. diagnose the full-task context-package coverage gap provider-free against
-    every frozen implementation and test target before any bounded correction
-    or separately authorized paid retest; and
-11. freeze and clean-candidate verify the implemented focused-query guidance
-    correction before requesting separately authorized model spend; and
+10. retain the provider-free full-task coverage diagnosis against every frozen
+    Config.Net implementation and test target; and
+11. retain the clean-candidate verification of the focused-query guidance
+    correction at `3804028`; and
 12. retain the separately consumed `3804028` Config.Net campaign, which passed
     all treatments with one attributable win, zero regressions, and an
     `improved` single-campaign verdict; and
@@ -265,8 +275,11 @@ Complete the product-evidence sequence in this order:
     which preserved full adoption and correctness but regressed median duration
     and token usage on a different frozen C# task; and
 14. retain the `fbc1433` provider-free task-adaptive diagnosis and clean-
-    candidate correction evidence, and require fresh explicit model-spend
-    authorization before any further paired campaign.
+    candidate correction evidence; and
+15. retain the consumed `fbc1433` configured campaign, including its
+    single-package adoption, duration-regressed verdict, and aggregate-token
+    ceiling breach; add a tested hard aggregate-token stop before any future
+    paid evaluation is considered.
 
 The bounded one|nine path and configured preflight have passed their clean-
 candidate provider-free gates. The two status-first campaigns remain valid but
@@ -276,9 +289,10 @@ and the separate `3804028` Config.Net campaign is valid and `improved` with one
 attributable win. The independent `64d4052` YoutubeDownloader campaign is valid
 and `regressed` on efficiency despite full adoption and correctness. The
 Config.Net improvement remains positive bounded evidence, but the independent
-efficiency regression means no result yet establishes repeatable product
-benefit. The `fbc1433` provider-free correction is ready for a separately
-authorized agent-outcome test; it is not itself benefit evidence. Do not claim
-benefit from documentation, static manifests, fixtures,
+efficiency regressions mean no result yet establishes repeatable product
+benefit. The `fbc1433` campaign establishes bounded single-package compliance,
+not overall efficiency benefit, and its budget-control failure must be closed
+before future model spend. Do not claim benefit from documentation, static
+manifests, fixtures,
 configured CI, adoption alone, or an MCP process that starts without an
 attributable agent-outcome result.

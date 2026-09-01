@@ -155,6 +155,11 @@ authentication, time, and model budget are available:
 uv run python -m codemesh_agent_access eval agent --model <model-id>
 ```
 
+The current agent evaluator records token usage but does not enforce a hard
+aggregate-token ceiling during a campaign. Do not authorize another paid run
+against a hard token cap until a tested fail-closed stop is implemented. A
+fixed repetition count or post-run token audit is not an enforcement substitute.
+
 Use `--suite youtube-downloader-agent` and point `--repository-root` at the
 pinned external checkout for its implementation-discovery, change-impact, and
 validation-selection comparison.
@@ -164,6 +169,14 @@ separate complex impact-analysis calibration task. It runs six executions at
 the default three repetitions and does not alter the original frozen suite.
 Run `eval live --suite youtube-downloader-impact-live` first to retain its
 retrieval and relationship baseline.
+
+Use `eval live --suite youtube-downloader-impact-adaptive-live` for the
+provider-free task-adaptive gate. It preserves the same repository commit, six
+targets, and thresholds while comparing one task-shaped package with three
+bounded focused facets. Run it with the configured preflight, unchanged impact
+suite, and unchanged canonical suite before requesting authority for another
+paired campaign. A passing adaptive suite proves retrieval and package-budget
+readiness only; it does not prove agent compliance or benefit.
 
 Use `--suite youtube-downloader-impact-assisted-agent` only after a spontaneous
 campaign records zero adoption. Its treatment-only onboarding deliberately
