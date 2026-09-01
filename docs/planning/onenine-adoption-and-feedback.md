@@ -7,9 +7,10 @@ Reviewed: 2026-09-01
 This document defines the bounded one|nine adoption priority selected in
 [Next Steps](next-steps.md). Its initial implementation and provider-free pilot
 gate passed from clean candidate `ee1d4d9`; the later configured-evaluator
-campaign was finalized at `0bde606`, and the bounded status-to-context
-correction passed the same provider-free gates at `0378740`. Current behavior
-and evidence remain authoritative in
+campaign was finalized at `0bde606`, the bounded status-to-context correction
+passed the same provider-free gates at `0378740`, and the one-step entry
+correction passed them at `8844c21`. Current behavior and evidence remain
+authoritative in
 [Project Status](../current/project-status.md); this planning record does not
 establish that CodeMesh improves one|nine agent outcomes.
 
@@ -212,6 +213,14 @@ all passed again without invoking a model provider. The exact identities and
 claim ceiling are retained in the
 [corrected provider-free evidence record](../evaluation/evidence/configured-onenine-provider-free-0378740.json).
 
+The one-step entry correction is frozen at exact clean candidate `8844c21`.
+The full deterministic checks, configured preflight, eight one|nine gates,
+three retained feedback packets, and pinned YoutubeDownloader live gate all
+passed with provider mode `none`. Instance configuration commit `f9f199d`
+repinned only Primary; all managed-instance generation checks passed without
+activating another checkout. The exact identities and claim ceiling are in the
+[one-step provider-free evidence record](../evaluation/evidence/configured-onenine-provider-free-8844c21.json).
+
 The first authorized paired model campaign from those exact identities
 completed three correct and safe pairs. Two treatments called repository status,
 none called the context-package tool, and the verdict was `insufficient` with no
@@ -225,8 +234,6 @@ none called the context-package tool, and there were no attributable wins. The
 status-result action therefore did not produce the required handoff. Preserve
 the consumed campaign in the
 [corrected configured agent evidence record](../evaluation/evidence/configured-onenine-agent-0378740.json).
-The next priority is a provider-free one-step context-package entry correction,
-not another paid retry or Config.Net replication. That correction is now
-implemented locally in the CodeMesh MCP/installer contracts and the one|nine
-shared guidance source; it still requires a new exact clean candidate and the
-full provider-free gates before any new model-spend decision.
+The one-step context-package entry correction is now fully provider-free
+verified. The next gate is separate explicit authority for a new paid one|nine
+paired campaign; without it, do not retry or begin Config.Net replication.

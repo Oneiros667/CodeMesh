@@ -44,9 +44,9 @@ Explicit repository onboarding is now the selected v1 product contract; see
 [Agent Integration Contract](../planning/agent-integration-contract.md). The
 checkout-local integration and provider-free probes are implemented and passed
 their clean-candidate gates. The paired-agent evaluator now represents that
-configured integration. The bounded status-to-context correction and its
+configured integration. The one-step context-package entry contract and its
 exact-candidate preflight, frozen one|nine gates, and YoutubeDownloader
-provider-free gate pass at candidate `0378740`. The first configured campaign,
+provider-free gate pass at candidate `8844c21`. The first configured campaign,
 retained at candidate `0bde606`, completed all three pairs correctly and safely
 but was insufficient: two treatments called repository status, none retrieved a
 context package, and there were no attributable wins. The separately authorized
@@ -276,10 +276,14 @@ Preserve this consumed artifact and do not retry it automatically.
 The subsequent provider-free implementation removes the measured two-step
 dependency by making the fail-closed context package the single normal-host
 entry action across MCP instructions, tool descriptions, and generated
-repository onboarding. Status remains an explicit diagnostic tool. This local
-implementation is not new agent-outcome evidence; it requires a new clean
-candidate and the full deterministic and provider-free gates before another
-model-spend decision.
+repository onboarding. Status remains an explicit diagnostic tool. Exact clean
+candidate `8844c21` passed the full deterministic checks, configured preflight,
+all eight frozen one|nine gates, all three retained feedback packet validations,
+and the pinned YoutubeDownloader live gate with provider mode `none`. The
+sanitized record is
+[one-step provider-free evidence](evidence/configured-onenine-provider-free-8844c21.json).
+This is readiness evidence, not a normal-agent adoption or product-benefit
+result. A new paired campaign requires separate explicit model-spend authority.
 
 ## Configured Agent Preflight And Campaign
 

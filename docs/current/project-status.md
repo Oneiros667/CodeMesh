@@ -5,9 +5,9 @@ Document type: current status snapshot
 Reviewed: 2026-09-01
 
 Implementation status is reviewed against the current inspected worktree.
-Current provider-free configured-evaluator evidence is bound to candidate
-`0378740`; retained paid campaigns remain bound separately to candidates
-`0bde606` and `0378740`.
+Current provider-free configured-evaluator evidence is bound to one-step entry
+candidate `8844c21`; retained paid campaigns remain bound separately to
+candidates `0bde606` and `0378740`.
 
 Retained evidence below remains bound to the exact commits named in each
 evidence section; it does not inherit this implementation baseline.
@@ -44,7 +44,7 @@ usability evidence, but is no longer the v1 acceptance contract.
 | Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and .NET, Python, and Rust validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
-| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | Candidate `0378740` passed the full deterministic and provider-free gates. Its authorized model campaign completed correctly and safely but remained insufficient: one treatment called status, none retrieved context, and there were no attributable wins. Further model spend requires separate authorization. |
+| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | One-step entry candidate `8844c21` passed the full deterministic and provider-free gates. No model campaign has evaluated that candidate. The two retained earlier campaigns were insufficient, and further model spend requires separate authorization. |
 | Generated summaries | Complexity-aware prompts, local/online providers, and a provider-neutral qualification runner/report compiler are implemented. The runner uses the production prompt/parser, requires calibration and held-out qualification partitions, redacts inputs, records immutable suite/profile/source identity, creates typed blinded review packets, and binds isolated live-retrieval plus resource/cost evidence before applying quality, safety, retrieval, and deployment gates. | No summary deployment profile is CodeMesh-qualified. Provider-backed execution, a complete reviewed corpus, two blinded reviews, isolated indexes, query-level retrieval assessment, deployment measurements, and model/source/spend authority remain separate requirements. |
 | Security | Pre-persistence value redaction, immutable generated/cache exclusions, default known-secret-file exclusion, repository-relative allow/deny globs, fail-fast pattern validation, and path-policy-bound snapshot identity implemented. | Explicitly including known secret files requires a separate CLI flag and does not weaken redaction or repository authorization requirements. |
 | Repository identity | Stable project/checkout markers, deterministic source snapshots, checkout-current and clean branch-head slots, explicit retained slots, legacy migration, and richer local freshness implemented. | Separate clones attach with explicit `--project-id`; shared-service tenant/authorization/privacy controls remain deferred. |
@@ -69,7 +69,7 @@ embeddings, and zero summaries. It redacted 324 content items before
 persistence.
 
 The reviewed plan at hash
-`6f5e68c225f88b6162f386e4c3bfb9ae1d974f70d56b04a50c142be7542c004e`
+`fcadac37ae4df261e8b746e14f9191e22a7b6399b991925d4d1e12a5947daf34`
 changed only Primary's ignored `.codex/config.toml`. The normal-profile probe
 accepted the exact fresh binding and the configured preflight preserved prompt
 parity. Its installed ignored `AGENTS.override.md` guidance was retained by
@@ -118,6 +118,26 @@ all eight frozen one|nine gates, all three feedback packets, and the pinned
 YoutubeDownloader live gate passed with provider mode `none`. Primary's newer
 `main` tip `0297190` was preserved and restored after the gates. The sanitized
 record is [corrected candidate provider-free evidence](../evaluation/evidence/configured-onenine-provider-free-0378740.json).
+
+The subsequent one-step entry correction is frozen in clean detached candidate
+`8844c21`. MCP instructions, tool descriptions, and generated onboarding now
+make the fail-closed context package the first normal-host action while keeping
+repository status as an explicit diagnostic and retaining its compatibility
+next-action field. At that exact commit, locked restore, build, 69 .NET tests,
+format verification, 125 Python tests, Ruff check and format, all five
+deterministic MCP fixtures, and all repository standards checks passed. The
+final service-backed .NET rerun passed after an earlier Neo4j cold-start
+cancellation; the existing nullable warning and unconfigured YoutubeDownloader
+sample skip remain.
+
+one|nine instance configuration commit `f9f199d` repinned only Primary to the
+new candidate and regenerated all managed instance instructions successfully;
+it did not activate another checkout. Against exact Primary source identity
+`fe2f761`, the reviewed configured preflight, all eight frozen one|nine gates,
+all three feedback packets, and the pinned YoutubeDownloader live gate passed
+with provider mode `none`. Primary's newer `main` tip `162fa515` was preserved
+and restored after the gates. The sanitized record is
+[one-step candidate provider-free evidence](../evaluation/evidence/configured-onenine-provider-free-8844c21.json).
 
 The authorized `gpt-5.6-sol` medium-reasoning configured campaign then completed
 three paired repetitions. All six executions were correct and safe, with no
@@ -210,7 +230,7 @@ transcription is
 Explicit repository onboarding is implemented for the bounded one|nine pilot:
 the normal profile exposes only context package, repository status, repository
 listing, and node lookup; exact binding and freshness are enforced; and
-installation plus probing are reviewable. Clean corrected candidate `0378740`,
+installation plus probing are reviewable. Clean one-step candidate `8844c21`,
 exact Primary commit `fe2f761`, the configured preflight, the eight-gate frozen
 one|nine pilot, and the YoutubeDownloader live gate all pass provider-free. The
 configured normal-host campaigns at historical candidate `0bde606` and
@@ -242,8 +262,11 @@ instructions, context-package and status tool descriptions, and generated
 repository onboarding now use the fail-closed context package as the single
 normal-host entry action. Repository status remains available for explicit
 ingestion, count, and freshness diagnostics, and its compatibility next-action
-field remains intact. Focused and full Python contracts pass; exact-candidate
-provider-free verification remains pending.
+field remains intact. Exact clean candidate `8844c21` passed the full
+deterministic suite, configured preflight, eight one|nine pilot gates, feedback
+validation, and pinned YoutubeDownloader live gate with no model provider.
+This is readiness evidence only; it does not prove normal-agent adoption or
+product benefit.
 
 The configured/onboarded evaluator now preserves prompt parity, uses the exact
 reviewed checkout-local `normal` installation, and retains integration mode,
@@ -253,11 +276,12 @@ checkout, commit or binding mismatch, changed plan files, unexpected tool
 surface, and a failed rejection probe. Historical spontaneous and assisted
 modes retain their prior diagnostic behavior.
 
-The immediate next work is to freeze the one-step implementation in a new clean
-candidate and pass the full deterministic and exact provider-free gates.
-Preserve both insufficient campaigns and their identities. Do not spend on
-another campaign until those gates pass and new explicit model-spend authority
-is granted.
+The immediate next gate is owner authorization for a new model-cost-bearing
+paired campaign at exact candidate `8844c21`. Preserve both insufficient
+campaigns and their identities, keep the frozen one|nine task and comparison
+conditions unchanged, and require actual context-package retrieval before
+attributing outcome differences. Without that authority, stop at the completed
+provider-free evidence.
 
 Run the configured Config.Net replication only after a valid one|nine paired
 campaign. Expand onboarding to another one|nine checkout only with separate

@@ -21,8 +21,9 @@ correct but insufficient: one treatment stopped after status and none retrieved
 task context. The status-result next-action field therefore did not establish
 the required normal-host transition. The current implementation instead makes
 the fail-closed context package the single normal-host entry action and retains
-status for explicit diagnostics; exact-candidate provider-free verification is
-pending.
+status for explicit diagnostics. Exact clean candidate `8844c21` passed the
+full deterministic and provider-free gates; no model campaign has evaluated
+that one-step contract.
 
 ## Decision
 
@@ -178,15 +179,14 @@ Complete the product-evidence sequence in this order:
 3. maintain the implemented exact checkout binding and fail-closed freshness;
 4. maintain the implemented provider-free positive and rejection probes;
 5. maintain the clean-candidate deterministic contracts, summary-free live
-   gate, and frozen one|nine pilot gate verified for the correction at
-   `0378740`;
+   gate, and frozen one|nine pilot gate verified for the one-step correction at
+   `8844c21`;
 6. maintain the passing configured/onboarded paired-evaluation preflight so the
    implemented runner continues to prove the reviewed normal-profile
    installation and its exact integration identities against the candidate;
 7. maintain the implemented one-step fail-closed context-package entry action
-   across MCP instructions, installed onboarding, and tool descriptions, then
-   pass the deterministic and exact provider-free gates from a new clean
-   candidate; and
+   across MCP instructions, installed onboarding, and tool descriptions, as
+   provider-free verified at exact candidate `8844c21`; and
 8. only with new explicit model-spend authorization, rerun the
    configured/onboarded campaign and require context-package adoption before
    assessing attributable outcome benefit.
