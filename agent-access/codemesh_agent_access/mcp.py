@@ -266,7 +266,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
         "arguments": _GET_REPOSITORY_ARGUMENTS,
     },
     "codemesh_get_repository_status": {
-        "description": "Use before trusting context to check counts, latest ingestion run, summary coverage, and local git freshness.",
+        "description": "Use before trusting context to check counts, latest ingestion run, summary coverage, and local git freshness. Follow codemesh_next_action in the result: a fresh accepted binding continues immediately to codemesh_get_context_package; any other state stops CodeMesh use.",
         "arguments": _GET_REPOSITORY_STATUS_ARGUMENTS,
         "response": {
             "fields": [
@@ -277,6 +277,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
                 "counts",
                 "freshness",
                 "refresh",
+                "codemesh_next_action",
                 "generated_at",
             ],
         },
@@ -641,9 +642,13 @@ def build_server(
         )
         assert repository_id is not None
         check("codemesh_get_repository_status", {"repository_id": repository_id})
-        return (
+        payload = (
             await tools.get_repository_status(repository_id, binding=binding)
         ).model_dump(mode="json")
+        status = payload.get("data")
+        status = status if isinstance(status, dict) else {}
+        status["codemesh_next_action"] = _repository_status_next_action(status)
+        return payload
 
     @register_tool("codemesh_get_summary_coverage")
     async def codemesh_get_summary_coverage(repository_id: str) -> dict[str, Any]:
@@ -672,6 +677,36 @@ def build_server(
         ).model_dump(mode="json")
 
     return server
+
+
+def _repository_status_next_action(payload: dict[str, Any]) -> dict[str, Any]:
+    freshness = payload.get("freshness")
+    freshness = freshness if isinstance(freshness, dict) else {}
+    binding = freshness.get("binding")
+    binding = binding if isinstance(binding, dict) else {}
+    eligible = (
+        freshness.get("status") == "fresh" and binding.get("status") == "accepted"
+    )
+    if eligible:
+        return {
+            "use_codemesh": True,
+            "next_tool": "codemesh_get_context_package",
+            "instruction": (
+                "Binding is accepted and the index is fresh. Continue now with "
+                "codemesh_get_context_package using the full task as query and "
+                "output_format='agent'; do not stop CodeMesh discovery after "
+                "this status check."
+            ),
+        }
+
+    return {
+        "use_codemesh": False,
+        "next_tool": None,
+        "instruction": (
+            "Do not use CodeMesh context for this task because the exact binding "
+            "is not both accepted and fresh. Fall back to direct source inspection."
+        ),
+    }
 
 
 def run(

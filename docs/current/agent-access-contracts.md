@@ -149,6 +149,12 @@ live checkout freshness is unavailable.
 
 Refresh fields include `status`, `is_running`, `changed`, `latest_run_id`, `stage`, `started_at`, `finished_at`, `diagnostic_count`, `error_diagnostic_count`, `warning_diagnostic_count`, `stats`, `detail`, and `recommended_action` when available. `status` is derived from the latest ingestion run and can be `no_run`, `running`, `completed`, `skipped`, `failed`, `dry_run`, or `unknown`.
 
+The MCP status result adds `codemesh_next_action`. A fresh, accepted checkout
+binding directs the agent to continue immediately with an agent-format
+`codemesh_get_context_package` request using the full task. Every other state
+directs the agent to stop CodeMesh discovery and fall back to direct source
+inspection. This presentation-only field is not part of the REST status model.
+
 `NodeSummaryCoverageResponse` fields:
 
 - `repository_id`: resolved repository id.

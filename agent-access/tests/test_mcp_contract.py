@@ -114,6 +114,7 @@ def test_mcp_manifest_matches_registered_tools() -> None:
         "counts",
         "freshness",
         "refresh",
+        "codemesh_next_action",
         "generated_at",
     ]
 
@@ -455,6 +456,55 @@ def test_mcp_repository_status_forwards_repository_id(monkeypatch: Any) -> None:
 
     assert captured["repository_id"] == "sample_repo"
     assert structured["data"]["freshness"]["status"] == "unknown"
+    assert structured["data"]["codemesh_next_action"] == {
+        "use_codemesh": False,
+        "next_tool": None,
+        "instruction": (
+            "Do not use CodeMesh context for this task because the exact binding "
+            "is not both accepted and fresh. Fall back to direct source inspection."
+        ),
+    }
+
+
+def test_bound_mcp_repository_status_directs_fresh_context_retrieval(
+    monkeypatch: Any,
+    tmp_path,
+) -> None:
+    binding = RepositoryBinding(
+        "project:test",
+        "checkout:test",
+        str(tmp_path),
+        "view:test",
+    )
+
+    async def fake_get_repository_status(
+        repository_id: str, **kwargs: Any
+    ) -> ToolResult:
+        assert repository_id == "project:test"
+        assert kwargs["binding"] is binding
+        return ToolResult(
+            data={
+                "repository_id": repository_id,
+                "freshness": {
+                    "status": "fresh",
+                    "binding": {"status": "accepted", "issues": []},
+                },
+            }
+        )
+
+    monkeypatch.setattr(mcp.tools, "get_repository_status", fake_get_repository_status)
+
+    server = mcp.build_server(binding=binding)
+    _content, structured = asyncio.run(
+        server.call_tool("codemesh_get_repository_status", {})
+    )
+
+    assert structured["data"]["codemesh_next_action"]["use_codemesh"] is True
+    assert (
+        structured["data"]["codemesh_next_action"]["next_tool"]
+        == "codemesh_get_context_package"
+    )
+    assert "Continue now" in structured["data"]["codemesh_next_action"]["instruction"]
 
 
 def test_mcp_profiles_do_not_expose_repository_deletion() -> None:
