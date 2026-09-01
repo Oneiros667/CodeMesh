@@ -350,8 +350,19 @@ recall, MRR, and nDCG of 1.0 and zero secret leaks. This establishes an exact
 provider-free correction candidate, not normal-agent compliance or product
 benefit. Exact identities and report hashes are retained in the
 [focused-query provider-free evidence](../evaluation/evidence/config-net-focused-query-provider-free-3804028.json).
+The separately authorized exact-candidate campaign then completed all three
+pairs and received an `improved` verdict. Every treatment used the context
+package, made two or three package attempts, passed the citation grader, and
+completed without safety, MCP, or command-policy failure. Controls passed two
+of three; the second control missed `ConfigurationBuilder.cs`, producing one
+CodeMesh-attributable win and no treatment regressions. Across the two jointly
+successful pairs, treatment median duration was 13.69% lower and median tokens
+were 3.59% lower. This is positive configured evidence for one task, repository,
+model, and three-pair campaign; it does not establish that the wording change
+caused the result or that product benefit is repeatable. The sanitized record is
+[focused-query configured campaign evidence](../evaluation/evidence/configured-config-net-agent-3804028.json).
 Preserve all one|nine and Config.Net campaigns in their original evidence
-classes; no paid retry is authorized.
+classes. This retest is consumed; no further model spend is authorized.
 
 Expand onboarding to another one|nine checkout only with separate authority,
 exact binding, fresh ingestion, and a passing checkout-specific probe. The

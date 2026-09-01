@@ -62,26 +62,34 @@ five-case focused suite, unchanged six-case canonical suite, and deterministic
 checks all pass provider-free. The focused suite covers all seven required
 targets, with `LazyVar.cs` at rank eight. This is correction readiness, not
 evidence that a normal agent follows the guidance or benefits from CodeMesh.
+The separately authorized exact-candidate campaign then completed all three
+pairs with an `improved` verdict. Treatments adopted the context package and
+passed in every repetition, controls passed two of three, and the result
+contains one CodeMesh-attributable win with no regressions or safety failures.
+Median treatment duration was 13.69% lower and tokens were 3.59% lower across
+the two jointly successful pairs. This is positive evidence for one bounded
+campaign, not repeatable product benefit or proof that the wording change alone
+caused the outcome.
 The next priorities are:
 
-1. **Preserve the consumed negative campaign.** Retain the exact `b16eee7`
-   report as configured/onboarded evidence with full adoption, two treatment
-   correctness regressions, and no automatic retry. Do not combine it with the
-   assisted positive result or the earlier zero-adoption prompt-parity result.
-2. **Require new authority for any paid retest.** The provider-free correction
-   gate is complete at `3804028`, but it does not authorize another model run.
-   If separately authorized, preserve the frozen Config.Net task, grading,
-   source identity, normal profile, and evaluator settings and run one exact-
-   candidate configured campaign. Do not reuse or overwrite the consumed
-   `b16eee7` artifact.
+1. **Preserve both Config.Net campaigns.** Retain `b16eee7` as the configured
+   regression and `3804028` as the separately consumed improved campaign. Do
+   not overwrite, pool, or selectively discard either result, and do not infer
+   wording-change causality from the comparison.
+2. **Require new authority for independent configured replication.** The next
+   product-evidence step is one frozen configured campaign on another
+   representative C#/.NET repository or task, preceded by exact binding,
+   provider-free retrieval, positive, and rejection gates. Preserve the normal
+   profile and focused-query onboarding. A new repository choice and model
+   spend require separate approval.
 3. **Require separate authority for expansion.** Expand onboarding to Secondary, Tertiary,
    Release, or Hotfix only with separate authority, an exact role-specific
    binding, and a passing checkout-specific probe. Keep Run-only excluded
    pending a separate acceptance decision.
 
-No additional implementation priority is activated by the provider-free result
-alone. Without paid-retest or expansion authority, preserve the exact evidence
-and stop rather than selecting deferred breadth work.
+No additional implementation priority is activated by this single improved
+campaign. Without independent-replication or expansion authority, preserve the
+exact evidence and stop rather than selecting deferred breadth work.
 
 After those priorities, use the implemented summary-model qualification runner
 to qualify a complete deployment profile before summaries are considered for
@@ -117,12 +125,12 @@ execution order above.
 | Markdown parser | Partial | Add links from docs to commands, endpoints, projects, and source when justified. | [Architecture](../current/architecture.md) |
 | Context packages | Implemented baseline | Maintain compact agent output, citations, rationale, and budget behavior. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Local web inspection | Implemented initial slice | Expand only when it serves a measured agent or audit need. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Tool guidance and onboarding | One-step fail-closed context-package entry verified provider-free and adopted in all three configured one\|nine treatments at `8844c21`; focused-query correction verified provider-free at clean `3804028` | Preserve the consumed Config.Net regression; require separate authority for one exact-candidate paid retest. | [Agent Integration Contract](agent-integration-contract.md) |
+| Tool guidance and onboarding | One-step fail-closed context-package entry verified provider-free and adopted in all three configured one\|nine treatments at `8844c21`; focused-query correction verified provider-free and improved in one configured Config.Net campaign at `3804028` | Preserve both Config.Net outcomes; require separate authority for independent configured replication. | [Agent Integration Contract](agent-integration-contract.md) |
 | one\|nine agent feedback | Implemented bounded pilot | Review sanitized, provenance-bound packets and connect recurring findings to controlled evidence without automatic roadmap mutation. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |
-| Evaluation harnesses | Implemented for selected v1 contract | Preserve the two insufficient status-first campaigns, the neutral fully adopted one-step campaign, and the consumed `b16eee7` Config.Net regression. Clean `3804028` passes the focused-query and unchanged canonical provider-free gates; a paid retest still requires separate authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
+| Evaluation harnesses | Implemented for selected v1 contract | Preserve the two insufficient status-first campaigns, the neutral fully adopted one-step campaign, the `b16eee7` Config.Net regression, and the separately consumed improved `3804028` campaign. Independent configured replication requires separate authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
 | Repository identity and snapshots | Local profile implemented | Maintain deterministic identity/slot/retention behavior; shared coordinator, tenant security, and private overlays remain deferred. | [Identity and Snapshot Requirements](repository-identity-and-snapshot-retention.md) |
 | Summary-model qualification | Runner implemented; no profile qualified | Freeze a reviewed corpus and profile, obtain provider/source/spend authority, complete two blinded reviews, isolated live-retrieval comparison with query-level assessment, and resource/cost measurement, then pass every gate before default use. | [Summary Model Qualification](summary-model-qualification.md) |
 | Method load and retrieval granularity | Proposal | Calibrate human-maintainability, tokenizer-bound representation, and agent-context thresholds before exposing advisory findings. | [Method Load And Retrieval Granularity](method-load-and-retrieval-granularity.md) |

@@ -301,7 +301,22 @@ canonical suite passed six cases and 18 calls with recall, MRR, and nDCG of 1.0
 and zero leaks. The sanitized exact-candidate record is
 [focused-query provider-free evidence](evidence/config-net-focused-query-provider-free-3804028.json).
 This is provider-free correction readiness, not normal-agent compliance or
-product-benefit evidence, and it does not authorize a paid retest.
+product-benefit evidence.
+
+The separately authorized exact-candidate campaign retained the frozen task,
+grading, repository, model, reasoning effort, seed, repetitions, normal profile,
+and prompt parity. It completed all three pairs with an `improved` verdict.
+Every treatment adopted the context package, made two or three package attempts,
+and passed; controls passed two of three because repetition two missed
+`ConfigurationBuilder.cs`. The report therefore records one
+CodeMesh-attributable win, zero treatment regressions, and no safety, MCP, or
+command-policy failures. Across the two jointly successful pairs, treatment
+median duration was 13.69% lower and median tokens were 3.59% lower. The
+sanitized record is
+[focused-query configured campaign evidence](evidence/configured-config-net-agent-3804028.json).
+This is positive configured evidence for one bounded campaign. Raw package
+arguments and final messages were not retained, so it neither proves exact
+query wording nor establishes causal or repeatable product benefit.
 
 Candidate `0bde606` passed the configured preflight for the selected explicit-
 onboarding contract against exact Primary commit `fe2f761`. Its first paid run

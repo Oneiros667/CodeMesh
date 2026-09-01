@@ -42,6 +42,14 @@ canonical live suite, and deterministic Python checks all pass with provider
 mode `none`. This establishes correction readiness only; normal-agent guidance
 compliance and product benefit still require a separately authorized campaign.
 
+That separately authorized campaign completed at the same exact candidate with
+the frozen Config.Net comparison conditions. All three treatments adopted the
+context package and passed safely; controls passed two of three, producing one
+CodeMesh-attributable win, zero treatment regressions, and an `improved`
+verdict. Efficiency medians were also favorable across the two jointly
+successful pairs. This is positive evidence for the bounded campaign, not proof
+that focused wording caused the change or that benefit repeats elsewhere.
+
 ## Decision
 
 CodeMesh v1 requires explicit, repository-owned agent onboarding. A configured
@@ -190,7 +198,10 @@ produced an attributable win. The `8844c21` campaign then retrieved a context
 package in every treatment, but its neutral result still produced no
 attributable win. The `b16eee7` Config.Net campaign also achieved full adoption
 but regressed correctness in two treatments. Any further paired comparison
-remains model-cost-bearing and requires new separate authorization.
+remains model-cost-bearing and requires new separate authorization. The
+separately consumed `3804028` Config.Net campaign later produced one
+attributable win and zero regressions, but its single-task result does not make
+benefit repeatable.
 
 ## Completion Gates
 
@@ -219,12 +230,17 @@ Complete the product-evidence sequence in this order:
     every frozen implementation and test target before any bounded correction
     or separately authorized paid retest; and
 11. freeze and clean-candidate verify the implemented focused-query guidance
-    correction before requesting separately authorized model spend.
+    correction before requesting separately authorized model spend; and
+12. retain the separately consumed `3804028` Config.Net campaign, which passed
+    all treatments with one attributable win, zero regressions, and an
+    `improved` single-campaign verdict.
 
 The bounded one|nine path and configured preflight have passed their clean-
 candidate provider-free gates. The two status-first campaigns remain valid but
 `insufficient`; the one-step campaign is valid and `neutral` with full adoption,
-and the Config.Net campaign is valid and `regressed` with full adoption. None
-establishes product benefit. Do not claim benefit from documentation,
+the `b16eee7` Config.Net campaign is valid and `regressed` with full adoption,
+and the separate `3804028` Config.Net campaign is valid and `improved` with one
+attributable win. The latter is positive bounded evidence, but no result yet
+establishes repeatable product benefit. Do not claim benefit from documentation,
 static manifests, fixtures, configured CI, adoption alone, or an MCP process
 that starts without an attributable agent-outcome result.

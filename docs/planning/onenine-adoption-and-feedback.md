@@ -254,4 +254,10 @@ all seven. The bounded guidance correction is committed at exact clean
 candidate `3804028`; its deterministic checks, reviewed configured preflight,
 positive and fail-closed probes, focused-query suite, and unchanged canonical
 suite all pass provider-free. This does not establish normal-agent compliance
-or product benefit. No retry or further model spend is currently authorized.
+or product benefit. The separately authorized exact-candidate campaign then
+adopted the context package and passed in all three treatments. Controls passed
+two of three, producing one attributable win, zero treatment regressions, and
+an `improved` verdict; efficiency medians were favorable across the two jointly
+successful pairs. This remains single-campaign evidence rather than repeatable
+benefit. The retest is consumed, and no further model spend is currently
+authorized.
