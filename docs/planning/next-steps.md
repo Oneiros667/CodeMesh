@@ -41,20 +41,26 @@ campaign remains frozen at historical candidate `0bde606`. The separately
 authorized campaign through corrected candidate `0378740` also completed three
 correct and safe pairs but remained insufficient: one treatment called status,
 no treatment retrieved context, and there were no CodeMesh-attributable wins.
+The authorized one-step campaign at `8844c21` then achieved context-package
+adoption in all three treatments and passed all six executions safely. Its
+verdict was `neutral`: there were no attributable wins or regressions, median
+duration was 1.39% lower, and median tokens were 4.13% higher. Both deltas are
+inside the 10% neutrality band.
 The next priorities are:
 
-1. **Remeasure only after a new authority gate.** With separate explicit
-   model-spend authority, rerun the pinned one|nine paired task through exact
-   clean candidate `8844c21` and the same Primary source identity. Keep
-   task prompt, model settings, grading, control behavior, normal-profile
-   guidance, and permitted Graphify baseline fixed. Require actual context
-   retrieval before attributing timing, token, correctness, or validation
-   differences to CodeMesh.
-2. **Replicate and decide bounded expansion.** Only after a valid one|nine
-   context-adopting result, repeat configured/onboarded evaluation on Config.Net.
-   Expand onboarding to Secondary, Tertiary, Release, or Hotfix only with a
-   separate exact binding and passing checkout-specific probe. Keep Run-only
-   excluded pending a separate acceptance decision.
+1. **Prepare configured Config.Net replication provider-free.** Select and
+   index an exact clean Config.Net source identity, create and review its
+   normal-profile installation and repository-owned guidance, then pass the
+   configured preflight and pinned live retrieval gate. Do not relabel the
+   earlier assisted or prompt-parity campaigns as configured evidence.
+2. **Replicate only after a new authority gate.** With separate explicit
+   model-spend authority, run a prompt-parity configured/onboarded Config.Net
+   comparison. Require context-package adoption and an attributable correctness
+   or efficiency win before claiming replicated product benefit.
+3. **Decide bounded expansion.** Expand onboarding to Secondary, Tertiary,
+   Release, or Hotfix only with separate authority, an exact role-specific
+   binding, and a passing checkout-specific probe. Keep Run-only excluded
+   pending a separate acceptance decision.
 
 After those priorities, use the implemented summary-model qualification runner
 to qualify a complete deployment profile before summaries are considered for
@@ -90,12 +96,12 @@ execution order above.
 | Markdown parser | Partial | Add links from docs to commands, endpoints, projects, and source when justified. | [Architecture](../current/architecture.md) |
 | Context packages | Implemented baseline | Maintain compact agent output, citations, rationale, and budget behavior. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Local web inspection | Implemented initial slice | Expand only when it serves a measured agent or audit need. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Tool guidance and onboarding | One-step fail-closed context-package entry verified provider-free at exact clean candidate `8844c21` | Maintain the contract; request separate model-spend authority before measuring normal-agent adoption. | [Agent Integration Contract](agent-integration-contract.md) |
+| Tool guidance and onboarding | One-step fail-closed context-package entry verified provider-free and adopted in all three configured one\|nine treatments at `8844c21` | Maintain the contract and test cross-repository repeatability without claiming benefit from adoption alone. | [Agent Integration Contract](agent-integration-contract.md) |
 | one\|nine agent feedback | Implemented bounded pilot | Review sanitized, provenance-bound packets and connect recurring findings to controlled evidence without automatic roadmap mutation. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |
-| Evaluation harnesses | Implemented for selected v1 contract | Both configured campaigns were valid but insufficient because neither observed context retrieval. The one-step correction is provider-free verified; preserve both campaigns and rerun only with separate model-spend authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
+| Evaluation harnesses | Implemented for selected v1 contract | Preserve the two insufficient status-first campaigns and the neutral, fully adopted one-step campaign. Prepare Config.Net provider-free, then require separate model-spend authority for configured replication. | [Evaluation](../evaluation/mcp-effectiveness.md) |
 | Repository identity and snapshots | Local profile implemented | Maintain deterministic identity/slot/retention behavior; shared coordinator, tenant security, and private overlays remain deferred. | [Identity and Snapshot Requirements](repository-identity-and-snapshot-retention.md) |
 | Summary-model qualification | Runner implemented; no profile qualified | Freeze a reviewed corpus and profile, obtain provider/source/spend authority, complete two blinded reviews, isolated live-retrieval comparison with query-level assessment, and resource/cost measurement, then pass every gate before default use. | [Summary Model Qualification](summary-model-qualification.md) |
 | Method load and retrieval granularity | Proposal | Calibrate human-maintainability, tokenizer-bound representation, and agent-context thresholds before exposing advisory findings. | [Method Load And Retrieval Granularity](method-load-and-retrieval-granularity.md) |

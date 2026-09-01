@@ -22,8 +22,11 @@ task context. The status-result next-action field therefore did not establish
 the required normal-host transition. The current implementation instead makes
 the fail-closed context package the single normal-host entry action and retains
 status for explicit diagnostics. Exact clean candidate `8844c21` passed the
-full deterministic and provider-free gates; no model campaign has evaluated
-that one-step contract.
+full deterministic and provider-free gates. Its authorized paired campaign
+then retrieved a context package in all three treatments and passed all six
+executions safely. The verdict was `neutral`, with no attributable wins or
+regressions, so adoption is established for the selected task but product
+benefit is not.
 
 ## Decision
 
@@ -165,8 +168,10 @@ changing the task prompt. The frozen task, grading targets, model settings,
 clean-checkout requirements, and summary-free live gate remain unchanged.
 
 The provider-free preflight must pass against the exact candidate before a
-campaign. Across the two authorized configured campaigns, three treatments
-called repository status but none retrieved a context package or produced an
+campaign. Across the first two authorized configured campaigns, three
+treatments called repository status but none retrieved a context package or
+produced an attributable win. The `8844c21` campaign then retrieved a context
+package in every treatment, but its neutral result still produced no
 attributable win. Any further paired comparison remains model-cost-bearing and
 requires new separate authorization.
 
@@ -187,13 +192,15 @@ Complete the product-evidence sequence in this order:
 7. maintain the implemented one-step fail-closed context-package entry action
    across MCP instructions, installed onboarding, and tool descriptions, as
    provider-free verified at exact candidate `8844c21`; and
-8. only with new explicit model-spend authorization, rerun the
-   configured/onboarded campaign and require context-package adoption before
-   assessing attributable outcome benefit.
+8. retain the consumed `8844c21` configured/onboarded campaign that established
+   context-package adoption and a neutral outcome for the selected one|nine
+   task; and
+9. prepare a configured Config.Net replication provider-free, then run its
+   paired comparison only with separate explicit model-spend authorization.
 
 The bounded one|nine path and configured preflight have passed their clean-
-candidate provider-free gates. Both retained campaigns are valid
-configured/onboarded evidence, but their `insufficient` verdicts establish no
-product benefit. Do not claim benefit from documentation, static manifests,
-fixtures, configured CI, status-only adoption, or an MCP process that starts
-without the context-adopting agent-outcome gate.
+candidate provider-free gates. The two status-first campaigns remain valid but
+`insufficient`; the one-step campaign is valid and `neutral` with full adoption.
+None establishes product benefit. Do not claim benefit from documentation,
+static manifests, fixtures, configured CI, adoption alone, or an MCP process
+that starts without an attributable agent-outcome result.

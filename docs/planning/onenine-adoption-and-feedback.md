@@ -234,6 +234,13 @@ none called the context-package tool, and there were no attributable wins. The
 status-result action therefore did not produce the required handoff. Preserve
 the consumed campaign in the
 [corrected configured agent evidence record](../evaluation/evidence/configured-onenine-agent-0378740.json).
-The one-step context-package entry correction is now fully provider-free
-verified. The next gate is separate explicit authority for a new paid one|nine
-paired campaign; without it, do not retry or begin Config.Net replication.
+
+The authorized one-step `8844c21` campaign then completed three correct and safe
+pairs with context-package adoption in every treatment. It had no attributable
+wins or regressions and received a `neutral` verdict; median duration was 1.39%
+lower and median tokens were 4.13% higher, both within the configured 10%
+threshold. This establishes the selected one|nine handoff, not product benefit.
+Preserve the consumed result in the
+[one-step configured agent evidence record](../evaluation/evidence/configured-onenine-agent-8844c21.json).
+The next work is provider-free configured Config.Net preparation. Its paired
+model campaign requires separate explicit model-spend authority.

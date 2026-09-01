@@ -52,9 +52,12 @@ but was insufficient: two treatments called repository status, none retrieved a
 context package, and there were no attributable wins. The separately authorized
 campaign through corrected candidate `0378740` was also correct and safe but
 insufficient: one treatment called status, none retrieved context, and there
-were no attributable wins. Preserve both results and the same independent task,
-prompt, grading targets, and control behavior. The retained zero-adoption
-campaign remains
+were no attributable wins. The one-step `8844c21` campaign then completed all
+three pairs correctly and safely with context-package adoption in every
+treatment. Its verdict was `neutral`, with no attributable wins or regressions;
+median duration was 1.39% lower and median tokens were 4.13% higher. Preserve
+all three results and their frozen task, prompt, grading targets, and control
+behavior. The separate Config.Net zero-adoption prompt-parity campaign remains
 negative spontaneous-discovery evidence and must not be rewritten as a
 transport defect or configured-product result.
 
@@ -282,8 +285,14 @@ all eight frozen one|nine gates, all three retained feedback packet validations,
 and the pinned YoutubeDownloader live gate with provider mode `none`. The
 sanitized record is
 [one-step provider-free evidence](evidence/configured-onenine-provider-free-8844c21.json).
-This is readiness evidence, not a normal-agent adoption or product-benefit
-result. A new paired campaign requires separate explicit model-spend authority.
+The authorized campaign from those identities retrieved a context package in
+all three treatments and passed every control and treatment safely. It produced
+no attributable win or regression, so the verdict was `neutral`; both median
+efficiency deltas remained inside the 10% threshold. The sanitized record is
+[one-step configured campaign evidence](evidence/configured-onenine-agent-8844c21.json).
+This establishes adoption for the selected one|nine task, not product benefit
+or cross-repository repeatability. Prepare Config.Net configured integration
+provider-free before requesting separate model-spend authority for replication.
 
 ## Configured Agent Preflight And Campaign
 

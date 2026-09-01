@@ -5,8 +5,8 @@ Document type: current status snapshot
 Reviewed: 2026-09-01
 
 Implementation status is reviewed against the current inspected worktree.
-Current provider-free configured-evaluator evidence is bound to one-step entry
-candidate `8844c21`; retained paid campaigns remain bound separately to
+Current configured/onboarded evidence is bound to one-step entry candidate
+`8844c21`; retained earlier paid campaigns remain bound separately to
 candidates `0bde606` and `0378740`.
 
 Retained evidence below remains bound to the exact commits named in each
@@ -44,7 +44,7 @@ usability evidence, but is no longer the v1 acceptance contract.
 | Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and .NET, Python, and Rust validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
-| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | One-step entry candidate `8844c21` passed the full deterministic and provider-free gates. No model campaign has evaluated that candidate. The two retained earlier campaigns were insufficient, and further model spend requires separate authorization. |
+| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | The authorized `8844c21` campaign achieved context-package adoption in all three treatments and passed all six executions safely. Its verdict was `neutral`, with no attributable wins or regressions. Cross-repository model-backed replication requires separate authorization. |
 | Generated summaries | Complexity-aware prompts, local/online providers, and a provider-neutral qualification runner/report compiler are implemented. The runner uses the production prompt/parser, requires calibration and held-out qualification partitions, redacts inputs, records immutable suite/profile/source identity, creates typed blinded review packets, and binds isolated live-retrieval plus resource/cost evidence before applying quality, safety, retrieval, and deployment gates. | No summary deployment profile is CodeMesh-qualified. Provider-backed execution, a complete reviewed corpus, two blinded reviews, isolated indexes, query-level retrieval assessment, deployment measurements, and model/source/spend authority remain separate requirements. |
 | Security | Pre-persistence value redaction, immutable generated/cache exclusions, default known-secret-file exclusion, repository-relative allow/deny globs, fail-fast pattern validation, and path-policy-bound snapshot identity implemented. | Explicitly including known secret files requires a separate CLI flag and does not weaken redaction or repository authorization requirements. |
 | Repository identity | Stable project/checkout markers, deterministic source snapshots, checkout-current and clean branch-head slots, explicit retained slots, legacy migration, and richer local freshness implemented. | Separate clones attach with explicit `--project-id`; shared-service tenant/authorization/privacy controls remain deferred. |
@@ -162,6 +162,19 @@ was 44.22% slower and used 21.54% more tokens, but those differences remain
 diagnostic because task context was never retrieved. The sanitized record is
 [corrected configured campaign evidence](../evaluation/evidence/configured-onenine-agent-0378740.json).
 
+The separately authorized `gpt-5.6-sol` medium-reasoning campaign at exact
+candidate `8844c21` completed all three configured pairs. All six executions
+were correct and safe, with no failed MCP calls or command-policy violations.
+Every treatment called `codemesh_get_context_package` directly, so the one-step
+entry correction produced full measured adoption. The verdict was `neutral`:
+there were no treatment wins, attributable wins, or matched regressions.
+Median treatment duration was 1.39% lower and median tokens were 4.13% higher,
+both inside the 10% neutrality band. One treatment used 110 shell commands
+while the other two used 19; that outlier remains diagnostic. Primary was
+restored to clean `main` at `162fa515` after the consumed campaign. The
+sanitized record is
+[one-step configured campaign evidence](../evaluation/evidence/configured-onenine-agent-8844c21.json).
+
 Together, the provider-free and model-backed records prove the bounded
 configuration, runtime identity, safety, and status adoption observed across
 the campaigns. They do not establish context-package adoption, correctness or
@@ -235,15 +248,18 @@ exact Primary commit `fe2f761`, the configured preflight, the eight-gate frozen
 one|nine pilot, and the YoutubeDownloader live gate all pass provider-free. The
 configured normal-host campaigns at historical candidate `0bde606` and
 corrected candidate `0378740` were both valid but insufficient. Across them,
-three treatments called repository status and none retrieved task context.
+three treatments called repository status and none retrieved task context. The
+subsequent `8844c21` campaign was valid and neutral: all three treatments
+retrieved a context package, all six executions passed safely, and there were
+no attributable wins or regressions.
 
 The prompt-parity Config.Net campaign recorded zero MCP calls and zero MCP call
 attempts. Preserve it as negative spontaneous-discovery evidence; do not change
 the frozen task prompt, grading, or targets to manufacture adoption. The
-configured one|nine campaigns have now evaluated the shipped onboarding path
-and shown that the status-result action did not produce context adoption.
-Preserve the same task prompt for control and treatment when evaluating a
-one-step entry correction.
+first two configured one|nine campaigns evaluated the status-first onboarding
+path and showed that the status-result action did not produce context adoption.
+The third campaign preserved the same task and comparison conditions and showed
+that direct context-package entry did produce adoption in every treatment.
 
 The evaluated MCP configuration completed without a harness failure, and the
 CodeMesh manifest published the intended instructions and tool contracts. The
@@ -264,9 +280,11 @@ normal-host entry action. Repository status remains available for explicit
 ingestion, count, and freshness diagnostics, and its compatibility next-action
 field remains intact. Exact clean candidate `8844c21` passed the full
 deterministic suite, configured preflight, eight one|nine pilot gates, feedback
-validation, and pinned YoutubeDownloader live gate with no model provider.
-This is readiness evidence only; it does not prove normal-agent adoption or
-product benefit.
+validation, and pinned YoutubeDownloader live gate with no model provider. The
+authorized paired campaign then observed context-package adoption in every
+treatment and a neutral outcome. This proves the measured handoff for the
+selected task; it does not prove attributable product benefit or
+cross-repository repeatability.
 
 The configured/onboarded evaluator now preserves prompt parity, uses the exact
 reviewed checkout-local `normal` installation, and retains integration mode,
@@ -276,19 +294,17 @@ checkout, commit or binding mismatch, changed plan files, unexpected tool
 surface, and a failed rejection probe. Historical spontaneous and assisted
 modes retain their prior diagnostic behavior.
 
-The immediate next gate is owner authorization for a new model-cost-bearing
-paired campaign at exact candidate `8844c21`. Preserve both insufficient
-campaigns and their identities, keep the frozen one|nine task and comparison
-conditions unchanged, and require actual context-package retrieval before
-attributing outcome differences. Without that authority, stop at the completed
-provider-free evidence.
+The immediate next work is provider-free preparation of a configured/onboarded
+Config.Net replication: select an exact clean source identity, create and review
+its normal-profile binding and repository guidance, then pass the configured
+preflight and pinned live retrieval gate. Preserve all three one|nine campaigns
+as consumed artifacts. A Config.Net paired model campaign requires separate
+explicit model-spend authorization after those provider-free gates pass.
 
-Run the configured Config.Net replication only after a valid one|nine paired
-campaign. Expand onboarding to another one|nine checkout only with separate
-authority, exact binding, fresh ingestion, and a passing checkout-specific
-probe. The earlier `de239b7` stale state and `9f3216c` stale-candidate rejection
-remain useful historical diagnostics; they are not the current candidate
-state.
+Expand onboarding to another one|nine checkout only with separate authority,
+exact binding, fresh ingestion, and a passing checkout-specific probe. The
+earlier `de239b7` stale state and `9f3216c` stale-candidate rejection remain
+useful historical diagnostics; they are not the current candidate state.
 
 ## Public Repository And Hosted Evidence
 
