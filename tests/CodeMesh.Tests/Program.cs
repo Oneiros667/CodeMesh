@@ -3052,8 +3052,14 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
 
     await using var store = new Neo4jGraphStore(new Neo4jGraphStoreOptions(uri, user, password, database));
 
-    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-    var health = await store.CheckAsync(timeout.Token);
+    using var timeout = new CancellationTokenSource();
+    CancellationToken OperationToken()
+    {
+        timeout.CancelAfter(TimeSpan.FromSeconds(15));
+        return timeout.Token;
+    }
+
+    var health = await store.CheckAsync(OperationToken());
     if (health.State != CodeMesh.Domain.Health.ComponentState.Healthy)
     {
         var detail = health.Metadata.TryGetValue("detail", out var value) ? value : health.Message;
@@ -3097,15 +3103,15 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
         [source, target],
         [relationship],
         Array.Empty<CodeContent>(),
-        now), timeout.Token);
+        now), OperationToken());
 
-    var loaded = await store.GetNodeAsync(source.Id, timeout.Token);
+    var loaded = await store.GetNodeAsync(source.Id, OperationToken());
     NotNull(loaded, "Neo4j graph store did not return the inserted node.");
     Equal(source.Id, loaded!.Id, "Neo4j node id changed.");
     Equal(source.Kind, loaded.Kind, "Neo4j node kind changed.");
     Equal(source.Metadata["test"], loaded.Metadata["test"], "Neo4j node metadata changed.");
 
-    var relationships = await store.GetRelationshipsAsync(source.Id, cancellationToken: timeout.Token);
+    var relationships = await store.GetRelationshipsAsync(source.Id, cancellationToken: OperationToken());
     var loadedRelationship = relationships.SingleOrDefault(item => item.Id == relationship.Id);
     NotNull(loadedRelationship, "Neo4j graph store did not return the inserted relationship.");
     Equal(relationship.SourceNodeId, loadedRelationship!.SourceNodeId, "Neo4j relationship source changed.");
@@ -3166,17 +3172,17 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
         [collisionSourceA, collisionTargetA],
         [collisionRelationshipA],
         Array.Empty<CodeContent>(),
-        now), timeout.Token);
+        now), OperationToken());
     await store.UpsertGraphAsync(new CodeGraphBatch(
         "run:neo4j-collision-b",
         collisionRepositoryB,
         [collisionSourceB, collisionTargetB],
         [collisionRelationshipB],
         Array.Empty<CodeContent>(),
-        now), timeout.Token);
+        now), OperationToken());
 
-    var loadedCollisionA = await store.GetNodeAsync(sharedSourceId, collisionRepositoryA.Id, timeout.Token);
-    var loadedCollisionB = await store.GetNodeAsync(sharedSourceId, collisionRepositoryB.Id, timeout.Token);
+    var loadedCollisionA = await store.GetNodeAsync(sharedSourceId, collisionRepositoryA.Id, OperationToken());
+    var loadedCollisionB = await store.GetNodeAsync(sharedSourceId, collisionRepositoryB.Id, OperationToken());
     NotNull(loadedCollisionA, "Neo4j did not return repository A's colliding node.");
     NotNull(loadedCollisionB, "Neo4j did not return repository B's colliding node.");
     Equal("CollisionProjectA", loadedCollisionA!.Project, "Neo4j repository A node was overwritten by repository B.");
@@ -3184,8 +3190,8 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
     Equal("a", loadedCollisionA.Metadata["repoMarker"], "Neo4j repository A node metadata changed.");
     Equal("b", loadedCollisionB.Metadata["repoMarker"], "Neo4j repository B node metadata changed.");
 
-    var collisionRelationshipsA = await store.GetRelationshipsAsync(sharedSourceId, collisionRepositoryA.Id, cancellationToken: timeout.Token);
-    var collisionRelationshipsB = await store.GetRelationshipsAsync(sharedSourceId, collisionRepositoryB.Id, cancellationToken: timeout.Token);
+    var collisionRelationshipsA = await store.GetRelationshipsAsync(sharedSourceId, collisionRepositoryA.Id, cancellationToken: OperationToken());
+    var collisionRelationshipsB = await store.GetRelationshipsAsync(sharedSourceId, collisionRepositoryB.Id, cancellationToken: OperationToken());
     var loadedCollisionRelationshipA = collisionRelationshipsA.SingleOrDefault(item => item.Id == sharedRelationshipId);
     var loadedCollisionRelationshipB = collisionRelationshipsB.SingleOrDefault(item => item.Id == sharedRelationshipId);
     NotNull(loadedCollisionRelationshipA, "Neo4j did not return repository A's colliding relationship.");
@@ -3212,18 +3218,18 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
         [stale],
         Array.Empty<CodeRelationship>(),
         Array.Empty<CodeContent>(),
-        now), timeout.Token);
+        now), OperationToken());
     await store.UpsertGraphAsync(new CodeGraphBatch(
         "run:neo4j-current",
         repository,
         [current],
         Array.Empty<CodeRelationship>(),
         Array.Empty<CodeContent>(),
-        now), timeout.Token);
-    await store.RemoveStaleGraphAsync(repository.Id, "run:neo4j-current", timeout.Token);
+        now), OperationToken());
+    await store.RemoveStaleGraphAsync(repository.Id, "run:neo4j-current", OperationToken());
 
-    IsNull(await store.GetNodeAsync(stale.Id, timeout.Token), "Neo4j graph refresh did not remove stale node.");
-    NotNull(await store.GetNodeAsync(current.Id, timeout.Token), "Neo4j graph refresh removed current node.");
+    IsNull(await store.GetNodeAsync(stale.Id, OperationToken()), "Neo4j graph refresh did not remove stale node.");
+    NotNull(await store.GetNodeAsync(current.Id, OperationToken()), "Neo4j graph refresh removed current node.");
 
     var incrementalRepository = new RepositoryRef($"repo:neo4j-incremental:{unique}", Directory.GetCurrentDirectory());
     var incrementalStale = source with
@@ -3252,10 +3258,10 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
         [incrementalStale, incrementalCurrent],
         [incrementalRelationship],
         Array.Empty<CodeContent>(),
-        now), timeout.Token);
+        now), OperationToken());
 
-    var nodeStates = await store.GetNodeStatesAsync(incrementalRepository.Id, timeout.Token);
-    var relationshipStates = await store.GetRelationshipStatesAsync(incrementalRepository.Id, timeout.Token);
+    var nodeStates = await store.GetNodeStatesAsync(incrementalRepository.Id, OperationToken());
+    var relationshipStates = await store.GetRelationshipStatesAsync(incrementalRepository.Id, OperationToken());
     Equal(2, nodeStates.Count, "Neo4j incremental node inventory count changed.");
     Equal(1, relationshipStates.Count, "Neo4j incremental relationship inventory count changed.");
 
@@ -3263,10 +3269,26 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
         incrementalRepository.Id,
         new HashSet<string>(StringComparer.Ordinal) { incrementalCurrent.Id },
         new HashSet<string>(StringComparer.Ordinal),
-        timeout.Token);
+        OperationToken());
 
-    IsNull(await store.GetNodeAsync(incrementalStale.Id, timeout.Token), "Neo4j incremental cleanup did not remove stale node.");
-    NotNull(await store.GetNodeAsync(incrementalCurrent.Id, timeout.Token), "Neo4j incremental cleanup removed current node.");
+    IsNull(await store.GetNodeAsync(incrementalStale.Id, OperationToken()), "Neo4j incremental cleanup did not remove stale node.");
+    NotNull(await store.GetNodeAsync(incrementalCurrent.Id, OperationToken()), "Neo4j incremental cleanup removed current node.");
+
+    var emptyIds = new HashSet<string>(StringComparer.Ordinal);
+    foreach (var repositoryId in new[]
+             {
+                 repository.Id,
+                 collisionRepositoryA.Id,
+                 collisionRepositoryB.Id,
+                 incrementalRepository.Id
+             })
+    {
+        await store.RemoveGraphExceptAsync(
+            repositoryId,
+            emptyIds,
+            emptyIds,
+            OperationToken());
+    }
 }
 
 static async Task TestQdrantVectorStoreRoundTripsEmbeddings()
