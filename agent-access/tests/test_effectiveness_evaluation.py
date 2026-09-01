@@ -76,6 +76,9 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assisted_agent, assisted_agent_path = load_suite(
         "youtube-downloader-impact-assisted-agent", "agent"
     )
+    configured_impact_agent, configured_impact_agent_path = load_suite(
+        "youtube-downloader-impact-configured-agent", "agent"
+    )
     independent_live, independent_live_path = load_suite(
         "config-net-cache-live", "live"
     )
@@ -110,6 +113,10 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert impact_agent.repository_commit == external_live.repository_commit
     assert assisted_agent.treatment_guidance
     assert assisted_agent.repository_commit == external_live.repository_commit
+    assert configured_impact_agent.resolved_integration_mode == "configured"
+    assert configured_impact_agent.repository_commit == external_live.repository_commit
+    assert configured_impact_agent.treatment_guidance is None
+    assert configured_impact_agent.tasks == impact_agent.tasks
     assert independent_agent.treatment_guidance is None
     assert independent_agent.repository_commit == independent_live.repository_commit
     assert independent_focused_live.repository_commit == (
@@ -157,6 +164,7 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert external_agent_path.is_file()
     assert impact_agent_path.is_file()
     assert assisted_agent_path.is_file()
+    assert configured_impact_agent_path.is_file()
     assert independent_configured_agent_path.is_file()
     assert independent_live_path.is_file()
     assert independent_focused_live_path.is_file()
