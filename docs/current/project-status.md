@@ -41,7 +41,7 @@ usability evidence, but is no longer the v1 acceptance contract.
 | Deployment parsing | Initial Dockerfile and Compose nodes, metadata, containment, and service dependencies implemented. | Helm, Kubernetes, CI/CD, overrides, and code-to-runtime links remain planned. |
 | Ingestion | Dry-run, incremental writes, staged deterministic snapshots, atomic multi-language parser composition, compare-and-swap slot publication, reference-aware cleanup, refresh, watch, redaction, optional embeddings, and optional summaries implemented. | One selected language set publishes one snapshot or fails before slot activation; watch remains polling-based. |
 | Storage | Snapshot-namespaced Neo4j graph, MongoDB content/registry/runs/summaries, Qdrant vectors, and in-memory test adapters implemented. Neo4j graph publication uses bounded write batches. | Publication is atomic at the registry slot boundary rather than one cross-store transaction; normal service-backed operation requires configured stores. |
-| Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
+| Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, focused-query guidance for multi-part work, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and .NET, Python, and Rust validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
 | Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | The authorized `8844c21` one\|nine campaign was `neutral` with full context-package adoption. The consumed `b16eee7` Config.Net campaign also achieved full adoption but `regressed`: two of three treatments missed required citations, versus three passing controls. Neither campaign establishes product benefit. |
@@ -322,17 +322,26 @@ checkout, commit or binding mismatch, changed plan files, unexpected tool
 surface, and a failed rejection probe. Historical spontaneous and assisted
 modes retain their prior diagnostic behavior.
 
-The immediate next work is a provider-free task-shaped context-package coverage
-diagnosis at exact candidate `b16eee7`. Reproduce the full frozen task against
-all required implementation and test targets and compare its package coverage
-with the canonical decomposed live queries. The earlier broad provider-free
-task query returned tests but missed requested implementation paths, while the
-decomposed live gate passed; the treatment citation omissions are correlated
-diagnostic evidence, not a proven root cause because raw campaign packages and
-final messages were not retained. Preserve all one|nine and Config.Net
-campaigns in their original evidence classes. A correction must be supported by
-provider-free evidence and pass deterministic and live gates before any new
-model-spend request; no retry is currently authorized.
+The provider-free task-shaped context-package coverage diagnosis is now
+complete at exact baseline candidate `b16eee7`. The frozen 58-term
+task query returned eight test paths and only one of seven required targets.
+Four concise task-derived facets covered all seven targets in a separate
+five-case/15-call provider-free suite with recall 1.0, MRR 0.660714, nDCG
+0.76259, and zero secret leaks. The unchanged canonical live suite also passed
+all 18 calls with recall, MRR, and nDCG of 1.0. This isolates a bounded guidance
+and query-decomposition gap without proving which query the paid treatments
+used. Exact details are retained in the
+[focused-query diagnosis](../evaluation/evidence/config-net-focused-query-diagnosis-b16eee7.json).
+
+The current worktree implements the smallest correction: the context package
+remains the single normal-host entry tool, while MCP instructions, tool and
+status guidance, and generated onboarding direct multi-part work to a small set
+of focused implementation and test queries instead of one long full-task query.
+All 125 Python tests, Ruff checks, and five deterministic MCP fixtures pass.
+Because the correction is uncommitted, its clean-candidate configured preflight
+and live gates remain pending commit authority. Preserve all one|nine and
+Config.Net campaigns in their original evidence classes; no paid retry is
+authorized.
 
 Expand onboarding to another one|nine checkout only with separate authority,
 exact binding, fresh ingestion, and a passing checkout-specific probe. The

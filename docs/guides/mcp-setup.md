@@ -214,10 +214,13 @@ their values, and forces provider mode to `none`.
 
 The bound normal server requires an exact project, checkout, and root. Its tools
 inject that project selector and reject caller overrides. Start with
-`codemesh_get_context_package` using the full task and agent output. The package
-validates the binding and freshness before search; dirty, moved, stale, missing,
-or source-view-mismatched checkouts fail closed. Use repository status only for
-explicit ingestion, count, or freshness diagnostics.
+`codemesh_get_context_package` using concise implementation concepts and exact
+identifiers from the task with agent output. For multi-part impact work, use a
+small set of focused package queries for distinct implementation and test
+facets rather than one long full-task query. The package validates the binding
+and freshness before search; dirty, moved, stale, missing, or source-view-
+mismatched checkouts fail closed. Use repository status only for explicit
+ingestion, count, or freshness diagnostics.
 
 ## Agent Feedback
 

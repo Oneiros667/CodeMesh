@@ -79,6 +79,9 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     independent_live, independent_live_path = load_suite(
         "config-net-cache-live", "live"
     )
+    independent_focused_live, independent_focused_live_path = load_suite(
+        "config-net-cache-focused-live", "live"
+    )
     independent_agent, independent_agent_path = load_suite(
         "config-net-cache-agent", "agent"
     )
@@ -109,6 +112,23 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert assisted_agent.repository_commit == external_live.repository_commit
     assert independent_agent.treatment_guidance is None
     assert independent_agent.repository_commit == independent_live.repository_commit
+    assert independent_focused_live.repository_commit == (
+        independent_live.repository_commit
+    )
+    assert len(independent_focused_live.cases) == 5
+    assert {
+        target.file_path
+        for case in independent_focused_live.cases
+        for target in case.targets
+    } == {
+        "src/Config.Net/Core/IoHandler.cs",
+        "src/Config.Net/Core/LazyVar.cs",
+        "src/Config.Net/Core/DynamicWriter.cs",
+        "src/Config.Net/Core/InterfaceInterceptor.cs",
+        "src/Config.Net/ConfigurationBuilder.cs",
+        "src/Config.Net.Tests/LogicTest.cs",
+        "src/Config.Net.Tests/ConfigurableMethodsTest.cs",
+    }
     assert independent_assisted_agent.treatment_guidance
     assert (
         independent_assisted_agent.repository_commit
@@ -139,6 +159,7 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert assisted_agent_path.is_file()
     assert independent_configured_agent_path.is_file()
     assert independent_live_path.is_file()
+    assert independent_focused_live_path.is_file()
     assert independent_agent_path.is_file()
     assert independent_assisted_agent_path.is_file()
     assert onenine_configured_agent_path.is_file()

@@ -151,11 +151,13 @@ Refresh fields include `status`, `is_running`, `changed`, `latest_run_id`, `stag
 
 The MCP status result adds `codemesh_next_action`. A fresh, accepted checkout
 binding directs the agent to continue immediately with an agent-format
-`codemesh_get_context_package` request using the full task. Every other state
-directs the agent to stop CodeMesh discovery and fall back to direct source
-inspection. Status remains an explicit diagnostic operation rather than a
-required first hop. This presentation-only field is not part of the REST status
-model.
+`codemesh_get_context_package` request using concise implementation concepts
+and exact task identifiers. Multi-part impact work uses a small set of focused
+implementation and test queries rather than one long full-task query. Every
+other state directs the agent to stop CodeMesh discovery and fall back to
+direct source inspection. Status remains an explicit diagnostic operation
+rather than a required first hop. This presentation-only field is not part of
+the REST status model.
 
 `NodeSummaryCoverageResponse` fields:
 

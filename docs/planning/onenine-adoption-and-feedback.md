@@ -248,5 +248,9 @@ tool in all three treatments but `regressed`: all three controls passed, while
 two treatments missed required implementation or test citations. Preserve the
 consumed negative result in the
 [configured Config.Net agent evidence record](../evaluation/evidence/configured-config-net-agent-b16eee7.json).
-The next work is provider-free task-shaped package-coverage diagnosis; no retry
-or further model spend is currently authorized.
+The provider-free task-shaped package-coverage diagnosis now shows the full
+task misses six of seven targets while four focused task-derived queries cover
+all seven. The bounded guidance correction is implemented and passes
+deterministic Python checks, but commit and clean-candidate provider-free gates
+remain before any separately authorized paid retest. No retry or further model
+spend is currently authorized.

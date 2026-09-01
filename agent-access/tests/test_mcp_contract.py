@@ -20,6 +20,9 @@ def test_mcp_manifest_matches_registered_tools() -> None:
     assert manifest["profile"] == "diagnostic"
     assert server.instructions == manifest["instructions"]
     assert "codemesh_get_context_package" in manifest["instructions"]
+    assert "concise implementation concepts" in manifest["instructions"]
+    assert "focused context-package queries" in manifest["instructions"]
+    assert "instead of one long full-task query" in manifest["instructions"]
     assert "targeted, batched checkout reads" in manifest["instructions"]
     assert "fails closed" in manifest["instructions"]
     assert "only for explicit" in manifest["instructions"]
@@ -509,6 +512,10 @@ def test_bound_mcp_repository_status_directs_fresh_context_retrieval(
         == "codemesh_get_context_package"
     )
     assert "Continue now" in structured["data"]["codemesh_next_action"]["instruction"]
+    assert (
+        "focused implementation and test queries"
+        in structured["data"]["codemesh_next_action"]["instruction"]
+    )
 
 
 def test_mcp_profiles_do_not_expose_repository_deletion() -> None:

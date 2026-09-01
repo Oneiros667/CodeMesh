@@ -75,7 +75,9 @@ hold:
    matching repository snapshot.
 5. Agents begin relevant tasks with a context package, verify consequential
    findings against current source, and fall back to normal repository
-   exploration when CodeMesh is unavailable, stale, or ambiguous.
+   exploration when CodeMesh is unavailable, stale, or ambiguous. Multi-part
+   tasks use a small set of focused implementation and test package queries
+   rather than one long full-task query.
 
 The supported claim should remain bounded:
 
@@ -207,7 +209,9 @@ Complete the product-evidence sequence in this order:
    two treatments; and
 10. diagnose the full-task context-package coverage gap provider-free against
     every frozen implementation and test target before any bounded correction
-    or separately authorized paid retest.
+    or separately authorized paid retest; and
+11. freeze and clean-candidate verify the implemented focused-query guidance
+    correction before requesting separately authorized model spend.
 
 The bounded one|nine path and configured preflight have passed their clean-
 candidate provider-free gates. The two status-first campaigns remain valid but

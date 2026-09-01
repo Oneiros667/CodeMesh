@@ -46,10 +46,13 @@ _MAX_MCP_AGENT_CHARACTERS = 12000
 _SERVER_INSTRUCTIONS = (
     "Use CodeMesh first for source-grounded implementation discovery, likely "
     "change-impact analysis, and validation selection in indexed repositories. "
-    "Start with codemesh_get_context_package using the full task, the repository "
-    "id or alias, output_format='agent', and default limits. Use the returned "
-    "ranked file spans for targeted, batched checkout reads needed to verify "
-    "citations instead of repeating broad repository exploration. The package "
+    "Start with codemesh_get_context_package using concise implementation "
+    "concepts and exact identifiers from the task, the repository id or alias, "
+    "output_format='agent', and default limits. For multi-part impact work, use "
+    "a small set of focused context-package queries for distinct implementation "
+    "and test facets instead of one long full-task query. Use the returned ranked "
+    "file spans for targeted, batched checkout reads needed to verify citations "
+    "instead of repeating broad repository exploration. The package "
     "checks the exact binding and freshness before search and fails closed when "
     "they are not accepted. If the repository is unknown, call "
     "codemesh_list_repositories. Use codemesh_get_repository_status only for "
@@ -229,7 +232,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
         },
     },
     "codemesh_get_context_package": {
-        "description": "Start here for implementation discovery, likely change-impact analysis, or validation selection in an indexed repository. Verifies the exact binding and freshness and fails closed before search. Returns ranked snippets, graph relationships, freshness metadata, and repository-scoped validation recommendations. Agent format is capped at 12,000 characters; start with defaults, then verify returned file spans with targeted reads instead of duplicating broad repository exploration.",
+        "description": "Start here for implementation discovery, likely change-impact analysis, or validation selection in an indexed repository. Use concise implementation concepts and exact task identifiers; split multi-part impact work into a small set of focused implementation and test queries instead of one long full-task query. Verifies the exact binding and freshness and fails closed before search. Returns ranked snippets, graph relationships, freshness metadata, and repository-scoped validation recommendations. Agent format is capped at 12,000 characters; start with defaults, then verify returned file spans with targeted reads instead of duplicating broad repository exploration.",
         "arguments": _CONTEXT_PACKAGE_ARGUMENTS,
         "response": {
             "relationship_groups": list(_RELATIONSHIP_GROUPS),
@@ -695,9 +698,11 @@ def _repository_status_next_action(payload: dict[str, Any]) -> dict[str, Any]:
             "next_tool": "codemesh_get_context_package",
             "instruction": (
                 "Binding is accepted and the index is fresh. Continue now with "
-                "codemesh_get_context_package using the full task as query and "
-                "output_format='agent'; do not stop CodeMesh discovery after "
-                "this status check."
+                "codemesh_get_context_package using concise implementation "
+                "concepts and exact task identifiers with output_format='agent'. "
+                "For multi-part impact work, use a small set of focused "
+                "implementation and test queries; do not stop CodeMesh discovery "
+                "after this status check."
             ),
         }
 

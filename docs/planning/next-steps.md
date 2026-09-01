@@ -61,18 +61,16 @@ The next priorities are:
    report as configured/onboarded evidence with full adoption, two treatment
    correctness regressions, and no automatic retry. Do not combine it with the
    assisted positive result or the earlier zero-adoption prompt-parity result.
-2. **Diagnose task-shaped package coverage provider-free.** Reproduce the full
-   frozen Config.Net task against every required implementation and test target
-   and compare the returned package with the passing canonical decomposed live
-   queries. Correlate the two treatment citation failures with the retained
-   broad-query miss, without asserting a root cause that the sanitized campaign
-   does not retain enough detail to prove.
-3. **Correct only an evidenced retrieval gap.** If the provider-free diagnosis
-   supports a ranking, package-composition, or query-decomposition defect,
-   implement the smallest bounded correction and rerun the deterministic,
-   configured-preflight, and live gates. Otherwise retain the negative result
-   without speculative feature work.
-4. **Require new authority for any paid retest or expansion.** Request separate
+2. **Commit and clean-candidate verify the bounded correction.** Provider-free
+   diagnosis showed that the 58-term full-task query returned only one of seven
+   targets, while four focused task-derived queries covered all seven. The
+   current worktree replaces full-task guidance with a small set of focused
+   implementation and test queries and passes deterministic Python checks.
+   With commit authority, freeze an exact clean candidate, regenerate and review
+   the Config.Net installation plan, then rerun configured preflight, rejection,
+   the new focused-query suite, the unchanged canonical suite, and repository
+   standards checks.
+3. **Require new authority for any paid retest or expansion.** Request separate
    model-spend authority only after a provider-free correction has passed its
    gates. Expand onboarding to Secondary, Tertiary,
    Release, or Hotfix only with separate authority, an exact role-specific
@@ -113,12 +111,12 @@ execution order above.
 | Markdown parser | Partial | Add links from docs to commands, endpoints, projects, and source when justified. | [Architecture](../current/architecture.md) |
 | Context packages | Implemented baseline | Maintain compact agent output, citations, rationale, and budget behavior. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Local web inspection | Implemented initial slice | Expand only when it serves a measured agent or audit need. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Tool guidance and onboarding | One-step fail-closed context-package entry verified provider-free and adopted in all three configured one\|nine treatments at `8844c21` | Maintain the contract and test cross-repository repeatability without claiming benefit from adoption alone. | [Agent Integration Contract](agent-integration-contract.md) |
+| Tool guidance and onboarding | One-step fail-closed context-package entry verified provider-free and adopted in all three configured one\|nine treatments at `8844c21`; focused-query correction implemented in the current worktree | Obtain commit authority, then verify the correction from an exact clean candidate before requesting a paid retest. | [Agent Integration Contract](agent-integration-contract.md) |
 | one\|nine agent feedback | Implemented bounded pilot | Review sanitized, provenance-bound packets and connect recurring findings to controlled evidence without automatic roadmap mutation. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |
-| Evaluation harnesses | Implemented for selected v1 contract | Preserve the two insufficient status-first campaigns, the neutral fully adopted one-step campaign, and the consumed `b16eee7` Config.Net regression with full adoption. Diagnose task-shaped context-package coverage provider-free before proposing a bounded correction or requesting paid retest authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
+| Evaluation harnesses | Implemented for selected v1 contract | Preserve the two insufficient status-first campaigns, the neutral fully adopted one-step campaign, and the consumed `b16eee7` Config.Net regression. The focused-query diagnostic covers all seven targets; clean-candidate verification of the uncommitted guidance correction remains before any paid retest request. | [Evaluation](../evaluation/mcp-effectiveness.md) |
 | Repository identity and snapshots | Local profile implemented | Maintain deterministic identity/slot/retention behavior; shared coordinator, tenant security, and private overlays remain deferred. | [Identity and Snapshot Requirements](repository-identity-and-snapshot-retention.md) |
 | Summary-model qualification | Runner implemented; no profile qualified | Freeze a reviewed corpus and profile, obtain provider/source/spend authority, complete two blinded reviews, isolated live-retrieval comparison with query-level assessment, and resource/cost measurement, then pass every gate before default use. | [Summary Model Qualification](summary-model-qualification.md) |
 | Method load and retrieval granularity | Proposal | Calibrate human-maintainability, tokenizer-bound representation, and agent-context thresholds before exposing advisory findings. | [Method Load And Retrieval Granularity](method-load-and-retrieval-granularity.md) |

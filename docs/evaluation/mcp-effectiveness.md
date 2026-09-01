@@ -277,6 +277,24 @@ context-package coverage against every required target, correlated with the
 retained broad-query miss but without claiming a cause that raw campaign
 packages and final messages cannot establish.
 
+That provider-free diagnosis is now retained separately. The exact frozen
+58-term task query returned eight test paths and only `LogicTest.cs` from the
+seven required targets. Four concise task-derived queries covering cached
+writes, setter routing, proxy interception, and cache expiration recovered all
+seven targets. The separate `config-net-cache-focused-live` diagnostic passed
+five cases and all 15 calls with recall 1.0, MRR 0.660714, nDCG 0.76259, and
+zero secret leaks against clean `b16eee7`; the unchanged canonical suite also
+passed all 18 calls. Its suite definition was uncommitted, so this validates the
+retrieval strategy rather than an exact correction candidate. The sanitized
+record is
+[focused-query diagnosis](evidence/config-net-focused-query-diagnosis-b16eee7.json).
+
+The current worktree correction retains the context package as the one-step
+entry tool but replaces one-long-full-task guidance with a small set of focused
+implementation and test queries for multi-part work. Deterministic Python and
+fixture checks pass. Commit, clean-candidate configured preflight, rejection,
+and live gates remain separate requirements before any paid retest request.
+
 Candidate `0bde606` passed the configured preflight for the selected explicit-
 onboarding contract against exact Primary commit `fe2f761`. Its first paid run
 completed three correct and safe pairs, with repository-status adoption in two
