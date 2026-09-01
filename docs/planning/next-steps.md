@@ -37,18 +37,27 @@ gate are implemented. Corrected clean candidate `0378740`, exact Primary commit
 `fe2f761`, the configured preflight, the frozen one|nine pilot, and the
 YoutubeDownloader live gate all pass provider-free. The full deterministic
 checks also pass at that candidate. The first authorized configured model
-campaign remains frozen at historical candidate `0bde606` and was insufficient:
-two treatments called status only, no treatment retrieved context, and there
-were no CodeMesh-attributable wins. The next two priorities are:
+campaign remains frozen at historical candidate `0bde606`. The separately
+authorized campaign through corrected candidate `0378740` also completed three
+correct and safe pairs but remained insufficient: one treatment called status,
+no treatment retrieved context, and there were no CodeMesh-attributable wins.
+The next three priorities are:
 
-1. **Rerun configured/onboarded normal-host measurement.** With separate
-   explicit model-spend authority, rerun the pinned one|nine paired task through
-   exact candidate `0378740` and the same Primary source identity. Keep task
-   prompts, model settings, grading, control behavior, normal-profile guidance,
-   and permitted Graphify baseline fixed. Require actual context retrieval
-   before attributing timing, token, correctness, or validation differences to
+1. **Remove the measured two-step adoption dependency.** Align the normal-host
+   MCP instructions, repository-owned onboarding, and tool descriptions on a
+   single first action: call the fail-closed `codemesh_get_context_package`
+   operation with the full task. Keep repository status available for explicit
+   diagnostics, but do not require agents to infer a second tool call from its
+   result. Preserve prompt parity and verify the smallest correction through
+   the full deterministic and exact provider-free gates.
+2. **Remeasure only after a new authority gate.** With separate explicit
+   model-spend authority, rerun the pinned one|nine paired task through a new
+   exact clean candidate and the same Primary source identity. Keep task prompt,
+   model settings, grading, control behavior, normal-profile guidance, and
+   permitted Graphify baseline fixed. Require actual context retrieval before
+   attributing timing, token, correctness, or validation differences to
    CodeMesh.
-2. **Replicate and decide bounded expansion.** Only after a valid one|nine
+3. **Replicate and decide bounded expansion.** Only after a valid one|nine
    context-adopting result, repeat configured/onboarded evaluation on Config.Net.
    Expand onboarding to Secondary, Tertiary, Release, or Hotfix only with a
    separate exact binding and passing checkout-specific probe. Keep Run-only
@@ -88,12 +97,12 @@ execution order above.
 | Markdown parser | Partial | Add links from docs to commands, endpoints, projects, and source when justified. | [Architecture](../current/architecture.md) |
 | Context packages | Implemented baseline | Maintain compact agent output, citations, rationale, and budget behavior. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Local web inspection | Implemented initial slice | Expand only when it serves a measured agent or audit need. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Tool guidance and onboarding | Status adoption observed; context handoff correction verified provider-free at `0378740` | Establish context-adopting normal-host outcome evidence with explicit model-spend authority. | [Agent Integration Contract](agent-integration-contract.md) |
+| Tool guidance and onboarding | Status-result handoff implemented but ineffective in the `0378740` model campaign | Replace the measured two-step dependency with one fail-closed context-package entry action, then verify provider-free before requesting new model spend. | [Agent Integration Contract](agent-integration-contract.md) |
 | one\|nine agent feedback | Implemented bounded pilot | Review sanitized, provenance-bound packets and connect recurring findings to controlled evidence without automatic roadmap mutation. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |
-| Evaluation harnesses | Implemented for selected v1 contract | The first configured campaign was valid but insufficient because it observed status-only adoption and no context retrieval. The correction now passes all provider-free gates; rerun only with separate model-spend authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
+| Evaluation harnesses | Implemented for selected v1 contract | Both configured campaigns were valid but insufficient because neither observed context retrieval. Preserve both and rerun only after a one-step entry correction, full provider-free verification, and separate model-spend authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
 | Repository identity and snapshots | Local profile implemented | Maintain deterministic identity/slot/retention behavior; shared coordinator, tenant security, and private overlays remain deferred. | [Identity and Snapshot Requirements](repository-identity-and-snapshot-retention.md) |
 | Summary-model qualification | Runner implemented; no profile qualified | Freeze a reviewed corpus and profile, obtain provider/source/spend authority, complete two blinded reviews, isolated live-retrieval comparison with query-level assessment, and resource/cost measurement, then pass every gate before default use. | [Summary Model Qualification](summary-model-qualification.md) |
 | Method load and retrieval granularity | Proposal | Calibrate human-maintainability, tokenizer-bound representation, and agent-context thresholds before exposing advisory findings. | [Method Load And Retrieval Granularity](method-load-and-retrieval-granularity.md) |

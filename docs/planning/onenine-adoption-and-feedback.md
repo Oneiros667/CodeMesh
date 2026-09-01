@@ -216,6 +216,14 @@ The first authorized paired model campaign from those exact identities
 completed three correct and safe pairs. Two treatments called repository status,
 none called the context-package tool, and the verdict was `insufficient` with no
 attributable wins. The handoff correction now has full clean-candidate
-provider-free verification; the next priority is a separately authorized model
-rerun through exact candidate `0378740`. The sanitized historical outcome is
-retained in the [configured agent evidence record](../evaluation/evidence/configured-onenine-agent-0bde606.json).
+provider-free verification. The sanitized historical outcome is retained in the
+[configured agent evidence record](../evaluation/evidence/configured-onenine-agent-0bde606.json).
+
+That separately authorized `0378740` campaign also completed three correct and
+safe pairs but remained `insufficient`. One treatment called repository status,
+none called the context-package tool, and there were no attributable wins. The
+status-result action therefore did not produce the required handoff. Preserve
+the consumed campaign in the
+[corrected configured agent evidence record](../evaluation/evidence/configured-onenine-agent-0378740.json).
+The next priority is a provider-free one-step context-package entry correction,
+not another paid retry or Config.Net replication.

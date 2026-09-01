@@ -16,7 +16,10 @@ YoutubeDownloader live gate passed again with the status-to-context correction
 at exact clean candidate `0378740`. The first configured normal-host campaign
 remains frozen at `0bde606`; it completed safely and correctly but was
 insufficient because two treatments stopped after status and none retrieved
-task context.
+task context. The separately authorized `0378740` campaign was also safe and
+correct but insufficient: one treatment stopped after status and none retrieved
+task context. The status-result next-action field therefore did not establish
+the required normal-host transition.
 
 ## Decision
 
@@ -158,10 +161,10 @@ changing the task prompt. The frozen task, grading targets, model settings,
 clean-checkout requirements, and summary-free live gate remain unchanged.
 
 The provider-free preflight must pass against the exact candidate before a
-campaign. The first authorized configured campaign established status adoption
-in two of three treatments but no context-package adoption or attributable win.
-Executing a corrected paired comparison remains model-cost-bearing and
-separately authorized.
+campaign. Across the two authorized configured campaigns, three treatments
+called repository status but none retrieved a context package or produced an
+attributable win. Any further paired comparison remains model-cost-bearing and
+requires new separate authorization.
 
 ## Completion Gates
 
@@ -177,13 +180,17 @@ Complete the product-evidence sequence in this order:
 6. maintain the passing configured/onboarded paired-evaluation preflight so the
    implemented runner continues to prove the reviewed normal-profile
    installation and its exact integration identities against the candidate;
-7. with explicit model-spend authorization, rerun the configured/onboarded
-   campaign and require context-package adoption before assessing attributable
-   outcome benefit.
+7. replace the measured two-step status-to-context dependency with one
+   fail-closed context-package entry action across MCP instructions, installed
+   onboarding, and tool descriptions, then pass the deterministic and exact
+   provider-free gates from a new clean candidate; and
+8. only with new explicit model-spend authorization, rerun the
+   configured/onboarded campaign and require context-package adoption before
+   assessing attributable outcome benefit.
 
 The bounded one|nine path and configured preflight have passed their clean-
-candidate provider-free gates. The retained first campaign is valid
-configured/onboarded evidence, but its `insufficient` verdict establishes no
+candidate provider-free gates. Both retained campaigns are valid
+configured/onboarded evidence, but their `insufficient` verdicts establish no
 product benefit. Do not claim benefit from documentation, static manifests,
 fixtures, configured CI, status-only adoption, or an MCP process that starts
 without the context-adopting agent-outcome gate.

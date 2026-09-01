@@ -49,9 +49,12 @@ exact-candidate preflight, frozen one|nine gates, and YoutubeDownloader
 provider-free gate pass at candidate `0378740`. The first configured campaign,
 retained at candidate `0bde606`, completed all three pairs correctly and safely
 but was insufficient: two treatments called repository status, none retrieved a
-context package, and there were no attributable wins. Preserve the same
-independent task, prompt, grading targets, and control behavior in a separately
-authorized rerun. The retained zero-adoption campaign remains
+context package, and there were no attributable wins. The separately authorized
+campaign through corrected candidate `0378740` was also correct and safe but
+insufficient: one treatment called status, none retrieved context, and there
+were no attributable wins. Preserve both results and the same independent task,
+prompt, grading targets, and control behavior. The retained zero-adoption
+campaign remains
 negative spontaneous-discovery evidence and must not be rewritten as a
 transport defect or configured-product result.
 
@@ -246,9 +249,9 @@ completed three correct and safe pairs, with repository-status adoption in two
 treatments, no context-package calls, no attributable wins, and verdict
 `insufficient`. The sanitized record is
 [configured one|nine agent evidence](evidence/configured-onenine-agent-0bde606.json).
-Preserve that frozen identity and result. A corrected run must use a new exact
+Preserve that frozen identity and result. The corrected run used a new exact
 clean candidate while keeping repository guidance, task prompt, grading,
-normal-user tool profile, model settings, and control behavior fixed; do not
+normal-user tool profile, model settings, and control behavior fixed; it did not
 create an evaluator-only tool-selection advantage.
 
 Clean detached candidate `0378740` contains the bounded status-to-context
@@ -257,8 +260,18 @@ eight frozen one|nine retrieval and rejection gates, all three retained feedback
 packet validations, and the pinned YoutubeDownloader live gate with provider
 mode `none`. The sanitized record is
 [corrected provider-free evidence](evidence/configured-onenine-provider-free-0378740.json).
-This establishes readiness to request a new model-spend decision; it does not
-establish agent context adoption or product benefit.
+This established readiness for the separately authorized model campaign; it did
+not establish agent context adoption or product benefit.
+
+The authorized `0378740` campaign completed three correct and safe pairs with
+prompt parity and the exact reviewed normal-profile installation. Only one
+treatment called repository status, no treatment called the context-package
+tool, and there were no attributable wins. Its verdict was `insufficient`.
+Overall treatment medians were 6.07% slower and used 4.17% more tokens; those
+differences are diagnostic because context retrieval never occurred. The
+sanitized record is
+[corrected configured campaign evidence](evidence/configured-onenine-agent-0378740.json).
+Preserve this consumed artifact and do not retry it automatically.
 
 ## Configured Agent Preflight And Campaign
 
