@@ -333,15 +333,25 @@ and query-decomposition gap without proving which query the paid treatments
 used. Exact details are retained in the
 [focused-query diagnosis](../evaluation/evidence/config-net-focused-query-diagnosis-b16eee7.json).
 
-The current worktree implements the smallest correction: the context package
-remains the single normal-host entry tool, while MCP instructions, tool and
-status guidance, and generated onboarding direct multi-part work to a small set
-of focused implementation and test queries instead of one long full-task query.
-All 125 Python tests, Ruff checks, and five deterministic MCP fixtures pass.
-Because the correction is uncommitted, its clean-candidate configured preflight
-and live gates remain pending commit authority. Preserve all one|nine and
-Config.Net campaigns in their original evidence classes; no paid retry is
-authorized.
+Exact clean detached candidate `3804028` contains the smallest correction: the
+context package remains the single normal-host entry tool, while MCP
+instructions, tool and status guidance, and generated onboarding direct
+multi-part work to a small set of focused implementation and test queries
+instead of one long full-task query. All 125 Python tests, Ruff checks, and five
+deterministic MCP fixtures pass at that candidate.
+
+The reviewed configuration-only Config.Net plan, separately managed ignored
+guidance, configured preflight, positive probe, and wrong-checkout rejection
+all passed with provider mode `none`. The committed focused suite then passed
+all five cases and 15 calls with recall 1.0, MRR 0.660714, nDCG 0.76259, and
+zero secret leaks; `LazyVar.cs` remains at the accepted rank-eight boundary.
+The unchanged canonical suite also passed all six cases and 18 calls with
+recall, MRR, and nDCG of 1.0 and zero secret leaks. This establishes an exact
+provider-free correction candidate, not normal-agent compliance or product
+benefit. Exact identities and report hashes are retained in the
+[focused-query provider-free evidence](../evaluation/evidence/config-net-focused-query-provider-free-3804028.json).
+Preserve all one|nine and Config.Net campaigns in their original evidence
+classes; no paid retry is authorized.
 
 Expand onboarding to another one|nine checkout only with separate authority,
 exact binding, fresh ingestion, and a passing checkout-specific probe. The

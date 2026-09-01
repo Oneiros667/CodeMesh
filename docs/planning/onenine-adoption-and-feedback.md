@@ -250,7 +250,8 @@ consumed negative result in the
 [configured Config.Net agent evidence record](../evaluation/evidence/configured-config-net-agent-b16eee7.json).
 The provider-free task-shaped package-coverage diagnosis now shows the full
 task misses six of seven targets while four focused task-derived queries cover
-all seven. The bounded guidance correction is implemented and passes
-deterministic Python checks, but commit and clean-candidate provider-free gates
-remain before any separately authorized paid retest. No retry or further model
-spend is currently authorized.
+all seven. The bounded guidance correction is committed at exact clean
+candidate `3804028`; its deterministic checks, reviewed configured preflight,
+positive and fail-closed probes, focused-query suite, and unchanged canonical
+suite all pass provider-free. This does not establish normal-agent compliance
+or product benefit. No retry or further model spend is currently authorized.

@@ -289,11 +289,19 @@ retrieval strategy rather than an exact correction candidate. The sanitized
 record is
 [focused-query diagnosis](evidence/config-net-focused-query-diagnosis-b16eee7.json).
 
-The current worktree correction retains the context package as the one-step
-entry tool but replaces one-long-full-task guidance with a small set of focused
-implementation and test queries for multi-part work. Deterministic Python and
-fixture checks pass. Commit, clean-candidate configured preflight, rejection,
-and live gates remain separate requirements before any paid retest request.
+Exact clean detached candidate `3804028` retains the context package as the
+one-step entry tool but replaces one-long-full-task guidance with a small set of
+focused implementation and test queries for multi-part work. Its 125 Python
+tests, Ruff checks, and five fixture cases pass. The reviewed configuration-only
+plan and ignored guidance passed configured preflight, a positive package
+probe, and wrong-checkout rejection with provider mode `none`. The committed
+focused suite passed five cases and 15 calls with recall 1.0, MRR 0.660714,
+nDCG 0.76259, and zero leaks; `LazyVar.cs` remains at rank eight. The unchanged
+canonical suite passed six cases and 18 calls with recall, MRR, and nDCG of 1.0
+and zero leaks. The sanitized exact-candidate record is
+[focused-query provider-free evidence](evidence/config-net-focused-query-provider-free-3804028.json).
+This is provider-free correction readiness, not normal-agent compliance or
+product-benefit evidence, and it does not authorize a paid retest.
 
 Candidate `0bde606` passed the configured preflight for the selected explicit-
 onboarding contract against exact Primary commit `fe2f761`. Its first paid run

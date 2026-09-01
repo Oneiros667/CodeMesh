@@ -34,6 +34,14 @@ treatments missed required citations while all controls passed. Its `regressed`
 verdict establishes configured adoption on a second repository, not product
 benefit. Preserve the consumed campaign without an automatic retry.
 
+The bounded follow-up correction is frozen at exact clean candidate `3804028`.
+It keeps the context package as the single entry tool and directs multi-part
+work to focused implementation and test queries. The reviewed configured
+preflight, positive and fail-closed probes, focused-query live suite, unchanged
+canonical live suite, and deterministic Python checks all pass with provider
+mode `none`. This establishes correction readiness only; normal-agent guidance
+compliance and product benefit still require a separately authorized campaign.
+
 ## Decision
 
 CodeMesh v1 requires explicit, repository-owned agent onboarding. A configured
