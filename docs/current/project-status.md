@@ -41,10 +41,10 @@ usability evidence, but is no longer the v1 acceptance contract.
 | Deployment parsing | Initial Dockerfile and Compose nodes, metadata, containment, and service dependencies implemented. | Helm, Kubernetes, CI/CD, overrides, and code-to-runtime links remain planned. |
 | Ingestion | Dry-run, incremental writes, staged deterministic snapshots, atomic multi-language parser composition, compare-and-swap slot publication, reference-aware cleanup, refresh, watch, redaction, optional embeddings, and optional summaries implemented. | One selected language set publishes one snapshot or fails before slot activation; watch remains polling-based. |
 | Storage | Snapshot-namespaced Neo4j graph, MongoDB content/registry/runs/summaries, Qdrant vectors, and in-memory test adapters implemented. Neo4j graph publication uses bounded write batches. | Publication is atomic at the registry slot boundary rather than one cross-store transaction; normal service-backed operation requires configured stores. |
-| Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, focused-query guidance for multi-part work, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
+| Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, task-adaptive package guidance with a three-package ceiling, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and .NET, Python, and Rust validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
-| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | The authorized `8844c21` one\|nine campaign was `neutral` with full context-package adoption. The consumed `b16eee7` Config.Net campaign also achieved full adoption but `regressed`: two of three treatments missed required citations, versus three passing controls. Neither campaign establishes product benefit. |
+| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | Configured outcomes include neutral one\|nine, regressed and improved Config.Net, and an efficiency-regressed YoutubeDownloader campaign. None establishes repeatable benefit; the `fbc1433` provider-free correction is not agent-outcome evidence. |
 | Generated summaries | Complexity-aware prompts, local/online providers, and a provider-neutral qualification runner/report compiler are implemented. The runner uses the production prompt/parser, requires calibration and held-out qualification partitions, redacts inputs, records immutable suite/profile/source identity, creates typed blinded review packets, and binds isolated live-retrieval plus resource/cost evidence before applying quality, safety, retrieval, and deployment gates. | No summary deployment profile is CodeMesh-qualified. Provider-backed execution, a complete reviewed corpus, two blinded reviews, isolated indexes, query-level retrieval assessment, deployment measurements, and model/source/spend authority remain separate requirements. |
 | Security | Pre-persistence value redaction, immutable generated/cache exclusions, default known-secret-file exclusion, repository-relative allow/deny globs, fail-fast pattern validation, and path-policy-bound snapshot identity implemented. | Explicitly including known secret files requires a separate CLI flag and does not weaken redaction or repository authorization requirements. |
 | Repository identity | Stable project/checkout markers, deterministic source snapshots, checkout-current and clean branch-head slots, explicit retained slots, legacy migration, and richer local freshness implemented. | Separate clones attach with explicit `--project-id`; shared-service tenant/authorization/privacy controls remain deferred. |
@@ -291,6 +291,30 @@ retained, so focused-query guidance is a diagnosis lead rather than an
 established cause. The sanitized result is
 [configured YoutubeDownloader campaign evidence](../evaluation/evidence/configured-youtube-downloader-agent-64d4052.json).
 
+### Task-adaptive query correction
+
+The provider-free YoutubeDownloader diagnosis preserved its six impact targets,
+source commit, repository identity, and retrieval thresholds. One frozen
+task-shaped package covered all six targets in one call with primary rank two.
+Three proactive focused packages also covered all six, but produced 35,991
+agent-formatted characters instead of 12,000 and repeated five of 24 ranked
+item occurrences. The diagnostic comparison is retained separately because its
+CodeMesh worktree contained the new suite and guidance edits:
+[task-adaptive query diagnosis](../evaluation/evidence/youtube-downloader-task-adaptive-query-diagnosis-e2e1bca.json).
+
+Exact clean detached candidate `fbc1433` contains the smallest correction.
+Agents now start with one concise task-shaped package, stop when it resolves
+every required facet, and issue a focused follow-up only for a specific
+unresolved implementation or test facet. The guidance caps each task at three
+non-overlapping packages. At that commit, 125 Python tests, Ruff checks, five
+deterministic MCP fixtures, the reviewed normal-profile preflight, positive
+probe, and wrong-checkout rejection all passed. The adaptive five-case gate
+passed all 15 calls with recall 1.0, MRR 0.875, nDCG 0.862253, and zero leaks.
+The unchanged impact gate retained recall and MRR 1.0 and nDCG 0.891323; the
+unchanged canonical gate retained recall 1.0, MRR 0.9, and nDCG 0.926186.
+No model provider was invoked. Exact hashes and identities are in the
+[task-adaptive provider-free evidence](../evaluation/evidence/youtube-downloader-task-adaptive-provider-free-fbc1433.json).
+
 ## Current Gap
 
 Explicit repository onboarding is implemented for the bounded one|nine pilot:
@@ -392,10 +416,11 @@ classes. This retest is consumed; no further model spend is authorized.
 The independent configured YoutubeDownloader campaign is also consumed. Its
 full adoption and correctness strengthen the normal-host handoff evidence, but
 its 49.79% duration and 41.00% token regressions prevent a repeatable-benefit
-claim. The next bounded work is provider-free diagnosis of when one concise
-task-shaped package is sufficient and when multi-facet decomposition is
-necessary. Do not infer exact query behavior from call counts alone or run a
-paid retry automatically.
+claim. The provider-free task-adaptive diagnosis and exact-candidate correction
+are now complete at `fbc1433`; they do not establish normal-agent compliance,
+causality for that regression, or product benefit. Another paired campaign is
+the next possible product-evidence step, but it remains model-cost-bearing and
+requires fresh explicit model-spend authorization. Do not retry automatically.
 
 Expand onboarding to another one|nine checkout only with separate authority,
 exact binding, fresh ingestion, and a passing checkout-specific probe. The

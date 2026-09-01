@@ -57,8 +57,19 @@ context package, but treatment medians were 49.79% slower and used 41.00% more
 tokens across all three pairs. Its `regressed` verdict is an efficiency result,
 not a correctness regression. Configured adoption and correctness now repeat
 across repositories, but product benefit does not. Raw query arguments were not
-retained, so task-adaptive query decomposition remains a provider-free
-diagnosis requirement rather than an established correction.
+retained, so that campaign does not establish its exact query behavior or the
+cause of the regression.
+
+The provider-free task-adaptive diagnosis and correction are now frozen at
+exact clean candidate `fbc1433`. One task-shaped package covered all six frozen
+YoutubeDownloader targets, while three proactive focused packages repeated five
+ranked items and used three times the formatted package budget. The current
+guidance therefore starts with one package, stops when it resolves every facet,
+and decomposes only a specific unresolved implementation or test facet, under a
+three-package ceiling. Deterministic, configured preflight, positive, rejection,
+adaptive, unchanged impact, and unchanged canonical gates all pass without a
+model provider. This establishes correction readiness, not agent compliance or
+product benefit.
 
 ## Decision
 
@@ -215,8 +226,9 @@ attributable win and zero regressions, but its single-task result does not make
 benefit repeatable. The independent `64d4052` YoutubeDownloader campaign then
 preserved full adoption and correctness on a different C# repository, but its
 49.79% median duration regression and 41.00% median token regression produced a
-`regressed` verdict. That result makes task-adaptive query strategy the next
-provider-free diagnosis; it does not authorize an automatic paid retry.
+`regressed` verdict. The `fbc1433` provider-free task-adaptive correction now
+passes its exact-candidate gates, but it does not authorize an automatic paid
+retry or establish agent outcomes.
 
 ## Completion Gates
 
@@ -251,7 +263,10 @@ Complete the product-evidence sequence in this order:
     `improved` single-campaign verdict; and
 13. retain the independently consumed `64d4052` YoutubeDownloader campaign,
     which preserved full adoption and correctness but regressed median duration
-    and token usage on a different frozen C# task.
+    and token usage on a different frozen C# task; and
+14. retain the `fbc1433` provider-free task-adaptive diagnosis and clean-
+    candidate correction evidence, and require fresh explicit model-spend
+    authorization before any further paired campaign.
 
 The bounded one|nine path and configured preflight have passed their clean-
 candidate provider-free gates. The two status-first campaigns remain valid but
@@ -262,6 +277,8 @@ attributable win. The independent `64d4052` YoutubeDownloader campaign is valid
 and `regressed` on efficiency despite full adoption and correctness. The
 Config.Net improvement remains positive bounded evidence, but the independent
 efficiency regression means no result yet establishes repeatable product
-benefit. Do not claim benefit from documentation, static manifests, fixtures,
+benefit. The `fbc1433` provider-free correction is ready for a separately
+authorized agent-outcome test; it is not itself benefit evidence. Do not claim
+benefit from documentation, static manifests, fixtures,
 configured CI, adoption alone, or an MCP process that starts without an
 attributable agent-outcome result.

@@ -150,6 +150,10 @@ uv run python -m codemesh_agent_access eval live `
   --suite youtube-downloader-impact-live `
   --output ..\.codemesh-evals\youtube-downloader-impact-live\report.json
 
+uv run python -m codemesh_agent_access eval live `
+  --suite youtube-downloader-impact-adaptive-live `
+  --output ..\.codemesh-evals\youtube-downloader-impact-adaptive-live\report.json
+
 uv run python -m codemesh_agent_access eval agent `
   --suite youtube-downloader-impact-agent `
   --repository-root ..\references\YoutubeDownloader `
@@ -157,7 +161,11 @@ uv run python -m codemesh_agent_access eval agent `
 ```
 
 Keep these suites separate from the original live and three-task agent suites so
-their outcomes do not rewrite the frozen baseline.
+their outcomes do not rewrite the frozen baseline. The adaptive live suite is
+provider-free: it compares the frozen task-shaped package with three bounded
+focused facets while preserving the same repository commit, six targets, and
+retrieval thresholds. It is a retrieval and package-budget gate, not a paired
+agent campaign.
 
 If the spontaneous complex campaign has zero adoption, the separate
 `youtube-downloader-impact-assisted-agent` suite adds transparent treatment-only
@@ -347,6 +355,35 @@ This replicates configured adoption and correctness on an independent C# task,
 not repeatable product benefit. Because raw query arguments were not retained,
 the package-attempt count motivates provider-free adaptive-query diagnosis but
 does not establish the regression's cause.
+
+That provider-free diagnosis preserves the frozen YoutubeDownloader task, six
+targets, source identity, and thresholds. One 29-term task-shaped package
+covered all six targets in one call with primary rank two and a 12,000-character
+agent package. Three focused implementation/test-facet packages also covered
+all six, but used 35,991 formatted characters across three calls and repeated
+five of 24 ranked item occurrences. The observed one-call latency was
+17,177.121 ms versus 18,669.373 ms summed across the three focused calls. The
+one-repetition comparison ran while the new suite and guidance were uncommitted,
+so it establishes the retrieval-shape decision rather than exact-candidate
+readiness. The sanitized record is the
+[task-adaptive query diagnosis](evidence/youtube-downloader-task-adaptive-query-diagnosis-e2e1bca.json).
+
+Exact clean detached candidate `fbc1433` implements the bounded correction:
+start with one concise task-shaped package, stop when every required facet is
+resolved, and issue a focused follow-up only for a specific unresolved
+implementation or test facet, with at most three non-overlapping packages per
+task. Its 125 Python tests, Ruff checks, five fixture cases, reviewed
+normal-profile preflight, positive probe, and wrong-checkout rejection passed.
+The committed adaptive suite passed all 15 calls with recall 1.0, MRR 0.875,
+nDCG 0.862253, and zero leaks. The unchanged impact suite passed all six calls
+with recall and MRR 1.0 and nDCG 0.891323; the unchanged canonical suite passed
+all 18 calls with recall 1.0, MRR 0.9, and nDCG 0.926186. No model provider was
+invoked. The sanitized record is
+[task-adaptive provider-free evidence](evidence/youtube-downloader-task-adaptive-provider-free-fbc1433.json).
+This is exact-candidate correction readiness, not evidence of normal-agent
+guidance compliance, efficiency benefit, or causality for the retained
+`64d4052` regression. Another campaign requires fresh explicit model-spend
+authorization and must not be started automatically.
 
 Candidate `0bde606` passed the configured preflight for the selected explicit-
 onboarding contract against exact Primary commit `fe2f761`. Its first paid run

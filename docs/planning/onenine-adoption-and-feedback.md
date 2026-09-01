@@ -269,4 +269,10 @@ were nevertheless 49.79% slower and used 41.00% more tokens across all three
 pairs, producing an efficiency-driven `regressed` verdict. This strengthens
 cross-repository handoff evidence but still does not establish repeatable
 product benefit. Preserve the consumed campaign and diagnose task-adaptive
-query decomposition provider-free before any further model spend.
+query decomposition provider-free before any further model spend. That
+diagnosis and its smallest guidance correction now pass the exact-candidate
+provider-free gates at `fbc1433`: one task-shaped package covered all six frozen
+targets, while three proactive focused packages repeated content and consumed
+three times the formatted package budget. This is correction readiness, not
+agent compliance or benefit. Any further paired campaign requires fresh
+explicit model-spend authorization and must not run automatically.
