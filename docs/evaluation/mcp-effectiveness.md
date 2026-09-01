@@ -273,6 +273,14 @@ sanitized record is
 [corrected configured campaign evidence](evidence/configured-onenine-agent-0378740.json).
 Preserve this consumed artifact and do not retry it automatically.
 
+The subsequent provider-free implementation removes the measured two-step
+dependency by making the fail-closed context package the single normal-host
+entry action across MCP instructions, tool descriptions, and generated
+repository onboarding. Status remains an explicit diagnostic tool. This local
+implementation is not new agent-outcome evidence; it requires a new clean
+candidate and the full deterministic and provider-free gates before another
+model-spend decision.
+
 ## Configured Agent Preflight And Campaign
 
 A configured suite sets `integration_mode` to `configured`, pins

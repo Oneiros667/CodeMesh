@@ -43,13 +43,12 @@ correct and safe pairs but remained insufficient: one treatment called status,
 no treatment retrieved context, and there were no CodeMesh-attributable wins.
 The next three priorities are:
 
-1. **Remove the measured two-step adoption dependency.** Align the normal-host
-   MCP instructions, repository-owned onboarding, and tool descriptions on a
-   single first action: call the fail-closed `codemesh_get_context_package`
-   operation with the full task. Keep repository status available for explicit
-   diagnostics, but do not require agents to infer a second tool call from its
-   result. Preserve prompt parity and verify the smallest correction through
-   the full deterministic and exact provider-free gates.
+1. **Verify the implemented one-step entry correction.** The normal-host MCP
+   instructions, repository-owned onboarding, and tool descriptions now select
+   the fail-closed `codemesh_get_context_package` operation as the single first
+   action while retaining repository status for explicit diagnostics. Preserve
+   prompt parity, create a new exact clean candidate, and pass the full
+   deterministic and exact provider-free gates.
 2. **Remeasure only after a new authority gate.** With separate explicit
    model-spend authority, rerun the pinned one|nine paired task through a new
    exact clean candidate and the same Primary source identity. Keep task prompt,
@@ -97,7 +96,7 @@ execution order above.
 | Markdown parser | Partial | Add links from docs to commands, endpoints, projects, and source when justified. | [Architecture](../current/architecture.md) |
 | Context packages | Implemented baseline | Maintain compact agent output, citations, rationale, and budget behavior. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Local web inspection | Implemented initial slice | Expand only when it serves a measured agent or audit need. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Tool guidance and onboarding | Status-result handoff implemented but ineffective in the `0378740` model campaign | Replace the measured two-step dependency with one fail-closed context-package entry action, then verify provider-free before requesting new model spend. | [Agent Integration Contract](agent-integration-contract.md) |
+| Tool guidance and onboarding | One-step fail-closed context-package entry implemented locally after the ineffective `0378740` handoff | Verify from a new exact clean candidate through the full deterministic and provider-free gates before requesting new model spend. | [Agent Integration Contract](agent-integration-contract.md) |
 | one\|nine agent feedback | Implemented bounded pilot | Review sanitized, provenance-bound packets and connect recurring findings to controlled evidence without automatic roadmap mutation. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |

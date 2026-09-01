@@ -21,6 +21,8 @@ def test_mcp_manifest_matches_registered_tools() -> None:
     assert server.instructions == manifest["instructions"]
     assert "codemesh_get_context_package" in manifest["instructions"]
     assert "targeted, batched checkout reads" in manifest["instructions"]
+    assert "fails closed" in manifest["instructions"]
+    assert "only for explicit" in manifest["instructions"]
     assert {tool["name"] for tool in manifest["tools"]} == set(registered_tools)
     assert set(manifest["contracts"]) == set(registered_tools)
 
@@ -64,6 +66,7 @@ def test_mcp_manifest_matches_registered_tools() -> None:
     ]
 
     package_contract = manifest["contracts"]["codemesh_get_context_package"]
+    assert "fails closed before search" in package_contract["description"]
     assert package_contract["response"]["fields"] == [
         "query",
         "repository",
@@ -106,6 +109,7 @@ def test_mcp_manifest_matches_registered_tools() -> None:
     assert "codemesh_delete_repository" not in manifest["contracts"]
 
     status_contract = manifest["contracts"]["codemesh_get_repository_status"]
+    assert "not a required first step" in status_contract["description"]
     assert status_contract["response"]["fields"] == [
         "repository_id",
         "repository",

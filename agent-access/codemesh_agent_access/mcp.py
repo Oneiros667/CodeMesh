@@ -49,9 +49,11 @@ _SERVER_INSTRUCTIONS = (
     "Start with codemesh_get_context_package using the full task, the repository "
     "id or alias, output_format='agent', and default limits. Use the returned "
     "ranked file spans for targeted, batched checkout reads needed to verify "
-    "citations instead of repeating broad repository exploration. If the "
-    "repository is unknown, call codemesh_list_repositories; before trusting "
-    "context, call codemesh_get_repository_status to confirm freshness."
+    "citations instead of repeating broad repository exploration. The package "
+    "checks the exact binding and freshness before search and fails closed when "
+    "they are not accepted. If the repository is unknown, call "
+    "codemesh_list_repositories. Use codemesh_get_repository_status only for "
+    "explicit ingestion, count, or freshness diagnostics."
 )
 
 _SEARCH_CONTEXT_ARGUMENTS: dict[str, dict[str, Any]] = {
@@ -227,7 +229,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
         },
     },
     "codemesh_get_context_package": {
-        "description": "Start here for implementation discovery, likely change-impact analysis, or validation selection in an indexed repository. Returns ranked snippets, graph relationships, freshness metadata, and repository-scoped validation recommendations. Agent format is capped at 12,000 characters; start with defaults, then verify returned file spans with targeted reads instead of duplicating broad repository exploration.",
+        "description": "Start here for implementation discovery, likely change-impact analysis, or validation selection in an indexed repository. Verifies the exact binding and freshness and fails closed before search. Returns ranked snippets, graph relationships, freshness metadata, and repository-scoped validation recommendations. Agent format is capped at 12,000 characters; start with defaults, then verify returned file spans with targeted reads instead of duplicating broad repository exploration.",
         "arguments": _CONTEXT_PACKAGE_ARGUMENTS,
         "response": {
             "relationship_groups": list(_RELATIONSHIP_GROUPS),
@@ -266,7 +268,7 @@ _TOOL_CONTRACTS: dict[str, dict[str, Any]] = {
         "arguments": _GET_REPOSITORY_ARGUMENTS,
     },
     "codemesh_get_repository_status": {
-        "description": "Use before trusting context to check counts, latest ingestion run, summary coverage, and local git freshness. Follow codemesh_next_action in the result: a fresh accepted binding continues immediately to codemesh_get_context_package; any other state stops CodeMesh use.",
+        "description": "Use for explicit counts, latest-ingestion, summary-coverage, or local-freshness diagnostics; it is not a required first step before context-package retrieval. If called, follow codemesh_next_action in the result: a fresh accepted binding continues to codemesh_get_context_package; any other state stops CodeMesh use.",
         "arguments": _GET_REPOSITORY_STATUS_ARGUMENTS,
         "response": {
             "fields": [

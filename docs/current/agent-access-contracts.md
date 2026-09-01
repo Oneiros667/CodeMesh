@@ -153,7 +153,9 @@ The MCP status result adds `codemesh_next_action`. A fresh, accepted checkout
 binding directs the agent to continue immediately with an agent-format
 `codemesh_get_context_package` request using the full task. Every other state
 directs the agent to stop CodeMesh discovery and fall back to direct source
-inspection. This presentation-only field is not part of the REST status model.
+inspection. Status remains an explicit diagnostic operation rather than a
+required first hop. This presentation-only field is not part of the REST status
+model.
 
 `NodeSummaryCoverageResponse` fields:
 
@@ -230,7 +232,18 @@ Validation recommendations currently cover the .NET harness, Agent Access
 Python tests/lint, Cargo formatting/Clippy/tests, deployment parser dry-runs,
 end-to-end smoke checks for Docker/service changes, and Markdown dry-runs.
 
-MCP `codemesh_get_context_package` also accepts `output_format = "agent"`. In that mode the tool returns the agent brief directly as one text content block and intentionally omits structured content, avoiding MCP's duplicate text-plus-structured serialization. MCP agent output is capped at 12,000 characters even when a larger package budget is requested; the CLI continues to honor its explicit output budget. The brief includes validation recommendations plus each item's file span, node id, stable key, repository id, content hash, score, rank, and rationale details and adds a truncation marker when capped. Use the default `json` format when a caller needs the complete structured package.
+MCP `codemesh_get_context_package` is the configured normal-host entry action
+and also accepts `output_format = "agent"`. The bound package path validates
+the exact binding and freshness before search and fails closed when either is
+not accepted, so a separate status call is not required before retrieval. In
+agent mode the tool returns the brief directly as one text content block and
+intentionally omits structured content, avoiding MCP's duplicate text-plus-
+structured serialization. MCP agent output is capped at 12,000 characters even
+when a larger package budget is requested; the CLI continues to honor its
+explicit output budget. The brief includes validation recommendations plus each
+item's file span, node id, stable key, repository id, content hash, score, rank,
+and rationale details and adds a truncation marker when capped. Use the default
+`json` format when a caller needs the complete structured package.
 
 ## Symbols, Nodes, And Neighbors
 

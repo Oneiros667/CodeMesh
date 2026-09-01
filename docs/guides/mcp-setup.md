@@ -213,9 +213,11 @@ target or plan. The generated config forwards secret variable names, never
 their values, and forces provider mode to `none`.
 
 The bound normal server requires an exact project, checkout, and root. Its tools
-inject that project selector and reject caller overrides. Start with status and
-continue only when binding is `accepted` and freshness is `fresh`; dirty,
-moved, stale, missing, or source-view-mismatched checkouts fail closed.
+inject that project selector and reject caller overrides. Start with
+`codemesh_get_context_package` using the full task and agent output. The package
+validates the binding and freshness before search; dirty, moved, stale, missing,
+or source-view-mismatched checkouts fail closed. Use repository status only for
+explicit ingestion, count, or freshness diagnostics.
 
 ## Agent Feedback
 

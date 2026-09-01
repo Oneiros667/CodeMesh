@@ -226,4 +226,7 @@ status-result action therefore did not produce the required handoff. Preserve
 the consumed campaign in the
 [corrected configured agent evidence record](../evaluation/evidence/configured-onenine-agent-0378740.json).
 The next priority is a provider-free one-step context-package entry correction,
-not another paid retry or Config.Net replication.
+not another paid retry or Config.Net replication. That correction is now
+implemented locally in the CodeMesh MCP/installer contracts and the one|nine
+shared guidance source; it still requires a new exact clean candidate and the
+full provider-free gates before any new model-spend decision.

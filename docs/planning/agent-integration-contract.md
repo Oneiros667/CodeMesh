@@ -19,7 +19,10 @@ insufficient because two treatments stopped after status and none retrieved
 task context. The separately authorized `0378740` campaign was also safe and
 correct but insufficient: one treatment stopped after status and none retrieved
 task context. The status-result next-action field therefore did not establish
-the required normal-host transition.
+the required normal-host transition. The current implementation instead makes
+the fail-closed context package the single normal-host entry action and retains
+status for explicit diagnostics; exact-candidate provider-free verification is
+pending.
 
 ## Decision
 
@@ -180,10 +183,10 @@ Complete the product-evidence sequence in this order:
 6. maintain the passing configured/onboarded paired-evaluation preflight so the
    implemented runner continues to prove the reviewed normal-profile
    installation and its exact integration identities against the candidate;
-7. replace the measured two-step status-to-context dependency with one
-   fail-closed context-package entry action across MCP instructions, installed
-   onboarding, and tool descriptions, then pass the deterministic and exact
-   provider-free gates from a new clean candidate; and
+7. maintain the implemented one-step fail-closed context-package entry action
+   across MCP instructions, installed onboarding, and tool descriptions, then
+   pass the deterministic and exact provider-free gates from a new clean
+   candidate; and
 8. only with new explicit model-spend authorization, rerun the
    configured/onboarded campaign and require context-package adoption before
    assessing attributable outcome benefit.

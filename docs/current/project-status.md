@@ -237,6 +237,14 @@ exact-candidate gates at `0378740`. Its paid campaign still observed one
 status-only treatment and no context-package call, so the action field did not
 produce the required normal-host handoff.
 
+The current implementation removes that two-step dependency. MCP server
+instructions, context-package and status tool descriptions, and generated
+repository onboarding now use the fail-closed context package as the single
+normal-host entry action. Repository status remains available for explicit
+ingestion, count, and freshness diagnostics, and its compatibility next-action
+field remains intact. Focused and full Python contracts pass; exact-candidate
+provider-free verification remains pending.
+
 The configured/onboarded evaluator now preserves prompt parity, uses the exact
 reviewed checkout-local `normal` installation, and retains integration mode,
 guidance, baseline MCP, tool-profile, binding, installation-plan, and runtime-
@@ -245,13 +253,11 @@ checkout, commit or binding mismatch, changed plan files, unexpected tool
 surface, and a failed rejection probe. Historical spontaneous and assisted
 modes retain their prior diagnostic behavior.
 
-The immediate next work is a provider-free one-step entry correction: align the
-normal-host instructions, installed onboarding, and tool descriptions so an
-agent starts with the fail-closed `codemesh_get_context_package` operation
-instead of depending on a separate status-to-context transition. Preserve both
-insufficient campaigns and their identities. Do not spend on another campaign
-until that correction passes the deterministic and exact provider-free gates
-and receives new explicit model-spend authority.
+The immediate next work is to freeze the one-step implementation in a new clean
+candidate and pass the full deterministic and exact provider-free gates.
+Preserve both insufficient campaigns and their identities. Do not spend on
+another campaign until those gates pass and new explicit model-spend authority
+is granted.
 
 Run the configured Config.Net replication only after a valid one|nine paired
 campaign. Expand onboarding to another one|nine checkout only with separate
