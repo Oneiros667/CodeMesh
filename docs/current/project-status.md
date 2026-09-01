@@ -266,6 +266,31 @@ benefit. Preserve the consumed result and do not retry it automatically. The
 sanitized record is
 [configured Config.Net agent evidence](../evaluation/evidence/configured-config-net-agent-b16eee7.json).
 
+### Independent configured replication
+
+Exact clean candidate `64d4052` adds a configured/onboarded version of the
+frozen YoutubeDownloader audio-container impact task without changing its
+prompt, targets, thresholds, source commit, or model settings. Its 125 Python
+tests, Ruff checks, five deterministic fixtures, reviewed normal-profile plan,
+configured preflight, positive and wrong-checkout probes, two-case impact live
+gate, and unchanged six-case live gate all passed. The impact gate covered all
+six required targets with recall and MRR 1.0, nDCG 0.891323, and zero leaks;
+the unchanged live gate retained recall 1.0, MRR 0.9, nDCG 0.926186, and zero
+leaks. Exact identities and hashes are retained in the
+[configured YoutubeDownloader provider-free evidence](../evaluation/evidence/configured-youtube-downloader-provider-free-64d4052.json).
+
+The separately authorized configured campaign completed all three pairs with
+100% control and treatment correctness, context-package adoption in every
+treatment, and no safety, MCP, or command-policy failure. Treatments attempted
+the context package two, two, and three times. With no correctness win or
+regression, treatment median duration was 49.79% higher and median tokens were
+41.00% higher across all three matched pairs, so the valid verdict is
+`regressed`. This replicates configured adoption and correctness on another
+C# repository, not repeatable product benefit. Raw query arguments were not
+retained, so focused-query guidance is a diagnosis lead rather than an
+established cause. The sanitized result is
+[configured YoutubeDownloader campaign evidence](../evaluation/evidence/configured-youtube-downloader-agent-64d4052.json).
+
 ## Current Gap
 
 Explicit repository onboarding is implemented for the bounded one|nine pilot:
@@ -363,6 +388,14 @@ caused the result or that product benefit is repeatable. The sanitized record is
 [focused-query configured campaign evidence](../evaluation/evidence/configured-config-net-agent-3804028.json).
 Preserve all one|nine and Config.Net campaigns in their original evidence
 classes. This retest is consumed; no further model spend is authorized.
+
+The independent configured YoutubeDownloader campaign is also consumed. Its
+full adoption and correctness strengthen the normal-host handoff evidence, but
+its 49.79% duration and 41.00% token regressions prevent a repeatable-benefit
+claim. The next bounded work is provider-free diagnosis of when one concise
+task-shaped package is sufficient and when multi-facet decomposition is
+necessary. Do not infer exact query behavior from call counts alone or run a
+paid retry automatically.
 
 Expand onboarding to another one|nine checkout only with separate authority,
 exact binding, fresh ingestion, and a passing checkout-specific probe. The

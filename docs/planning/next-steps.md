@@ -70,26 +70,39 @@ Median treatment duration was 13.69% lower and tokens were 3.59% lower across
 the two jointly successful pairs. This is positive evidence for one bounded
 campaign, not repeatable product benefit or proof that the wording change alone
 caused the outcome.
+Independent clean candidate `64d4052` then preserved the frozen
+YoutubeDownloader impact task in a configured suite. Its deterministic checks,
+reviewed plan, configured positive and rejection probes, impact retrieval gate,
+and unchanged canonical live gate passed provider-free. The authorized paired
+campaign achieved 100% control and treatment correctness with full treatment
+adoption and no safety failure, but treatment medians were 49.79% slower and
+used 41.00% more tokens across all three pairs. Its `regressed` verdict is an
+efficiency result, not a correctness regression. Each treatment attempted two
+or three context packages, while the frozen provider-free task-shaped query
+covered all six targets; raw agent query arguments were not retained.
 The next priorities are:
 
-1. **Preserve both Config.Net campaigns.** Retain `b16eee7` as the configured
-   regression and `3804028` as the separately consumed improved campaign. Do
-   not overwrite, pool, or selectively discard either result, and do not infer
-   wording-change causality from the comparison.
-2. **Require new authority for independent configured replication.** The next
-   product-evidence step is one frozen configured campaign on another
-   representative C#/.NET repository or task, preceded by exact binding,
-   provider-free retrieval, positive, and rejection gates. Preserve the normal
-   profile and focused-query onboarding. A new repository choice and model
-   spend require separate approval.
+1. **Preserve all configured campaign outcomes.** Retain `b16eee7` as the
+   Config.Net correctness regression, `3804028` as the separately improved
+   Config.Net campaign, and `64d4052` as the independently replicated
+   YoutubeDownloader efficiency regression. Do not pool or selectively discard
+   them, and do not infer query-guidance causality from reports without raw
+   query arguments.
+2. **Diagnose task-adaptive query strategy provider-free.** Freeze the six
+   YoutubeDownloader impact targets and compare one concise task-shaped package
+   with a small focused set for coverage, rank, latency, and package budget.
+   If one package covers the task, change onboarding to split only when a
+   returned package leaves a required facet unresolved. Verify any correction
+   through deterministic, configured, rejection, impact, and canonical live
+   gates before requesting another model campaign.
 3. **Require separate authority for expansion.** Expand onboarding to Secondary, Tertiary,
    Release, or Hotfix only with separate authority, an exact role-specific
    binding, and a passing checkout-specific probe. Keep Run-only excluded
    pending a separate acceptance decision.
 
-No additional implementation priority is activated by this single improved
-campaign. Without independent-replication or expansion authority, preserve the
-exact evidence and stop rather than selecting deferred breadth work.
+Do not run another paid campaign automatically. The provider-free adaptive-query
+diagnosis is the only newly activated implementation lane; preserve deferred
+breadth work unless explicit owner direction changes this order.
 
 After those priorities, use the implemented summary-model qualification runner
 to qualify a complete deployment profile before summaries are considered for
@@ -125,12 +138,12 @@ execution order above.
 | Markdown parser | Partial | Add links from docs to commands, endpoints, projects, and source when justified. | [Architecture](../current/architecture.md) |
 | Context packages | Implemented baseline | Maintain compact agent output, citations, rationale, and budget behavior. | [Agent Access Contracts](../current/agent-access-contracts.md) |
 | Local web inspection | Implemented initial slice | Expand only when it serves a measured agent or audit need. | [Agent Access Contracts](../current/agent-access-contracts.md) |
-| Tool guidance and onboarding | One-step fail-closed context-package entry verified provider-free and adopted in all three configured one\|nine treatments at `8844c21`; focused-query correction verified provider-free and improved in one configured Config.Net campaign at `3804028` | Preserve both Config.Net outcomes; require separate authority for independent configured replication. | [Agent Integration Contract](agent-integration-contract.md) |
+| Tool guidance and onboarding | One-step fail-closed context-package entry verified provider-free and adopted in configured one\|nine, Config.Net, and YoutubeDownloader campaigns; outcomes range from improved to neutral to regressed | Diagnose task-adaptive package decomposition provider-free before another paid run. | [Agent Integration Contract](agent-integration-contract.md) |
 | one\|nine agent feedback | Implemented bounded pilot | Review sanitized, provenance-bound packets and connect recurring findings to controlled evidence without automatic roadmap mutation. | [one\|nine Priority](onenine-adoption-and-feedback.md) |
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |
-| Evaluation harnesses | Implemented for selected v1 contract | Preserve the two insufficient status-first campaigns, the neutral fully adopted one-step campaign, the `b16eee7` Config.Net regression, and the separately consumed improved `3804028` campaign. Independent configured replication requires separate authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
+| Evaluation harnesses | Implemented for selected v1 contract | Preserve the two insufficient status-first campaigns, neutral one-step campaign, both Config.Net outcomes, and the `64d4052` YoutubeDownloader efficiency regression. Diagnose query strategy provider-free before requesting model spend. | [Evaluation](../evaluation/mcp-effectiveness.md) |
 | Repository identity and snapshots | Local profile implemented | Maintain deterministic identity/slot/retention behavior; shared coordinator, tenant security, and private overlays remain deferred. | [Identity and Snapshot Requirements](repository-identity-and-snapshot-retention.md) |
 | Summary-model qualification | Runner implemented; no profile qualified | Freeze a reviewed corpus and profile, obtain provider/source/spend authority, complete two blinded reviews, isolated live-retrieval comparison with query-level assessment, and resource/cost measurement, then pass every gate before default use. | [Summary Model Qualification](summary-model-qualification.md) |
 | Method load and retrieval granularity | Proposal | Calibrate human-maintainability, tokenizer-bound representation, and agent-context thresholds before exposing advisory findings. | [Method Load And Retrieval Granularity](method-load-and-retrieval-granularity.md) |

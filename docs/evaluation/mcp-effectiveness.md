@@ -174,6 +174,13 @@ uv run python -m codemesh_agent_access eval agent `
   --model <model-id>
 ```
 
+The `youtube-downloader-impact-configured-agent` suite preserves the same
+frozen prompt, targets, thresholds, and source commit while setting
+`integration_mode = "configured"`. It uses the reviewed repository-owned
+normal installation and guidance, keeps control and treatment prompts equal,
+and forbids evaluator-only treatment guidance. Run its configured preflight and
+retrieval gates before any separately authorized model campaign.
+
 ## Independent Replication And Discoverability
 
 The `config-net-cache-live`, `config-net-cache-assisted-agent`,
@@ -317,6 +324,29 @@ sanitized record is
 This is positive configured evidence for one bounded campaign. Raw package
 arguments and final messages were not retained, so it neither proves exact
 query wording nor establishes causal or repeatable product benefit.
+
+Independent clean candidate `64d4052` added the configured YoutubeDownloader
+impact suite while preserving the frozen task and repository identity. Its full
+deterministic checks, reviewed configuration-only plan, configured preflight,
+positive and wrong-checkout probes, two-case impact live gate, and unchanged
+six-case live gate passed with provider mode `none`. The impact gate returned
+all six targets with recall and MRR 1.0, nDCG 0.891323, and zero leaks; the
+canonical gate retained recall 1.0, MRR 0.9, nDCG 0.926186, and zero leaks. The
+sanitized record is
+[configured YoutubeDownloader provider-free evidence](evidence/configured-youtube-downloader-provider-free-64d4052.json).
+
+The separately authorized campaign completed every control and treatment
+correctly and safely, with context-package adoption in every treatment and no
+failed MCP calls. Treatments attempted two, two, and three packages. There were
+no correctness wins or regressions, while treatment median duration was 49.79%
+higher and median tokens were 41.00% higher across all three matched pairs. The
+efficiency threshold therefore produced a valid `regressed` verdict. The
+sanitized record is
+[configured YoutubeDownloader campaign evidence](evidence/configured-youtube-downloader-agent-64d4052.json).
+This replicates configured adoption and correctness on an independent C# task,
+not repeatable product benefit. Because raw query arguments were not retained,
+the package-attempt count motivates provider-free adaptive-query diagnosis but
+does not establish the regression's cause.
 
 Candidate `0bde606` passed the configured preflight for the selected explicit-
 onboarding contract against exact Primary commit `fe2f761`. Its first paid run

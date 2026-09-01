@@ -261,3 +261,12 @@ an `improved` verdict; efficiency medians were favorable across the two jointly
 successful pairs. This remains single-campaign evidence rather than repeatable
 benefit. The retest is consumed, and no further model spend is currently
 authorized.
+
+Independent configured replication on the frozen YoutubeDownloader impact
+task then achieved full control and treatment correctness, full treatment
+adoption, and no safety failure at exact candidate `64d4052`. Treatment medians
+were nevertheless 49.79% slower and used 41.00% more tokens across all three
+pairs, producing an efficiency-driven `regressed` verdict. This strengthens
+cross-repository handoff evidence but still does not establish repeatable
+product benefit. Preserve the consumed campaign and diagnose task-adaptive
+query decomposition provider-free before any further model spend.

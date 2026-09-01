@@ -1,0 +1,130 @@
+{
+  "schema_version": "1.0",
+  "evidence_kind": "sanitized-configured-onboarded-agent-campaign",
+  "generated_at": "2026-09-01T15:18:22.348223+00:00",
+  "codemesh": {
+    "commit": "64d405282ffcb96207479dd46eab9947a0eb7aaf",
+    "clean_detached_checkout": true,
+    "configured_suite": "youtube-downloader-impact-configured-agent",
+    "focused_query_guidance": true
+  },
+  "repository": {
+    "repository_url": "https://github.com/Tyrrrz/YoutubeDownloader.git",
+    "project_id": "prj_3425db238d0d4a5fbcc1e3c9a28d1945",
+    "checkout_id": "chk_7e4ecde2ae4e45b4b9e475e0a587aa47",
+    "commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+    "branch": "HEAD",
+    "tracked_files_changed": false,
+    "snapshot_id": "snp_1c7772010bcb7c8430fe062d975094271762a68627dbc53f4e2b9f0557687eae",
+    "source_view_hash": "d741906fcdcc5aa33a9d14f8a5e0cbdf7d2e572266a098beadddb595ce6853d9"
+  },
+  "configured_integration": {
+    "profile": "normal",
+    "plan_hash": "c0e6a2e09d785cea4c1b4f33ac37a3b43cdb683832390e74dceea7508c98dc92",
+    "plan_report_sha256": "ddda6adc58636291bcbe70f059027e18a00c97d8a87195f39a1e1ae301017527",
+    "installation_file_sha256": "9bb852f8ee26992009a8a2f1f709e4db2b95f42bf826df78e5efa66ee84275e8",
+    "guidance_sha256": "abb5fcdce32a53d14c618b18e842f0070e83fe9061e52d61a380d3a3086dd371",
+    "baseline_mcp_servers": [],
+    "prompt_parity": true,
+    "evaluator_only_treatment_guidance": false,
+    "positive_probe_passed": true,
+    "wrong_checkout_rejected": true,
+    "preflight_report_sha256": "534f83ae9fb14834a8170ea2cfcebfdb9907bdd98dca16ab602a0a95111c28ba"
+  },
+  "campaign": {
+    "suite": "youtube-downloader-impact-configured-agent",
+    "provider": "default",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "medium",
+    "seed": 42,
+    "repetitions": 3,
+    "pair_count": 3,
+    "completed_pair_count": 3,
+    "all_runs_completed": true,
+    "verdict": "regressed",
+    "harness_passed": false,
+    "harness_failure_count": 0,
+    "treatment_wins": 0,
+    "codemesh_attributable_wins": 0,
+    "treatment_regressions": 0,
+    "treatment_safety_violations": 0,
+    "control_success_rate": 1.0,
+    "treatment_success_rate": 1.0,
+    "codemesh_adoption_rate": 1.0,
+    "codemesh_adopted_pair_count": 3,
+    "context_package_call_attempt_count": 7,
+    "context_package_call_attempts_per_treatment": [
+      2,
+      2,
+      3
+    ],
+    "mcp_failed_call_count": 0,
+    "command_policy_violation_count": 0,
+    "matched_successful_pair_count": 3,
+    "matched_control_duration_ms": 144330.561,
+    "matched_treatment_duration_ms": 216190.176,
+    "matched_duration_delta": 0.497882,
+    "matched_control_tokens": 592729.0,
+    "matched_treatment_tokens": 835770.0,
+    "matched_token_delta": 0.410037,
+    "report_sha256": "0d06bff166a4049364abd29fe08bb079a19e4390d1499fca9f172c4d424aea16"
+  },
+  "control_failures": [],
+  "treatment_failures": [],
+  "measured_outcome": {
+    "context_package_adopted_in_every_treatment": true,
+    "multiple_context_package_attempts_in_every_treatment": true,
+    "all_controls_and_treatments_correct_and_safe": true,
+    "correctness_result": "no_treatment_win_or_regression",
+    "efficiency_result": "regressed_beyond_the_ten_percent_threshold_on_all_three_matched_pairs"
+  },
+  "comparison_to_retained_assisted_campaign": {
+    "assisted_candidate": "6e8cc6bc2569c79ff19430e2520c51883d4a1591",
+    "assisted_prompt_parity": false,
+    "assisted_context_package_attempts_per_treatment": [
+      1,
+      1,
+      1
+    ],
+    "assisted_duration_delta": -0.34699,
+    "assisted_token_delta": -0.645419,
+    "configured_prompt_parity": true,
+    "configured_duration_delta": 0.497882,
+    "configured_token_delta": 0.410037,
+    "direct_performance_comparison_valid": false
+  },
+  "claim_ceiling": {
+    "established": [
+      "configured_prompt_parity_and_exact_binding",
+      "context_package_adoption_in_every_treatment",
+      "all_controls_and_treatments_correct_and_safe",
+      "zero_treatment_correctness_regressions",
+      "efficiency_regression_across_three_matched_pairs",
+      "configured_adoption_and_correctness_replicated_on_an_independent_csharp_repository"
+    ],
+    "not_established": [
+      "causality_of_focused_query_guidance",
+      "repeatable_configured_product_benefit",
+      "exact_context_package_query_wording",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "limitations": [
+    "The campaign covers one answer task, one repository, one model, and three repetitions.",
+    "Raw traces, context-package arguments and payloads, final messages, and temporary workspaces were not retained.",
+    "The report proves two or three context-package attempts in every treatment but not the exact query wording used.",
+    "The earlier assisted campaign used a different evidence class, candidate, and treatment-only guidance, so its favorable efficiency result is contextual rather than directly comparable."
+  ],
+  "boundaries": {
+    "campaign_consumed": true,
+    "automatic_retry_authorized": false,
+    "additional_model_spend": "not_authorized",
+    "next_work": "provider_free_task_adaptive_query_strategy_diagnosis",
+    "additional_onenine_checkout_onboarding": "not_authorized",
+    "push": "not_authorized",
+    "release": "not_authorized",
+    "deployment": "not_authorized",
+    "live_trading": "not_authorized"
+  }
+}

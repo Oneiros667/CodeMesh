@@ -50,6 +50,16 @@ verdict. Efficiency medians were also favorable across the two jointly
 successful pairs. This is positive evidence for the bounded campaign, not proof
 that focused wording caused the change or that benefit repeats elsewhere.
 
+The independent configured YoutubeDownloader impact campaign at clean
+candidate `64d4052` then preserved a different frozen C# task and repository.
+Every control and treatment passed safely, and every treatment adopted the
+context package, but treatment medians were 49.79% slower and used 41.00% more
+tokens across all three pairs. Its `regressed` verdict is an efficiency result,
+not a correctness regression. Configured adoption and correctness now repeat
+across repositories, but product benefit does not. Raw query arguments were not
+retained, so task-adaptive query decomposition remains a provider-free
+diagnosis requirement rather than an established correction.
+
 ## Decision
 
 CodeMesh v1 requires explicit, repository-owned agent onboarding. A configured
@@ -201,7 +211,11 @@ but regressed correctness in two treatments. Any further paired comparison
 remains model-cost-bearing and requires new separate authorization. The
 separately consumed `3804028` Config.Net campaign later produced one
 attributable win and zero regressions, but its single-task result does not make
-benefit repeatable.
+benefit repeatable. The independent `64d4052` YoutubeDownloader campaign then
+preserved full adoption and correctness on a different C# repository, but its
+49.79% median duration regression and 41.00% median token regression produced a
+`regressed` verdict. That result makes task-adaptive query strategy the next
+provider-free diagnosis; it does not authorize an automatic paid retry.
 
 ## Completion Gates
 
@@ -233,14 +247,20 @@ Complete the product-evidence sequence in this order:
     correction before requesting separately authorized model spend; and
 12. retain the separately consumed `3804028` Config.Net campaign, which passed
     all treatments with one attributable win, zero regressions, and an
-    `improved` single-campaign verdict.
+    `improved` single-campaign verdict; and
+13. retain the independently consumed `64d4052` YoutubeDownloader campaign,
+    which preserved full adoption and correctness but regressed median duration
+    and token usage on a different frozen C# task.
 
 The bounded one|nine path and configured preflight have passed their clean-
 candidate provider-free gates. The two status-first campaigns remain valid but
 `insufficient`; the one-step campaign is valid and `neutral` with full adoption,
 the `b16eee7` Config.Net campaign is valid and `regressed` with full adoption,
 and the separate `3804028` Config.Net campaign is valid and `improved` with one
-attributable win. The latter is positive bounded evidence, but no result yet
-establishes repeatable product benefit. Do not claim benefit from documentation,
-static manifests, fixtures, configured CI, adoption alone, or an MCP process
-that starts without an attributable agent-outcome result.
+attributable win. The independent `64d4052` YoutubeDownloader campaign is valid
+and `regressed` on efficiency despite full adoption and correctness. The
+Config.Net improvement remains positive bounded evidence, but the independent
+efficiency regression means no result yet establishes repeatable product
+benefit. Do not claim benefit from documentation, static manifests, fixtures,
+configured CI, adoption alone, or an MCP process that starts without an
+attributable agent-outcome result.
