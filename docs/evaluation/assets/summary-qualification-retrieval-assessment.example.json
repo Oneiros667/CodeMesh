@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "summary-qualification-retrieval-assessment",
+  "runId": "replace-with-run-id",
+  "baselineReportHash": "replace-with-no-summary-live-report-sha256",
+  "candidateReportHash": "replace-with-candidate-summary-live-report-sha256",
+  "correctSummaryHitContributions": 0,
+  "falsePositiveSummaryHits": 0,
+  "queriesImproved": 0,
+  "queriesUnchanged": 1,
+  "queriesDegraded": 0,
+  "baselineContextRelevance": 0,
+  "candidateContextRelevance": 0,
+  "baselineContextTokenDensity": 0,
+  "candidateContextTokenDensity": 0,
+  "unresolvedMaterialRegressions": 0,
+  "reviewed": true
+}

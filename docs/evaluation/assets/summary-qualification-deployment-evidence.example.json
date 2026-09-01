@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "summary-qualification-deployment-evidence",
+  "runId": "replace-with-run-id",
+  "profileHash": "replace-with-profile-hash-from-private-archive",
+  "measurementMethod": "replace-with-resource-or-provider-cost-measurement-method",
+  "peakHostMemoryMb": 0,
+  "peakAcceleratorMemoryMb": null,
+  "providerReportedCost": null,
+  "pricingSnapshotHash": null,
+  "complete": false
+}

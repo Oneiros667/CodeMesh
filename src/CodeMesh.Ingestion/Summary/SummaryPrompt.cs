@@ -95,8 +95,13 @@ Code:
                 throw new InvalidOperationException("Summary provider returned JSON without a summary.");
             }
 
+            if (parsed.Tags is null)
+            {
+                throw new InvalidOperationException("Summary provider returned JSON without tags.");
+            }
+
             var confidence = NormalizeConfidence(parsed.Confidence);
-            var tags = (parsed.Tags ?? [])
+            var tags = parsed.Tags
                 .Select(tag => tag.Trim())
                 .Where(tag => !string.IsNullOrWhiteSpace(tag))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -130,12 +135,17 @@ Code:
     {
         if (confidence is not { } value)
         {
-            return "medium";
+            throw new InvalidOperationException("Summary provider returned JSON without confidence.");
         }
 
         if (value.ValueKind == JsonValueKind.Number &&
             value.TryGetDouble(out var score))
         {
+            if (score is < 0 or > 1)
+            {
+                throw new InvalidOperationException("Summary provider returned confidence outside the range 0 to 1.");
+            }
+
             return score switch
             {
                 >= 0.8 => "high",
@@ -146,12 +156,17 @@ Code:
 
         if (value.ValueKind != JsonValueKind.String)
         {
-            return "medium";
+            throw new InvalidOperationException("Summary provider returned an invalid confidence value.");
         }
 
         var raw = value.GetString()?.Trim();
         if (double.TryParse(raw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out score))
         {
+            if (score is < 0 or > 1)
+            {
+                throw new InvalidOperationException("Summary provider returned confidence outside the range 0 to 1.");
+            }
+
             return score switch
             {
                 >= 0.8 => "high",
@@ -164,7 +179,8 @@ Code:
         {
             "high" => "high",
             "low" => "low",
-            _ => "medium"
+            "medium" => "medium",
+            _ => throw new InvalidOperationException("Summary provider returned an unsupported confidence label.")
         };
     }
 

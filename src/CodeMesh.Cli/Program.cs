@@ -9,6 +9,7 @@ using CodeMesh.Domain.Utilities;
 using CodeMesh.Ingestion;
 using CodeMesh.Ingestion.Embedding;
 using CodeMesh.Ingestion.Summary;
+using CodeMesh.Ingestion.Summary.Qualification;
 using CodeMesh.Parser.CSharp;
 using CodeMesh.Parser.Deployment;
 using CodeMesh.Parser.Markdown;
@@ -150,14 +151,19 @@ switch (command)
         try
         {
             var subcommand = ReadPositional(args, 1)?.ToLowerInvariant();
-            if (subcommand is not "coverage")
+            if (subcommand == "coverage")
             {
-                throw new InvalidOperationException("Usage: codemesh summaries coverage <repository-id-or-alias>");
+                var coverage = await RunSummaryCoverageAsync(args).ConfigureAwait(false);
+                PrintSummaryCoverage(coverage, json);
+                return 0;
             }
 
-            var coverage = await RunSummaryCoverageAsync(args).ConfigureAwait(false);
-            PrintSummaryCoverage(coverage, json);
-            return 0;
+            if (subcommand != "qualify")
+            {
+                throw new InvalidOperationException("Usage: codemesh summaries coverage <repository-id-or-alias> | summaries qualify <run|bind-retrieval|compile|compare>");
+            }
+
+            return await RunSummaryQualificationAsync(args, root, json).ConfigureAwait(false);
         }
         catch (Exception exception)
         {
@@ -599,6 +605,147 @@ static async Task<NodeSummaryCoverage> RunSummaryCoverageAsync(string[] args)
         .ConfigureAwait(false);
 }
 
+static async Task<int> RunSummaryQualificationAsync(string[] args, string codeMeshRoot, bool json)
+{
+    var operation = ReadPositional(args, 2)?.ToLowerInvariant();
+    switch (operation)
+    {
+        case "run":
+        {
+            var suite = await ReadJsonFileAsync<SummaryQualificationSuite>(RequiredOption(args, "--suite")).ConfigureAwait(false);
+            var profile = await ReadJsonFileAsync<SummaryQualificationProfile>(RequiredOption(args, "--profile")).ConfigureAwait(false);
+            var privateOutput = RequiredOption(args, "--private-output");
+            var reviewOutput = RequiredOption(args, "--review-output");
+            EnsureNewOutputPaths(privateOutput, reviewOutput);
+            if (string.Equals(profile.EndpointClass, "online", StringComparison.OrdinalIgnoreCase) &&
+                !HasFlag(args, "--authorize-online-source"))
+            {
+                throw new InvalidOperationException("Online summary qualification requires --authorize-online-source after source-governance and provider-spend approval.");
+            }
+
+            var identity = await SummaryQualificationRunner.CaptureSourceIdentityAsync(codeMeshRoot).ConfigureAwait(false);
+            if (identity.WorkingTreeDirty || string.IsNullOrWhiteSpace(identity.CodeMeshCommit))
+            {
+                throw new InvalidOperationException("Summary qualification requires a clean CodeMesh Git checkout at a recorded commit.");
+            }
+
+            var (provider, _) = CreateSummaryProvider(args, requireProvider: true);
+            using var disposableProvider = provider as IDisposable;
+            var result = await new SummaryQualificationRunner(provider)
+                .RunAsync(suite, profile, identity)
+                .ConfigureAwait(false);
+            await WriteJsonFileAsync(privateOutput, result.PrivateArchive).ConfigureAwait(false);
+            await WriteJsonFileAsync(reviewOutput, result.ReviewPacket).ConfigureAwait(false);
+            PrintQualificationRun(result, json);
+            return result.PrivateArchive.PreflightFailures.Count == 0 ? 0 : 1;
+        }
+
+        case "bind-retrieval":
+        {
+            if (!HasFlag(args, "--confirm-isolated-indexes"))
+            {
+                throw new InvalidOperationException("Binding retrieval evidence requires --confirm-isolated-indexes after verifying no-summary and candidate stores are isolated.");
+            }
+
+            var archive = await ReadJsonFileAsync<SummaryQualificationPrivateArchive>(RequiredOption(args, "--archive")).ConfigureAwait(false);
+            var baselinePath = RequiredOption(args, "--baseline-live");
+            var candidatePath = RequiredOption(args, "--candidate-live");
+            var baselineJson = await File.ReadAllTextAsync(baselinePath).ConfigureAwait(false);
+            var candidateJson = await File.ReadAllTextAsync(candidatePath).ConfigureAwait(false);
+            var assessment = await ReadJsonFileAsync<SummaryQualificationRetrievalAssessment>(RequiredOption(args, "--assessment")).ConfigureAwait(false);
+            if (string.Equals(CodeMeshHash.Sha256Hex(baselineJson), CodeMeshHash.Sha256Hex(candidateJson), StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("No-summary and candidate retrieval evidence must be distinct live reports.");
+            }
+
+            var baseline = ReadLiveRetrievalMetrics(baselineJson, out var baselineSuite, out var baselineRepository, out var baselineCommit, out var baselineFailures);
+            var candidate = ReadLiveRetrievalMetrics(candidateJson, out var candidateSuite, out var candidateRepository, out var candidateCommit, out var candidateFailures);
+            if (!string.Equals(baselineSuite, candidateSuite, StringComparison.Ordinal) ||
+                !string.Equals(baselineRepository, candidateRepository, StringComparison.Ordinal) ||
+                !string.Equals(baselineCommit, candidateCommit, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("Live reports do not use the same suite and repository identity.");
+            }
+
+            if (!archive.CorpusRepositories.Any(repository =>
+                    string.Equals(repository.RepositoryId, baselineRepository, StringComparison.Ordinal) &&
+                    string.Equals(repository.RepositoryCommit, baselineCommit, StringComparison.Ordinal)))
+            {
+                throw new InvalidOperationException("Live reports do not target a repository recorded in the qualification corpus.");
+            }
+
+            var baselineReportHash = CodeMeshHash.Sha256Hex(baselineJson);
+            var candidateReportHash = CodeMeshHash.Sha256Hex(candidateJson);
+            if (!string.Equals(assessment.SchemaVersion, SummaryQualificationConstants.SchemaVersion, StringComparison.Ordinal) ||
+                !string.Equals(assessment.Kind, SummaryQualificationConstants.RetrievalAssessmentKind, StringComparison.Ordinal) ||
+                !string.Equals(assessment.RunId, archive.RunId, StringComparison.Ordinal) ||
+                !string.Equals(assessment.BaselineReportHash, baselineReportHash, StringComparison.Ordinal) ||
+                !string.Equals(assessment.CandidateReportHash, candidateReportHash, StringComparison.Ordinal) ||
+                !assessment.Reviewed)
+            {
+                throw new InvalidOperationException("Retrieval assessment is incomplete or does not match the qualification run and live reports.");
+            }
+
+            var evidence = new SummaryQualificationRetrievalEvidence(
+                SummaryQualificationConstants.SchemaVersion,
+                SummaryQualificationConstants.RetrievalEvidenceKind,
+                archive.RunId,
+                archive.SuiteHash,
+                archive.PromptHash,
+                archive.CorpusRepositoryIdentityHash,
+                CodeMeshHash.Sha256Hex(RequiredOption(args, "--ranking-identity")),
+                baselineSuite,
+                baselineRepository,
+                baselineCommit,
+                baselineReportHash,
+                candidateReportHash,
+                baseline,
+                candidate,
+                assessment,
+                baselineFailures.Concat(candidateFailures).Distinct(StringComparer.Ordinal).ToArray());
+            await WriteJsonFileAsync(RequiredOption(args, "--output"), evidence).ConfigureAwait(false);
+            PrintQualificationObject(evidence, json, $"Bound retrieval evidence for run {archive.RunId}.");
+            return 0;
+        }
+
+        case "compile":
+        {
+            var suite = await ReadJsonFileAsync<SummaryQualificationSuite>(RequiredOption(args, "--suite")).ConfigureAwait(false);
+            var archive = await ReadJsonFileAsync<SummaryQualificationPrivateArchive>(RequiredOption(args, "--archive")).ConfigureAwait(false);
+            var reviewPaths = ReadRepeatedOptions(args, "--review");
+            if (reviewPaths.Count < 2)
+            {
+                throw new InvalidOperationException("Summary qualification compilation requires at least two --review files.");
+            }
+
+            var reviews = new List<SummaryQualificationReview>();
+            foreach (var reviewPath in reviewPaths)
+            {
+                reviews.Add(await ReadJsonFileAsync<SummaryQualificationReview>(reviewPath).ConfigureAwait(false));
+            }
+
+            var retrieval = await ReadJsonFileAsync<SummaryQualificationRetrievalEvidence>(RequiredOption(args, "--retrieval")).ConfigureAwait(false);
+            var deployment = await ReadJsonFileAsync<SummaryQualificationDeploymentEvidence>(RequiredOption(args, "--deployment")).ConfigureAwait(false);
+            var report = SummaryQualificationCompiler.Compile(suite, archive, reviews, retrieval, deployment);
+            await WriteJsonFileAsync(RequiredOption(args, "--output"), report).ConfigureAwait(false);
+            PrintQualificationObject(report, json, $"Summary qualification outcome: {report.Outcome}");
+            return report.Outcome is "qualified" or "conditionally-qualified" ? 0 : 1;
+        }
+
+        case "compare":
+        {
+            var candidate = await ReadJsonFileAsync<SummaryQualificationReport>(RequiredOption(args, "--candidate")).ConfigureAwait(false);
+            var reference = await ReadJsonFileAsync<SummaryQualificationReport>(RequiredOption(args, "--reference")).ConfigureAwait(false);
+            var comparison = SummaryQualificationCompiler.Compare(candidate, reference);
+            PrintQualificationObject(comparison, json, string.Join(Environment.NewLine, comparison.Select(pair => $"{pair.Key}: {pair.Value:+0.###;-0.###;0}")));
+            return 0;
+        }
+
+        default:
+            throw new InvalidOperationException("Usage: codemesh summaries qualify <run|bind-retrieval|compile|compare>");
+    }
+}
+
 static async Task<RepositoryCleanupResult> RunRepositoryDeleteAsync(string[] args)
 {
     var repositoryRef = ReadAnyOption(args, "--repository-id", "--repo")
@@ -838,9 +985,11 @@ static (IEmbeddingProvider Provider, bool SkipEmbeddings) CreateEmbeddingProvide
     };
 }
 
-static (ICodeSummaryProvider Provider, bool IncludeSummaries) CreateSummaryProvider(string[] args)
+static (ICodeSummaryProvider Provider, bool IncludeSummaries) CreateSummaryProvider(
+    string[] args,
+    bool requireProvider = false)
 {
-    var includeSummaries = HasFlag(args, "--include-summaries") || HasFlag(args, "--force-summaries");
+    var includeSummaries = requireProvider || HasFlag(args, "--include-summaries") || HasFlag(args, "--force-summaries");
     if (!includeSummaries)
     {
         return (new NoCodeSummaryProvider(), false);
@@ -942,6 +1091,142 @@ static int ReadIntOption(string[] args, string name, int defaultValue)
 {
     var value = ReadOption(args, name);
     return int.TryParse(value, out var parsed) ? parsed : defaultValue;
+}
+
+static string RequiredOption(string[] args, string name)
+{
+    return ReadOption(args, name)
+        ?? throw new InvalidOperationException($"Option {name} is required.");
+}
+
+static async Task<T> ReadJsonFileAsync<T>(string path)
+{
+    await using var stream = File.OpenRead(Path.GetFullPath(path));
+    return await JsonSerializer.DeserializeAsync<T>(stream, QualificationJsonOptions()).ConfigureAwait(false)
+        ?? throw new InvalidOperationException($"JSON file did not contain a {typeof(T).Name}: {path}");
+}
+
+static async Task WriteJsonFileAsync<T>(string path, T value)
+{
+    var fullPath = Path.GetFullPath(path);
+    var directory = Path.GetDirectoryName(fullPath);
+    if (!string.IsNullOrEmpty(directory))
+    {
+        Directory.CreateDirectory(directory);
+    }
+
+    await using var stream = new FileStream(fullPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+    await JsonSerializer.SerializeAsync(stream, value, QualificationJsonOptions()).ConfigureAwait(false);
+    await stream.FlushAsync().ConfigureAwait(false);
+}
+
+static void EnsureNewOutputPaths(params string[] paths)
+{
+    var fullPaths = paths.Select(Path.GetFullPath).ToArray();
+    if (fullPaths.Distinct(StringComparer.OrdinalIgnoreCase).Count() != fullPaths.Length)
+    {
+        throw new InvalidOperationException("Qualification outputs must use distinct paths.");
+    }
+
+    var existing = fullPaths.FirstOrDefault(File.Exists);
+    if (existing is not null)
+    {
+        throw new InvalidOperationException($"Qualification output already exists: {existing}");
+    }
+}
+
+static JsonSerializerOptions QualificationJsonOptions()
+{
+    return new JsonSerializerOptions(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true,
+        PropertyNameCaseInsensitive = true,
+        RespectNullableAnnotations = true,
+        RespectRequiredConstructorParameters = true,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+    };
+}
+
+static SummaryRetrievalMetrics ReadLiveRetrievalMetrics(
+    string json,
+    out string suite,
+    out string repositoryId,
+    out string indexedCommit,
+    out IReadOnlyList<string> failures)
+{
+    using var document = JsonDocument.Parse(json);
+    var root = document.RootElement;
+    if (!root.TryGetProperty("kind", out var kind) || !string.Equals(kind.GetString(), "live-report", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("Retrieval evidence must be an Agent Access live-report.");
+    }
+
+    suite = root.GetProperty("suite").GetString() ?? string.Empty;
+    repositoryId = root.GetProperty("repository_id").GetString() ?? string.Empty;
+    indexedCommit = root.TryGetProperty("metadata", out var metadata) &&
+                    metadata.TryGetProperty("indexed_commit", out var indexedCommitElement)
+        ? indexedCommitElement.GetString() ?? string.Empty
+        : string.Empty;
+    var summary = root.GetProperty("summary");
+    failures = root.TryGetProperty("failures", out var failureArray)
+        ? failureArray.EnumerateArray().Select(item => item.GetString() ?? string.Empty).Where(value => value.Length > 0).ToArray()
+        : [];
+    var cases = root.TryGetProperty("cases", out var caseArray)
+        ? caseArray.EnumerateArray().ToArray()
+        : [];
+    var precisionCases = cases.Where(item => item.TryGetProperty("precision_at_k", out _)).ToArray();
+    var meanPrecision = precisionCases.Length == 0
+        ? 0
+        : precisionCases.Average(item => item.GetProperty("precision_at_k").GetDouble());
+    var stabilityCases = cases.Where(item => item.TryGetProperty("ranking_stability", out _)).ToArray();
+    var meanStability = stabilityCases.Length == 0
+        ? 0
+        : stabilityCases.Average(item => item.GetProperty("ranking_stability").GetDouble());
+
+    return new SummaryRetrievalMetrics(
+        summary.GetProperty("mean_recall_at_k").GetDouble(),
+        summary.GetProperty("mean_mrr").GetDouble(),
+        summary.GetProperty("mean_ndcg_at_k").GetDouble(),
+        meanPrecision,
+        meanStability,
+        summary.GetProperty("secret_leaks").GetInt32(),
+        root.GetProperty("passed").GetBoolean(),
+        root.GetProperty("comparable").GetBoolean());
+}
+
+static void PrintQualificationRun(SummaryQualificationRunResult result, bool json)
+{
+    if (json)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(new
+        {
+            result.PrivateArchive.RunId,
+            result.PrivateArchive.SuiteName,
+            result.PrivateArchive.Profile.Provider,
+            result.PrivateArchive.Profile.Model,
+            WarmupCount = result.PrivateArchive.Samples.Count(sample => string.Equals(sample.Phase, "warmup", StringComparison.Ordinal)),
+            MeasuredSampleCount = result.PrivateArchive.Samples.Count(sample => string.Equals(sample.Phase, "measured", StringComparison.Ordinal)),
+            MeasuredCompletedCount = result.PrivateArchive.Samples.Count(sample => string.Equals(sample.Phase, "measured", StringComparison.Ordinal) && sample.Completed),
+            result.PrivateArchive.PreflightFailures
+        }, QualificationJsonOptions()));
+        return;
+    }
+
+    Console.WriteLine($"Summary qualification run: {result.PrivateArchive.RunId}");
+    Console.WriteLine($"Candidate: {result.ReviewPacket.CandidateLabel}");
+    Console.WriteLine($"Warm-up: {(result.PrivateArchive.Samples.Single(sample => string.Equals(sample.Phase, "warmup", StringComparison.Ordinal)).Completed ? "passed" : "failed")}");
+    Console.WriteLine($"Measured samples: {result.PrivateArchive.Samples.Count(sample => string.Equals(sample.Phase, "measured", StringComparison.Ordinal))}, completed: {result.PrivateArchive.Samples.Count(sample => string.Equals(sample.Phase, "measured", StringComparison.Ordinal) && sample.Completed)}");
+    foreach (var failure in result.PrivateArchive.PreflightFailures)
+    {
+        Console.WriteLine($"Failure: {failure}");
+    }
+
+    Console.WriteLine("Private archive and blinded review packet were written to the requested paths.");
+}
+
+static void PrintQualificationObject<T>(T value, bool json, string text)
+{
+    Console.WriteLine(json ? JsonSerializer.Serialize(value, QualificationJsonOptions()) : text);
 }
 
 static int? ReadOptionalIntOption(string[] args, string name)
@@ -1400,6 +1685,10 @@ static void PrintHelp()
     Console.WriteLine("  codemesh self smoke [--agent-access-url <url>] [--skip-embeddings] [--query <text>] [--json]");
     Console.WriteLine("  codemesh embeddings verify <repository-id-or-alias> [--embedding-provider <provider>] [--embedding-model <model>] [--json]");
     Console.WriteLine("  codemesh summaries coverage <repository-id-or-alias> [--json]");
+    Console.WriteLine("  codemesh summaries qualify run --suite <json> --profile <json> --private-output <json> --review-output <json> --summary-provider <provider> --summary-model <model> [--authorize-online-source] [--json]");
+    Console.WriteLine("  codemesh summaries qualify bind-retrieval --archive <json> --baseline-live <json> --candidate-live <json> --assessment <json> --ranking-identity <text> --confirm-isolated-indexes --output <json> [--json]");
+    Console.WriteLine("  codemesh summaries qualify compile --suite <json> --archive <json> --review <json> --review <json> --retrieval <json> --deployment <json> --output <json> [--json]");
+    Console.WriteLine("  codemesh summaries qualify compare --candidate <report.json> --reference <report.json> [--json]");
     Console.WriteLine("  codemesh repos list [--limit <count>] [--json]");
     Console.WriteLine("  codemesh repo show <repository-id-or-alias> [--json]");
     Console.WriteLine("  codemesh repo delete <repository-id-or-alias> [--json]");

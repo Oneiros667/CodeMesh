@@ -13,6 +13,7 @@ using CodeMesh.Domain.Utilities;
 using CodeMesh.Ingestion;
 using CodeMesh.Ingestion.Embedding;
 using CodeMesh.Ingestion.Summary;
+using CodeMesh.Ingestion.Summary.Qualification;
 using CodeMesh.Parser.CSharp;
 using CodeMesh.Parser.Deployment;
 using CodeMesh.Parser.Markdown;
@@ -55,6 +56,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("summary budgets scale with node complexity", TestSummaryBudgetsScaleWithNodeComplexity),
     ("summary generator persists budget metadata", TestSummaryGeneratorPersistsBudgetMetadata),
     ("summary generator regenerates when configuration changes", TestSummaryGeneratorRegeneratesWhenConfigurationChanges),
+    ("summary qualification runner redacts inputs and enforces evidence gates", TestSummaryQualificationRunnerAndCompiler),
     ("forced embedding ingestion rebuilds unchanged embeddings", TestForcedEmbeddingIngestionRebuildsUnchangedEmbeddings),
     ("embedding verifier reports missing and stale vectors", TestEmbeddingVerifierReportsMissingAndStaleVectors),
     ("repository cleanup removes indexed data", TestRepositoryCleanupRemovesIndexedData),
@@ -1511,6 +1513,210 @@ static async Task TestSummaryGeneratorRegeneratesWhenConfigurationChanges()
     Equal(1, fourth.SkippedCount, "Unchanged generation configuration did not skip the summary.");
 }
 
+static async Task TestSummaryQualificationRunnerAndCompiler()
+{
+    const string canary = "summary-qualification-secret-canary";
+    const string source = "private const string ApiKey = \"summary-qualification-secret-canary\";";
+    var qualificationItem = new SummaryQualificationCorpusItem(
+        "secret-field",
+        "repo:fixture",
+        "0123456789abcdef",
+        "node:secret-field",
+        CodeMeshHash.Sha256Hex(source),
+        "csharp",
+        CodeNodeKind.Field,
+        "ApiKey",
+        "Fixture",
+        "SecretFixture.cs",
+        1,
+        1,
+        source,
+        "small",
+        "high",
+        ["security-sensitive", "small"],
+        ["The field stores an API key value."],
+        [],
+        ["The value is safe to publish."],
+        ["field"],
+        ["secret"],
+        "qualification",
+        "Stores an API key value.",
+        [],
+        [],
+        [],
+        [],
+        "Stores an API key value.",
+        [canary]);
+    var calibrationItem = qualificationItem with
+    {
+        Id = "calibration-secret-field",
+        NodeId = "node:calibration-secret-field",
+        Partition = "calibration"
+    };
+    var suite = new SummaryQualificationSuite(
+        SummaryQualificationConstants.SchemaVersion,
+        SummaryQualificationConstants.SuiteKind,
+        "synthetic-summary-suite",
+        "1.0.0",
+        [calibrationItem, qualificationItem],
+        new SummaryQualificationGates(
+            MaximumP95LatencyMs: 1000,
+            MinimumNodesPerMinute: 1,
+            MaximumTotalTokens: 1000,
+            MaximumTokensPerSuccessfulNode: 200,
+            MaximumTotalDurationMs: 5000,
+            MaximumRetryTokenOverheadRatio: 0,
+            MaximumPeakHostMemoryMb: 512));
+    var profile = new SummaryQualificationProfile(
+        SummaryQualificationConstants.SchemaVersion,
+        SummaryQualificationConstants.ProfileKind,
+        "deterministic-local",
+        "local-offline",
+        "local",
+        "test",
+        "summary-counting",
+        "fixture-v1",
+        "none",
+        "float32",
+        CodeMeshHash.Sha256Hex("fixture-template"),
+        8192,
+        4000,
+        768,
+        1536,
+        3,
+        new Dictionary<string, string>
+        {
+            ["temperature"] = "0",
+            ["topP"] = "1",
+            ["topK"] = "not-applicable",
+            ["seed"] = "1",
+            ["stopSequences"] = "none",
+            ["requestedReasoningEffort"] = "none",
+            ["effectiveReasoningEffort"] = "none",
+            ["providerGenerationConfigurationFingerprint"] = "fixture-configuration-v1",
+            ["retryPolicy"] = "none",
+            ["timeout"] = "10s",
+            ["concurrency"] = "1",
+            ["batching"] = "1"
+        },
+        new Dictionary<string, string>
+        {
+            ["operatingSystem"] = "test-os",
+            ["cpu"] = "test-cpu",
+            ["memory"] = "1 GiB",
+            ["accelerator"] = "none",
+            ["acceleratorMemory"] = "none",
+            ["servingRuntime"] = "test"
+        });
+    var sourceIdentity = new SummaryQualificationSourceIdentity(
+        "fedcba9876543210",
+        false,
+        "main",
+        "https://example.invalid/codemesh",
+        "test-os",
+        "test-runtime");
+
+    var result = await new SummaryQualificationRunner(new CountingSummaryProvider("fixture-configuration-v1"))
+        .RunAsync(suite, profile, sourceIdentity);
+
+    Equal(4, result.PrivateArchive.Samples.Count, "Qualification warm-up and repetitions were not executed.");
+    Equal(4, result.PrivateArchive.Samples.Count(sample => sample.Completed), "Deterministic qualification samples did not complete.");
+    Equal(false, result.ReviewPacket.Items.Any(review => review.Source.Contains(canary, StringComparison.Ordinal)), "The blinded review packet retained a secret canary.");
+
+    SummaryQualificationReview Review(string reviewerId)
+    {
+        return new SummaryQualificationReview(
+            SummaryQualificationConstants.SchemaVersion,
+            SummaryQualificationConstants.ReviewKind,
+            result.PrivateArchive.RunId,
+            reviewerId,
+            true,
+            CodeMeshHash.Sha256Hex("resolved-review-calibration-v1"),
+            result.PrivateArchive.Samples
+                .Where(sample => string.Equals(sample.Phase, "measured", StringComparison.Ordinal))
+                .Select(sample => new SummaryQualificationSampleReview(
+                sample.SampleId,
+                sample.ItemId,
+                1,
+                1,
+                1,
+                1,
+                false,
+                false,
+                true,
+                0,
+                0,
+                1,
+                true,
+                true,
+                1,
+                0,
+                0)).ToArray());
+    }
+
+    var baselineReportHash = CodeMeshHash.Sha256Hex("baseline-report");
+    var candidateReportHash = CodeMeshHash.Sha256Hex("candidate-report");
+    var retrievalAssessment = new SummaryQualificationRetrievalAssessment(
+        SummaryQualificationConstants.SchemaVersion,
+        SummaryQualificationConstants.RetrievalAssessmentKind,
+        result.PrivateArchive.RunId,
+        baselineReportHash,
+        candidateReportHash,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0.9,
+        0.9,
+        1,
+        1,
+        0,
+        true);
+    var retrieval = new SummaryQualificationRetrievalEvidence(
+        SummaryQualificationConstants.SchemaVersion,
+        SummaryQualificationConstants.RetrievalEvidenceKind,
+        result.PrivateArchive.RunId,
+        result.PrivateArchive.SuiteHash,
+        result.PrivateArchive.PromptHash,
+        result.PrivateArchive.CorpusRepositoryIdentityHash,
+        CodeMeshHash.Sha256Hex("ranking-v1"),
+        "synthetic-live",
+        "repo:fixture",
+        "0123456789abcdef",
+        baselineReportHash,
+        candidateReportHash,
+        new SummaryRetrievalMetrics(0.9, 0.9, 0.9, 0.9, 1, 0, true, true),
+        new SummaryRetrievalMetrics(0.9, 0.9, 0.9, 0.9, 1, 0, true, true),
+        retrievalAssessment,
+        []);
+    var deployment = new SummaryQualificationDeploymentEvidence(
+        SummaryQualificationConstants.SchemaVersion,
+        SummaryQualificationConstants.DeploymentEvidenceKind,
+        result.PrivateArchive.RunId,
+        result.PrivateArchive.ProfileHash,
+        "deterministic fixture measurement",
+        256,
+        null,
+        null,
+        null,
+        true);
+    var reviews = new[] { Review("reviewer-a"), Review("reviewer-b") };
+    var report = SummaryQualificationCompiler.Compile(suite, result.PrivateArchive, reviews, retrieval, deployment);
+    Equal("qualified", report.Outcome, "A complete passing qualification run was not qualified.");
+    Equal(1d, report.Metrics.RequiredFactRecallByStratum["security-sensitive"], "Stratum recall was not calculated from item identities.");
+    Equal(560L, report.Metrics.TotalTokens, "Provider usage was not aggregated across warm-up and measured attempts.");
+
+    Equal(1d, report.Metrics.IdenticalInputStability, "Repeated identical inputs were not compared for stability.");
+    Equal(256d, report.Metrics.PeakHostMemoryMb, "Deployment evidence was not included in the report.");
+
+    var missingRetrieval = SummaryQualificationCompiler.Compile(suite, result.PrivateArchive, reviews, null, deployment);
+    Equal("invalid-run", missingRetrieval.Outcome, "Missing retrieval evidence did not invalidate qualification.");
+    Throws<InvalidOperationException>(
+        () => SummaryQualificationCompiler.Compare(report, report with { SuiteHash = "different-suite" }),
+        "Incompatible qualification reports were compared.");
+}
+
 static async Task TestForcedEmbeddingIngestionRebuildsUnchangedEmbeddings()
 {
     var root = Path.Combine(Path.GetTempPath(), $"codemesh-force-embeddings-test-{Guid.NewGuid():N}");
@@ -2347,6 +2553,9 @@ static async Task TestLmStudioSummaryProviderAcceptsNumericConfidence()
         "LM Studio summary text did not deserialize.");
     Equal("high", summary.Confidence, "LM Studio numeric confidence was not normalized.");
     Equal("normalization", summary.Tags[0], "LM Studio summary tags did not deserialize.");
+    Equal(96, summary.Usage?.InputTokens ?? -1, "LM Studio summary input-token usage was not captured.");
+    Equal(24, summary.Usage?.OutputTokens ?? -1, "LM Studio summary output-token usage was not captured.");
+    Equal(120, summary.Usage?.TotalTokens ?? -1, "LM Studio summary total-token usage was not captured.");
     if (!handler.LastRequestBody.Contains("\"response_format\":{\"type\":\"text\"}", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("LM Studio summary request response format changed.");
@@ -2386,6 +2595,9 @@ static async Task TestOllamaSummaryProviderUsesRequestCompletionBudget()
 
     Equal(1, handler.RequestCount, "Expected one Ollama summary request.");
     Equal("Adds two integers and returns their sum.", summary.Summary, "Ollama summary text did not deserialize.");
+    Equal(72, summary.Usage?.InputTokens ?? -1, "Ollama summary input-token usage was not captured.");
+    Equal(18, summary.Usage?.OutputTokens ?? -1, "Ollama summary output-token usage was not captured.");
+    Equal(90, summary.Usage?.TotalTokens ?? -1, "Ollama summary total-token usage was not captured.");
     if (!handler.LastRequestBody.Contains("\"num_predict\":1024", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("Ollama summary request ignored the selected completion ceiling.");
@@ -5137,7 +5349,9 @@ sealed class FakeOllamaSummaryHandler : HttpMessageHandler
                   "message": {
                     "role": "assistant",
                     "content": "{\"summary\":\"Adds two integers and returns their sum.\",\"tags\":[\"addition\"],\"confidence\":\"high\"}"
-                  }
+                  },
+                  "prompt_eval_count": 72,
+                  "eval_count": 18
                 }
                 """,
                 System.Text.Encoding.UTF8,
@@ -5261,7 +5475,12 @@ sealed class FakeLmStudioSummaryHandler : HttpMessageHandler
                       },
                       "finish_reason": "stop"
                     }
-                  ]
+                  ],
+                  "usage": {
+                    "prompt_tokens": 96,
+                    "completion_tokens": 24,
+                    "total_tokens": 120
+                  }
                 }
                 """,
                 System.Text.Encoding.UTF8,

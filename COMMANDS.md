@@ -99,6 +99,60 @@ accounts, publication, release, deployment, and production mutation require
 their own authority and evidence gates. The presence of a command in a guide
 does not grant that authority.
 
+### Summary-model qualification
+
+The qualification runner uses the production summary prompt and parser. Start
+from the checked-in synthetic suite and profile examples, then replace the
+profile placeholders and use a separately reviewed, frozen corpus for real
+qualification:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- summaries qualify run `
+  --suite docs/evaluation/assets/summary-qualification-suite.example.json `
+  --profile <profile.json> `
+  --private-output <private-archive.json> `
+  --review-output <blinded-review-packet.json> `
+  --summary-provider <ollama|lmstudio|openai> `
+  --summary-model <exact-model-id>
+
+dotnet run --project src/CodeMesh.Cli -- summaries qualify bind-retrieval `
+  --archive <private-archive.json> `
+  --baseline-live <no-summary-live-report.json> `
+  --candidate-live <candidate-summary-live-report.json> `
+  --assessment <reviewed-retrieval-assessment.json> `
+  --ranking-identity <exact-shared-ranking-configuration> `
+  --confirm-isolated-indexes `
+  --output <retrieval-evidence.json>
+
+dotnet run --project src/CodeMesh.Cli -- summaries qualify compile `
+  --suite <frozen-suite.json> `
+  --archive <private-archive.json> `
+  --review <reviewer-a.json> `
+  --review <reviewer-b.json> `
+  --retrieval <retrieval-evidence.json> `
+  --deployment <resource-or-cost-evidence.json> `
+  --output <sanitized-report.json>
+
+dotnet run --project src/CodeMesh.Cli -- summaries qualify compare `
+  --candidate <candidate-report.json> `
+  --reference <reference-report.json>
+```
+
+`run` refuses dirty CodeMesh checkouts and mismatched suite, profile, provider,
+or model identities. Online runs additionally require
+`--authorize-online-source`; that flag records the operator's explicit action
+but does not replace source-governance, account, or spend approval. Output
+paths use create-new semantics. Private archives and review packets contain
+source or generated text and must remain in restricted evidence storage.
+`compile` requires two complete blinded reviews bound to the same non-empty
+disagreement-resolution record hash, a reviewed query-level retrieval
+assessment bound to comparable live reports, and complete resource or online
+cost evidence bound to the deployment profile. Missing or incompatible
+evidence produces `invalid-run`, never a qualified result. The example suite is
+a smoke fixture, not a sufficient qualification corpus. Example schemas for
+review, retrieval-assessment, and deployment evidence are under
+`docs/evaluation/assets/`.
+
 ## External advisory checks
 
 Before publication or dependency changes, and only when network access is

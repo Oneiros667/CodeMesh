@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "summary-qualification-profile",
+  "name": "replace-with-profile-name",
+  "intendedUse": "local-offline",
+  "endpointClass": "local",
+  "provider": "ollama",
+  "model": "replace-with-exact-model-id",
+  "modelRevision": "replace-with-artifact-or-build-hash",
+  "quantization": "replace-with-quantization",
+  "numericPrecision": "replace-with-precision",
+  "chatTemplateHash": "replace-with-sha256",
+  "contextLength": 32768,
+  "maxInputCharacters": 4000,
+  "reasoningTokenReserve": 768,
+  "maxCompletionTokens": 1536,
+  "repetitions": 3,
+  "generationSettings": {
+    "providerGenerationConfigurationFingerprint": "temperature:0.1;format:json",
+    "temperature": "0.1",
+    "topP": "provider-default",
+    "topK": "provider-default",
+    "seed": "provider-default",
+    "stopSequences": "provider-default",
+    "requestedReasoningEffort": "none",
+    "effectiveReasoningEffort": "none",
+    "timeout": "provider-default",
+    "retryPolicy": "none",
+    "concurrency": "1",
+    "batching": "1",
+    "responseFormat": "json"
+  },
+  "host": {
+    "operatingSystem": "replace-with-os-and-version",
+    "cpu": "replace-with-cpu",
+    "memory": "replace-with-memory",
+    "accelerator": "none",
+    "acceleratorMemory": "none",
+    "servingRuntime": "replace-with-runtime-and-version"
+  },
+  "conditions": []
+}
