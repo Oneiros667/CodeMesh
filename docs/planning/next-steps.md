@@ -50,20 +50,31 @@ Exact clean candidate `b16eee7` now adds the configured Config.Net suite while
 preserving the frozen prompt, targets, thresholds, and source identity. Its
 reviewed normal-profile installation, configured preflight, fail-closed probe,
 and six-case/18-call live gate pass provider-free with recall, MRR, and nDCG of
-1.0 and zero secret leaks.
+1.0 and zero secret leaks. Its separately authorized configured campaign then
+achieved context-package adoption in all three treatments but `regressed`: all
+three controls passed, while two treatments missed required citations and only
+one treatment passed. The sole jointly successful pair was 21.31% slower and
+used 117.18% more tokens with CodeMesh.
 The next priorities are:
 
-1. **Replicate only after a new authority gate.** With separate explicit
-   model-spend authority, run the prompt-parity configured/onboarded Config.Net
-   comparison at exact candidate `b16eee7`. Require context-package adoption
-   and an attributable correctness or efficiency win before claiming replicated
-   product benefit. Preserve the earlier assisted and prompt-parity campaigns
-   in their original evidence classes.
-2. **Evaluate the cross-repository result.** If Config.Net is adopted but
-   neutral, preserve it and select the smallest evidenced task or integration
-   correction rather than claiming benefit. If it produces an attributable
-   win, require another task family before broad product claims.
-3. **Decide bounded expansion.** Expand onboarding to Secondary, Tertiary,
+1. **Preserve the consumed negative campaign.** Retain the exact `b16eee7`
+   report as configured/onboarded evidence with full adoption, two treatment
+   correctness regressions, and no automatic retry. Do not combine it with the
+   assisted positive result or the earlier zero-adoption prompt-parity result.
+2. **Diagnose task-shaped package coverage provider-free.** Reproduce the full
+   frozen Config.Net task against every required implementation and test target
+   and compare the returned package with the passing canonical decomposed live
+   queries. Correlate the two treatment citation failures with the retained
+   broad-query miss, without asserting a root cause that the sanitized campaign
+   does not retain enough detail to prove.
+3. **Correct only an evidenced retrieval gap.** If the provider-free diagnosis
+   supports a ranking, package-composition, or query-decomposition defect,
+   implement the smallest bounded correction and rerun the deterministic,
+   configured-preflight, and live gates. Otherwise retain the negative result
+   without speculative feature work.
+4. **Require new authority for any paid retest or expansion.** Request separate
+   model-spend authority only after a provider-free correction has passed its
+   gates. Expand onboarding to Secondary, Tertiary,
    Release, or Hotfix only with separate authority, an exact role-specific
    binding, and a passing checkout-specific probe. Keep Run-only excluded
    pending a separate acceptance decision.
@@ -107,7 +118,7 @@ execution order above.
 | Refresh and watch | Implemented initial slice | Native file events and broader operational visibility remain optional. | [Self-Analysis](../guides/self-analysis.md) |
 | Deployment parsing | Partial | Dockerfile and Compose exist; Helm, Kubernetes, CI/CD, and code-to-runtime links are deferred. | [SDLC Roadmap](sdlc-roadmap.md) |
 | Test and validation context | Partial | Link tests and commands to implementation with source-backed confidence. | [Graph Intelligence Design](graph-intelligence-design.md) |
-| Evaluation harnesses | Implemented for selected v1 contract | Preserve the two insufficient status-first campaigns and the neutral, fully adopted one-step campaign. Config.Net configured provider-free gates pass at `b16eee7`; its paired campaign requires separate model-spend authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
+| Evaluation harnesses | Implemented for selected v1 contract | Preserve the two insufficient status-first campaigns, the neutral fully adopted one-step campaign, and the consumed `b16eee7` Config.Net regression with full adoption. Diagnose task-shaped context-package coverage provider-free before proposing a bounded correction or requesting paid retest authority. | [Evaluation](../evaluation/mcp-effectiveness.md) |
 | Repository identity and snapshots | Local profile implemented | Maintain deterministic identity/slot/retention behavior; shared coordinator, tenant security, and private overlays remain deferred. | [Identity and Snapshot Requirements](repository-identity-and-snapshot-retention.md) |
 | Summary-model qualification | Runner implemented; no profile qualified | Freeze a reviewed corpus and profile, obtain provider/source/spend authority, complete two blinded reviews, isolated live-retrieval comparison with query-level assessment, and resource/cost measurement, then pass every gate before default use. | [Summary Model Qualification](summary-model-qualification.md) |
 | Method load and retrieval granularity | Proposal | Calibrate human-maintainability, tokenizer-bound representation, and agent-context thresholds before exposing advisory findings. | [Method Load And Retrieval Granularity](method-load-and-retrieval-granularity.md) |

@@ -37,7 +37,10 @@ The evidence position is summarized in [Project Status](../current/project-statu
 - the independent prompt-parity Config.Net campaign completed three pairs but
   recorded zero CodeMesh calls or call attempts, so it is negative
   discoverability evidence and its overall efficiency variance is not
-  attributable to CodeMesh; and
+  attributable to CodeMesh;
+- the configured Config.Net campaign achieved context-package adoption in all
+  three treatments but regressed correctness in two treatments, so configured
+  cross-repository adoption is established while product benefit is not; and
 - no summary model is qualified, so the core baseline remains summary-free.
 
 Explicit repository onboarding is now the selected v1 product contract; see
@@ -255,8 +258,24 @@ fail-closed rejection. The full six-case live gate then passed all 18 calls
 with recall, MRR, and nDCG of 1.0 and zero secret leaks. No model provider was
 invoked. The sanitized record is
 [configured Config.Net provider-free evidence](evidence/configured-config-net-provider-free-b16eee7.json).
-This establishes readiness only; the configured agent campaign requires
-separate explicit model-spend authorization.
+That gate also retained an earlier broad task-query diagnostic: it returned
+tests but missed requested implementation paths, whereas the canonical
+decomposed live cases all passed. This did not establish a root cause.
+
+The separately authorized configured campaign completed all three pairs with
+context-package adoption in every treatment and no safety, MCP transport, or
+command-policy failure. All three controls passed. Treatments passed one of
+three: repetition one omitted `ConfigurationBuilder.cs`, and repetition two
+omitted `LazyVar.cs`, `ConfigurationBuilder.cs`, `LogicTest.cs`, and
+`ConfigurableMethodsTest.cs`. The verdict was `regressed`, with no attributable
+wins. On the only jointly successful pair, treatment duration was 21.31% higher
+and token use was 117.18% higher. The sanitized record is
+[configured Config.Net agent evidence](evidence/configured-config-net-agent-b16eee7.json).
+Preserve this consumed negative configured-product artifact and do not retry it
+automatically. The next work is provider-free reproduction of full-task
+context-package coverage against every required target, correlated with the
+retained broad-query miss but without claiming a cause that raw campaign
+packages and final messages cannot establish.
 
 Candidate `0bde606` passed the configured preflight for the selected explicit-
 onboarding contract against exact Primary commit `fe2f761`. Its first paid run
@@ -302,10 +321,10 @@ all three treatments and passed every control and treatment safely. It produced
 no attributable win or regression, so the verdict was `neutral`; both median
 efficiency deltas remained inside the 10% threshold. The sanitized record is
 [one-step configured campaign evidence](evidence/configured-onenine-agent-8844c21.json).
-This establishes adoption for the selected one|nine task, not product benefit
-or cross-repository repeatability. Config.Net configured integration now passes
-provider-free at `b16eee7`; request separate model-spend authority before its
-paired replication.
+This establishes adoption for the selected one|nine task, not product benefit.
+The later Config.Net configured campaign also established adoption but
+regressed correctness, so adoption now spans two repositories without
+establishing repeatable product benefit.
 
 ## Configured Agent Preflight And Campaign
 

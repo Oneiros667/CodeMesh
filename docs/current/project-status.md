@@ -5,9 +5,9 @@ Document type: current status snapshot
 Reviewed: 2026-09-01
 
 Implementation status is reviewed against the current inspected worktree.
-Current configured/onboarded evidence is bound to one-step entry candidate
-`8844c21`; retained earlier paid campaigns remain bound separately to
-candidates `0bde606` and `0378740`.
+Current configured/onboarded evidence is bound separately to one-step one|nine
+candidate `8844c21` and Config.Net candidate `b16eee7`; retained earlier paid
+campaigns remain bound separately to candidates `0bde606` and `0378740`.
 
 Retained evidence below remains bound to the exact commits named in each
 evidence section; it does not inherit this implementation baseline.
@@ -44,7 +44,7 @@ usability evidence, but is no longer the v1 acceptance contract.
 | Agent Access | REST, stdio MCP, Python CLI, typed .NET client, repository status, context search/packages, symbols, nodes, neighbors, and deletion implemented. The normal four-tool MCP profile supports exact project/checkout/root/source-view binding, fail-closed freshness, hashed review-before-apply installation, a provider-free live probe, and versioned feedback record/validate/summarize commands. | Repository deletion remains outside both MCP profiles. Returned relationships and rankings are navigation evidence, not runtime proof. Unbound diagnostic and REST surfaces retain their documented administrative behavior. |
 | Context packaging | Agent-format packages, 12,000-character MCP cap, source spans, rationale, relationships, and .NET, Python, and Rust validation recommendations implemented. | Source verification remains required for consequential conclusions. |
 | Local UI | Read-only health, repository, run, freshness, and search views implemented. | It is a local inspection surface, not established product-benefit evidence. |
-| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | The authorized `8844c21` campaign achieved context-package adoption in all three treatments and passed all six executions safely. Its verdict was `neutral`, with no attributable wins or regressions. Config.Net configured preflight and live retrieval pass provider-free at `b16eee7`; its model campaign requires separate authorization. |
+| Evaluation | Deterministic fixture, live MCP, spontaneous, evaluator-assisted, configured/onboarded paired-agent, and model benchmark harnesses implemented. Configured mode has a provider-free preflight that verifies the exact reviewed normal-profile plan, committed guidance, baseline MCP identities, fresh binding, positive runtime probe, and fail-closed rejection probe before either paired condition runs. | The authorized `8844c21` one\|nine campaign was `neutral` with full context-package adoption. The consumed `b16eee7` Config.Net campaign also achieved full adoption but `regressed`: two of three treatments missed required citations, versus three passing controls. Neither campaign establishes product benefit. |
 | Generated summaries | Complexity-aware prompts, local/online providers, and a provider-neutral qualification runner/report compiler are implemented. The runner uses the production prompt/parser, requires calibration and held-out qualification partitions, redacts inputs, records immutable suite/profile/source identity, creates typed blinded review packets, and binds isolated live-retrieval plus resource/cost evidence before applying quality, safety, retrieval, and deployment gates. | No summary deployment profile is CodeMesh-qualified. Provider-backed execution, a complete reviewed corpus, two blinded reviews, isolated indexes, query-level retrieval assessment, deployment measurements, and model/source/spend authority remain separate requirements. |
 | Security | Pre-persistence value redaction, immutable generated/cache exclusions, default known-secret-file exclusion, repository-relative allow/deny globs, fail-fast pattern validation, and path-policy-bound snapshot identity implemented. | Explicitly including known secret files requires a separate CLI flag and does not weaken redaction or repository authorization requirements. |
 | Repository identity | Stable project/checkout markers, deterministic source snapshots, checkout-current and clean branch-head slots, explicit retained slots, legacy migration, and richer local freshness implemented. | Separate clones attach with explicit `--project-id`; shared-service tenant/authorization/privacy controls remain deferred. |
@@ -255,6 +255,17 @@ This is provider-free configured-integration readiness, not agent adoption or
 product-benefit evidence. The exact sanitized record is
 [configured Config.Net provider-free evidence](../evaluation/evidence/configured-config-net-provider-free-b16eee7.json).
 
+The separately authorized configured campaign then completed all three pairs
+with context-package adoption in every treatment and no safety, MCP transport,
+or command-policy failure. All three controls passed, while two treatments
+missed required implementation or test citations; the treatment success rate
+was therefore one of three and the verdict was `regressed`. On the only pair
+where both conditions passed, treatment was 21.31% slower and used 117.18%
+more tokens. This is valid negative configured-product evidence, not replicated
+benefit. Preserve the consumed result and do not retry it automatically. The
+sanitized record is
+[configured Config.Net agent evidence](../evaluation/evidence/configured-config-net-agent-b16eee7.json).
+
 ## Current Gap
 
 Explicit repository onboarding is implemented for the bounded one|nine pilot:
@@ -311,13 +322,17 @@ checkout, commit or binding mismatch, changed plan files, unexpected tool
 surface, and a failed rejection probe. Historical spontaneous and assisted
 modes retain their prior diagnostic behavior.
 
-The immediate next gate is separate explicit model-spend authorization for the
-configured/onboarded Config.Net campaign at exact candidate `b16eee7`. Preserve
-all three one|nine campaigns and the earlier Config.Net assisted and
-prompt-parity campaigns as consumed artifacts. Keep the frozen Config.Net task,
-targets, thresholds, repository commit, model settings, grading, and control
-behavior unchanged, and require context-package adoption plus an attributable
-correctness or efficiency win before claiming replicated product benefit.
+The immediate next work is a provider-free task-shaped context-package coverage
+diagnosis at exact candidate `b16eee7`. Reproduce the full frozen task against
+all required implementation and test targets and compare its package coverage
+with the canonical decomposed live queries. The earlier broad provider-free
+task query returned tests but missed requested implementation paths, while the
+decomposed live gate passed; the treatment citation omissions are correlated
+diagnostic evidence, not a proven root cause because raw campaign packages and
+final messages were not retained. Preserve all one|nine and Config.Net
+campaigns in their original evidence classes. A correction must be supported by
+provider-free evidence and pass deterministic and live gates before any new
+model-spend request; no retry is currently authorized.
 
 Expand onboarding to another one|nine checkout only with separate authority,
 exact binding, fresh ingestion, and a passing checkout-specific probe. The

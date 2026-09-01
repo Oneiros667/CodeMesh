@@ -28,6 +28,12 @@ executions safely. The verdict was `neutral`, with no attributable wins or
 regressions, so adoption is established for the selected task but product
 benefit is not.
 
+The separately authorized Config.Net campaign at exact candidate `b16eee7`
+also retrieved a context package in every treatment, but two of three
+treatments missed required citations while all controls passed. Its `regressed`
+verdict establishes configured adoption on a second repository, not product
+benefit. Preserve the consumed campaign without an automatic retry.
+
 ## Decision
 
 CodeMesh v1 requires explicit, repository-owned agent onboarding. A configured
@@ -168,12 +174,13 @@ changing the task prompt. The frozen task, grading targets, model settings,
 clean-checkout requirements, and summary-free live gate remain unchanged.
 
 The provider-free preflight must pass against the exact candidate before a
-campaign. Across the first two authorized configured campaigns, three
+campaign. Across the first two authorized one|nine configured campaigns, three
 treatments called repository status but none retrieved a context package or
 produced an attributable win. The `8844c21` campaign then retrieved a context
 package in every treatment, but its neutral result still produced no
-attributable win. Any further paired comparison remains model-cost-bearing and
-requires new separate authorization.
+attributable win. The `b16eee7` Config.Net campaign also achieved full adoption
+but regressed correctness in two treatments. Any further paired comparison
+remains model-cost-bearing and requires new separate authorization.
 
 ## Completion Gates
 
@@ -195,13 +202,17 @@ Complete the product-evidence sequence in this order:
 8. retain the consumed `8844c21` configured/onboarded campaign that established
    context-package adoption and a neutral outcome for the selected one|nine
    task; and
-9. maintain the configured Config.Net preflight and live gate verified
-   provider-free at `b16eee7`, then run its paired comparison only with
-   separate explicit model-spend authorization.
+9. retain the consumed configured Config.Net campaign at exact candidate
+   `b16eee7`, which established full context-package adoption but regressed in
+   two treatments; and
+10. diagnose the full-task context-package coverage gap provider-free against
+    every frozen implementation and test target before any bounded correction
+    or separately authorized paid retest.
 
 The bounded one|nine path and configured preflight have passed their clean-
 candidate provider-free gates. The two status-first campaigns remain valid but
-`insufficient`; the one-step campaign is valid and `neutral` with full adoption.
-None establishes product benefit. Do not claim benefit from documentation,
+`insufficient`; the one-step campaign is valid and `neutral` with full adoption,
+and the Config.Net campaign is valid and `regressed` with full adoption. None
+establishes product benefit. Do not claim benefit from documentation,
 static manifests, fixtures, configured CI, adoption alone, or an MCP process
 that starts without an attributable agent-outcome result.

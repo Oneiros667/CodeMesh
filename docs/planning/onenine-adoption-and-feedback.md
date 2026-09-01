@@ -243,5 +243,10 @@ threshold. This establishes the selected one|nine handoff, not product benefit.
 Preserve the consumed result in the
 [one-step configured agent evidence record](../evaluation/evidence/configured-onenine-agent-8844c21.json).
 Configured Config.Net preparation now passes provider-free at exact candidate
-`b16eee7`. Its paired model campaign is the next authority gate and requires
-separate explicit model-spend authorization.
+`b16eee7`. Its separately authorized paired campaign adopted the context-package
+tool in all three treatments but `regressed`: all three controls passed, while
+two treatments missed required implementation or test citations. Preserve the
+consumed negative result in the
+[configured Config.Net agent evidence record](../evaluation/evidence/configured-config-net-agent-b16eee7.json).
+The next work is provider-free task-shaped package-coverage diagnosis; no retry
+or further model spend is currently authorized.
