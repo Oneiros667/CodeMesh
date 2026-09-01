@@ -85,6 +85,9 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     independent_assisted_agent, independent_assisted_agent_path = load_suite(
         "config-net-cache-assisted-agent", "agent"
     )
+    independent_configured_agent, independent_configured_agent_path = load_suite(
+        "config-net-cache-configured-agent", "agent"
+    )
     onenine_configured_agent, onenine_configured_agent_path = load_suite(
         "onenine-native-replay-configured-agent", "agent"
     )
@@ -111,6 +114,12 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
         independent_assisted_agent.repository_commit
         == independent_live.repository_commit
     )
+    assert independent_configured_agent.resolved_integration_mode == "configured"
+    assert independent_configured_agent.repository_commit == (
+        independent_live.repository_commit
+    )
+    assert independent_configured_agent.treatment_guidance is None
+    assert len(independent_configured_agent.tasks) == 1
     assert onenine_configured_agent.resolved_integration_mode == "configured"
     assert onenine_configured_agent.repository_commit == (
         "fe2f761583bf78601961ff17934185c4b6a632f9"
@@ -128,6 +137,7 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert external_agent_path.is_file()
     assert impact_agent_path.is_file()
     assert assisted_agent_path.is_file()
+    assert independent_configured_agent_path.is_file()
     assert independent_live_path.is_file()
     assert independent_agent_path.is_file()
     assert independent_assisted_agent_path.is_file()
