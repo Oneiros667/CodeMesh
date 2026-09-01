@@ -10,9 +10,9 @@ public sealed partial class RustParseService
     public static ParserCapability Capability { get; } = new(
         "codemesh-parser-rust",
         "rust",
-        "0.1.0",
+        "0.1.1",
         [".rs"],
-        ["repositoryRoot"]);
+        ["repositoryRoot", "pathFilter"]);
 
     public async Task<ParseResult> ParseAsync(
         ParseRequest request,
@@ -30,7 +30,7 @@ public sealed partial class RustParseService
         var diagnostics = new List<ParserDiagnostic>();
         var parsedAt = DateTimeOffset.UtcNow;
 
-        foreach (var file in EnumerateRustFiles(repositoryRoot))
+        foreach (var file in EnumerateRustFiles(repositoryRoot, request.PathFilter))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var relativePath = NormalizePath(Path.GetRelativePath(repositoryRoot, file));
@@ -563,10 +563,11 @@ public sealed partial class RustParseService
         return text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Split('\n');
     }
 
-    private static IEnumerable<string> EnumerateRustFiles(string repositoryRoot)
+    private static IEnumerable<string> EnumerateRustFiles(
+        string repositoryRoot,
+        RepositoryPathFilter? pathFilter)
     {
-        return Directory.EnumerateFiles(repositoryRoot, "*.rs", SearchOption.AllDirectories)
-            .Where(file => !RepositoryPathPolicy.IsIgnoredPath(repositoryRoot, file))
+        return RepositoryPathPolicy.EnumerateFiles(repositoryRoot, "*.rs", pathFilter)
             .OrderBy(file => file, StringComparer.OrdinalIgnoreCase);
     }
 

@@ -35,11 +35,13 @@ internal static class SnapshotIdentity
             request.Language,
             NormalizeScopePath(request.RepositoryRoot, request.SolutionPath),
             NormalizeScopePath(request.RepositoryRoot, request.ProjectPath),
-            StableOptions(request.Options));
+            StableOptions(request.Options),
+            RepositoryPathPolicy.StableFingerprint(request.PathFilter));
         var parserProfileFingerprint = CodeMeshHash.StableId(
             parseResult.ParserName,
             parseResult.Language,
-            RedactionProfileVersion);
+            RedactionProfileVersion,
+            RepositoryPathPolicy.Version);
         var snapshotId = $"snp_{CodeMeshHash.StableId(
             IdentityFormatVersion,
             projectId,

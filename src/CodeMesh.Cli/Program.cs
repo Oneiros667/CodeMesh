@@ -279,6 +279,27 @@ static string? ReadAnyOption(string[] args, params string[] names)
     return null;
 }
 
+static IReadOnlyList<string> ReadRepeatedOptions(string[] args, params string[] names)
+{
+    var values = new List<string>();
+    for (var index = 0; index < args.Length; index++)
+    {
+        if (!names.Any(name => string.Equals(args[index], name, StringComparison.OrdinalIgnoreCase)))
+        {
+            continue;
+        }
+
+        if (index + 1 >= args.Length || args[index + 1].StartsWith("--", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"Option {args[index]} requires a value.");
+        }
+
+        values.Add(args[++index]);
+    }
+
+    return values;
+}
+
 static string? ReadPositional(string[] args, int index)
 {
     return args.Length > index && !args[index].StartsWith("--", StringComparison.Ordinal)
@@ -302,6 +323,7 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
         repositoryRoot,
         ReadAnyOption(args, "--project", "--project-path"),
         "Project");
+    var pathFilter = CreateRepositoryPathFilter(args);
 
     var unsupportedLanguages = languages.Where(item => !IsSupportedLanguage(item)).ToArray();
     if (unsupportedLanguages.Length > 0)
@@ -333,7 +355,8 @@ static async Task<IngestionResult> RunIngestAsync(string[] args)
         SummaryReasoningTokenReserve: ReadIntOption(args, "--summary-reasoning-token-reserve", 768),
         SummaryMaxCompletionTokens: ReadIntOption(args, "--summary-max-completion-tokens", 1536),
         ProjectId: ReadOption(args, "--project-id"),
-        SnapshotRetentionGraceSeconds: ReadIntOption(args, "--snapshot-retention-grace-seconds", 86400));
+        SnapshotRetentionGraceSeconds: ReadIntOption(args, "--snapshot-retention-grace-seconds", 86400),
+        PathFilter: pathFilter);
 
     var orchestrator = new IngestionOrchestrator(
         parserClient,
@@ -372,6 +395,7 @@ static async Task<int> RunWatchAsync(string[] args, bool json)
     var runOnce = HasFlag(args, "--run-once");
     var runCount = 0;
     var hasError = false;
+    var pathFilter = CreateRepositoryPathFilter(args);
 
     if (!json)
     {
@@ -379,7 +403,7 @@ static async Task<int> RunWatchAsync(string[] args, bool json)
         Console.WriteLine($"Polling every {pollSeconds} second(s). Press Ctrl+C to stop.");
     }
 
-    var snapshot = CodeMeshWatchWorkflow.CreateSnapshot(target.RootPath);
+    var snapshot = CodeMeshWatchWorkflow.CreateSnapshot(target.RootPath, pathFilter);
     while (true)
     {
         var result = await RunIngestAsync(ingestArgs).ConfigureAwait(false);
@@ -395,7 +419,7 @@ static async Task<int> RunWatchAsync(string[] args, bool json)
         while (true)
         {
             await Task.Delay(TimeSpan.FromSeconds(pollSeconds)).ConfigureAwait(false);
-            var current = CodeMeshWatchWorkflow.CreateSnapshot(target.RootPath);
+            var current = CodeMeshWatchWorkflow.CreateSnapshot(target.RootPath, pathFilter);
             if (!CodeMeshWatchWorkflow.HasChanges(snapshot, current))
             {
                 continue;
@@ -700,6 +724,16 @@ static IReadOnlyList<string> ReadLanguageSet(string[] args)
 {
     return CompositeParserClient.ParseLanguages(
         ReadAnyOption(args, "--languages", "--language") ?? "csharp");
+}
+
+static RepositoryPathFilter CreateRepositoryPathFilter(string[] args)
+{
+    var filter = new RepositoryPathFilter(
+        ReadRepeatedOptions(args, "--allow-path", "--include-path"),
+        ReadRepeatedOptions(args, "--deny-path", "--exclude-path"),
+        ExcludeKnownSecretFiles: !HasFlag(args, "--include-known-secret-files"));
+    _ = RepositoryPathPolicy.StableFingerprint(filter);
+    return filter;
 }
 
 static bool IsSupportedLanguage(string language)
@@ -1359,9 +1393,9 @@ static void PrintHelp()
     Console.WriteLine("Usage:");
     Console.WriteLine("  codemesh doctor [--root <path>] [--json]");
     Console.WriteLine("  codemesh status [--root <path>] [--json]");
-    Console.WriteLine("  codemesh ingest [--root <path>] [--project-id <prj_id>] [--solution <path>] [--project <path>] [--language <language> | --languages <comma-separated>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
-    Console.WriteLine("  codemesh refresh [--root <path>] [--solution <path>] [--project <path>] [--language <language> | --languages <comma-separated>] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
-    Console.WriteLine("  codemesh watch [--root <path>] [--solution <path>] [--project <path>] [--language <language> | --languages <comma-separated>] [--poll-seconds <seconds>] [--max-runs <count>] [--run-once] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
+    Console.WriteLine("  codemesh ingest [--root <path>] [--project-id <prj_id>] [--solution <path>] [--project <path>] [--language <language> | --languages <comma-separated>] [--allow-path <glob>] [--deny-path <glob>] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
+    Console.WriteLine("  codemesh refresh [--root <path>] [--solution <path>] [--project <path>] [--language <language> | --languages <comma-separated>] [--allow-path <glob>] [--deny-path <glob>] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
+    Console.WriteLine("  codemesh watch [--root <path>] [--solution <path>] [--project <path>] [--language <language> | --languages <comma-separated>] [--allow-path <glob>] [--deny-path <glob>] [--poll-seconds <seconds>] [--max-runs <count>] [--run-once] [--dry-run] [--skip-embeddings] [--force-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh self ingest [--dry-run] [--skip-embeddings] [--include-embeddings] [--include-summaries] [--json]");
     Console.WriteLine("  codemesh self smoke [--agent-access-url <url>] [--skip-embeddings] [--query <text>] [--json]");
     Console.WriteLine("  codemesh embeddings verify <repository-id-or-alias> [--embedding-provider <provider>] [--embedding-model <model>] [--json]");
@@ -1380,6 +1414,8 @@ static void PrintHelp()
     Console.WriteLine("  --include-embeddings --embedding-provider <none|ollama|lmstudio> --ollama-url <url> --lm-studio-url <url> --embedding-model <model>");
     Console.WriteLine("  --embedding-batch-size <count> --embedding-max-chars <count>");
     Console.WriteLine("  --include-summaries --force-summaries --summary-provider <ollama|lmstudio|openai> --summary-model <model>");
+    Console.WriteLine("  Repeat --allow-path/--deny-path for repository-relative globs; deny wins. Known secret files are excluded by default.");
+    Console.WriteLine("  --include-known-secret-files explicitly disables only the default secret-file exclusions; generated/cache exclusions remain.");
     Console.WriteLine("  --openai-url <url> (OpenAI summaries only; authentication uses OPENAI_API_KEY)");
     Console.WriteLine("  --summary-reasoning-effort <none|minimal|low|medium|high|xhigh|max> (OpenAI only)");
     Console.WriteLine("  --summary-max-input-chars <count> --summary-reasoning-token-reserve <count> --summary-max-completion-tokens <count>");

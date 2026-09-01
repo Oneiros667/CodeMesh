@@ -1,3 +1,4 @@
+using CodeMesh.Domain.Contracts;
 using CodeMesh.Domain.Utilities;
 
 namespace CodeMesh.Control.Configuration;
@@ -42,10 +43,12 @@ public static class CodeMeshWatchWorkflow
         return CodeMeshRefreshWorkflow.BuildRefreshIngestArgs(refreshArgs.ToArray(), target);
     }
 
-    public static CodeMeshWatchSnapshot CreateSnapshot(string rootPath)
+    public static CodeMeshWatchSnapshot CreateSnapshot(
+        string rootPath,
+        RepositoryPathFilter? pathFilter = null)
     {
         var files = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var file in EnumerateFiles(rootPath))
+        foreach (var file in EnumerateFiles(rootPath, pathFilter))
         {
             var info = new FileInfo(file);
             var relativePath = Path.GetRelativePath(rootPath, file);
@@ -74,28 +77,11 @@ public static class CodeMeshWatchWorkflow
         return false;
     }
 
-    private static IEnumerable<string> EnumerateFiles(string rootPath)
+    private static IEnumerable<string> EnumerateFiles(
+        string rootPath,
+        RepositoryPathFilter? pathFilter)
     {
-        var pending = new Stack<string>();
-        pending.Push(rootPath);
-
-        while (pending.Count > 0)
-        {
-            var directory = pending.Pop();
-
-            foreach (var child in Directory.EnumerateDirectories(directory))
-            {
-                if (!RepositoryPathPolicy.IsIgnoredPath(rootPath, child))
-                {
-                    pending.Push(child);
-                }
-            }
-
-            foreach (var file in Directory.EnumerateFiles(directory))
-            {
-                yield return file;
-            }
-        }
+        return RepositoryPathPolicy.EnumerateFiles(rootPath, "*", pathFilter);
     }
 
     private static bool IsWatchOptionWithValue(string arg)

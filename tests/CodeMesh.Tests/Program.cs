@@ -30,6 +30,9 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("sha256 helper is deterministic", TestHash),
     ("repository path policy ignores generated directories", TestRepositoryPathPolicyIgnoresGeneratedDirectories),
+    ("repository path policy rejects linked paths", TestRepositoryPathPolicyRejectsLinkedPaths),
+    ("repository path policy excludes known secrets and applies filters", TestRepositoryPathPolicyExcludesKnownSecretsAndAppliesFilters),
+    ("repository path policy rejects unsafe patterns", TestRepositoryPathPolicyRejectsUnsafePatterns),
     ("environment file loader fills missing variables", TestEnvironmentFileLoaderFillsMissingVariables),
     ("ingest path resolver accepts repository and caller relative files", TestIngestPathResolverAcceptsRelativeFiles),
     ("ingest path resolver rejects missing explicit files", TestIngestPathResolverRejectsMissingFiles),
@@ -83,6 +86,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("csharp parser emits cross-project invocation relationships", TestCSharpParserEmitsCrossProjectInvocationRelationships),
     ("csharp parser separates partial declarations from symbols", TestCSharpParserSeparatesPartialDeclarations),
     ("csharp parser honors project compile items", TestCSharpParserHonorsProjectCompileItems),
+    ("csharp parser applies repository path filters", TestCSharpParserAppliesRepositoryPathFilters),
     ("deployment parser emits Dockerfile and Compose nodes", TestDeploymentParserEmitsDockerfileAndComposeNodes),
     ("deployment parser parses repository runtime artifacts", TestDeploymentParserParsesRepositoryRuntimeArtifacts),
     ("markdown parser emits documents sections and containment", TestMarkdownParserEmitsDocumentsSectionsAndContainment),
@@ -143,6 +147,113 @@ static Task TestRepositoryPathPolicyIgnoresGeneratedDirectories()
     Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath(".codemesh-smoke/run/Fixture.cs"), "Repository path policy did not ignore smoke output.");
     Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("package.egg-info/PKG-INFO"), "Repository path policy did not ignore Python package metadata.");
     Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("docs/evaluation/testing.md"), "Repository path policy ignored repository documentation.");
+
+    return Task.CompletedTask;
+}
+
+static Task TestRepositoryPathPolicyRejectsLinkedPaths()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-path-link-root-{Guid.NewGuid():N}");
+    var outside = Path.Combine(Path.GetTempPath(), $"codemesh-path-link-outside-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    Directory.CreateDirectory(outside);
+
+    try
+    {
+        var outsideFile = Path.Combine(outside, "External.cs");
+        var normalFile = Path.Combine(root, "Normal.cs");
+        File.WriteAllText(outsideFile, "public sealed class External;");
+        File.WriteAllText(normalFile, "public sealed class Normal;");
+        var linkedDirectory = Path.Combine(root, "linked-directory");
+        var linkedFile = Path.Combine(root, "Linked.cs");
+        try
+        {
+            Directory.CreateSymbolicLink(linkedDirectory, outside);
+            File.CreateSymbolicLink(linkedFile, outsideFile);
+        }
+        catch (Exception exception) when (
+            exception is PlatformNotSupportedException or
+            UnauthorizedAccessException or
+            IOException)
+        {
+            return Task.CompletedTask;
+        }
+
+        Equal(true, RepositoryPathPolicy.IsIgnoredPath(root, linkedDirectory), "Repository path policy did not reject a linked directory.");
+        Equal(true, RepositoryPathPolicy.IsIgnoredPath(root, Path.Combine(linkedDirectory, "External.cs")), "Repository path policy did not reject a file below a linked directory.");
+        Equal(true, RepositoryPathPolicy.IsIgnoredPath(root, linkedFile), "Repository path policy did not reject a linked file.");
+        Equal(false, RepositoryPathPolicy.IsIgnoredPath(root, normalFile), "Repository path policy rejected a normal repository file.");
+        var enumerated = RepositoryPathPolicy.EnumerateFiles(root, "*.cs")
+            .Select(Path.GetFileName)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        Equal(1, enumerated.Length, "Repository traversal included a linked file or traversed a linked directory.");
+        Equal("Normal.cs", enumerated[0], "Repository traversal did not retain the normal repository file.");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+        Directory.Delete(outside, recursive: true);
+    }
+
+    return Task.CompletedTask;
+}
+
+static Task TestRepositoryPathPolicyExcludesKnownSecretsAndAppliesFilters()
+{
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath(".env"), "Repository path policy did not exclude .env.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("config/.env.local"), "Repository path policy did not exclude environment-specific secrets.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("infra/secrets.yaml"), "Repository path policy did not exclude a known secret manifest.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("cloud/service-account-prod.json"), "Repository path policy did not exclude service-account material.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("keys/deploy.pem"), "Repository path policy did not exclude a private-key extension.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("state/app.tfstate.backup"), "Repository path policy did not exclude Terraform state backup.");
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath(".env.example"), "Repository path policy excluded a safe environment template.");
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("config/.env.production.template"), "Repository path policy excluded an environment-specific safe template.");
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("src/Secrets.cs"), "Repository path policy excluded source code based only on its name.");
+
+    var filter = new RepositoryPathFilter(
+        AllowPatterns: ["src/**"],
+        DenyPatterns: ["src/generated/**"]);
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("src/App.cs", filter), "Repository path allow pattern did not include matching source.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("tests/AppTests.cs", filter), "Repository path allow pattern did not exclude a non-matching path.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("src/generated/App.g.cs", filter), "Repository path deny pattern did not override the allow pattern.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("src/.env", filter), "Allow pattern bypassed default known-secret exclusion.");
+
+    var rootOnly = new RepositoryPathFilter(AllowPatterns: ["README.md"]);
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("README.md", rootOnly), "Root-relative allow pattern did not match the root file.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("docs/README.md", rootOnly), "Root-relative allow pattern matched a nested basename.");
+    var recursiveBasename = new RepositoryPathFilter(AllowPatterns: ["**/README.md"]);
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("docs/README.md", recursiveBasename), "Recursive basename allow pattern did not match a nested file.");
+
+    var explicitSecretOverride = filter with { ExcludeKnownSecretFiles = false };
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("src/.env", explicitSecretOverride), "Explicit known-secret override did not change the default exclusion.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("src/bin/Generated.cs", explicitSecretOverride), "Explicit secret override bypassed immutable generated-directory exclusions.");
+
+    Equal(
+        RepositoryPathPolicy.StableFingerprint(new RepositoryPathFilter(["SRC/**", "docs/**"])),
+        RepositoryPathPolicy.StableFingerprint(new RepositoryPathFilter(["docs/**", "src/**"])),
+        "Equivalent path filters produced different stable fingerprints.");
+
+    return Task.CompletedTask;
+}
+
+static Task TestRepositoryPathPolicyRejectsUnsafePatterns()
+{
+    Throws<ArgumentException>(
+        () => RepositoryPathPolicy.StableFingerprint(new RepositoryPathFilter(["../outside/**"])),
+        "Repository path policy accepted parent traversal in an allow pattern.");
+    Throws<ArgumentException>(
+        () => RepositoryPathPolicy.StableFingerprint(new RepositoryPathFilter(DenyPatterns: [Path.GetFullPath("outside/**")])),
+        "Repository path policy accepted an absolute deny pattern.");
+    Throws<ArgumentException>(
+        () => RepositoryPathPolicy.StableFingerprint(new RepositoryPathFilter(DenyPatterns: ["C:\\outside\\**"])),
+        "Repository path policy accepted a Windows absolute deny pattern.");
+    Throws<ArgumentException>(
+        () => RepositoryPathPolicy.StableFingerprint(new RepositoryPathFilter([" "])),
+        "Repository path policy accepted an empty allow pattern.");
+    Throws<ArgumentException>(
+        () => RepositoryPathPolicy.StableFingerprint(new RepositoryPathFilter(["src//**"])),
+        "Repository path policy accepted an ambiguous repeated separator.");
 
     return Task.CompletedTask;
 }
@@ -391,6 +502,8 @@ static Task TestWatchWorkflowDetectsFileChanges()
     var ignoredDirectory = Path.Combine(root, "bin");
     var ignoredTemporaryDirectory = Path.Combine(root, ".tmp");
     var ignoredSmokeDirectory = Path.Combine(root, ".codemesh-smoke");
+    var filteredDirectory = Path.Combine(root, "tests");
+    var secretFile = Path.Combine(root, ".env");
 
     try
     {
@@ -398,6 +511,7 @@ static Task TestWatchWorkflowDetectsFileChanges()
         Directory.CreateDirectory(ignoredDirectory);
         Directory.CreateDirectory(ignoredTemporaryDirectory);
         Directory.CreateDirectory(ignoredSmokeDirectory);
+        Directory.CreateDirectory(filteredDirectory);
         File.WriteAllText(file, "one");
 
         var first = CodeMeshWatchWorkflow.CreateSnapshot(root);
@@ -414,6 +528,19 @@ static Task TestWatchWorkflowDetectsFileChanges()
         Equal(false, CodeMeshWatchWorkflow.HasChanges(first, unchanged), "Watch workflow reported changes for identical snapshots.");
         Equal(true, CodeMeshWatchWorkflow.HasChanges(first, changed), "Watch workflow did not detect a changed file.");
         Equal(false, CodeMeshWatchWorkflow.HasChanges(changed, ignoredChange), "Watch workflow did not ignore generated directories.");
+
+        var filter = new RepositoryPathFilter(AllowPatterns: ["src/**"]);
+        File.WriteAllText(secretFile, "TOKEN=not-a-real-secret");
+        File.WriteAllText(Path.Combine(filteredDirectory, "SampleTests.cs"), "one");
+        var filtered = CodeMeshWatchWorkflow.CreateSnapshot(root, filter);
+        File.WriteAllText(secretFile, "TOKEN=still-not-a-real-secret");
+        File.WriteAllText(Path.Combine(filteredDirectory, "SampleTests.cs"), "one two");
+        var filteredIgnoredChange = CodeMeshWatchWorkflow.CreateSnapshot(root, filter);
+        Equal(false, CodeMeshWatchWorkflow.HasChanges(filtered, filteredIgnoredChange), "Watch workflow reacted to secret or allow-filtered files.");
+
+        File.WriteAllText(file, "one two three");
+        var filteredSourceChange = CodeMeshWatchWorkflow.CreateSnapshot(root, filter);
+        Equal(true, CodeMeshWatchWorkflow.HasChanges(filteredIgnoredChange, filteredSourceChange), "Watch workflow missed an allowed source change.");
     }
     finally
     {
@@ -893,6 +1020,11 @@ static async Task TestMultiLanguageIngestionPublishesOneDeterministicSnapshot()
         Directory.GetCurrentDirectory(),
         Language: "python,rust",
         DryRun: true));
+    var filtered = await orchestrator.IngestAsync(new IngestionRequest(
+        Directory.GetCurrentDirectory(),
+        Language: "python,rust",
+        DryRun: true,
+        PathFilter: new RepositoryPathFilter(DenyPatterns: ["not-present/**"])));
 
     Equal(2, first.NodeCount, "Composite ingestion did not retain both parser outputs.");
     Equal(2, first.ContentCount, "Composite ingestion did not retain both source contents.");
@@ -900,6 +1032,10 @@ static async Task TestMultiLanguageIngestionPublishesOneDeterministicSnapshot()
         first.Repository.SnapshotId ?? string.Empty,
         second.Repository.SnapshotId ?? string.Empty,
         "Language order changed the atomic snapshot identity.");
+    Equal(
+        false,
+        string.Equals(first.Repository.SnapshotId, filtered.Repository.SnapshotId, StringComparison.Ordinal),
+        "Repository path filter did not change snapshot scope identity.");
 }
 
 static async Task TestIngestionRedactsSensitiveContentBeforeStoresAndEmbeddings()
@@ -3623,6 +3759,67 @@ static async Task TestCSharpParserHonorsProjectCompileItems()
     }
 }
 
+static async Task TestCSharpParserAppliesRepositoryPathFilters()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-parser-path-filter-test-{Guid.NewGuid():N}");
+    var externalRoot = Path.Combine(Path.GetTempPath(), $"codemesh-parser-path-filter-external-test-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(Path.Combine(root, "src", "private"));
+    Directory.CreateDirectory(Path.Combine(root, "tests"));
+    Directory.CreateDirectory(externalRoot);
+
+    try
+    {
+        var projectPath = Path.Combine(root, "Filtered.csproj");
+        await File.WriteAllTextAsync(
+            projectPath,
+            "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "src", "Visible.cs"),
+            "namespace Sample; public sealed class Visible { }");
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "src", "private", "Hidden.cs"),
+            "namespace Sample; public sealed class Hidden { }");
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "tests", "VisibleTests.cs"),
+            "namespace Sample.Tests; public sealed class VisibleTests { }");
+        var externalProjectPath = Path.Combine(externalRoot, "External.csproj");
+        await File.WriteAllTextAsync(
+            externalProjectPath,
+            "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+
+        var result = await new CSharpParseService().ParseAsync(new ParseRequest(
+            root,
+            null,
+            projectPath,
+            "csharp",
+            new Dictionary<string, string>(),
+            new RepositoryPathFilter(
+                AllowPatterns: ["src/**"],
+                DenyPatterns: ["src/private/**"])));
+
+        Equal(0, result.Diagnostics.Count(diagnostic => diagnostic.Severity == "error"), "C# parser returned errors for a filtered repository.");
+        HasNodeId(result, "csharp:file:src/Visible.cs");
+        HasNodeId(result, "csharp:type:Sample.Visible");
+        HasNoNodeId(result, "csharp:file:src/private/Hidden.cs", result);
+        HasNoNodeId(result, "csharp:type:Sample.Hidden", result);
+        HasNoNodeId(result, "csharp:file:tests/VisibleTests.cs", result);
+
+        await ThrowsAsync<InvalidOperationException>(
+            () => new CSharpParseService().ParseAsync(new ParseRequest(
+                root,
+                null,
+                externalProjectPath,
+                "csharp",
+                new Dictionary<string, string>())),
+            "C# parser opened an explicit project manifest outside the repository path policy.");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+        Directory.Delete(externalRoot, recursive: true);
+    }
+}
+
 static async Task TestDeploymentParserEmitsDockerfileAndComposeNodes()
 {
     var root = Path.Combine(Path.GetTempPath(), $"codemesh-deployment-parser-test-{Guid.NewGuid():N}");
@@ -3630,6 +3827,7 @@ static async Task TestDeploymentParserEmitsDockerfileAndComposeNodes()
     try
     {
         Directory.CreateDirectory(root);
+        Directory.CreateDirectory(Path.Combine(root, "private"));
         await File.WriteAllTextAsync(
             Path.Combine(root, "Dockerfile"),
             """
@@ -3665,6 +3863,9 @@ static async Task TestDeploymentParserEmitsDockerfileAndComposeNodes()
                 ports:
                   - "5432:5432"
             """);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "private", "docker-compose.yml"),
+            "services: { hidden: { image: hidden:latest } }");
 
         var parser = new DeploymentParseService();
         var result = await parser.ParseAsync(new ParseRequest(
@@ -3672,7 +3873,8 @@ static async Task TestDeploymentParserEmitsDockerfileAndComposeNodes()
             null,
             null,
             "deployment",
-            new Dictionary<string, string>()));
+            new Dictionary<string, string>(),
+            new RepositoryPathFilter(DenyPatterns: ["private/**"])));
 
         Equal("codemesh-parser-deployment", result.ParserName, "Deployment parser name changed.");
         Equal("deployment", result.Language, "Deployment parser language changed.");
@@ -3685,6 +3887,7 @@ static async Task TestDeploymentParserEmitsDockerfileAndComposeNodes()
         Equal(true, nodeIds.Contains("deployment:compose:docker-compose.yml"), "Deployment parser did not emit Compose file node.");
         Equal(true, nodeIds.Contains("deployment:compose-service:docker-compose.yml#api"), "Deployment parser did not emit api service node.");
         Equal(true, nodeIds.Contains("deployment:compose-service:docker-compose.yml#db"), "Deployment parser did not emit db service node.");
+        Equal(false, nodeIds.Any(id => id.Contains("private/", StringComparison.Ordinal)), "Deployment parser ignored the configured deny pattern.");
 
         var runtimeStage = result.Nodes.Single(node => node.Id == "deployment:dockerfile-stage:Dockerfile#stage-2");
         Equal(CodeNodeKind.DockerfileStage, runtimeStage.Kind, "Deployment parser did not use DockerfileStage node kind.");
@@ -3737,6 +3940,7 @@ static async Task TestMarkdownParserEmitsDocumentsSectionsAndContainment()
     try
     {
         Directory.CreateDirectory(root);
+        Directory.CreateDirectory(Path.Combine(root, "private"));
         var ignoredDirectories = new[] { ".venv", ".tmp", ".codemesh-smoke" };
         foreach (var ignoredDirectory in ignoredDirectories)
         {
@@ -3760,6 +3964,9 @@ static async Task TestMarkdownParserEmitsDocumentsSectionsAndContainment()
 
             Use local services.
             """);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "private", "Hidden.md"),
+            "# Hidden");
 
         var parser = new MarkdownParseService();
         var result = await parser.ParseAsync(new ParseRequest(
@@ -3767,7 +3974,8 @@ static async Task TestMarkdownParserEmitsDocumentsSectionsAndContainment()
             null,
             null,
             "markdown",
-            new Dictionary<string, string>()));
+            new Dictionary<string, string>(),
+            new RepositoryPathFilter(DenyPatterns: ["private/**"])));
 
         Equal("codemesh-parser-markdown", result.ParserName, "Markdown parser name changed.");
         Equal(0, result.Diagnostics.Count(diagnostic => diagnostic.Severity == "error"), "Markdown parser emitted errors.");
@@ -3775,6 +3983,7 @@ static async Task TestMarkdownParserEmitsDocumentsSectionsAndContainment()
         HasNode(result, CodeNodeKind.Section, "Product");
         HasNode(result, CodeNodeKind.Section, "Setup");
         HasNode(result, CodeNodeKind.Section, "Local");
+        Equal(false, result.Nodes.Any(node => node.Span.FilePath.StartsWith("private/", StringComparison.Ordinal)), "Markdown parser ignored the configured deny pattern.");
         Equal(
             false,
             result.Nodes.Any(node => ignoredDirectories.Any(directory =>
@@ -4075,6 +4284,7 @@ static async Task TestCompositeParserLinksPythonCallsToRustPyO3Exports()
     try
     {
         Directory.CreateDirectory(Path.Combine(root, "src"));
+        Directory.CreateDirectory(Path.Combine(root, "ignored"));
         await File.WriteAllTextAsync(
             Path.Combine(root, "bridge.py"),
             """
@@ -4093,6 +4303,12 @@ static async Task TestCompositeParserLinksPythonCallsToRustPyO3Exports()
             #[pymodule]
             fn _onenine_feed_hub_native() {}
             """);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "ignored", "skip.py"),
+            "def must_not_be_indexed(): pass\n");
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "ignored", "skip.rs"),
+            "fn must_not_be_indexed() {}\n");
 
         var parser = new CompositeParserClient(new Dictionary<string, IParserClient>
         {
@@ -4104,7 +4320,8 @@ static async Task TestCompositeParserLinksPythonCallsToRustPyO3Exports()
             null,
             null,
             "python,rust",
-            new Dictionary<string, string>()));
+            new Dictionary<string, string>(),
+            new RepositoryPathFilter(DenyPatterns: ["ignored/**"])));
 
         var pythonRun = result.Nodes.Single(node => node.Language == "python" && node.Name == "run");
         var rustReplay = result.Nodes.Single(node =>
@@ -4118,6 +4335,7 @@ static async Task TestCompositeParserLinksPythonCallsToRustPyO3Exports()
             relationship.Metadata.TryGetValue("boundary", out var value) &&
             value == "pyo3");
         NotNull(boundary, "Composite parser did not link Python invocation to Rust PyO3 export.");
+        Equal(false, result.Nodes.Any(node => node.Name == "must_not_be_indexed"), "Composite parser did not apply the shared deny pattern.");
         Equal(
             1,
             result.Relationships.Count(relationship =>

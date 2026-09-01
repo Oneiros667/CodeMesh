@@ -10,9 +10,9 @@ public sealed partial class PythonParseService
     public static ParserCapability Capability { get; } = new(
         "codemesh-parser-python",
         "python",
-        "0.1.0",
+        "0.1.1",
         [".py"],
-        ["repositoryRoot"]);
+        ["repositoryRoot", "pathFilter"]);
 
     public async Task<ParseResult> ParseAsync(
         ParseRequest request,
@@ -30,7 +30,7 @@ public sealed partial class PythonParseService
         var diagnostics = new List<ParserDiagnostic>();
         var parsedAt = DateTimeOffset.UtcNow;
 
-        foreach (var file in EnumeratePythonFiles(repositoryRoot))
+        foreach (var file in EnumeratePythonFiles(repositoryRoot, request.PathFilter))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var relativePath = NormalizePath(Path.GetRelativePath(repositoryRoot, file));
@@ -390,16 +390,12 @@ public sealed partial class PythonParseService
             DateTimeOffset.UtcNow);
     }
 
-    private static IEnumerable<string> EnumeratePythonFiles(string repositoryRoot)
+    private static IEnumerable<string> EnumeratePythonFiles(
+        string repositoryRoot,
+        RepositoryPathFilter? pathFilter)
     {
-        return Directory.EnumerateFiles(repositoryRoot, "*.py", SearchOption.AllDirectories)
-            .Where(file => !IsExcluded(repositoryRoot, file))
+        return RepositoryPathPolicy.EnumerateFiles(repositoryRoot, "*.py", pathFilter)
             .OrderBy(file => file, StringComparer.OrdinalIgnoreCase);
-    }
-
-    private static bool IsExcluded(string repositoryRoot, string file)
-    {
-        return RepositoryPathPolicy.IsIgnoredPath(repositoryRoot, file);
     }
 
     private static string ExtractBlock(

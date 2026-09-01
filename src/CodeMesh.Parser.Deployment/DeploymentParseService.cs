@@ -10,9 +10,9 @@ public sealed partial class DeploymentParseService
     public static ParserCapability Capability { get; } = new(
         "codemesh-parser-deployment",
         "deployment",
-        "0.1.0",
+        "0.1.1",
         ["Dockerfile", ".dockerfile", ".yml", ".yaml"],
-        ["repositoryRoot"]);
+        ["repositoryRoot", "pathFilter"]);
 
     public async Task<ParseResult> ParseAsync(
         ParseRequest request,
@@ -30,7 +30,7 @@ public sealed partial class DeploymentParseService
         var diagnostics = new List<ParserDiagnostic>();
         var parsedAt = DateTimeOffset.UtcNow;
 
-        foreach (var file in EnumerateDeploymentFiles(repositoryRoot))
+        foreach (var file in EnumerateDeploymentFiles(repositoryRoot, request.PathFilter))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var relativePath = NormalizePath(Path.GetRelativePath(repositoryRoot, file));
@@ -511,10 +511,12 @@ public sealed partial class DeploymentParseService
             DateTimeOffset.UtcNow);
     }
 
-    private static IEnumerable<string> EnumerateDeploymentFiles(string repositoryRoot)
+    private static IEnumerable<string> EnumerateDeploymentFiles(
+        string repositoryRoot,
+        RepositoryPathFilter? pathFilter)
     {
-        return Directory.EnumerateFiles(repositoryRoot, "*", SearchOption.AllDirectories)
-            .Where(file => !IsExcluded(repositoryRoot, file) && (IsDockerfile(file) || IsComposeFile(file)))
+        return RepositoryPathPolicy.EnumerateFiles(repositoryRoot, "*", pathFilter)
+            .Where(file => IsDockerfile(file) || IsComposeFile(file))
             .OrderBy(file => file, StringComparer.OrdinalIgnoreCase);
     }
 
@@ -533,11 +535,6 @@ public sealed partial class DeploymentParseService
             string.Equals(name, "docker-compose.yaml", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(name, "compose.yml", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(name, "compose.yaml", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsExcluded(string repositoryRoot, string file)
-    {
-        return RepositoryPathPolicy.IsIgnoredPath(repositoryRoot, file);
     }
 
     private static void AddJoined(Dictionary<string, string> metadata, string key, IEnumerable<string> values)

@@ -38,9 +38,9 @@ public sealed class CSharpParseService
     public static ParserCapability Capability { get; } = new(
         "codemesh-parser-csharp",
         "csharp",
-        "0.2.1",
+        "0.2.2",
         [".cs", ".csproj", ".sln", ".slnx"],
-        ["repositoryRoot", "solutionPath", "projectPath"]);
+        ["repositoryRoot", "solutionPath", "projectPath", "pathFilter"]);
 
     public async Task<ParseResult> ParseAsync(
         ParseRequest request,
@@ -168,7 +168,18 @@ public sealed class CSharpParseService
         var projectPath = ResolveInputPath(request.ProjectPath, repositoryRoot);
         if (projectPath is not null && File.Exists(projectPath))
         {
-            var loadedProject = await TryLoadProjectAsync(projectPath, repositoryRoot, diagnostics, cancellationToken)
+            if (IsGeneratedOutputPath(repositoryRoot, projectPath, ManifestPathFilter(request.PathFilter)))
+            {
+                throw new InvalidOperationException(
+                    $"Explicit project path is outside the repository path policy: {projectPath}");
+            }
+
+            var loadedProject = await TryLoadProjectAsync(
+                    projectPath,
+                    repositoryRoot,
+                    request.PathFilter,
+                    diagnostics,
+                    cancellationToken)
                 .ConfigureAwait(false);
             if (loadedProject.Count > 0)
             {
@@ -179,7 +190,18 @@ public sealed class CSharpParseService
         var solutionPath = ResolveInputPath(request.SolutionPath, repositoryRoot);
         if (solutionPath is not null && File.Exists(solutionPath))
         {
-            var loadedSolution = await TryLoadSolutionAsync(solutionPath, repositoryRoot, diagnostics, cancellationToken)
+            if (IsGeneratedOutputPath(repositoryRoot, solutionPath, ManifestPathFilter(request.PathFilter)))
+            {
+                throw new InvalidOperationException(
+                    $"Explicit solution path is outside the repository path policy: {solutionPath}");
+            }
+
+            var loadedSolution = await TryLoadSolutionAsync(
+                    solutionPath,
+                    repositoryRoot,
+                    request.PathFilter,
+                    diagnostics,
+                    cancellationToken)
                 .ConfigureAwait(false);
             if (loadedSolution.Count > 0)
             {
@@ -190,11 +212,17 @@ public sealed class CSharpParseService
         var discoveredSolution = Directory
             .EnumerateFiles(repositoryRoot, "*.sln", SearchOption.TopDirectoryOnly)
             .Concat(Directory.EnumerateFiles(repositoryRoot, "*.slnx", SearchOption.TopDirectoryOnly))
+            .Where(path => !IsGeneratedOutputPath(repositoryRoot, path, ManifestPathFilter(request.PathFilter)))
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
         if (discoveredSolution is not null)
         {
-            var loadedSolution = await TryLoadSolutionAsync(discoveredSolution, repositoryRoot, diagnostics, cancellationToken)
+            var loadedSolution = await TryLoadSolutionAsync(
+                    discoveredSolution,
+                    repositoryRoot,
+                    request.PathFilter,
+                    diagnostics,
+                    cancellationToken)
                 .ConfigureAwait(false);
             if (loadedSolution.Count > 0)
             {
@@ -202,15 +230,19 @@ public sealed class CSharpParseService
             }
         }
 
-        var discoveredProjects = Directory
-            .EnumerateFiles(repositoryRoot, "*.csproj", SearchOption.AllDirectories)
-            .Where(file => !IsGeneratedOutputPath(repositoryRoot, file))
+        var discoveredProjects = RepositoryPathPolicy
+            .EnumerateFiles(repositoryRoot, "*.csproj", ManifestPathFilter(request.PathFilter))
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .Take(2)
             .ToArray();
         if (discoveredProjects.Length == 1)
         {
-            var loadedProject = await TryLoadProjectAsync(discoveredProjects[0], repositoryRoot, diagnostics, cancellationToken)
+            var loadedProject = await TryLoadProjectAsync(
+                    discoveredProjects[0],
+                    repositoryRoot,
+                    request.PathFilter,
+                    diagnostics,
+                    cancellationToken)
                 .ConfigureAwait(false);
             if (loadedProject.Count > 0)
             {
@@ -230,6 +262,7 @@ public sealed class CSharpParseService
     private static async Task<IReadOnlyList<ProjectParseContext>> TryLoadProjectAsync(
         string projectPath,
         string repositoryRoot,
+        RepositoryPathFilter? pathFilter,
         List<ParserDiagnostic> diagnostics,
         CancellationToken cancellationToken)
     {
@@ -243,7 +276,12 @@ public sealed class CSharpParseService
                 .ConfigureAwait(false);
 
             AddWorkspaceDiagnostics(workspaceDiagnostics, diagnostics);
-            var contexts = await CreateProjectParseContextsAsync([project], repositoryRoot, diagnostics, cancellationToken)
+            var contexts = await CreateProjectParseContextsAsync(
+                    [project],
+                    repositoryRoot,
+                    pathFilter,
+                    diagnostics,
+                    cancellationToken)
                 .ConfigureAwait(false);
             if (contexts.Count > 0)
             {
@@ -268,6 +306,7 @@ public sealed class CSharpParseService
     private static async Task<IReadOnlyList<ProjectParseContext>> TryLoadSolutionAsync(
         string solutionPath,
         string repositoryRoot,
+        RepositoryPathFilter? pathFilter,
         List<ParserDiagnostic> diagnostics,
         CancellationToken cancellationToken)
     {
@@ -281,7 +320,12 @@ public sealed class CSharpParseService
                 .ConfigureAwait(false);
 
             AddWorkspaceDiagnostics(workspaceDiagnostics, diagnostics);
-            var contexts = await CreateProjectParseContextsAsync(solution.Projects, repositoryRoot, diagnostics, cancellationToken)
+            var contexts = await CreateProjectParseContextsAsync(
+                    solution.Projects,
+                    repositoryRoot,
+                    pathFilter,
+                    diagnostics,
+                    cancellationToken)
                 .ConfigureAwait(false);
             if (contexts.Count > 0)
             {
@@ -345,6 +389,7 @@ public sealed class CSharpParseService
     private static async Task<IReadOnlyList<ProjectParseContext>> CreateProjectParseContextsAsync(
         IEnumerable<Project> projects,
         string repositoryRoot,
+        RepositoryPathFilter? pathFilter,
         List<ParserDiagnostic> diagnostics,
         CancellationToken cancellationToken)
     {
@@ -369,7 +414,11 @@ public sealed class CSharpParseService
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var context = await TryCreateWorkspaceFileContextAsync(document, repositoryRoot, cancellationToken)
+                var context = await TryCreateWorkspaceFileContextAsync(
+                        document,
+                        repositoryRoot,
+                        pathFilter,
+                        cancellationToken)
                     .ConfigureAwait(false);
                 if (context is not null)
                 {
@@ -381,6 +430,11 @@ public sealed class CSharpParseService
 
             if (files.Count > 0)
             {
+                var includedTrees = files
+                    .Select(file => file.SyntaxTree)
+                    .ToHashSet();
+                compilation = compilation.RemoveSyntaxTrees(
+                    compilation.SyntaxTrees.Where(tree => !includedTrees.Contains(tree)));
                 contexts.Add(new ProjectParseContext(project.Name, compilation, files));
             }
         }
@@ -391,6 +445,7 @@ public sealed class CSharpParseService
     private static async Task<FileParseContext?> TryCreateWorkspaceFileContextAsync(
         Document document,
         string repositoryRoot,
+        RepositoryPathFilter? pathFilter,
         CancellationToken cancellationToken)
     {
         if (document.SourceCodeKind != SourceCodeKind.Regular ||
@@ -401,7 +456,8 @@ public sealed class CSharpParseService
         }
 
         var fullPath = Path.GetFullPath(document.FilePath);
-        if (!IsUnderDirectory(repositoryRoot, fullPath) || IsGeneratedOutputPath(repositoryRoot, fullPath))
+        if (!IsUnderDirectory(repositoryRoot, fullPath) ||
+            IsGeneratedOutputPath(repositoryRoot, fullPath, pathFilter))
         {
             return null;
         }
@@ -424,7 +480,7 @@ public sealed class CSharpParseService
     {
         var projectName = ResolveProjectName(request, repositoryRoot);
         var fileContexts = new List<FileParseContext>();
-        var files = EnumerateCSharpFiles(repositoryRoot).ToArray();
+        var files = EnumerateCSharpFiles(repositoryRoot, request.PathFilter).ToArray();
 
         if (files.Length == 0)
         {
@@ -533,10 +589,11 @@ public sealed class CSharpParseService
             now));
     }
 
-    private static IEnumerable<string> EnumerateCSharpFiles(string repositoryRoot)
+    private static IEnumerable<string> EnumerateCSharpFiles(
+        string repositoryRoot,
+        RepositoryPathFilter? pathFilter)
     {
-        return Directory.EnumerateFiles(repositoryRoot, "*.cs", SearchOption.AllDirectories)
-            .Where(file => !IsGeneratedOutputPath(repositoryRoot, file))
+        return RepositoryPathPolicy.EnumerateFiles(repositoryRoot, "*.cs", pathFilter)
             .OrderBy(file => file, Comparer<string>.Create(CompareSourcePaths));
     }
 
@@ -1481,9 +1538,19 @@ public sealed class CSharpParseService
         }
     }
 
-    private static bool IsGeneratedOutputPath(string repositoryRoot, string file)
+    private static bool IsGeneratedOutputPath(
+        string repositoryRoot,
+        string file,
+        RepositoryPathFilter? pathFilter = null)
     {
-        return RepositoryPathPolicy.IsIgnoredPath(repositoryRoot, file);
+        return RepositoryPathPolicy.IsIgnoredPath(repositoryRoot, file, pathFilter);
+    }
+
+    private static RepositoryPathFilter ManifestPathFilter(RepositoryPathFilter? pathFilter)
+    {
+        return new RepositoryPathFilter(
+            DenyPatterns: pathFilter?.DenyPatterns,
+            ExcludeKnownSecretFiles: pathFilter?.ExcludeKnownSecretFiles ?? true);
     }
 
     private static bool IsUnderDirectory(string rootPath, string candidatePath)

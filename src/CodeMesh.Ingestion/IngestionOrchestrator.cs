@@ -25,6 +25,7 @@ public sealed class IngestionOrchestrator(
         {
             Language = string.Join(',', CompositeParserClient.ParseLanguages(request.Language))
         };
+        _ = RepositoryPathPolicy.StableFingerprint(request.PathFilter);
         var startedAt = DateTimeOffset.UtcNow;
         var repositoryRoot = Path.GetFullPath(request.RepositoryRoot);
         var git = await RepositoryGitSnapshot
@@ -61,7 +62,8 @@ public sealed class IngestionOrchestrator(
             request.SolutionPath,
             request.ProjectPath,
             request.Language,
-            request.Options ?? new Dictionary<string, string>());
+            request.Options ?? new Dictionary<string, string>(),
+            request.PathFilter);
 
         var parseResult = await parserClient.ParseAsync(parseRequest, cancellationToken)
             .ConfigureAwait(false);
