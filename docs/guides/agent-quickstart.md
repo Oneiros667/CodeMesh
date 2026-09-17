@@ -4,14 +4,20 @@ Document type: repository navigation guide
 
 This is the preferred starting point for coding agents working in CodeMesh.
 
+The [Developer Handbook](developer-handbook.md) provides the human-oriented
+implementation explanation, glossary, source walkthroughs, and debugging guides.
+
 ## Read Order
 
 1. [`AGENTS.md`](../../AGENTS.md) for operating rules and authority boundaries.
 2. [Documentation Hub](../README.md) for document ownership and classification.
-3. [Project Status](../current/project-status.md) for current implementation and evidence.
-4. [Architecture](../current/architecture.md) and
+3. [`COMMANDS.md`](../../COMMANDS.md) for supported repository commands and
+   [Software Engineering Methodology](../engineering/methodology.md) for
+   evidence and authority boundaries.
+4. [Project Status](../current/project-status.md) for current implementation and evidence.
+5. [Architecture](../current/architecture.md) and
    [Agent Access Contracts](../current/agent-access-contracts.md) for current behavior.
-5. [Next Steps](../planning/next-steps.md) only when selecting future product work.
+6. [Next Steps](../planning/next-steps.md) only when selecting future product work.
 
 Use [MCP Setup](mcp-setup.md) and [Self-Analysis](self-analysis.md) when
 configuring or dogfooding CodeMesh. Use [Testing](../evaluation/testing.md) to select
@@ -30,10 +36,11 @@ execution order or the user activates it.
 | Task | Start in |
 | --- | --- |
 | REST, MCP, Python CLI, ranking, formatting, or context packages | `agent-access/codemesh_agent_access` and `docs/current/agent-access-contracts.md` |
+| Development feedback sessions, MCP packet recording, or maintainer intake | `agent-access/codemesh_agent_access/feedback_session.py`, `feedback.py`, `mcp.py`, and `docs/guides/mcp-setup.md` |
 | .NET Agent Access client contracts | `src/CodeMesh.Domain/Contracts` and `src/CodeMesh.Control/AgentAccess` |
-| Ingestion, cleanup, embeddings, or summaries | `src/CodeMesh.Ingestion` |
+| Ingestion, cleanup, embeddings, summaries, or summary qualification | `src/CodeMesh.Ingestion` and `COMMANDS.md` |
 | C# semantic graph behavior | `src/CodeMesh.Parser.CSharp` |
-| Python, Markdown, or deployment parsing | The matching `src/CodeMesh.Parser.*` project |
+| Python, Rust, Markdown, or deployment parsing | The matching `src/CodeMesh.Parser.*` project |
 | Store reads, writes, or cleanup | `src/CodeMesh.Storage` |
 | CLI workflow or repository discovery | `src/CodeMesh.Cli` and `src/CodeMesh.Control` |
 | Product direction | `docs/current/project-status.md`, then `docs/planning/next-steps.md` |
@@ -48,5 +55,6 @@ execution order or the user activates it.
 - Never print `.env` values, credentials, tokens, keys, certificates, or local
   secrets.
 - Report passed, failed, skipped, and unavailable checks separately.
-- Use the smallest risk-appropriate verification path in
+- Use supported invocations from [`COMMANDS.md`](../../COMMANDS.md) and select
+  the smallest risk-appropriate verification path in
   [Testing](../evaluation/testing.md).

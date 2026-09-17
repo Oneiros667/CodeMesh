@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+from html.parser import HTMLParser
 from typing import Any
+from urllib.parse import quote
+
+import pytest
+from pydantic import BaseModel
 
 from fastapi.testclient import TestClient
 
@@ -463,3 +468,109 @@ class FakeRestStore:
                 )
             ]
         )
+
+
+class ParsedUi(HTMLParser):
+    def __init__(self, html: str) -> None:
+        super().__init__(convert_charrefs=True)
+        self.elements: list[tuple[str, dict[str, str | None]]] = []
+        self.text: list[str] = []
+        self.feed(html)
+
+    def handle_starttag(self, tag, attrs):
+        self.elements.append((tag, dict(attrs)))
+
+    def handle_data(self, data):
+        self.text.append(data)
+
+
+def _replace_store_text(value, payload):
+    if isinstance(value, BaseModel):
+        return value.model_copy(
+            update={
+                name: _replace_store_text(getattr(value, name), payload)
+                for name in type(value).model_fields
+            }
+        )
+    if isinstance(value, dict):
+        return {key: _replace_store_text(item, payload) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_replace_store_text(item, payload) for item in value]
+    return payload if isinstance(value, str) else value
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        '<script>alert("stored")</script>',
+        '"><img src=x onerror=alert(1)>',
+        "javascript:alert(1)",
+        "</style><svg onload=alert(1)>&quot;' onclick=alert(2)",
+    ],
+)
+def test_ui_keeps_hostile_request_and_store_values_inert(monkeypatch, payload):
+    store = FakeRestStore()
+
+    def poisoned(method):
+        async def call(*args, **kwargs):
+            value = _replace_store_text(await method(*args, **kwargs), payload)
+            if isinstance(value, ContextResponse):
+                value.hits[0].preview = payload
+            if isinstance(value, RepositoryStatusResponse):
+                value.repository.branch = payload
+                value.repository.commit = payload
+                value.counts[payload] = 1
+            return value
+
+        return call
+
+    for name in (
+        "health",
+        "list_repositories",
+        "list_ingestion_runs",
+        "get_repository_status",
+        "search_context",
+    ):
+        monkeypatch.setattr(store, name, poisoned(getattr(store, name)))
+
+    with rest_client(store) as client:
+        for route in (
+            "/ui",
+            "/ui/repositories",
+            f"/ui/repositories/{quote(payload, safe='')}",
+            "/ui/runs",
+            "/ui/search",
+        ):
+            response = client.get(
+                route, params={"query": payload, "repository_id": payload}
+            )
+            assert response.status_code == 200
+            parsed = ParsedUi(response.text)
+            assert payload in "".join(parsed.text)
+            for tag, attrs in parsed.elements:
+                assert tag not in {"script", "img", "svg", "iframe", "object", "embed"}
+                assert not any(name.startswith("on") for name in attrs)
+                for name in ("href", "action"):
+                    if name in attrs:
+                        assert attrs[name].startswith("/")
+                        assert not attrs[name].startswith("//")
+            if route in {"/ui/search", "/ui/runs"}:
+                inputs = {
+                    attrs.get("name"): attrs.get("value")
+                    for tag, attrs in parsed.elements
+                    if tag == "input"
+                }
+                assert inputs["repository_id"] == payload
+                if route == "/ui/search":
+                    assert inputs["query"] == payload
+
+
+@pytest.mark.parametrize("limit", ['1" onfocus=alert(1)', "0", "51"])
+def test_ui_search_rejects_non_integer_or_out_of_range_limit(limit):
+    store = FakeRestStore()
+    with rest_client(store) as client:
+        response = client.get(
+            "/ui/search", params={"query": "download", "limit": limit}
+        )
+    assert response.status_code == 422
+    assert store.context_query is None

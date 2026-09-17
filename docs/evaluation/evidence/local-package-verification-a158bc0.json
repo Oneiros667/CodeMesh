@@ -1,0 +1,119 @@
+{
+  "schema_version": "codemesh-local-package-verification-v2",
+  "recorded_at": "2026-09-05",
+  "candidate": "a158bc0308d9fdb8f373ec0d9d6f03233b984f9f",
+  "source_version": "0.1.0",
+  "candidate_clean_during_build": true,
+  "evidence_class": "provider-free-local-artifact-and-smoke-verification",
+  "private_archive": ".codemesh-evals/completion-packages-a158bc0 in main checkout",
+  "artifacts": [
+    {
+      "file": "python/codemesh_agent_access-0.1.0-py3-none-any.whl",
+      "bytes": 157731,
+      "sha256": "b07d638a88c761fc546bcd4ad46bb28a508a3590251350b5edb6be174c9fce0f"
+    },
+    {
+      "file": "python/codemesh_agent_access-0.1.0.tar.gz",
+      "bytes": 231686,
+      "sha256": "c1341687fe62ce06ddcbcf1b25100d489593663b91d51b7c9e4ca862cf96b072"
+    },
+    {
+      "file": "codemesh-dotnet-0.1.0-linux-build.tar.gz",
+      "bytes": 12583162,
+      "sha256": "6ce9ff6daf7674cfad4184be4b131b574e12210a43deadf386020fb7ff0dc8b3"
+    },
+    {
+      "file": "dotnet-file-manifest.json",
+      "bytes": 22251,
+      "sha256": "cfdee26f4341750b36e2a701f0bf33f09a7e9f3131dfbebbaf8bcead9b4b81d1"
+    }
+  ],
+  "passed": {
+    "dotnet_publish": "Release, 132 files including CodeMesh.DesignTime.targets",
+    "published_dotnet_version": "CodeMesh 0.1.0+a158bc0308d9fdb8f373ec0d9d6f03233b984f9f",
+    "python_wheel_and_source_build": true,
+    "installed_wheel_outside_source_checkout": true,
+    "runtime_dependencies_installed_from_locked_hashes": true,
+    "installed_wheel_version": "0.1.0",
+    "installed_rest_openapi_version": "0.1.0",
+    "normal_manifest_tools": 4,
+    "packaged_suites_loaded_including_patch_validation": 16,
+    "installed_fixture_cases": 5,
+    "full_smoke": true,
+    "dotnet_advisory_projects_without_known_vulnerabilities": 11,
+    "python_advisory_packages_without_known_vulnerabilities": 48,
+    "parser_read_only_concurrent_probe": {
+      "normalization": "Exclude only CodeContent.createdAt and updatedAt observation timestamps; preserve every node, edge, content field and list order.",
+      "parses": [
+        {
+          "counts": {
+            "nodes": 1229,
+            "relationships": 1906,
+            "contents": 1229
+          },
+          "content_sha256": "f665d16b2ec14f4112606e8e1383557280b9955c37bd3147a7195631bf1fac03",
+          "diagnostics": [
+            {
+              "code": "CMSHARP011",
+              "message": "Loaded project with MSBuildWorkspace: /workspace/src/CodeMesh.Domain/CodeMesh.Domain.csproj",
+              "severity": "info",
+              "span": null
+            }
+          ]
+        },
+        {
+          "counts": {
+            "nodes": 1229,
+            "relationships": 1906,
+            "contents": 1229
+          },
+          "content_sha256": "f665d16b2ec14f4112606e8e1383557280b9955c37bd3147a7195631bf1fac03",
+          "diagnostics": [
+            {
+              "code": "CMSHARP011",
+              "message": "Loaded project with MSBuildWorkspace: /workspace/src/CodeMesh.Domain/CodeMesh.Domain.csproj",
+              "severity": "info",
+              "span": null
+            }
+          ]
+        }
+      ],
+      "scratch_directories_remaining": 0
+    },
+    "task_container_cleanup": true
+  },
+  "selected_smoke_image_identities": [
+    {
+      "selected_image_tag": "neo4j:5-community",
+      "image_id": "sha256:362542416de6c09a971484d1893878016cc3b5cdec166e54b1c824a220ecd6b9"
+    },
+    {
+      "selected_image_tag": "mongo:7",
+      "image_id": "sha256:340c1c56fb10e95cf79ff547f8664b96bc6ead9909bc355238cbf865a9695a6f"
+    },
+    {
+      "selected_image_tag": "qdrant/qdrant:latest",
+      "image_id": "sha256:0bd98fa7977f1e75694779359ca4e212822e5a71334e28421182f72f209d5286"
+    },
+    {
+      "selected_image_tag": "codemesh-final-a158bc0-agent-access:latest",
+      "image_id": "sha256:0ee08cb249a387e639840dda0b3327b975dd768f2771ede7025127eab89c7806"
+    }
+  ],
+  "observed_parser_image": {
+    "image_id": "sha256:06708986508b04fdbd5a2cd0be992dbc46789de437509df0bddc3c543ee82708",
+    "read_only_workspace_mount": true,
+    "source_candidate": "a158bc0308d9fdb8f373ec0d9d6f03233b984f9f"
+  },
+  "retained_source_test_evidence": {
+    "dotnet": "71 passing tests and no skips at f314043; source, tests and build/version files unchanged through a158bc0.",
+    "python": "235 passing tests on Python 3.12.14, 3.13.15 and 3.14.7 at b73e19a; Python source, tests, locks and tools unchanged through a158bc0."
+  },
+  "limits": [
+    "The full smoke exercises four services and the local parser; the separately retained concurrent probe verifies the read-only parser container.",
+    "Source version and local artifacts do not declare a release candidate, publish a version or authorize deployment.",
+    "Default-threat CodeQL has no findings; 253 local-input results remain reviewed and retained without dismissal. Hosted alerts remain on the older published source.",
+    "Frozen sample AngleSharp advisory, supported environment/upgrade acceptance, repeatable configured-agent benefit and owner release approval remain open.",
+    "Python retains existing dependency warnings; no model provider or paid campaign was invoked."
+  ]
+}

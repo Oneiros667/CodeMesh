@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -10,24 +11,38 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+import codemesh_agent_access.evaluation.agent as agent_evaluation
+from codemesh_agent_access.binding import RepositoryBinding
 from codemesh_agent_access.evaluation.agent import (
+    AgentEvaluationContext,
+    ConfiguredGuidanceFile,
     _condition_prompt,
     _grade_answer,
     _grade_command_policy,
+    _prepare_agent_context,
+    _prepare_configured_integration,
     _run_task_condition,
     classify_agent_results,
+    run_agent_evaluation,
+    run_agent_preflight,
 )
 from codemesh_agent_access.evaluation.codex import (
+    REPORTED_TOKEN_ACCOUNTING_ID,
     AgentRunRequest,
     AgentRunResult,
+    AgentRunnerCapabilities,
     CodexRunner,
+    count_reported_tokens,
     parse_codex_jsonl,
     sanitize_text,
 )
 from codemesh_agent_access.evaluation.live import (
     EvaluationInfrastructureError,
     McpEvaluationClient,
+    _context_package_timing_summary,
+    _parse_context_package_timings,
     _run_live_case,
+    get_repository_preflight,
     get_tool_source_identity,
 )
 from codemesh_agent_access.evaluation.metrics import (
@@ -47,12 +62,19 @@ from codemesh_agent_access.evaluation.models import (
     load_suite,
     suite_json_schema,
 )
+from codemesh_agent_access.installer import (
+    apply_installation_plan,
+    create_installation_plan,
+)
 
 
 def test_built_in_suites_and_schemas_are_valid() -> None:
     live, live_path = load_suite("codemesh-live", "live")
     external_live, external_live_path = load_suite("youtube-downloader-live", "live")
     impact_live, impact_live_path = load_suite("youtube-downloader-impact-live", "live")
+    adaptive_impact_live, adaptive_impact_live_path = load_suite(
+        "youtube-downloader-impact-adaptive-live", "live"
+    )
     agent, agent_path = load_suite("codemesh-agent", "agent")
     external_agent, external_agent_path = load_suite(
         "youtube-downloader-agent", "agent"
@@ -63,14 +85,26 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assisted_agent, assisted_agent_path = load_suite(
         "youtube-downloader-impact-assisted-agent", "agent"
     )
+    configured_impact_agent, configured_impact_agent_path = load_suite(
+        "youtube-downloader-impact-configured-agent", "agent"
+    )
     independent_live, independent_live_path = load_suite(
         "config-net-cache-live", "live"
+    )
+    independent_focused_live, independent_focused_live_path = load_suite(
+        "config-net-cache-focused-live", "live"
     )
     independent_agent, independent_agent_path = load_suite(
         "config-net-cache-agent", "agent"
     )
     independent_assisted_agent, independent_assisted_agent_path = load_suite(
         "config-net-cache-assisted-agent", "agent"
+    )
+    independent_configured_agent, independent_configured_agent_path = load_suite(
+        "config-net-cache-configured-agent", "agent"
+    )
+    onenine_configured_agent, onenine_configured_agent_path = load_suite(
+        "onenine-native-replay-configured-agent", "agent"
     )
     model, model_path = load_suite("codemesh-model", "model-benchmark")
 
@@ -80,6 +114,8 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert external_live.repository_commit
     assert len(impact_live.cases) == 2
     assert impact_live.repository_commit == external_live.repository_commit
+    assert len(adaptive_impact_live.cases) == 5
+    assert adaptive_impact_live.repository_commit == external_live.repository_commit
     assert agent.name == "codemesh-agent"
     assert {task.task_type for task in agent.tasks} == {"answer", "change"}
     assert len(external_agent.tasks) == 3
@@ -88,13 +124,46 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert impact_agent.repository_commit == external_live.repository_commit
     assert assisted_agent.treatment_guidance
     assert assisted_agent.repository_commit == external_live.repository_commit
+    assert configured_impact_agent.resolved_integration_mode == "configured"
+    assert configured_impact_agent.repository_commit == external_live.repository_commit
+    assert configured_impact_agent.treatment_guidance is None
+    assert configured_impact_agent.tasks == impact_agent.tasks
     assert independent_agent.treatment_guidance is None
     assert independent_agent.repository_commit == independent_live.repository_commit
+    assert independent_focused_live.repository_commit == (
+        independent_live.repository_commit
+    )
+    assert len(independent_focused_live.cases) == 5
+    assert {
+        target.file_path
+        for case in independent_focused_live.cases
+        for target in case.targets
+    } == {
+        "src/Config.Net/Core/IoHandler.cs",
+        "src/Config.Net/Core/LazyVar.cs",
+        "src/Config.Net/Core/DynamicWriter.cs",
+        "src/Config.Net/Core/InterfaceInterceptor.cs",
+        "src/Config.Net/ConfigurationBuilder.cs",
+        "src/Config.Net.Tests/LogicTest.cs",
+        "src/Config.Net.Tests/ConfigurableMethodsTest.cs",
+    }
     assert independent_assisted_agent.treatment_guidance
     assert (
         independent_assisted_agent.repository_commit
         == independent_live.repository_commit
     )
+    assert independent_configured_agent.resolved_integration_mode == "configured"
+    assert independent_configured_agent.repository_commit == (
+        independent_live.repository_commit
+    )
+    assert independent_configured_agent.treatment_guidance is None
+    assert len(independent_configured_agent.tasks) == 1
+    assert onenine_configured_agent.resolved_integration_mode == "configured"
+    assert onenine_configured_agent.repository_commit == (
+        "fe2f761583bf78601961ff17934185c4b6a632f9"
+    )
+    assert onenine_configured_agent.treatment_guidance is None
+    assert len(onenine_configured_agent.tasks) == 1
     assert independent_live.repository_url != external_live.repository_url
     assert model.name == "codemesh-model"
     assert len(model.questions) == 24
@@ -102,13 +171,18 @@ def test_built_in_suites_and_schemas_are_valid() -> None:
     assert live_path.is_file()
     assert external_live_path.is_file()
     assert impact_live_path.is_file()
+    assert adaptive_impact_live_path.is_file()
     assert agent_path.is_file()
     assert external_agent_path.is_file()
     assert impact_agent_path.is_file()
     assert assisted_agent_path.is_file()
+    assert configured_impact_agent_path.is_file()
+    assert independent_configured_agent_path.is_file()
     assert independent_live_path.is_file()
+    assert independent_focused_live_path.is_file()
     assert independent_agent_path.is_file()
     assert independent_assisted_agent_path.is_file()
+    assert onenine_configured_agent_path.is_file()
     assert model_path.is_file()
     assert suite_json_schema("live")["title"] == "LiveSuite"
     assert suite_json_schema("agent")["title"] == "AgentSuite"
@@ -140,6 +214,462 @@ def test_suite_models_reject_incomplete_targets_and_change_tasks() -> None:
             task_type="change",
             prompt="fix it",
         )
+
+
+def test_agent_suite_integration_modes_preserve_prompt_contracts() -> None:
+    task = AgentTask(
+        id="answer",
+        description="answer",
+        task_type="answer",
+        prompt="answer",
+        targets=[RetrievalTarget(file_path="src/A.cs")],
+    )
+
+    assert AgentSuite(name="default", tasks=[task]).resolved_integration_mode == (
+        "spontaneous"
+    )
+    assert (
+        AgentSuite(
+            name="assisted",
+            tasks=[task],
+            treatment_guidance="Use CodeMesh first.",
+        ).resolved_integration_mode
+        == "assisted"
+    )
+    configured = AgentSuite(
+        name="configured",
+        tasks=[task],
+        integration_mode="configured",
+        repository_commit="commit:test",
+        baseline_mcp_servers=["graphify"],
+    )
+    assert configured.resolved_integration_mode == "configured"
+    assert configured.baseline_mcp_servers == ["graphify"]
+    assert _condition_prompt(task.prompt, "control", None) == task.prompt
+    assert _condition_prompt(task.prompt, "treatment", None) == task.prompt
+
+    with pytest.raises(ValidationError, match="shipped repository guidance"):
+        AgentSuite(
+            name="invalid-configured",
+            tasks=[task],
+            integration_mode="configured",
+            repository_commit="commit:test",
+            treatment_guidance="Evaluator-only guidance.",
+        )
+    with pytest.raises(ValidationError, match="require evaluator treatment guidance"):
+        AgentSuite(
+            name="invalid-assisted",
+            tasks=[task],
+            integration_mode="assisted",
+        )
+    with pytest.raises(ValidationError, match="pinned repository commit"):
+        AgentSuite(
+            name="unpinned-configured",
+            tasks=[task],
+            integration_mode="configured",
+        )
+    with pytest.raises(ValidationError, match="only by configured suites"):
+        AgentSuite(
+            name="invalid-baseline",
+            tasks=[task],
+            baseline_mcp_servers=["graphify"],
+        )
+    with pytest.raises(ValidationError, match="non-empty and unique"):
+        AgentSuite(
+            name="duplicate-baseline",
+            tasks=[task],
+            integration_mode="configured",
+            repository_commit="commit:test",
+            baseline_mcp_servers=["graphify", "graphify"],
+        )
+    with pytest.raises(ValidationError, match="letters, digits"):
+        AgentSuite(
+            name="invalid-baseline-name",
+            tasks=[task],
+            integration_mode="configured",
+            repository_commit="commit:test",
+            baseline_mcp_servers=["graphify.server"],
+        )
+
+
+def test_agent_context_rejects_dirty_and_stale_candidates(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    tracked = target / "tracked.txt"
+    tracked.write_text("clean\n", encoding="utf-8")
+    _git(target, "init", "--quiet")
+    _git(target, "config", "user.name", "CodeMesh Test")
+    _git(target, "config", "user.email", "codemesh@example.invalid")
+    _git(target, "add", "tracked.txt")
+    _git(target, "commit", "--quiet", "-m", "fixture")
+    base_commit = _git(target, "rev-parse", "HEAD").strip()
+    suite = AgentSuite(
+        name="configured",
+        repository_commit=base_commit,
+        integration_mode="configured",
+        tasks=[
+            AgentTask(
+                id="answer",
+                description="answer",
+                task_type="answer",
+                prompt="answer",
+                targets=[RetrievalTarget(file_path="tracked.txt")],
+            )
+        ],
+    )
+
+    async def stale_preflight(_repository_id: str) -> dict[str, Any]:
+        return {
+            "freshness": {
+                "indexed_commit": "stale",
+                "current_commit": base_commit,
+                "working_tree_dirty": False,
+            }
+        }
+
+    tracked.write_text("dirty\n", encoding="utf-8")
+    with pytest.raises(EvaluationInfrastructureError, match="clean source checkout"):
+        asyncio.run(
+            _prepare_agent_context(
+                suite,
+                repository_root=target,
+                repository_id=None,
+                configured_plan=None,
+                configured_guidance_paths=None,
+                configured_probe_query="query",
+                configured_expected_paths=None,
+                configured_probe_timeout_seconds=30,
+            )
+        )
+
+    tracked.write_text("clean\n", encoding="utf-8")
+    monkeypatch.setattr(agent_evaluation, "get_repository_preflight", stale_preflight)
+    with pytest.raises(EvaluationInfrastructureError, match="indexed commit"):
+        asyncio.run(
+            _prepare_agent_context(
+                suite,
+                repository_root=target,
+                repository_id=None,
+                configured_plan=None,
+                configured_guidance_paths=None,
+                configured_probe_query="query",
+                configured_expected_paths=None,
+                configured_probe_timeout_seconds=30,
+            )
+        )
+
+
+def test_configured_integration_requires_exact_plan_binding_and_probes(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    (target / "AGENTS.md").write_text("# Configured guidance\n", encoding="utf-8")
+    (target / ".gitignore").write_text("/AGENTS.override.md\n", encoding="utf-8")
+    (target / "AGENTS.override.md").write_text(
+        "# Installed CodeMesh guidance\n", encoding="utf-8"
+    )
+    (target / ".codex").mkdir()
+    (target / ".codex" / "config.toml").write_text(
+        "\n".join(
+            [
+                "[mcp_servers.graphify]",
+                'command = "graphify"',
+                'args = ["mcp"]',
+                f'cwd = "{target.as_posix()}"',
+                "required = true",
+                'enabled_tools = ["graphify_search"]',
+                'env_vars = ["GRAPHIFY_URL"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _git(target, "init", "--quiet")
+    _git(target, "config", "user.name", "CodeMesh Test")
+    _git(target, "config", "user.email", "codemesh@example.invalid")
+    _git(target, "add", "AGENTS.md", ".gitignore")
+    _git(target, "commit", "--quiet", "-m", "fixture")
+    base_commit = _git(target, "rev-parse", "HEAD").strip()
+    codemesh_root = Path(__file__).resolve().parents[2]
+    binding = RepositoryBinding(
+        "project:test",
+        "checkout:test",
+        str(target),
+        "view:test",
+    )
+    plan = create_installation_plan(
+        target,
+        codemesh_root,
+        binding,
+        include_onboarding=False,
+    )
+    apply_installation_plan(plan, plan.plan_hash)
+    preflight = {
+        "repository_id": "project:test",
+        "repository": {
+            "project_id": "project:test",
+            "checkout_id": "checkout:test",
+            "root_path": str(target),
+            "source_view_hash": "view:test",
+        },
+    }
+
+    async def fake_positive(received_plan: Any, **kwargs: Any) -> dict[str, Any]:
+        assert received_plan == plan
+        assert kwargs["query"] == "configured query"
+        assert kwargs["expected_paths"] == ["src/A.cs"]
+        return {
+            "schema_version": "codemesh-runtime-probe-v1",
+            "passed": True,
+            "provider_mode": "none",
+            "profile": "normal",
+            "server_name": "codemesh",
+            "project_id": "project:test",
+            "checkout_id": "checkout:test",
+            "repository_root": str(target),
+            "snapshot_id": "snapshot:test",
+            "source_view_hash": "view:test",
+            "indexed_commit": base_commit,
+            "current_commit": base_commit,
+            "freshness_status": "fresh",
+            "binding_status": "accepted",
+            "tools": plan.launch["expected_tools"],
+            "context_query": "configured query",
+            "context_item_count": 1,
+            "returned_paths": ["src/A.cs"],
+            "expected_paths": ["src/A.cs"],
+            "duration_ms": 1.5,
+        }
+
+    async def fake_negative(received_plan: Any, **kwargs: Any) -> dict[str, Any]:
+        assert received_plan == plan
+        assert kwargs["checkout_id"].endswith(":codemesh-eval-rejection")
+        assert kwargs["expected_substrings"] == ["bound_repository_missing"]
+        return {
+            "schema_version": "codemesh-runtime-rejection-probe-v1",
+            "passed": True,
+            "rejected": True,
+            "provider_mode": "none",
+            "profile": "normal",
+            "checkout_id": kwargs["checkout_id"],
+            "expected_substrings": ["bound_repository_missing"],
+            "diagnostic": "binding rejected: bound_repository_missing",
+            "duration_ms": 1.0,
+        }
+
+    monkeypatch.setattr(agent_evaluation, "run_runtime_probe", fake_positive)
+    monkeypatch.setattr(agent_evaluation, "run_runtime_rejection_probe", fake_negative)
+
+    metadata, control_overrides, treatment_overrides, guidance_files = asyncio.run(
+        _prepare_configured_integration(
+            plan,
+            root=target,
+            base_commit=base_commit,
+            codemesh_root=codemesh_root,
+            preflight=preflight,
+            guidance_paths=["AGENTS.override.md"],
+            probe_query="configured query",
+            expected_paths=["src/A.cs"],
+            timeout_seconds=30,
+            baseline_mcp_servers=["graphify"],
+        )
+    )
+
+    assert metadata["plan_hash"] == plan.plan_hash
+    assert metadata["profile"] == "normal"
+    assert metadata["guidance"][0]["path"] == "AGENTS.override.md"
+    assert len(metadata["guidance"][0]["sha256"]) == 64
+    assert metadata["guidance"][0]["source"] == "installed-ignored"
+    assert guidance_files[0].content == b"# Installed CodeMesh guidance\n"
+    assert len(metadata["positive_probe"]["report_sha256"]) == 64
+    assert "diagnostic" not in metadata["rejection_probe"]
+    assert metadata["baseline_mcp_servers"][0]["name"] == "graphify"
+    assert any("mcp_servers.graphify.command" in value for value in control_overrides)
+    assert not any("mcp_servers.codemesh" in value for value in control_overrides)
+    assert treatment_overrides[: len(control_overrides)] == control_overrides
+    assert any('"--profile", "normal"' in value for value in treatment_overrides)
+    assert any("default_tools_approval_mode" in value for value in treatment_overrides)
+
+    mismatched = json.loads(json.dumps(preflight))
+    mismatched["repository"]["checkout_id"] = "checkout:other"
+    with pytest.raises(EvaluationInfrastructureError, match="checkout"):
+        asyncio.run(
+            _prepare_configured_integration(
+                plan,
+                root=target,
+                base_commit=base_commit,
+                codemesh_root=codemesh_root,
+                preflight=mismatched,
+                guidance_paths=["AGENTS.md"],
+                probe_query="configured query",
+                expected_paths=["src/A.cs"],
+                timeout_seconds=30,
+                baseline_mcp_servers=["graphify"],
+            )
+        )
+
+    (target / ".codex" / "config.toml").write_text(
+        "# changed after review\n", encoding="utf-8"
+    )
+    with pytest.raises(EvaluationInfrastructureError, match="not applied unchanged"):
+        asyncio.run(
+            _prepare_configured_integration(
+                plan,
+                root=target,
+                base_commit=base_commit,
+                codemesh_root=codemesh_root,
+                preflight=preflight,
+                guidance_paths=["AGENTS.md"],
+                probe_query="configured query",
+                expected_paths=["src/A.cs"],
+                timeout_seconds=30,
+                baseline_mcp_servers=["graphify"],
+            )
+        )
+
+
+def test_configured_agent_report_retains_identity_and_prompt_parity(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
+    repository = tmp_path / "repository"
+    (repository / "src").mkdir(parents=True)
+    (repository / "src" / "A.cs").write_text("class A {}\n", encoding="utf-8")
+    _git(repository, "init", "--quiet")
+    _git(repository, "config", "user.name", "CodeMesh Test")
+    _git(repository, "config", "user.email", "codemesh@example.invalid")
+    _git(repository, "add", "src/A.cs")
+    _git(repository, "commit", "--quiet", "-m", "fixture")
+    base_commit = _git(repository, "rev-parse", "HEAD").strip()
+    suite = AgentSuite(
+        name="configured",
+        repository_commit=base_commit,
+        integration_mode="configured",
+        tasks=[
+            AgentTask(
+                id="answer",
+                description="answer",
+                task_type="answer",
+                prompt="Explain A.",
+                targets=[RetrievalTarget(file_path="src/A.cs")],
+            )
+        ],
+    )
+    configured_identity = {
+        "schema_version": "codemesh-configured-agent-integration-v1",
+        "plan_hash": "plan:test",
+        "profile": "normal",
+    }
+    context = AgentEvaluationContext(
+        root=repository,
+        base_commit=base_commit,
+        preflight={"repository_id": "project:test"},
+        freshness={"current_branch": "main"},
+        mcp_cwd=tmp_path,
+        codemesh_root=tmp_path,
+        codemesh_source_commit="codemesh:test",
+        codemesh_source_branch="main",
+        integration_mode="configured",
+        control_mcp_config=(
+            "mcp_servers={}",
+            'mcp_servers.graphify.command="graphify"',
+        ),
+        treatment_mcp_config=('mcp_servers.codemesh.command="uv"',),
+        configured_integration=configured_identity,
+        configured_guidance_files=(
+            ConfiguredGuidanceFile(
+                path="AGENTS.override.md",
+                content=b"# Installed CodeMesh guidance\n",
+                sha256=hashlib.sha256(b"# Installed CodeMesh guidance\n").hexdigest(),
+            ),
+        ),
+    )
+
+    async def fake_context(*_args: Any, **_kwargs: Any) -> AgentEvaluationContext:
+        return context
+
+    requests: list[AgentRunRequest] = []
+    observed_guidance: list[str] = []
+
+    class FakeRunner:
+        @property
+        def capabilities(self) -> AgentRunnerCapabilities:
+            return AgentRunnerCapabilities(
+                hard_reported_token_cap=True,
+                reported_token_accounting=REPORTED_TOKEN_ACCOUNTING_ID,
+            )
+
+        async def run(self, request: AgentRunRequest) -> AgentRunResult:
+            requests.append(request)
+            observed_guidance.append(
+                (request.cwd / "AGENTS.override.md").read_text(encoding="utf-8")
+            )
+            return AgentRunResult(
+                completed=True,
+                exit_code=0,
+                duration_ms=10,
+                final_message=json.dumps(
+                    {
+                        "answer": "A is implemented here.",
+                        "citations": [
+                            {
+                                "file_path": "src/A.cs",
+                                "start_line": 1,
+                                "end_line": 1,
+                                "stable_key": None,
+                            }
+                        ],
+                    }
+                ),
+                usage={
+                    "input_tokens": 5,
+                    "cached_input_tokens": 3,
+                    "output_tokens": 2,
+                    "reasoning_output_tokens": 0,
+                },
+                mcp_calls=(
+                    ["codemesh.codemesh_get_context_package"]
+                    if request.condition == "treatment"
+                    else []
+                ),
+            )
+
+    monkeypatch.setattr(agent_evaluation, "_prepare_agent_context", fake_context)
+    report = asyncio.run(
+        run_agent_evaluation(
+            suite,
+            tmp_path / "suite.json",
+            model="test-model",
+            repetitions=1,
+            max_reported_tokens=100,
+            output_dir=tmp_path / "artifacts",
+            runner=FakeRunner(),
+        )
+    )
+
+    assert report.metadata["adoption_mode"] == "configured"
+    assert report.metadata["integration_mode"] == "configured"
+    assert report.metadata["prompt_parity"] is True
+    assert report.metadata["treatment_guidance"] is None
+    assert report.metadata["configured_integration"] == configured_identity
+    assert len(requests) == 2
+    assert {request.prompt for request in requests} == {"Explain A."}
+    assert observed_guidance == [
+        "# Installed CodeMesh guidance\n",
+        "# Installed CodeMesh guidance\n",
+    ]
+    control = next(request for request in requests if request.condition == "control")
+    treatment = next(
+        request for request in requests if request.condition == "treatment"
+    )
+    assert control.mcp_config == context.control_mcp_config
+    assert treatment.mcp_config == context.treatment_mcp_config
+    assert [request.max_reported_tokens for request in requests] == [100, 93]
+    assert report.summary["aggregate_reported_tokens"] == 14
+    assert report.summary["remaining_reported_tokens"] == 86
+    assert report.summary["automatic_retries"] is False
 
 
 def test_ranking_metrics_and_stability_are_deterministic() -> None:
@@ -211,10 +741,91 @@ def test_mcp_client_accepts_structured_payload_and_rejects_non_json() -> None:
         asyncio.run(client.call("codemesh_search_context", {}))
 
 
+def test_context_package_timing_records_are_parsed_and_summarized() -> None:
+    stderr = "\n".join(
+        [
+            "unrelated log",
+            'CODEMESH_CONTEXT_PACKAGE_TIMING {"event":"context_package_timing",'
+            '"outcome":"ok","total_ms":20,"stages_ms":{"item_hydration":12},'
+            '"operations_ms":{"node":7},"counts":{"hits":2}}',
+            'CODEMESH_CONTEXT_PACKAGE_TIMING {"event":"context_package_timing",'
+            '"outcome":"ok","total_ms":30,"stages_ms":{"item_hydration":18},'
+            '"operations_ms":{"node":9},"counts":{"hits":2}}',
+        ]
+    )
+
+    records = _parse_context_package_timings(stderr)
+    summary = _context_package_timing_summary(records, [None, "task-shaped"])
+
+    assert summary["record_count"] == 1
+    case = summary["cases"]["task-shaped"]
+    assert case["calls"] == 1
+    assert case["successful_calls"] == 1
+    assert case["p50_total_ms"] == 30
+    assert case["p50_stages_ms"] == {"item_hydration": 18}
+    assert case["p50_operations_ms"] == {"node": 9}
+    assert case["counts"] == {"hits": 2}
+
+
+def test_context_package_timing_summary_fails_on_missing_sideband_record() -> None:
+    with pytest.raises(
+        EvaluationInfrastructureError,
+        match="record count did not match",
+    ):
+        _context_package_timing_summary([], ["task-shaped"])
+
+
+def test_repository_preflight_stale_diagnostic_retains_candidate_identity(
+    monkeypatch: Any,
+) -> None:
+    class FakeClient:
+        async def __aenter__(self) -> "FakeClient":
+            return self
+
+        async def __aexit__(self, *_args: Any) -> None:
+            return None
+
+        def connect(self) -> "FakeClient":
+            return self
+
+        async def call(
+            self, _tool: str, _arguments: dict[str, Any]
+        ) -> tuple[dict[str, Any], float]:
+            return (
+                {
+                    "data": {
+                        "freshness": {
+                            "status": "stale",
+                            "detail": "Candidate identity does not match.",
+                            "indexed_commit": "indexed:test",
+                            "current_commit": "current:test",
+                            "working_tree_dirty": False,
+                            "indexed_source_view_hash": "view:test",
+                        }
+                    }
+                },
+                1.0,
+            )
+
+    monkeypatch.setattr(
+        "codemesh_agent_access.evaluation.live.McpEvaluationClient",
+        lambda **_kwargs: FakeClient(),
+    )
+
+    with pytest.raises(EvaluationInfrastructureError) as captured:
+        asyncio.run(get_repository_preflight("project:test"))
+
+    diagnostic = str(captured.value)
+    assert "indexed_commit='indexed:test'" in diagnostic
+    assert "current_commit='current:test'" in diagnostic
+    assert "working_tree_dirty=False" in diagnostic
+    assert "indexed_source_view_hash='view:test'" in diagnostic
+
+
 def test_live_case_scores_results_and_omits_raw_payloads() -> None:
     class FakeClient:
         async def call(
-            self, _tool: str, _arguments: dict[str, Any]
+            self, _tool: str, _arguments: dict[str, Any], **_kwargs: Any
         ) -> tuple[dict[str, Any], float]:
             return (
                 {
@@ -328,6 +939,237 @@ def test_codex_jsonl_parser_collects_usage_tools_and_failures() -> None:
     assert result.commands == ["rg target src"]
     assert result.final_message.startswith("{")
     assert "malformed JSONL" in result.failures[0]
+
+
+def test_reported_token_accounting_includes_reasoning_without_readding_cache() -> None:
+    usage = {
+        "input_tokens": 100,
+        "cached_input_tokens": 80,
+        "output_tokens": 20,
+        "reasoning_output_tokens": 5,
+    }
+
+    assert count_reported_tokens(usage) == 125
+
+    with pytest.raises(ValueError, match="cannot exceed"):
+        count_reported_tokens({**usage, "cached_input_tokens": 101})
+    with pytest.raises(ValueError, match="non-negative integer"):
+        count_reported_tokens({**usage, "output_tokens": -1})
+    with pytest.raises(ValueError, match="missing required token fields"):
+        count_reported_tokens({"input_tokens": 100})
+
+
+def test_agent_preflight_refuses_runner_without_hard_cap_before_context(
+    monkeypatch: Any,
+) -> None:
+    suite = AgentSuite(
+        name="configured",
+        repository_commit="commit:test",
+        integration_mode="configured",
+        tasks=[],
+    )
+    context_prepared = False
+
+    async def unexpected_context(*_args: Any, **_kwargs: Any) -> AgentEvaluationContext:
+        nonlocal context_prepared
+        context_prepared = True
+        raise AssertionError("repository preflight must not run")
+
+    class UnsupportedRunner:
+        calls = 0
+
+        @property
+        def capabilities(self) -> AgentRunnerCapabilities:
+            return AgentRunnerCapabilities(
+                hard_reported_token_cap=False,
+                reported_token_accounting=REPORTED_TOKEN_ACCOUNTING_ID,
+            )
+
+        async def run(self, _request: AgentRunRequest) -> AgentRunResult:
+            self.calls += 1
+            raise AssertionError("model runner must not be called")
+
+    runner = UnsupportedRunner()
+    monkeypatch.setattr(agent_evaluation, "_prepare_agent_context", unexpected_context)
+
+    with pytest.raises(EvaluationInfrastructureError, match="before any model call"):
+        asyncio.run(
+            run_agent_preflight(
+                suite,
+                max_reported_tokens=100,
+                runner=runner,
+            )
+        )
+
+    assert context_prepared is False
+    assert runner.calls == 0
+
+
+def test_agent_campaign_stops_at_reported_token_boundary_without_next_call(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
+    suite = AgentSuite(
+        name="budget-boundary",
+        tasks=[
+            AgentTask(
+                id="answer",
+                description="answer",
+                task_type="answer",
+                prompt="answer",
+                targets=[RetrievalTarget(file_path="src/A.cs")],
+            )
+        ],
+    )
+    context = AgentEvaluationContext(
+        root=tmp_path,
+        base_commit="commit:test",
+        preflight={"repository_id": "project:test"},
+        freshness={"current_branch": "main"},
+        mcp_cwd=tmp_path,
+        codemesh_root=tmp_path,
+        codemesh_source_commit="codemesh:test",
+        codemesh_source_branch="main",
+        integration_mode="spontaneous",
+        control_mcp_config=None,
+        treatment_mcp_config=None,
+        configured_integration=None,
+    )
+    condition_calls: list[dict[str, Any]] = []
+
+    async def fake_context(*_args: Any, **_kwargs: Any) -> AgentEvaluationContext:
+        return context
+
+    async def fake_condition(**kwargs: Any) -> AgentExecutionReport:
+        condition_calls.append(kwargs)
+        limit = kwargs["max_reported_tokens"]
+        return AgentExecutionReport(
+            task_id=kwargs["task"].id,
+            repetition=kwargs["repetition"],
+            condition=kwargs["condition"],
+            completed=True,
+            passed=True,
+            input_tokens=limit,
+            reported_tokens=limit,
+            reported_token_limit=limit,
+        )
+
+    class CapableRunner:
+        @property
+        def capabilities(self) -> AgentRunnerCapabilities:
+            return AgentRunnerCapabilities(
+                hard_reported_token_cap=True,
+                reported_token_accounting=REPORTED_TOKEN_ACCOUNTING_ID,
+            )
+
+        async def run(self, _request: AgentRunRequest) -> AgentRunResult:
+            raise AssertionError("patched condition owns this deterministic test")
+
+    monkeypatch.setattr(agent_evaluation, "_prepare_agent_context", fake_context)
+    monkeypatch.setattr(agent_evaluation, "_run_task_condition", fake_condition)
+
+    report = asyncio.run(
+        run_agent_evaluation(
+            suite,
+            tmp_path / "suite.json",
+            model="test-model",
+            repetitions=1,
+            max_reported_tokens=10,
+            output_dir=tmp_path / "boundary-artifacts",
+            runner=CapableRunner(),
+        )
+    )
+
+    assert len(condition_calls) == 1
+    assert condition_calls[0]["max_reported_tokens"] == 10
+    assert report.verdict == "insufficient"
+    assert report.passed is False
+    assert report.summary["aggregate_reported_tokens"] == 10
+    assert report.summary["remaining_reported_tokens"] == 0
+    assert report.summary["stopped_for_reported_token_cap"] is True
+    assert "no retry was attempted" in report.failures[0]
+
+
+def test_agent_campaign_does_not_retry_incomplete_run(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
+    suite = AgentSuite(
+        name="no-retry",
+        tasks=[
+            AgentTask(
+                id="answer",
+                description="answer",
+                task_type="answer",
+                prompt="answer",
+                targets=[RetrievalTarget(file_path="src/A.cs")],
+            )
+        ],
+    )
+    context = AgentEvaluationContext(
+        root=tmp_path,
+        base_commit="commit:test",
+        preflight={"repository_id": "project:test"},
+        freshness={"current_branch": "main"},
+        mcp_cwd=tmp_path,
+        codemesh_root=tmp_path,
+        codemesh_source_commit="codemesh:test",
+        codemesh_source_branch="main",
+        integration_mode="spontaneous",
+        control_mcp_config=None,
+        treatment_mcp_config=None,
+        configured_integration=None,
+    )
+    condition_calls = 0
+
+    async def fake_context(*_args: Any, **_kwargs: Any) -> AgentEvaluationContext:
+        return context
+
+    async def fake_condition(**kwargs: Any) -> AgentExecutionReport:
+        nonlocal condition_calls
+        condition_calls += 1
+        return AgentExecutionReport(
+            task_id=kwargs["task"].id,
+            repetition=kwargs["repetition"],
+            condition=kwargs["condition"],
+            completed=False,
+            passed=False,
+            input_tokens=3,
+            reported_tokens=3,
+            reported_token_limit=kwargs["max_reported_tokens"],
+        )
+
+    class CapableRunner:
+        @property
+        def capabilities(self) -> AgentRunnerCapabilities:
+            return AgentRunnerCapabilities(
+                hard_reported_token_cap=True,
+                reported_token_accounting=REPORTED_TOKEN_ACCOUNTING_ID,
+            )
+
+        async def run(self, _request: AgentRunRequest) -> AgentRunResult:
+            raise AssertionError("patched condition owns this deterministic test")
+
+    monkeypatch.setattr(agent_evaluation, "_prepare_agent_context", fake_context)
+    monkeypatch.setattr(agent_evaluation, "_run_task_condition", fake_condition)
+
+    report = asyncio.run(
+        run_agent_evaluation(
+            suite,
+            tmp_path / "suite.json",
+            model="test-model",
+            repetitions=1,
+            max_reported_tokens=10,
+            output_dir=tmp_path / "no-retry-artifacts",
+            runner=CapableRunner(),
+        )
+    )
+
+    assert condition_calls == 1
+    assert len(report.runs) == 1
+    assert report.verdict == "insufficient"
+    assert report.summary["aggregate_reported_tokens"] == 3
+    assert report.summary["remaining_reported_tokens"] == 7
+    assert report.summary["automatic_retries"] is False
+    assert "no retry was attempted" in report.failures[0]
 
 
 def test_answer_grading_validates_target_and_line_range(tmp_path: Path) -> None:
@@ -604,7 +1446,12 @@ def test_change_task_runs_in_an_isolated_clone(tmp_path: Path) -> None:
                 completed=True,
                 exit_code=0,
                 duration_ms=10,
-                usage={"input_tokens": 5, "output_tokens": 2},
+                usage={
+                    "input_tokens": 5,
+                    "cached_input_tokens": 0,
+                    "output_tokens": 2,
+                    "reasoning_output_tokens": 0,
+                },
             )
 
     artifacts = tmp_path / "artifacts"

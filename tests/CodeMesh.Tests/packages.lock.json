@@ -261,6 +261,12 @@
           "CodeMesh.Domain": "[1.0.0, )"
         }
       },
+      "codemesh.parser.rust": {
+        "type": "Project",
+        "dependencies": {
+          "CodeMesh.Domain": "[1.0.0, )"
+        }
+      },
       "codemesh.storage": {
         "type": "Project",
         "dependencies": {

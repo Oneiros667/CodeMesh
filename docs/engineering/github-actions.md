@@ -6,9 +6,12 @@ The read-only workflow validates:
 - locked Python restore, tests, Ruff, and the deterministic in-process MCP
   fixture suite;
 - Git whitespace;
+- synchronized application-version declarations;
 - Markdown with the repository-pinned `markdownlint-cli2` version;
 - local Markdown links;
-- publication-safety patterns in Git-visible files; and
+- publication-safety patterns in Git-visible files;
+- read-only workflow policy, immutable action pins, and disabled checkout
+  credential persistence; and
 - Conventional Commit messages in the pushed range, or the pull-request title.
 
 Normal pushes validate the complete pushed range. Pull requests use the
@@ -33,3 +36,5 @@ surfaces.
 
 Review action-version and permission changes as supply-chain changes. Do not
 add publication or deployment permissions to this verification workflow.
+After a workflow change, run the repository-local policy check listed in
+[`COMMANDS.md`](../../COMMANDS.md#repository-standards).

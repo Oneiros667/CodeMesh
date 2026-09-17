@@ -10,9 +10,16 @@ readers can tell what CodeMesh does from what it may do later.
 | --- | --- | --- |
 | Evaluating CodeMesh | [`README.md`](../README.md) | [MCP Setup](guides/mcp-setup.md), [Project Status](current/project-status.md) |
 | Using CodeMesh through MCP | [MCP Setup](guides/mcp-setup.md) | [Agent Prompts](guides/agent-prompts.md), [Agent Access Contracts](current/agent-access-contracts.md) |
-| Contributing | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | [Testing](evaluation/testing.md), [Engineering Standards](engineering/standards.md) |
+| Contributing | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | [`COMMANDS.md`](../COMMANDS.md), [Testing](evaluation/testing.md), [Engineering Standards](engineering/standards.md) |
+| Understanding, debugging, or extending the implementation | [Developer Handbook](guides/developer-handbook.md) | [Source Walkthroughs](guides/developer-walkthroughs.md), [Development and Debugging](guides/development-and-debugging.md), [Making Changes](guides/making-changes.md) |
 | Coding agent working in this repository | [Agent Quickstart](guides/agent-quickstart.md) | [`AGENTS.md`](../AGENTS.md), [Architecture](current/architecture.md) |
 | Reviewing product direction | [Project Status](current/project-status.md) | [Next Steps](planning/next-steps.md), then the relevant proposal |
+
+The [Backup and Recovery guide](guides/backup-and-recovery.md) records the
+verified disposable Linux procedure and the remaining upgrade/acceptance gates.
+
+The [source review packet](evaluation/review-packet-a158bc0.md) consolidates
+local artifact evidence, draft release notes, and remaining acceptance gates.
 
 ## Authority And Document Types
 
@@ -22,16 +29,20 @@ When documents overlap, use this order:
 2. [Agent Access Contracts](current/agent-access-contracts.md) and
    [Architecture](current/architecture.md) describe the current supported surfaces and
    component boundaries.
-3. [Testing](evaluation/testing.md), [MCP Setup](guides/mcp-setup.md), and
-   [Security and Redaction](current/security-and-redaction.md) are current operating
-   guides.
-4. [Project Status](current/project-status.md) records the latest reviewed
+3. [`COMMANDS.md`](../COMMANDS.md) indexes supported repository invocations;
+   [Testing](evaluation/testing.md), [MCP Setup](guides/mcp-setup.md), and
+   [Security and Redaction](current/security-and-redaction.md) are current
+   operating guides.
+4. [Engineering Standards](engineering/standards.md) and the
+   [Software Engineering Methodology](engineering/methodology.md) define
+   contributor policy, evidence states, and authority boundaries.
+5. [Project Status](current/project-status.md) records the latest reviewed
    implementation and evidence position.
-5. [Next Steps](planning/next-steps.md) is the execution-order authority for future
+6. [Next Steps](planning/next-steps.md) is the execution-order authority for future
    product work.
-6. Proposal and roadmap documents describe unimplemented possibilities unless
+7. Proposal and roadmap documents describe unimplemented possibilities unless
    current source and contracts say otherwise.
-7. Dated evidence and publication reviews describe only the commit and time
+8. Dated evidence and publication reviews describe only the commit and time
    they identify.
 
 Document labels have these meanings:
@@ -63,6 +74,14 @@ Document labels have these meanings:
 - [`README.md`](../README.md) — public product overview and local demonstration.
 - [Project Status](current/project-status.md) — current capability and evidence summary.
 - [Architecture](current/architecture.md) — implemented components, flow, and stores.
+- [Identity and Persistence](current/identity-and-persistence.md) — graph/content
+  identities, physical keys, publication, retention, and partial failures.
+- [Ingestion Internals](current/ingestion-internals.md) — selection, each parser,
+  composition, incremental writes, refresh, and watch.
+- [Retrieval Internals](current/retrieval-internals.md) — binding, freshness,
+  ranking, expansion, package assembly, and output budgets.
+- [Enrichment and Evaluation Internals](current/enrichment-and-evaluation.md) —
+  embeddings, summaries, qualification, onboarding, feedback, and harnesses.
 - [Agent Access Contracts](current/agent-access-contracts.md) — REST, MCP, CLI-facing,
   UI, and .NET client contracts.
 - [Security and Redaction](current/security-and-redaction.md) — implemented redaction,
@@ -70,6 +89,14 @@ Document labels have these meanings:
 
 ### Setup and use
 
+- [Developer Handbook](guides/developer-handbook.md) — human entry point, mental
+  model, glossary, chapter index, and recommended reading paths.
+- [Developer Walkthroughs](guides/developer-walkthroughs.md) — three source traces
+  from ingestion through retrieval and changed-source refresh.
+- [Development and Debugging](guides/development-and-debugging.md) — setup,
+  configuration, debugging entry points, symptoms, and inspection findings.
+- [Making Changes](guides/making-changes.md) — parser, ranking, interface, and
+  lifecycle change walkthroughs with validation selection.
 - [MCP Setup](guides/mcp-setup.md) — services, ingestion, stdio MCP configuration, and
   troubleshooting.
 - [Self-Analysis](guides/self-analysis.md) — index and query CodeMesh itself.
@@ -93,9 +120,17 @@ Document labels have these meanings:
 
 - [Next Steps](planning/next-steps.md) — canonical execution order and capability map.
 - [Agent Integration Contract](planning/agent-integration-contract.md) — selected
-  explicit-onboarding contract, implemented tool profiles, and planned checkout
-  binding, freshness enforcement, runtime probe, installation, and evaluation
-  classification.
+  explicit-onboarding contract, implemented checkout binding, freshness
+  enforcement, tool profiles, runtime probes, reviewable installation, and
+  evaluation classification.
+- [one|nine Adoption and Feedback Priority](planning/onenine-adoption-and-feedback.md)
+  — owner-activated plan and passed local pilot gate for safe checkout-bound
+  adoption, atomic Python/Rust ingestion, a Rust parser, agent feedback
+  artifacts, and controlled evaluation.
+- [Development-Session MCP Feedback Loop](planning/development-feedback-mcp.md)
+  — completed owner-activated plan for explicit session-scoped client feedback
+  tools, read-only CodeMesh maintainer intake, human-approved changes, and
+  append-only verified rechecks.
 - [Graph Intelligence and Agent Memory](planning/graph-intelligence-design.md) —
   relationship evidence, graph analysis, parser tiers, memory, and portability
   proposal.
@@ -104,30 +139,40 @@ Document labels have these meanings:
   method-decomposition evaluation.
 - [Repository Identity and Snapshot Retention](planning/repository-identity-and-snapshot-retention.md)
   — implemented local multi-checkout retention and future shared-store requirements.
-- [Summary Model Qualification](planning/summary-model-qualification.md) — proposed
-  qualification procedure; no deployment profile is currently qualified.
+- [Summary Model Qualification](planning/summary-model-qualification.md) — implemented
+  runner and operating procedure; no deployment profile is currently qualified.
 - [SDLC Roadmap](planning/sdlc-roadmap.md) — deferred broader artifact coverage.
 
 ### Engineering policy
 
 - [`CONTRIBUTING.md`](../CONTRIBUTING.md) — contribution entry point.
+- [`COMMANDS.md`](../COMMANDS.md) — canonical supported command index.
 - [`SECURITY.md`](../SECURITY.md) — vulnerability reporting and safe operation.
 - [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) — third-party and
   distribution boundaries.
 - [Engineering Standards](engineering/standards.md) — change discipline,
   verification, documentation, and definition of done.
+- [Software Engineering Methodology](engineering/methodology.md) — evidence,
+  authority, guidance placement, and reusable-control admission boundaries.
 - [Conventional Commit Validation](engineering/conventional-commits.md) — local
   commit-message checker.
 - [GitHub Actions Baseline](engineering/github-actions.md) — exact workflow
   scope and evidence boundary.
 - [Markdown Link Checking](engineering/link-checking.md) — deterministic local
   link validation.
+- [Release Preparation](engineering/release-preparation.md) — source version,
+  candidate contract, compatibility, and reviewable release gates; no release
+  authorization.
+- [Release Notes Template](engineering/release-notes-template.md) — prepared,
+  tagged, published, deployed, and stable-state separation for a future release.
 - [Decision Record Template](decisions/0000-decision-record-template.md) — ADR
   format for implemented architecture decisions.
 
 ## Maintenance Rules
 
-- Keep commands in one canonical guide and link to them elsewhere.
+- Keep supported contributor and agent invocations in the root `COMMANDS.md`;
+  keep ordered operational and evaluation procedures in their controlling
+  guides and link between them.
 - Keep current implementation and evidence in `current/project-status.md`; keep
   future execution order in `planning/next-steps.md`.
 - Mark proposals and historical reviews explicitly near the title.

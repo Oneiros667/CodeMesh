@@ -71,8 +71,14 @@ uv run python -m codemesh_agent_access eval live
 For an opt-in paired Codex comparison using isolated temporary clones:
 
 ```powershell
-uv run python -m codemesh_agent_access eval agent --model <model-id>
+uv run python -m codemesh_agent_access eval agent `
+  --model <model-id> `
+  --max-reported-tokens <authorized-hard-cap>
 ```
+
+The agent command fails closed before any model call unless the selected runner
+can guarantee the requested reported-token cap. The checked-in Codex runner
+does not currently claim that capability.
 
 To qualify a model against the full graded CodeMesh question set after the live
 suite passes:

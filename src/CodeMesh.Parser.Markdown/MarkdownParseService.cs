@@ -10,9 +10,9 @@ public sealed partial class MarkdownParseService
     public static ParserCapability Capability { get; } = new(
         "codemesh-parser-markdown",
         "markdown",
-        "0.1.0",
+        "0.1.1",
         [".md", ".markdown"],
-        ["repositoryRoot"]);
+        ["repositoryRoot", "pathFilter"]);
 
     public async Task<ParseResult> ParseAsync(
         ParseRequest request,
@@ -30,7 +30,7 @@ public sealed partial class MarkdownParseService
         var diagnostics = new List<ParserDiagnostic>();
         var parsedAt = DateTimeOffset.UtcNow;
 
-        foreach (var file in EnumerateMarkdownFiles(repositoryRoot))
+        foreach (var file in EnumerateMarkdownFiles(repositoryRoot, request.PathFilter))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var relativePath = NormalizePath(Path.GetRelativePath(repositoryRoot, file));
@@ -169,10 +169,12 @@ public sealed partial class MarkdownParseService
             DateTimeOffset.UtcNow);
     }
 
-    private static IEnumerable<string> EnumerateMarkdownFiles(string repositoryRoot)
+    private static IEnumerable<string> EnumerateMarkdownFiles(
+        string repositoryRoot,
+        RepositoryPathFilter? pathFilter)
     {
-        return Directory.EnumerateFiles(repositoryRoot, "*.*", SearchOption.AllDirectories)
-            .Where(file => IsMarkdownFile(file) && !IsExcluded(repositoryRoot, file))
+        return RepositoryPathPolicy.EnumerateFiles(repositoryRoot, "*.*", pathFilter)
+            .Where(IsMarkdownFile)
             .OrderBy(file => file, StringComparer.OrdinalIgnoreCase);
     }
 
@@ -181,11 +183,6 @@ public sealed partial class MarkdownParseService
         var extension = Path.GetExtension(file);
         return string.Equals(extension, ".md", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(extension, ".markdown", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsExcluded(string repositoryRoot, string file)
-    {
-        return RepositoryPathPolicy.IsIgnoredPath(repositoryRoot, file);
     }
 
     private static string AnchorFor(string title)

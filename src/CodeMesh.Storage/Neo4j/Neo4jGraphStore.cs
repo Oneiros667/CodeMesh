@@ -19,6 +19,7 @@ public sealed class Neo4jGraphStore :
     IStoreHealthCheck,
     IAsyncDisposable
 {
+    private const int WriteBatchSize = 1000;
     private readonly IDriver _driver;
     private readonly string _uri;
     private readonly string? _database;
@@ -51,30 +52,40 @@ public sealed class Neo4jGraphStore :
 
         if (batch.Nodes.Count > 0)
         {
-            await RunAndConsumeAsync(
-                session,
-                """
-                UNWIND $nodes AS node
-                MERGE (n:CodeMeshNode {storageKey: node.storageKey})
-                SET n += node
-                """,
-                new { nodes = batch.Nodes.Select(node => ToNodeProperties(node, batch)).ToArray() },
-                cancellationToken).ConfigureAwait(false);
+            foreach (var nodes in batch.Nodes
+                         .Select(node => ToNodeProperties(node, batch))
+                         .Chunk(WriteBatchSize))
+            {
+                await RunAndConsumeAsync(
+                    session,
+                    """
+                    UNWIND $nodes AS node
+                    MERGE (n:CodeMeshNode {storageKey: node.storageKey})
+                    SET n += node
+                    """,
+                    new { nodes },
+                    cancellationToken).ConfigureAwait(false);
+            }
         }
 
         if (batch.Relationships.Count > 0)
         {
-            await RunAndConsumeAsync(
-                session,
-                """
-                UNWIND $relationships AS relationship
-                MATCH (source:CodeMeshNode {storageKey: relationship.sourceStorageKey})
-                MATCH (target:CodeMeshNode {storageKey: relationship.targetStorageKey})
-                MERGE (source)-[r:CODEMESH_REL {storageKey: relationship.storageKey}]->(target)
-                SET r += relationship
-                """,
-                new { relationships = batch.Relationships.Select(relationship => ToRelationshipProperties(relationship, batch)).ToArray() },
-                cancellationToken).ConfigureAwait(false);
+            foreach (var relationships in batch.Relationships
+                         .Select(relationship => ToRelationshipProperties(relationship, batch))
+                         .Chunk(WriteBatchSize))
+            {
+                await RunAndConsumeAsync(
+                    session,
+                    """
+                    UNWIND $relationships AS relationship
+                    MATCH (source:CodeMeshNode {storageKey: relationship.sourceStorageKey})
+                    MATCH (target:CodeMeshNode {storageKey: relationship.targetStorageKey})
+                    MERGE (source)-[r:CODEMESH_REL {storageKey: relationship.storageKey}]->(target)
+                    SET r += relationship
+                    """,
+                    new { relationships },
+                    cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 

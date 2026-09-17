@@ -37,6 +37,8 @@ public sealed class OllamaCodeSummaryProvider : ICodeSummaryProvider, IDisposabl
 
     public string Model { get; }
 
+    public string GenerationConfigurationFingerprint => "temperature:0.1;format:json";
+
     public async Task<CodeSummaryResult> SummarizeAsync(
         CodeSummaryRequest request,
         CancellationToken cancellationToken = default)
@@ -68,7 +70,22 @@ public sealed class OllamaCodeSummaryProvider : ICodeSummaryProvider, IDisposabl
             .ReadFromJsonAsync<ChatResponse>(JsonOptions, cancellationToken)
             .ConfigureAwait(false);
 
-        return SummaryPrompt.ParseResult(result?.Message.Content);
+        var summary = SummaryPrompt.ParseResult(result?.Message.Content);
+        if (result?.PromptEvalCount is { } inputTokens && result.EvalCount is { } outputTokens)
+        {
+            summary = summary with
+            {
+                Usage = new CodeSummaryUsage(
+                    inputTokens,
+                    0,
+                    0,
+                    outputTokens,
+                    0,
+                    inputTokens + outputTokens)
+            };
+        }
+
+        return summary;
     }
 
     public void Dispose()
@@ -106,7 +123,9 @@ public sealed class OllamaCodeSummaryProvider : ICodeSummaryProvider, IDisposabl
         [property: JsonPropertyName("num_predict")] int NumPredict);
 
     private sealed record ChatResponse(
-        [property: JsonPropertyName("message")] ChatResponseMessage Message);
+        [property: JsonPropertyName("message")] ChatResponseMessage Message,
+        [property: JsonPropertyName("prompt_eval_count")] int? PromptEvalCount,
+        [property: JsonPropertyName("eval_count")] int? EvalCount);
 
     private sealed record ChatResponseMessage(
         [property: JsonPropertyName("content")] string Content);

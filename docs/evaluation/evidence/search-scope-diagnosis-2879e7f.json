@@ -1,0 +1,286 @@
+{
+  "schema_version": "codemesh-search-scope-diagnosis-v1",
+  "evidence_class": "provider-free-live-retrieval-and-controlled-synthetic-store-scaling",
+  "codemesh_candidate": "2879e7f395a5f24ed3643042aae8d332f333d3d1",
+  "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+  "snapshot_id": "snp_c79b052ddc9d5ae22edc2cd46fa6eb2b653699e0f0c2c87b1226cd00b9528534",
+  "clean_tool_and_repository_checkouts": true,
+  "provider": "none",
+  "summaries": 0,
+  "embeddings": 0,
+  "warmup": 1,
+  "repetitions": 5,
+  "isolation": "Dedicated codemesh-completion-20260905 Docker project and newly created volumes; existing CodeMesh and one|nine stores were not reused.",
+  "fixture": {
+    "target_nodes": 1685,
+    "unrelated_nodes": 50000,
+    "unrelated_repository_id": "__codemesh_completion_scale_20260905",
+    "relationships": 0,
+    "language": "python",
+    "kind": "Method",
+    "name": "synthetic_download_method",
+    "file_path_pattern": "synthetic/module_<0..49999>.py",
+    "metadata_description": "Synthetic unrelated repository download settings preferences runtime source. Synthetic unrelated repository download settings preferences runtime source. Synthetic unrelated repository download settings preferences runtime source. Synthetic unrelated repository download settings preferences runtime source. "
+  },
+  "reports": {
+    "adaptive.json": {
+      "sha256": "0a56c80eaf3ea8cc15e3140fd597e973d18e86d37b78a73db3d17b644a224912"
+    },
+    "adaptive-50k.json": {
+      "sha256": "ce781c93b42bb46c767fbdfa5e4cb3bf765f15ad00acbc2ac7281564d5e0de53"
+    },
+    "query-profile.json": {
+      "sha256": "e22a349b4208a7d9f65c729172f1ad4584a131143449da99aefe3e825fbb335e"
+    },
+    "query-profile-50k.json": {
+      "sha256": "e191f23614c43df2569bf9872ca8f7c8478b7fa5f85161ff1c3e3e945f192769"
+    }
+  },
+  "single_repository": {
+    "passed": true,
+    "comparable": true,
+    "retrieval": {
+      "tool_success_rate": 1.0,
+      "mean_recall_at_k": 1.0,
+      "mean_mrr": 0.875,
+      "mean_ndcg_at_k": 0.862253,
+      "secret_leaks": 0
+    },
+    "task_shaped_timing": {
+      "calls": 5,
+      "successful_calls": 5,
+      "p50_total_ms": 451.07,
+      "p50_stages_ms": {
+        "assembly": 0.317,
+        "item_hydration": 91.297,
+        "repository_metadata": 1.554,
+        "repository_resolution": 1.054,
+        "search": 356.856
+      },
+      "p50_operations_ms": {
+        "content_fallback": 3.792,
+        "node": 38.558,
+        "relationships": 40.154,
+        "search_content": 28.751,
+        "search_declaration": 56.442,
+        "search_expansion": 86.911,
+        "search_lexical_fetch": 103.202,
+        "search_lexical_pipeline": 354.955,
+        "search_lexical_selection": 58.239,
+        "search_ranking": 0.145,
+        "search_repository_resolution": 1.475,
+        "search_summary_fetch": 0.892,
+        "search_summary_pipeline": 0.902,
+        "summary": 8.261
+      },
+      "counts": {
+        "content_fallbacks": 12,
+        "hits": 12,
+        "hydration_concurrency": 1,
+        "search_content_calls": 48,
+        "search_declaration_calls": 48,
+        "search_expansion_calls": 48,
+        "search_lexical_fetch_calls": 1,
+        "search_lexical_pipeline_calls": 1,
+        "search_lexical_selection_calls": 1,
+        "search_ranking_calls": 1,
+        "search_repository_resolution_calls": 1,
+        "search_summary_fetch_calls": 1,
+        "search_summary_pipeline_calls": 1
+      }
+    }
+  },
+  "with_unrelated_nodes": {
+    "passed": true,
+    "comparable": true,
+    "retrieval": {
+      "tool_success_rate": 1.0,
+      "mean_recall_at_k": 1.0,
+      "mean_mrr": 0.875,
+      "mean_ndcg_at_k": 0.862253,
+      "secret_leaks": 0
+    },
+    "task_shaped_timing": {
+      "calls": 5,
+      "successful_calls": 5,
+      "p50_total_ms": 1504.467,
+      "p50_stages_ms": {
+        "assembly": 0.276,
+        "item_hydration": 76.25,
+        "repository_metadata": 1.492,
+        "repository_resolution": 1.058,
+        "search": 1425.164
+      },
+      "p50_operations_ms": {
+        "content_fallback": 3.804,
+        "node": 30.123,
+        "relationships": 34.506,
+        "search_content": 20.356,
+        "search_declaration": 34.915,
+        "search_expansion": 59.392,
+        "search_lexical_fetch": 1227.914,
+        "search_lexical_pipeline": 1423.074,
+        "search_lexical_selection": 58.205,
+        "search_ranking": 0.133,
+        "search_repository_resolution": 1.829,
+        "search_summary_fetch": 0.938,
+        "search_summary_pipeline": 0.947,
+        "summary": 7.512
+      },
+      "counts": {
+        "content_fallbacks": 12,
+        "hits": 12,
+        "hydration_concurrency": 1,
+        "search_content_calls": 48,
+        "search_declaration_calls": 48,
+        "search_expansion_calls": 48,
+        "search_lexical_fetch_calls": 1,
+        "search_lexical_pipeline_calls": 1,
+        "search_lexical_selection_calls": 1,
+        "search_ranking_calls": 1,
+        "search_repository_resolution_calls": 1,
+        "search_summary_fetch_calls": 1,
+        "search_summary_pipeline_calls": 1
+      }
+    }
+  },
+  "query_experiment": [
+    {
+      "name": "baseline",
+      "duration_ms": 1388.115,
+      "candidate_count": 192,
+      "ordered_candidates_sha256": "cdf4a6511a7d33168207f75230734063f07a3c687845af6f1ddb77864bbd1e08",
+      "plan": {
+        "operatorType": "ProduceResults@neo4j",
+        "rows": 192,
+        "dbHits": 0,
+        "children": [
+          {
+            "operatorType": "Projection@neo4j",
+            "rows": 192,
+            "dbHits": 2688,
+            "children": [
+              {
+                "operatorType": "Top@neo4j",
+                "rows": 192,
+                "dbHits": 0,
+                "children": [
+                  {
+                    "operatorType": "Projection@neo4j",
+                    "rows": 1685,
+                    "dbHits": 0,
+                    "children": [
+                      {
+                        "operatorType": "Filter@neo4j",
+                        "rows": 1685,
+                        "dbHits": 51685,
+                        "children": [
+                          {
+                            "operatorType": "Projection@neo4j",
+                            "rows": 51685,
+                            "dbHits": 0,
+                            "children": [
+                              {
+                                "operatorType": "CacheProperties@neo4j",
+                                "rows": 51685,
+                                "dbHits": 310110,
+                                "children": [
+                                  {
+                                    "operatorType": "NodeByLabelScan@neo4j",
+                                    "rows": 51685,
+                                    "dbHits": 51686,
+                                    "children": []
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "scoped-query-only",
+      "duration_ms": 180.716,
+      "candidate_count": 192,
+      "ordered_candidates_sha256": "cdf4a6511a7d33168207f75230734063f07a3c687845af6f1ddb77864bbd1e08",
+      "plan": {
+        "operatorType": "ProduceResults@neo4j",
+        "rows": 192,
+        "dbHits": 0,
+        "children": [
+          {
+            "operatorType": "Projection@neo4j",
+            "rows": 192,
+            "dbHits": 2688,
+            "children": [
+              {
+                "operatorType": "Top@neo4j",
+                "rows": 192,
+                "dbHits": 0,
+                "children": [
+                  {
+                    "operatorType": "Projection@neo4j",
+                    "rows": 1685,
+                    "dbHits": 0,
+                    "children": [
+                      {
+                        "operatorType": "Filter@neo4j",
+                        "rows": 1685,
+                        "dbHits": 0,
+                        "children": [
+                          {
+                            "operatorType": "Projection@neo4j",
+                            "rows": 1685,
+                            "dbHits": 0,
+                            "children": [
+                              {
+                                "operatorType": "CacheProperties@neo4j",
+                                "rows": 1685,
+                                "dbHits": 10110,
+                                "children": [
+                                  {
+                                    "operatorType": "Filter@neo4j",
+                                    "rows": 1685,
+                                    "dbHits": 51685,
+                                    "children": [
+                                      {
+                                        "operatorType": "NodeByLabelScan@neo4j",
+                                        "rows": 51685,
+                                        "dbHits": 51686,
+                                        "children": []
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "measured_decision": "Scope the initial MATCH by repository before lexical property projection. Preserve unbound reads, parameterization, scoring, ordering, and budgets. No hydration concurrency or candidate-budget change.",
+  "limitations": [
+    "Synthetic unrelated load is a controlled mechanism test, not an agent-benefit campaign.",
+    "The isolated store did not reproduce historical 16.7-second latency; historical causal attribution remains unproven.",
+    "Query-profile comparison is a one-shot diagnostic; candidate live-suite verification must follow implementation.",
+    "External sample parsing retained two CMSHARP015 advisory warnings for its frozen AngleSharp dependency; the sample was not edited.",
+    "The new isolated snapshot differs from earlier retained store snapshots; only the within-experiment comparisons share this store identity."
+  ]
+}

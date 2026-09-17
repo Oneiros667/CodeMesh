@@ -3,9 +3,17 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import pytest
+
 from codemesh_agent_access import embeddings as embeddings_module
+from codemesh_agent_access.binding import (
+    RepositoryBinding,
+    RepositoryBindingError,
+    assess_binding,
+)
 from codemesh_agent_access.content_store import (
     MongoContentStore,
+    bound_repository_document,
     normalize_ingestion_run,
     normalize_repository,
     repository_alias,
@@ -21,7 +29,12 @@ from codemesh_agent_access.graph_store import (
     lexical_terms,
     storage_key,
 )
-from codemesh_agent_access.models import IngestionRunSummary
+from codemesh_agent_access.models import (
+    ContextPackageQuery,
+    IngestionRunSummary,
+    RepositoryStatusResponse,
+    RepositorySummary,
+)
 from codemesh_agent_access.store import CodeMeshReadStore, _refresh_status
 from codemesh_agent_access.summary_store import (
     MongoNodeSummaryStore,
@@ -176,6 +189,114 @@ def test_content_store_normalizers_preserve_registry_fields() -> None:
     }
 
 
+def test_bound_repository_document_uses_exact_checkout_slot() -> None:
+    document = bound_repository_document(
+        {
+            "_id": "project:test",
+            "alias": "sample_repo",
+            "rootPath": "/wrong/last-writer",
+            "metadata": {"language": "python"},
+        },
+        {
+            "_id": "checkout:secondary",
+            "projectId": "project:test",
+            "rootPath": "/work/secondary",
+            "lastSeenAtUtc": "2026-08-31T00:00:00Z",
+        },
+        {
+            "kind": "CheckoutCurrent",
+            "key": "checkout:secondary",
+            "snapshotId": "snapshot:secondary",
+        },
+        {
+            "_id": "snapshot:secondary",
+            "projectId": "project:test",
+            "sourceViewHash": "view:secondary",
+            "nodeCount": 7,
+            "relationshipCount": 5,
+            "contentCount": 3,
+        },
+        {
+            "branch": "feature/secondary",
+            "commit": "abc123",
+            "workingTreeDirty": False,
+        },
+    )
+    repository = normalize_repository(document)
+
+    assert repository.project_id == "project:test"
+    assert repository.checkout_id == "checkout:secondary"
+    assert repository.snapshot_id == "snapshot:secondary"
+    assert repository.root_path == "/work/secondary"
+    assert repository.commit == "abc123"
+    assert repository.source_view_hash == "view:secondary"
+    assert repository.metadata["workingTreeDirty"] == "false"
+    assert repository.node_count == 7
+
+
+def test_binding_assessment_requires_exact_identity_root_and_freshness(
+    tmp_path,
+) -> None:
+    binding = RepositoryBinding(
+        "project:test",
+        "checkout:test",
+        str(tmp_path),
+        "view:test",
+    )
+    repository = RepositorySummary(
+        repository_id="project:test",
+        project_id="project:test",
+        checkout_id="checkout:test",
+        snapshot_id="snapshot:test",
+        source_view_hash="view:test",
+        root_path=str(tmp_path),
+    )
+
+    accepted = assess_binding(
+        binding,
+        repository,
+        {"status": "fresh", "is_stale": False, "provenance_status": "known"},
+    )
+    rejected = assess_binding(
+        binding,
+        repository.model_copy(update={"checkout_id": "checkout:other"}),
+        {"status": "stale", "is_stale": True, "provenance_status": "known"},
+    )
+
+    assert accepted["status"] == "accepted"
+    assert accepted["issues"] == []
+    assert rejected["status"] == "rejected"
+    assert rejected["issues"] == ["checkout_mismatch", "snapshot_not_fresh"]
+
+
+def test_context_package_rejects_unaccepted_binding_before_search(tmp_path) -> None:
+    store = object.__new__(CodeMeshReadStore)
+    binding = RepositoryBinding("project:test", "checkout:test", str(tmp_path))
+
+    async def fake_status(*args: Any, **kwargs: Any) -> RepositoryStatusResponse:
+        return RepositoryStatusResponse(
+            repository_id="project:test",
+            freshness={
+                "status": "stale",
+                "is_stale": True,
+                "binding": {
+                    "status": "rejected",
+                    "issues": ["snapshot_not_fresh"],
+                },
+            },
+        )
+
+    store.get_repository_status = fake_status  # type: ignore[method-assign]
+
+    with pytest.raises(RepositoryBindingError, match="snapshot_not_fresh"):
+        asyncio.run(
+            store.get_context_package(
+                ContextPackageQuery(query="find native replay"),
+                binding=binding,
+            )
+        )
+
+
 def test_refresh_status_reports_skipped_completed_and_failed_runs() -> None:
     skipped = _refresh_status(
         IngestionRunSummary(
@@ -236,6 +357,55 @@ def test_refresh_status_reports_skipped_completed_and_failed_runs() -> None:
 
 def test_graph_storage_key_uses_repository_prefix() -> None:
     assert storage_key("repo:test", "node:one") == "repo:test:node:one"
+
+
+@pytest.mark.parametrize("repository_id", [None, "", "snapshot:'}) RETURN secret //"])
+def test_lexical_query_scopes_before_projection_and_parameterizes_input(
+    monkeypatch, repository_id
+) -> None:
+    calls = []
+    node = {"id": "node:test", "repositoryId": repository_id}
+
+    class Session:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def run(self, query, **parameters):
+            calls.append((query, parameters))
+            return self
+
+        async def data(self):
+            return [{"node": node}]
+
+    class Driver:
+        def session(self, **kwargs):
+            return Session()
+
+    store = Neo4jGraphStore(Settings.from_env())
+    monkeypatch.setattr(store, "_neo4j", lambda: Driver())
+    search_text = "Download 'quoted' input"
+    result = asyncio.run(
+        store.search_context_nodes(search_text, ["method"], repository_id, 12)
+    )
+    assert result == [node]
+    query, parameters = calls[0]
+    assert parameters == {
+        "search_text": search_text.casefold(),
+        "search_terms": ["download", "quoted", "input"],
+        "kinds": ["method"],
+        "repository_id": repository_id,
+        "limit": 12,
+    }
+    assert search_text not in query
+    if repository_id is None:
+        assert "repositoryId" not in query
+    else:
+        assert "repositoryId: $repository_id" in query.split("WITH n", 1)[0]
+        if repository_id:
+            assert repository_id not in query
 
 
 def test_lexical_terms_normalizes_and_deduplicates_query_words() -> None:

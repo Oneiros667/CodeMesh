@@ -10,7 +10,14 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Mapping, Protocol
+
+
+REPORTED_TOKEN_ACCOUNTING_ID = "input-output-reasoning-v1"
+REPORTED_TOKEN_ACCOUNTING_DESCRIPTION = (
+    "input_tokens + output_tokens + reasoning_output_tokens; "
+    "cached_input_tokens is a subset of input_tokens and is not added again"
+)
 
 
 _SECRET_PATTERNS = [
@@ -35,6 +42,7 @@ class AgentRunRequest:
     output_schema: Path | None = None
     keep_raw_traces: bool = False
     mcp_config: tuple[str, ...] | None = None
+    max_reported_tokens: int | None = None
 
 
 @dataclass
@@ -52,9 +60,20 @@ class AgentRunResult:
     file_change_count: int = 0
     failures: list[str] = field(default_factory=list)
     raw_events: list[dict[str, Any]] = field(default_factory=list)
+    hard_cap_ledger: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class AgentRunnerCapabilities:
+    hard_reported_token_cap: bool
+    reported_token_accounting: str | None = None
+    runner_id: str | None = None
 
 
 class AgentRunner(Protocol):
+    @property
+    def capabilities(self) -> AgentRunnerCapabilities: ...
+
     async def run(self, request: AgentRunRequest) -> AgentRunResult: ...
 
 
@@ -64,9 +83,24 @@ class CodexRunner:
         executable: str = "codex",
         *,
         supports_ignore_user_config: bool | None = None,
+        config_overrides: tuple[str, ...] = (),
+        environment_overrides: Mapping[str, str] | None = None,
     ) -> None:
         self.executable = executable
         self._supports_ignore_user_config = supports_ignore_user_config
+        self._config_overrides = config_overrides
+        self._environment_overrides = dict(environment_overrides or {})
+
+    @property
+    def capabilities(self) -> AgentRunnerCapabilities:
+        # Codex JSONL reports usage only after a completed turn. The executable
+        # currently exposes no per-invocation hard limit using this accounting,
+        # so post-run observation must not be presented as enforcement.
+        return AgentRunnerCapabilities(
+            hard_reported_token_cap=False,
+            reported_token_accounting=REPORTED_TOKEN_ACCOUNTING_ID,
+            runner_id="codex",
+        )
 
     async def run(self, request: AgentRunRequest) -> AgentRunResult:
         supports_ignore_user_config = self._detect_ignore_user_config()
@@ -75,6 +109,9 @@ class CodexRunner:
         )
         isolated_home: tempfile.TemporaryDirectory[str] | None = None
         environment: dict[str, str] | None = None
+        if self._environment_overrides:
+            environment = os.environ.copy()
+            environment.update(self._environment_overrides)
         if not supports_ignore_user_config:
             if request.local_provider is None:
                 raise RuntimeError(
@@ -82,7 +119,7 @@ class CodexRunner:
                     "legacy isolation is supported only with a local provider."
                 )
             isolated_home = tempfile.TemporaryDirectory(prefix="codemesh-codex-home-")
-            environment = os.environ.copy()
+            environment = environment or os.environ.copy()
             environment["CODEX_HOME"] = isolated_home.name
         started = perf_counter()
         try:
@@ -156,6 +193,8 @@ class CodexRunner:
         if supports_ignore_user_config is not False:
             arguments.insert(3, "--ignore-user-config")
         for override in mcp_config:
+            arguments.extend(["-c", override])
+        for override in self._config_overrides:
             arguments.extend(["-c", override])
         if request.local_provider is not None:
             arguments.extend(["--oss", "--local-provider", request.local_provider])
@@ -262,6 +301,31 @@ def sanitize_text(value: str) -> str:
     return sanitized
 
 
+def count_reported_tokens(usage: Mapping[str, Any]) -> int:
+    """Count runner-reported tokens without double-counting cached input."""
+    required_fields = (
+        "input_tokens",
+        "cached_input_tokens",
+        "output_tokens",
+        "reasoning_output_tokens",
+    )
+    missing = [key for key in required_fields if key not in usage]
+    if missing:
+        raise ValueError(
+            "Reported usage is missing required token fields: " + ", ".join(missing)
+        )
+    counts = {key: _reported_token_integer(usage[key], key) for key in required_fields}
+    if counts["cached_input_tokens"] > counts["input_tokens"]:
+        raise ValueError(
+            "cached_input_tokens cannot exceed input_tokens in reported usage."
+        )
+    return (
+        counts["input_tokens"]
+        + counts["output_tokens"]
+        + counts["reasoning_output_tokens"]
+    )
+
+
 def _codemesh_mcp_config(cwd: Path) -> list[str]:
     enabled_tools = [
         "codemesh_status",
@@ -307,3 +371,11 @@ def _integer(value: Any) -> int:
         return int(value)
     except (TypeError, ValueError):
         return 0
+
+
+def _reported_token_integer(value: Any, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(
+            f"{field_name} must be a non-negative integer in reported usage."
+        )
+    return value

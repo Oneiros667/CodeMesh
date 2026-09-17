@@ -13,10 +13,12 @@ using CodeMesh.Domain.Utilities;
 using CodeMesh.Ingestion;
 using CodeMesh.Ingestion.Embedding;
 using CodeMesh.Ingestion.Summary;
+using CodeMesh.Ingestion.Summary.Qualification;
 using CodeMesh.Parser.CSharp;
 using CodeMesh.Parser.Deployment;
 using CodeMesh.Parser.Markdown;
 using CodeMesh.Parser.Python;
+using CodeMesh.Parser.Rust;
 using CodeMesh.Storage;
 using CodeMesh.Storage.Memory;
 using CodeMesh.Storage.Mongo;
@@ -29,6 +31,9 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("sha256 helper is deterministic", TestHash),
     ("repository path policy ignores generated directories", TestRepositoryPathPolicyIgnoresGeneratedDirectories),
+    ("repository path policy rejects linked paths", TestRepositoryPathPolicyRejectsLinkedPaths),
+    ("repository path policy excludes known secrets and applies filters", TestRepositoryPathPolicyExcludesKnownSecretsAndAppliesFilters),
+    ("repository path policy rejects unsafe patterns", TestRepositoryPathPolicyRejectsUnsafePatterns),
     ("environment file loader fills missing variables", TestEnvironmentFileLoaderFillsMissingVariables),
     ("ingest path resolver accepts repository and caller relative files", TestIngestPathResolverAcceptsRelativeFiles),
     ("ingest path resolver rejects missing explicit files", TestIngestPathResolverRejectsMissingFiles),
@@ -42,6 +47,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("agent access contracts map REST JSON", TestAgentAccessContractsMapRestJson),
     ("agent access client calls REST endpoints", TestAgentAccessClientCallsRestEndpoints),
     ("ingestion writes parser output", TestIngestionWritesParserOutput),
+    ("multi-language ingestion publishes one deterministic snapshot", TestMultiLanguageIngestionPublishesOneDeterministicSnapshot),
     ("ingestion redacts sensitive content before stores and embeddings", TestIngestionRedactsSensitiveContentBeforeStoresAndEmbeddings),
     ("dry-run ingestion skips stores", TestDryRunSkipsStores),
     ("repository refresh removes stale records", TestRepositoryRefreshRemovesStaleRecords),
@@ -50,6 +56,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("summary budgets scale with node complexity", TestSummaryBudgetsScaleWithNodeComplexity),
     ("summary generator persists budget metadata", TestSummaryGeneratorPersistsBudgetMetadata),
     ("summary generator regenerates when configuration changes", TestSummaryGeneratorRegeneratesWhenConfigurationChanges),
+    ("summary qualification runner redacts inputs and enforces evidence gates", TestSummaryQualificationRunnerAndCompiler),
     ("forced embedding ingestion rebuilds unchanged embeddings", TestForcedEmbeddingIngestionRebuildsUnchangedEmbeddings),
     ("embedding verifier reports missing and stale vectors", TestEmbeddingVerifierReportsMissingAndStaleVectors),
     ("repository cleanup removes indexed data", TestRepositoryCleanupRemovesIndexedData),
@@ -81,12 +88,17 @@ var tests = new (string Name, Func<Task> Run)[]
     ("csharp parser emits cross-project invocation relationships", TestCSharpParserEmitsCrossProjectInvocationRelationships),
     ("csharp parser separates partial declarations from symbols", TestCSharpParserSeparatesPartialDeclarations),
     ("csharp parser honors project compile items", TestCSharpParserHonorsProjectCompileItems),
+    ("csharp parser preserves isolated design-time editor configuration", TestCSharpParserDesignTimeEditorConfiguration),
+    ("csharp parser applies repository path filters", TestCSharpParserAppliesRepositoryPathFilters),
     ("deployment parser emits Dockerfile and Compose nodes", TestDeploymentParserEmitsDockerfileAndComposeNodes),
     ("deployment parser parses repository runtime artifacts", TestDeploymentParserParsesRepositoryRuntimeArtifacts),
     ("markdown parser emits documents sections and containment", TestMarkdownParserEmitsDocumentsSectionsAndContainment),
     ("markdown parser parses repository docs", TestMarkdownParserParsesRepositoryDocs),
     ("python parser emits classes functions and containment", TestPythonParserEmitsClassesFunctionsAndContainment),
+    ("python parser emits imports calls and test cases", TestPythonParserEmitsImportsCallsAndTestCases),
     ("python parser parses Agent Access project", TestPythonParserParsesAgentAccessProject),
+    ("rust parser emits declarations relationships tests and PyO3 exports", TestRustParserEmitsDeclarationsRelationshipsTestsAndPyO3Exports),
+    ("composite parser links Python calls to Rust PyO3 exports", TestCompositeParserLinksPythonCallsToRustPyO3Exports),
     ("csharp parser parses YoutubeDownloader sample", TestYoutubeDownloaderSampleParser)
 };
 
@@ -138,6 +150,113 @@ static Task TestRepositoryPathPolicyIgnoresGeneratedDirectories()
     Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath(".codemesh-smoke/run/Fixture.cs"), "Repository path policy did not ignore smoke output.");
     Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("package.egg-info/PKG-INFO"), "Repository path policy did not ignore Python package metadata.");
     Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("docs/evaluation/testing.md"), "Repository path policy ignored repository documentation.");
+
+    return Task.CompletedTask;
+}
+
+static Task TestRepositoryPathPolicyRejectsLinkedPaths()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-path-link-root-{Guid.NewGuid():N}");
+    var outside = Path.Combine(Path.GetTempPath(), $"codemesh-path-link-outside-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    Directory.CreateDirectory(outside);
+
+    try
+    {
+        var outsideFile = Path.Combine(outside, "External.cs");
+        var normalFile = Path.Combine(root, "Normal.cs");
+        File.WriteAllText(outsideFile, "public sealed class External;");
+        File.WriteAllText(normalFile, "public sealed class Normal;");
+        var linkedDirectory = Path.Combine(root, "linked-directory");
+        var linkedFile = Path.Combine(root, "Linked.cs");
+        try
+        {
+            Directory.CreateSymbolicLink(linkedDirectory, outside);
+            File.CreateSymbolicLink(linkedFile, outsideFile);
+        }
+        catch (Exception exception) when (
+            exception is PlatformNotSupportedException or
+            UnauthorizedAccessException or
+            IOException)
+        {
+            return Task.CompletedTask;
+        }
+
+        Equal(true, RepositoryPathPolicy.IsIgnoredPath(root, linkedDirectory), "Repository path policy did not reject a linked directory.");
+        Equal(true, RepositoryPathPolicy.IsIgnoredPath(root, Path.Combine(linkedDirectory, "External.cs")), "Repository path policy did not reject a file below a linked directory.");
+        Equal(true, RepositoryPathPolicy.IsIgnoredPath(root, linkedFile), "Repository path policy did not reject a linked file.");
+        Equal(false, RepositoryPathPolicy.IsIgnoredPath(root, normalFile), "Repository path policy rejected a normal repository file.");
+        var enumerated = RepositoryPathPolicy.EnumerateFiles(root, "*.cs")
+            .Select(Path.GetFileName)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        Equal(1, enumerated.Length, "Repository traversal included a linked file or traversed a linked directory.");
+        Equal("Normal.cs", enumerated[0], "Repository traversal did not retain the normal repository file.");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+        Directory.Delete(outside, recursive: true);
+    }
+
+    return Task.CompletedTask;
+}
+
+static Task TestRepositoryPathPolicyExcludesKnownSecretsAndAppliesFilters()
+{
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath(".env"), "Repository path policy did not exclude .env.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("config/.env.local"), "Repository path policy did not exclude environment-specific secrets.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("infra/secrets.yaml"), "Repository path policy did not exclude a known secret manifest.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("cloud/service-account-prod.json"), "Repository path policy did not exclude service-account material.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("keys/deploy.pem"), "Repository path policy did not exclude a private-key extension.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("state/app.tfstate.backup"), "Repository path policy did not exclude Terraform state backup.");
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath(".env.example"), "Repository path policy excluded a safe environment template.");
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("config/.env.production.template"), "Repository path policy excluded an environment-specific safe template.");
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("src/Secrets.cs"), "Repository path policy excluded source code based only on its name.");
+
+    var filter = new RepositoryPathFilter(
+        AllowPatterns: ["src/**"],
+        DenyPatterns: ["src/generated/**"]);
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("src/App.cs", filter), "Repository path allow pattern did not include matching source.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("tests/AppTests.cs", filter), "Repository path allow pattern did not exclude a non-matching path.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("src/generated/App.g.cs", filter), "Repository path deny pattern did not override the allow pattern.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("src/.env", filter), "Allow pattern bypassed default known-secret exclusion.");
+
+    var rootOnly = new RepositoryPathFilter(AllowPatterns: ["README.md"]);
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("README.md", rootOnly), "Root-relative allow pattern did not match the root file.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("docs/README.md", rootOnly), "Root-relative allow pattern matched a nested basename.");
+    var recursiveBasename = new RepositoryPathFilter(AllowPatterns: ["**/README.md"]);
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("docs/README.md", recursiveBasename), "Recursive basename allow pattern did not match a nested file.");
+
+    var explicitSecretOverride = filter with { ExcludeKnownSecretFiles = false };
+    Equal(false, RepositoryPathPolicy.IsIgnoredRelativePath("src/.env", explicitSecretOverride), "Explicit known-secret override did not change the default exclusion.");
+    Equal(true, RepositoryPathPolicy.IsIgnoredRelativePath("src/bin/Generated.cs", explicitSecretOverride), "Explicit secret override bypassed immutable generated-directory exclusions.");
+
+    Equal(
+        RepositoryPathPolicy.StableFingerprint(new RepositoryPathFilter(["SRC/**", "docs/**"])),
+        RepositoryPathPolicy.StableFingerprint(new RepositoryPathFilter(["docs/**", "src/**"])),
+        "Equivalent path filters produced different stable fingerprints.");
+
+    return Task.CompletedTask;
+}
+
+static Task TestRepositoryPathPolicyRejectsUnsafePatterns()
+{
+    Throws<ArgumentException>(
+        () => RepositoryPathPolicy.StableFingerprint(new RepositoryPathFilter(["../outside/**"])),
+        "Repository path policy accepted parent traversal in an allow pattern.");
+    Throws<ArgumentException>(
+        () => RepositoryPathPolicy.StableFingerprint(new RepositoryPathFilter(DenyPatterns: [Path.GetFullPath("outside/**")])),
+        "Repository path policy accepted an absolute deny pattern.");
+    Throws<ArgumentException>(
+        () => RepositoryPathPolicy.StableFingerprint(new RepositoryPathFilter(DenyPatterns: ["C:\\outside\\**"])),
+        "Repository path policy accepted a Windows absolute deny pattern.");
+    Throws<ArgumentException>(
+        () => RepositoryPathPolicy.StableFingerprint(new RepositoryPathFilter([" "])),
+        "Repository path policy accepted an empty allow pattern.");
+    Throws<ArgumentException>(
+        () => RepositoryPathPolicy.StableFingerprint(new RepositoryPathFilter(["src//**"])),
+        "Repository path policy accepted an ambiguous repeated separator.");
 
     return Task.CompletedTask;
 }
@@ -386,6 +505,8 @@ static Task TestWatchWorkflowDetectsFileChanges()
     var ignoredDirectory = Path.Combine(root, "bin");
     var ignoredTemporaryDirectory = Path.Combine(root, ".tmp");
     var ignoredSmokeDirectory = Path.Combine(root, ".codemesh-smoke");
+    var filteredDirectory = Path.Combine(root, "tests");
+    var secretFile = Path.Combine(root, ".env");
 
     try
     {
@@ -393,6 +514,7 @@ static Task TestWatchWorkflowDetectsFileChanges()
         Directory.CreateDirectory(ignoredDirectory);
         Directory.CreateDirectory(ignoredTemporaryDirectory);
         Directory.CreateDirectory(ignoredSmokeDirectory);
+        Directory.CreateDirectory(filteredDirectory);
         File.WriteAllText(file, "one");
 
         var first = CodeMeshWatchWorkflow.CreateSnapshot(root);
@@ -409,6 +531,19 @@ static Task TestWatchWorkflowDetectsFileChanges()
         Equal(false, CodeMeshWatchWorkflow.HasChanges(first, unchanged), "Watch workflow reported changes for identical snapshots.");
         Equal(true, CodeMeshWatchWorkflow.HasChanges(first, changed), "Watch workflow did not detect a changed file.");
         Equal(false, CodeMeshWatchWorkflow.HasChanges(changed, ignoredChange), "Watch workflow did not ignore generated directories.");
+
+        var filter = new RepositoryPathFilter(AllowPatterns: ["src/**"]);
+        File.WriteAllText(secretFile, "TOKEN=not-a-real-secret");
+        File.WriteAllText(Path.Combine(filteredDirectory, "SampleTests.cs"), "one");
+        var filtered = CodeMeshWatchWorkflow.CreateSnapshot(root, filter);
+        File.WriteAllText(secretFile, "TOKEN=still-not-a-real-secret");
+        File.WriteAllText(Path.Combine(filteredDirectory, "SampleTests.cs"), "one two");
+        var filteredIgnoredChange = CodeMeshWatchWorkflow.CreateSnapshot(root, filter);
+        Equal(false, CodeMeshWatchWorkflow.HasChanges(filtered, filteredIgnoredChange), "Watch workflow reacted to secret or allow-filtered files.");
+
+        File.WriteAllText(file, "one two three");
+        var filteredSourceChange = CodeMeshWatchWorkflow.CreateSnapshot(root, filter);
+        Equal(true, CodeMeshWatchWorkflow.HasChanges(filteredIgnoredChange, filteredSourceChange), "Watch workflow missed an allowed source change.");
     }
     finally
     {
@@ -863,6 +998,47 @@ static async Task TestIngestionWritesParserOutput()
 
     var content = await store.GetContentAsync(FakeParserClient.ContentHash);
     NotNull(content, "Content was not written to content store.");
+}
+
+static async Task TestMultiLanguageIngestionPublishesOneDeterministicSnapshot()
+{
+    var store = new InMemoryCodeMeshStore();
+    var parser = new CompositeParserClient(new Dictionary<string, IParserClient>
+    {
+        ["rust"] = new LanguageFixtureParserClient("rust", ".rs"),
+        ["python"] = new LanguageFixtureParserClient("python", ".py")
+    });
+    var orchestrator = new IngestionOrchestrator(
+        parser,
+        store,
+        store,
+        store,
+        new NoEmbeddingProvider());
+
+    var first = await orchestrator.IngestAsync(new IngestionRequest(
+        Directory.GetCurrentDirectory(),
+        Language: "rust,python",
+        DryRun: true));
+    var second = await orchestrator.IngestAsync(new IngestionRequest(
+        Directory.GetCurrentDirectory(),
+        Language: "python,rust",
+        DryRun: true));
+    var filtered = await orchestrator.IngestAsync(new IngestionRequest(
+        Directory.GetCurrentDirectory(),
+        Language: "python,rust",
+        DryRun: true,
+        PathFilter: new RepositoryPathFilter(DenyPatterns: ["not-present/**"])));
+
+    Equal(2, first.NodeCount, "Composite ingestion did not retain both parser outputs.");
+    Equal(2, first.ContentCount, "Composite ingestion did not retain both source contents.");
+    Equal(
+        first.Repository.SnapshotId ?? string.Empty,
+        second.Repository.SnapshotId ?? string.Empty,
+        "Language order changed the atomic snapshot identity.");
+    Equal(
+        false,
+        string.Equals(first.Repository.SnapshotId, filtered.Repository.SnapshotId, StringComparison.Ordinal),
+        "Repository path filter did not change snapshot scope identity.");
 }
 
 static async Task TestIngestionRedactsSensitiveContentBeforeStoresAndEmbeddings()
@@ -1336,6 +1512,210 @@ static async Task TestSummaryGeneratorRegeneratesWhenConfigurationChanges()
         .GenerateAsync(repository, "run:summary-configuration-4", [node], content);
     Equal(0, fourth.WrittenCount, "Unchanged generation configuration rewrote the summary.");
     Equal(1, fourth.SkippedCount, "Unchanged generation configuration did not skip the summary.");
+}
+
+static async Task TestSummaryQualificationRunnerAndCompiler()
+{
+    const string canary = "summary-qualification-secret-canary";
+    const string source = "private const string ApiKey = \"summary-qualification-secret-canary\";";
+    var qualificationItem = new SummaryQualificationCorpusItem(
+        "secret-field",
+        "repo:fixture",
+        "0123456789abcdef",
+        "node:secret-field",
+        CodeMeshHash.Sha256Hex(source),
+        "csharp",
+        CodeNodeKind.Field,
+        "ApiKey",
+        "Fixture",
+        "SecretFixture.cs",
+        1,
+        1,
+        source,
+        "small",
+        "high",
+        ["security-sensitive", "small"],
+        ["The field stores an API key value."],
+        [],
+        ["The value is safe to publish."],
+        ["field"],
+        ["secret"],
+        "qualification",
+        "Stores an API key value.",
+        [],
+        [],
+        [],
+        [],
+        "Stores an API key value.",
+        [canary]);
+    var calibrationItem = qualificationItem with
+    {
+        Id = "calibration-secret-field",
+        NodeId = "node:calibration-secret-field",
+        Partition = "calibration"
+    };
+    var suite = new SummaryQualificationSuite(
+        SummaryQualificationConstants.SchemaVersion,
+        SummaryQualificationConstants.SuiteKind,
+        "synthetic-summary-suite",
+        "1.0.0",
+        [calibrationItem, qualificationItem],
+        new SummaryQualificationGates(
+            MaximumP95LatencyMs: 1000,
+            MinimumNodesPerMinute: 1,
+            MaximumTotalTokens: 1000,
+            MaximumTokensPerSuccessfulNode: 200,
+            MaximumTotalDurationMs: 5000,
+            MaximumRetryTokenOverheadRatio: 0,
+            MaximumPeakHostMemoryMb: 512));
+    var profile = new SummaryQualificationProfile(
+        SummaryQualificationConstants.SchemaVersion,
+        SummaryQualificationConstants.ProfileKind,
+        "deterministic-local",
+        "local-offline",
+        "local",
+        "test",
+        "summary-counting",
+        "fixture-v1",
+        "none",
+        "float32",
+        CodeMeshHash.Sha256Hex("fixture-template"),
+        8192,
+        4000,
+        768,
+        1536,
+        3,
+        new Dictionary<string, string>
+        {
+            ["temperature"] = "0",
+            ["topP"] = "1",
+            ["topK"] = "not-applicable",
+            ["seed"] = "1",
+            ["stopSequences"] = "none",
+            ["requestedReasoningEffort"] = "none",
+            ["effectiveReasoningEffort"] = "none",
+            ["providerGenerationConfigurationFingerprint"] = "fixture-configuration-v1",
+            ["retryPolicy"] = "none",
+            ["timeout"] = "10s",
+            ["concurrency"] = "1",
+            ["batching"] = "1"
+        },
+        new Dictionary<string, string>
+        {
+            ["operatingSystem"] = "test-os",
+            ["cpu"] = "test-cpu",
+            ["memory"] = "1 GiB",
+            ["accelerator"] = "none",
+            ["acceleratorMemory"] = "none",
+            ["servingRuntime"] = "test"
+        });
+    var sourceIdentity = new SummaryQualificationSourceIdentity(
+        "fedcba9876543210",
+        false,
+        "main",
+        "https://example.invalid/codemesh",
+        "test-os",
+        "test-runtime");
+
+    var result = await new SummaryQualificationRunner(new CountingSummaryProvider("fixture-configuration-v1"))
+        .RunAsync(suite, profile, sourceIdentity);
+
+    Equal(4, result.PrivateArchive.Samples.Count, "Qualification warm-up and repetitions were not executed.");
+    Equal(4, result.PrivateArchive.Samples.Count(sample => sample.Completed), "Deterministic qualification samples did not complete.");
+    Equal(false, result.ReviewPacket.Items.Any(review => review.Source.Contains(canary, StringComparison.Ordinal)), "The blinded review packet retained a secret canary.");
+
+    SummaryQualificationReview Review(string reviewerId)
+    {
+        return new SummaryQualificationReview(
+            SummaryQualificationConstants.SchemaVersion,
+            SummaryQualificationConstants.ReviewKind,
+            result.PrivateArchive.RunId,
+            reviewerId,
+            true,
+            CodeMeshHash.Sha256Hex("resolved-review-calibration-v1"),
+            result.PrivateArchive.Samples
+                .Where(sample => string.Equals(sample.Phase, "measured", StringComparison.Ordinal))
+                .Select(sample => new SummaryQualificationSampleReview(
+                sample.SampleId,
+                sample.ItemId,
+                1,
+                1,
+                1,
+                1,
+                false,
+                false,
+                true,
+                0,
+                0,
+                1,
+                true,
+                true,
+                1,
+                0,
+                0)).ToArray());
+    }
+
+    var baselineReportHash = CodeMeshHash.Sha256Hex("baseline-report");
+    var candidateReportHash = CodeMeshHash.Sha256Hex("candidate-report");
+    var retrievalAssessment = new SummaryQualificationRetrievalAssessment(
+        SummaryQualificationConstants.SchemaVersion,
+        SummaryQualificationConstants.RetrievalAssessmentKind,
+        result.PrivateArchive.RunId,
+        baselineReportHash,
+        candidateReportHash,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0.9,
+        0.9,
+        1,
+        1,
+        0,
+        true);
+    var retrieval = new SummaryQualificationRetrievalEvidence(
+        SummaryQualificationConstants.SchemaVersion,
+        SummaryQualificationConstants.RetrievalEvidenceKind,
+        result.PrivateArchive.RunId,
+        result.PrivateArchive.SuiteHash,
+        result.PrivateArchive.PromptHash,
+        result.PrivateArchive.CorpusRepositoryIdentityHash,
+        CodeMeshHash.Sha256Hex("ranking-v1"),
+        "synthetic-live",
+        "repo:fixture",
+        "0123456789abcdef",
+        baselineReportHash,
+        candidateReportHash,
+        new SummaryRetrievalMetrics(0.9, 0.9, 0.9, 0.9, 1, 0, true, true),
+        new SummaryRetrievalMetrics(0.9, 0.9, 0.9, 0.9, 1, 0, true, true),
+        retrievalAssessment,
+        []);
+    var deployment = new SummaryQualificationDeploymentEvidence(
+        SummaryQualificationConstants.SchemaVersion,
+        SummaryQualificationConstants.DeploymentEvidenceKind,
+        result.PrivateArchive.RunId,
+        result.PrivateArchive.ProfileHash,
+        "deterministic fixture measurement",
+        256,
+        null,
+        null,
+        null,
+        true);
+    var reviews = new[] { Review("reviewer-a"), Review("reviewer-b") };
+    var report = SummaryQualificationCompiler.Compile(suite, result.PrivateArchive, reviews, retrieval, deployment);
+    Equal("qualified", report.Outcome, "A complete passing qualification run was not qualified.");
+    Equal(1d, report.Metrics.RequiredFactRecallByStratum["security-sensitive"], "Stratum recall was not calculated from item identities.");
+    Equal(560L, report.Metrics.TotalTokens, "Provider usage was not aggregated across warm-up and measured attempts.");
+
+    Equal(1d, report.Metrics.IdenticalInputStability, "Repeated identical inputs were not compared for stability.");
+    Equal(256d, report.Metrics.PeakHostMemoryMb, "Deployment evidence was not included in the report.");
+
+    var missingRetrieval = SummaryQualificationCompiler.Compile(suite, result.PrivateArchive, reviews, null, deployment);
+    Equal("invalid-run", missingRetrieval.Outcome, "Missing retrieval evidence did not invalidate qualification.");
+    Throws<InvalidOperationException>(
+        () => SummaryQualificationCompiler.Compare(report, report with { SuiteHash = "different-suite" }),
+        "Incompatible qualification reports were compared.");
 }
 
 static async Task TestForcedEmbeddingIngestionRebuildsUnchangedEmbeddings()
@@ -2174,6 +2554,9 @@ static async Task TestLmStudioSummaryProviderAcceptsNumericConfidence()
         "LM Studio summary text did not deserialize.");
     Equal("high", summary.Confidence, "LM Studio numeric confidence was not normalized.");
     Equal("normalization", summary.Tags[0], "LM Studio summary tags did not deserialize.");
+    Equal(96, summary.Usage?.InputTokens ?? -1, "LM Studio summary input-token usage was not captured.");
+    Equal(24, summary.Usage?.OutputTokens ?? -1, "LM Studio summary output-token usage was not captured.");
+    Equal(120, summary.Usage?.TotalTokens ?? -1, "LM Studio summary total-token usage was not captured.");
     if (!handler.LastRequestBody.Contains("\"response_format\":{\"type\":\"text\"}", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("LM Studio summary request response format changed.");
@@ -2213,6 +2596,9 @@ static async Task TestOllamaSummaryProviderUsesRequestCompletionBudget()
 
     Equal(1, handler.RequestCount, "Expected one Ollama summary request.");
     Equal("Adds two integers and returns their sum.", summary.Summary, "Ollama summary text did not deserialize.");
+    Equal(72, summary.Usage?.InputTokens ?? -1, "Ollama summary input-token usage was not captured.");
+    Equal(18, summary.Usage?.OutputTokens ?? -1, "Ollama summary output-token usage was not captured.");
+    Equal(90, summary.Usage?.TotalTokens ?? -1, "Ollama summary total-token usage was not captured.");
     if (!handler.LastRequestBody.Contains("\"num_predict\":1024", StringComparison.Ordinal))
     {
         throw new InvalidOperationException("Ollama summary request ignored the selected completion ceiling.");
@@ -2667,8 +3053,14 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
 
     await using var store = new Neo4jGraphStore(new Neo4jGraphStoreOptions(uri, user, password, database));
 
-    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-    var health = await store.CheckAsync(timeout.Token);
+    using var timeout = new CancellationTokenSource();
+    CancellationToken OperationToken()
+    {
+        timeout.CancelAfter(TimeSpan.FromSeconds(15));
+        return timeout.Token;
+    }
+
+    var health = await store.CheckAsync(OperationToken());
     if (health.State != CodeMesh.Domain.Health.ComponentState.Healthy)
     {
         var detail = health.Metadata.TryGetValue("detail", out var value) ? value : health.Message;
@@ -2712,15 +3104,15 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
         [source, target],
         [relationship],
         Array.Empty<CodeContent>(),
-        now), timeout.Token);
+        now), OperationToken());
 
-    var loaded = await store.GetNodeAsync(source.Id, timeout.Token);
+    var loaded = await store.GetNodeAsync(source.Id, OperationToken());
     NotNull(loaded, "Neo4j graph store did not return the inserted node.");
     Equal(source.Id, loaded!.Id, "Neo4j node id changed.");
     Equal(source.Kind, loaded.Kind, "Neo4j node kind changed.");
     Equal(source.Metadata["test"], loaded.Metadata["test"], "Neo4j node metadata changed.");
 
-    var relationships = await store.GetRelationshipsAsync(source.Id, cancellationToken: timeout.Token);
+    var relationships = await store.GetRelationshipsAsync(source.Id, cancellationToken: OperationToken());
     var loadedRelationship = relationships.SingleOrDefault(item => item.Id == relationship.Id);
     NotNull(loadedRelationship, "Neo4j graph store did not return the inserted relationship.");
     Equal(relationship.SourceNodeId, loadedRelationship!.SourceNodeId, "Neo4j relationship source changed.");
@@ -2781,17 +3173,17 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
         [collisionSourceA, collisionTargetA],
         [collisionRelationshipA],
         Array.Empty<CodeContent>(),
-        now), timeout.Token);
+        now), OperationToken());
     await store.UpsertGraphAsync(new CodeGraphBatch(
         "run:neo4j-collision-b",
         collisionRepositoryB,
         [collisionSourceB, collisionTargetB],
         [collisionRelationshipB],
         Array.Empty<CodeContent>(),
-        now), timeout.Token);
+        now), OperationToken());
 
-    var loadedCollisionA = await store.GetNodeAsync(sharedSourceId, collisionRepositoryA.Id, timeout.Token);
-    var loadedCollisionB = await store.GetNodeAsync(sharedSourceId, collisionRepositoryB.Id, timeout.Token);
+    var loadedCollisionA = await store.GetNodeAsync(sharedSourceId, collisionRepositoryA.Id, OperationToken());
+    var loadedCollisionB = await store.GetNodeAsync(sharedSourceId, collisionRepositoryB.Id, OperationToken());
     NotNull(loadedCollisionA, "Neo4j did not return repository A's colliding node.");
     NotNull(loadedCollisionB, "Neo4j did not return repository B's colliding node.");
     Equal("CollisionProjectA", loadedCollisionA!.Project, "Neo4j repository A node was overwritten by repository B.");
@@ -2799,8 +3191,8 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
     Equal("a", loadedCollisionA.Metadata["repoMarker"], "Neo4j repository A node metadata changed.");
     Equal("b", loadedCollisionB.Metadata["repoMarker"], "Neo4j repository B node metadata changed.");
 
-    var collisionRelationshipsA = await store.GetRelationshipsAsync(sharedSourceId, collisionRepositoryA.Id, cancellationToken: timeout.Token);
-    var collisionRelationshipsB = await store.GetRelationshipsAsync(sharedSourceId, collisionRepositoryB.Id, cancellationToken: timeout.Token);
+    var collisionRelationshipsA = await store.GetRelationshipsAsync(sharedSourceId, collisionRepositoryA.Id, cancellationToken: OperationToken());
+    var collisionRelationshipsB = await store.GetRelationshipsAsync(sharedSourceId, collisionRepositoryB.Id, cancellationToken: OperationToken());
     var loadedCollisionRelationshipA = collisionRelationshipsA.SingleOrDefault(item => item.Id == sharedRelationshipId);
     var loadedCollisionRelationshipB = collisionRelationshipsB.SingleOrDefault(item => item.Id == sharedRelationshipId);
     NotNull(loadedCollisionRelationshipA, "Neo4j did not return repository A's colliding relationship.");
@@ -2827,18 +3219,18 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
         [stale],
         Array.Empty<CodeRelationship>(),
         Array.Empty<CodeContent>(),
-        now), timeout.Token);
+        now), OperationToken());
     await store.UpsertGraphAsync(new CodeGraphBatch(
         "run:neo4j-current",
         repository,
         [current],
         Array.Empty<CodeRelationship>(),
         Array.Empty<CodeContent>(),
-        now), timeout.Token);
-    await store.RemoveStaleGraphAsync(repository.Id, "run:neo4j-current", timeout.Token);
+        now), OperationToken());
+    await store.RemoveStaleGraphAsync(repository.Id, "run:neo4j-current", OperationToken());
 
-    IsNull(await store.GetNodeAsync(stale.Id, timeout.Token), "Neo4j graph refresh did not remove stale node.");
-    NotNull(await store.GetNodeAsync(current.Id, timeout.Token), "Neo4j graph refresh removed current node.");
+    IsNull(await store.GetNodeAsync(stale.Id, OperationToken()), "Neo4j graph refresh did not remove stale node.");
+    NotNull(await store.GetNodeAsync(current.Id, OperationToken()), "Neo4j graph refresh removed current node.");
 
     var incrementalRepository = new RepositoryRef($"repo:neo4j-incremental:{unique}", Directory.GetCurrentDirectory());
     var incrementalStale = source with
@@ -2867,10 +3259,10 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
         [incrementalStale, incrementalCurrent],
         [incrementalRelationship],
         Array.Empty<CodeContent>(),
-        now), timeout.Token);
+        now), OperationToken());
 
-    var nodeStates = await store.GetNodeStatesAsync(incrementalRepository.Id, timeout.Token);
-    var relationshipStates = await store.GetRelationshipStatesAsync(incrementalRepository.Id, timeout.Token);
+    var nodeStates = await store.GetNodeStatesAsync(incrementalRepository.Id, OperationToken());
+    var relationshipStates = await store.GetRelationshipStatesAsync(incrementalRepository.Id, OperationToken());
     Equal(2, nodeStates.Count, "Neo4j incremental node inventory count changed.");
     Equal(1, relationshipStates.Count, "Neo4j incremental relationship inventory count changed.");
 
@@ -2878,10 +3270,26 @@ static async Task TestNeo4jGraphStoreRoundTripsGraph()
         incrementalRepository.Id,
         new HashSet<string>(StringComparer.Ordinal) { incrementalCurrent.Id },
         new HashSet<string>(StringComparer.Ordinal),
-        timeout.Token);
+        OperationToken());
 
-    IsNull(await store.GetNodeAsync(incrementalStale.Id, timeout.Token), "Neo4j incremental cleanup did not remove stale node.");
-    NotNull(await store.GetNodeAsync(incrementalCurrent.Id, timeout.Token), "Neo4j incremental cleanup removed current node.");
+    IsNull(await store.GetNodeAsync(incrementalStale.Id, OperationToken()), "Neo4j incremental cleanup did not remove stale node.");
+    NotNull(await store.GetNodeAsync(incrementalCurrent.Id, OperationToken()), "Neo4j incremental cleanup removed current node.");
+
+    var emptyIds = new HashSet<string>(StringComparer.Ordinal);
+    foreach (var repositoryId in new[]
+             {
+                 repository.Id,
+                 collisionRepositoryA.Id,
+                 collisionRepositoryB.Id,
+                 incrementalRepository.Id
+             })
+    {
+        await store.RemoveGraphExceptAsync(
+            repositoryId,
+            emptyIds,
+            emptyIds,
+            OperationToken());
+    }
 }
 
 static async Task TestQdrantVectorStoreRoundTripsEmbeddings()
@@ -3416,6 +3824,14 @@ static async Task TestCSharpParserEmitsCrossProjectInvocationRelationships()
             }
             """);
 
+        var hook = System.Security.SecurityElement.Escape(Path.Combine(AppContext.BaseDirectory, "CodeMesh.DesignTime.targets"));
+        foreach (var projectFile in Directory.EnumerateFiles(root, "*.csproj", SearchOption.AllDirectories))
+        {
+            var projectText = await File.ReadAllTextAsync(projectFile);
+            await File.WriteAllTextAsync(projectFile,
+                projectText.Replace("</Project>", $"<Import Project=\"{hook}\" /></Project>", StringComparison.Ordinal));
+        }
+
         var parser = new CSharpParseService();
         var result = await parser.ParseAsync(new ParseRequest(
             root,
@@ -3457,17 +3873,6 @@ static async Task TestCSharpParserSeparatesPartialDeclarations()
     try
     {
         await File.WriteAllTextAsync(
-            Path.Combine(root, "Customer.cs"),
-            """
-            namespace Sample;
-
-            public sealed partial class Customer
-            {
-                public string Name { get; set; } = "";
-            }
-            """);
-
-        await File.WriteAllTextAsync(
             Path.Combine(root, "Customer.Validation.cs"),
             """
             namespace Sample;
@@ -3475,6 +3880,17 @@ static async Task TestCSharpParserSeparatesPartialDeclarations()
             public sealed partial class Customer
             {
                 public bool IsValid() => !string.IsNullOrWhiteSpace(Name);
+            }
+            """);
+
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "Customer.cs"),
+            """
+            namespace Sample;
+
+            public sealed partial class Customer
+            {
+                public string Name { get; set; } = "";
             }
             """);
 
@@ -3487,6 +3903,10 @@ static async Task TestCSharpParserSeparatesPartialDeclarations()
             new Dictionary<string, string>()));
 
         Equal(1, result.Nodes.Count(node => string.Equals(node.Id, "csharp:type:Sample.Customer", StringComparison.Ordinal)), "Expected one logical Customer type node.");
+        Equal(
+            "Customer.cs",
+            result.Nodes.Single(node => string.Equals(node.Id, "csharp:type:Sample.Customer", StringComparison.Ordinal)).Span.FilePath,
+            "The logical Customer type should use the canonical main declaration path.");
         Equal(2, result.Nodes.Count(node =>
             node.Kind == CodeNodeKind.Declaration &&
             node.Metadata.TryGetValue("symbolId", out var symbolId) &&
@@ -3502,6 +3922,101 @@ static async Task TestCSharpParserSeparatesPartialDeclarations()
             "csharp:decl:csharp:type:Sample.Customer:Customer.Validation.cs:3:1",
             "csharp:type:Sample.Customer",
             CodeRelationshipKind.Defines);
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+static async Task TestCSharpParserDesignTimeEditorConfiguration()
+{
+    var root = Directory.CreateTempSubdirectory("codemesh-editor-config-test-").FullName;
+    var hook = Path.Combine(AppContext.BaseDirectory, "CodeMesh.DesignTime.targets");
+    if (!File.Exists(hook))
+    {
+        throw new InvalidOperationException("The design-time hook must be included in parser output.");
+    }
+
+    try
+    {
+        async Task<ParseResult> ParseFixture(string label, bool fail)
+        {
+            var projectRoot = Path.Combine(root, label);
+            Directory.CreateDirectory(projectRoot);
+            var audit = Path.Combine(root, $"{label}.audit");
+            var escapedHook = System.Security.SecurityElement.Escape(hook);
+            var escapedAudit = System.Security.SecurityElement.Escape(audit);
+            await File.WriteAllTextAsync(Path.Combine(projectRoot, "Same.csproj"), $$"""
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <TargetFramework>net10.0</TargetFramework>
+                    <RootNamespace>{{label}}</RootNamespace>
+                    <CodeMeshFixtureProperty>{{label}}</CodeMeshFixtureProperty>
+                  </PropertyGroup>
+                  <ItemGroup>
+                    <CompilerVisibleProperty Include="CodeMeshFixtureProperty" />
+                  </ItemGroup>
+                  <Import Project="{{escapedHook}}" />
+                  <Target Name="RecordConfiguration" AfterTargets="GenerateMSBuildEditorConfigFileCore">
+                    <PropertyGroup>
+                      <CapturedConfiguration>$([System.IO.File]::ReadAllText('$(GeneratedMSBuildEditorConfigFile)'))</CapturedConfiguration>
+                    </PropertyGroup>
+                    <WriteLinesToFile File="{{escapedAudit}}" Lines="$(GeneratedMSBuildEditorConfigFile);$(CapturedConfiguration)" Overwrite="true" />
+                    <Error Condition="'{{fail}}' == 'True'" Text="Intentional design-time fixture failure" />
+                  </Target>
+                </Project>
+                """);
+            await File.WriteAllTextAsync(Path.Combine(projectRoot, "Wanted.cs"),
+                $"namespace {label}; public sealed class Wanted {{ public int Value => 42; }}");
+            return await new CSharpParseService().ParseAsync(new ParseRequest(
+                projectRoot, null, null, "csharp", new Dictionary<string, string>()));
+        }
+
+        var results = await Task.WhenAll(ParseFixture("First", false), ParseFixture("Second", false));
+        foreach (var result in results)
+        {
+            HasNode(result, CodeNodeKind.Class, "Wanted");
+            if (result.Diagnostics.Any(item => item.Code is "CMSHARP010" or "CMSHARP012"))
+            {
+                throw new InvalidOperationException("Editor-config fixtures must load with MSBuild.");
+            }
+        }
+
+        var failed = await ParseFixture("Failed", true);
+        if (!failed.Diagnostics.Any(item => item.Message.Contains("Intentional design-time fixture failure", StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("The deliberate project-load failure must remain visible.");
+        }
+
+        var generatedPaths = new List<string>();
+        foreach (var label in new[] { "First", "Second", "Failed" })
+        {
+            var lines = await File.ReadAllLinesAsync(Path.Combine(root, $"{label}.audit"));
+            var generated = lines[0];
+            generatedPaths.Add(generated);
+            if (!lines.Any(line => line.Trim() == $"build_property.CodeMeshFixtureProperty = {label}"))
+            {
+                throw new InvalidOperationException($"Compiler-visible metadata was not preserved for {label}.");
+            }
+
+            if (Path.GetRelativePath(root, generated).Split(Path.DirectorySeparatorChar)[0] != "..")
+            {
+                throw new InvalidOperationException("Generated configuration must be outside the repository.");
+            }
+
+            if (File.Exists(generated) || Directory.Exists(Path.GetDirectoryName(generated)))
+            {
+                throw new InvalidOperationException("Request-owned configuration must be removed after workspace disposal.");
+            }
+
+            if (Directory.EnumerateFiles(Path.Combine(root, label), "*.editorconfig", SearchOption.AllDirectories).Any())
+            {
+                throw new InvalidOperationException("The hook must not write editor configuration inside the repository.");
+            }
+        }
+
+        Equal(3, generatedPaths.Distinct(StringComparer.Ordinal).Count(), "Concurrent project output paths collided.");
     }
     finally
     {
@@ -3582,6 +4097,67 @@ static async Task TestCSharpParserHonorsProjectCompileItems()
     }
 }
 
+static async Task TestCSharpParserAppliesRepositoryPathFilters()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-parser-path-filter-test-{Guid.NewGuid():N}");
+    var externalRoot = Path.Combine(Path.GetTempPath(), $"codemesh-parser-path-filter-external-test-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(Path.Combine(root, "src", "private"));
+    Directory.CreateDirectory(Path.Combine(root, "tests"));
+    Directory.CreateDirectory(externalRoot);
+
+    try
+    {
+        var projectPath = Path.Combine(root, "Filtered.csproj");
+        await File.WriteAllTextAsync(
+            projectPath,
+            "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "src", "Visible.cs"),
+            "namespace Sample; public sealed class Visible { }");
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "src", "private", "Hidden.cs"),
+            "namespace Sample; public sealed class Hidden { }");
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "tests", "VisibleTests.cs"),
+            "namespace Sample.Tests; public sealed class VisibleTests { }");
+        var externalProjectPath = Path.Combine(externalRoot, "External.csproj");
+        await File.WriteAllTextAsync(
+            externalProjectPath,
+            "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+
+        var result = await new CSharpParseService().ParseAsync(new ParseRequest(
+            root,
+            null,
+            projectPath,
+            "csharp",
+            new Dictionary<string, string>(),
+            new RepositoryPathFilter(
+                AllowPatterns: ["src/**"],
+                DenyPatterns: ["src/private/**"])));
+
+        Equal(0, result.Diagnostics.Count(diagnostic => diagnostic.Severity == "error"), "C# parser returned errors for a filtered repository.");
+        HasNodeId(result, "csharp:file:src/Visible.cs");
+        HasNodeId(result, "csharp:type:Sample.Visible");
+        HasNoNodeId(result, "csharp:file:src/private/Hidden.cs", result);
+        HasNoNodeId(result, "csharp:type:Sample.Hidden", result);
+        HasNoNodeId(result, "csharp:file:tests/VisibleTests.cs", result);
+
+        await ThrowsAsync<InvalidOperationException>(
+            () => new CSharpParseService().ParseAsync(new ParseRequest(
+                root,
+                null,
+                externalProjectPath,
+                "csharp",
+                new Dictionary<string, string>())),
+            "C# parser opened an explicit project manifest outside the repository path policy.");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+        Directory.Delete(externalRoot, recursive: true);
+    }
+}
+
 static async Task TestDeploymentParserEmitsDockerfileAndComposeNodes()
 {
     var root = Path.Combine(Path.GetTempPath(), $"codemesh-deployment-parser-test-{Guid.NewGuid():N}");
@@ -3589,6 +4165,7 @@ static async Task TestDeploymentParserEmitsDockerfileAndComposeNodes()
     try
     {
         Directory.CreateDirectory(root);
+        Directory.CreateDirectory(Path.Combine(root, "private"));
         await File.WriteAllTextAsync(
             Path.Combine(root, "Dockerfile"),
             """
@@ -3624,6 +4201,9 @@ static async Task TestDeploymentParserEmitsDockerfileAndComposeNodes()
                 ports:
                   - "5432:5432"
             """);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "private", "docker-compose.yml"),
+            "services: { hidden: { image: hidden:latest } }");
 
         var parser = new DeploymentParseService();
         var result = await parser.ParseAsync(new ParseRequest(
@@ -3631,7 +4211,8 @@ static async Task TestDeploymentParserEmitsDockerfileAndComposeNodes()
             null,
             null,
             "deployment",
-            new Dictionary<string, string>()));
+            new Dictionary<string, string>(),
+            new RepositoryPathFilter(DenyPatterns: ["private/**"])));
 
         Equal("codemesh-parser-deployment", result.ParserName, "Deployment parser name changed.");
         Equal("deployment", result.Language, "Deployment parser language changed.");
@@ -3644,6 +4225,7 @@ static async Task TestDeploymentParserEmitsDockerfileAndComposeNodes()
         Equal(true, nodeIds.Contains("deployment:compose:docker-compose.yml"), "Deployment parser did not emit Compose file node.");
         Equal(true, nodeIds.Contains("deployment:compose-service:docker-compose.yml#api"), "Deployment parser did not emit api service node.");
         Equal(true, nodeIds.Contains("deployment:compose-service:docker-compose.yml#db"), "Deployment parser did not emit db service node.");
+        Equal(false, nodeIds.Any(id => id.Contains("private/", StringComparison.Ordinal)), "Deployment parser ignored the configured deny pattern.");
 
         var runtimeStage = result.Nodes.Single(node => node.Id == "deployment:dockerfile-stage:Dockerfile#stage-2");
         Equal(CodeNodeKind.DockerfileStage, runtimeStage.Kind, "Deployment parser did not use DockerfileStage node kind.");
@@ -3696,6 +4278,7 @@ static async Task TestMarkdownParserEmitsDocumentsSectionsAndContainment()
     try
     {
         Directory.CreateDirectory(root);
+        Directory.CreateDirectory(Path.Combine(root, "private"));
         var ignoredDirectories = new[] { ".venv", ".tmp", ".codemesh-smoke" };
         foreach (var ignoredDirectory in ignoredDirectories)
         {
@@ -3719,6 +4302,9 @@ static async Task TestMarkdownParserEmitsDocumentsSectionsAndContainment()
 
             Use local services.
             """);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "private", "Hidden.md"),
+            "# Hidden");
 
         var parser = new MarkdownParseService();
         var result = await parser.ParseAsync(new ParseRequest(
@@ -3726,7 +4312,8 @@ static async Task TestMarkdownParserEmitsDocumentsSectionsAndContainment()
             null,
             null,
             "markdown",
-            new Dictionary<string, string>()));
+            new Dictionary<string, string>(),
+            new RepositoryPathFilter(DenyPatterns: ["private/**"])));
 
         Equal("codemesh-parser-markdown", result.ParserName, "Markdown parser name changed.");
         Equal(0, result.Diagnostics.Count(diagnostic => diagnostic.Severity == "error"), "Markdown parser emitted errors.");
@@ -3734,6 +4321,7 @@ static async Task TestMarkdownParserEmitsDocumentsSectionsAndContainment()
         HasNode(result, CodeNodeKind.Section, "Product");
         HasNode(result, CodeNodeKind.Section, "Setup");
         HasNode(result, CodeNodeKind.Section, "Local");
+        Equal(false, result.Nodes.Any(node => node.Span.FilePath.StartsWith("private/", StringComparison.Ordinal)), "Markdown parser ignored the configured deny pattern.");
         Equal(
             false,
             result.Nodes.Any(node => ignoredDirectories.Any(directory =>
@@ -3795,8 +4383,20 @@ static async Task TestPythonParserEmitsClassesFunctionsAndContainment()
                 def greet(self, name: str) -> str:
                     return normalize(name)
 
+            class GreeterContract:
+                def configure(self, *, enabled: bool) -> None: ...
+
+            class GreeterAdapter:
+                def configure(self, *, enabled: bool) -> None:
+                    return None
+
             async def normalize(value: str) -> str:
                 return value.strip().lower()
+
+            def format_name(
+                value: str,
+            ) -> str:
+                return normalize(value)
             """);
 
         var parser = new PythonParseService();
@@ -3813,6 +4413,11 @@ static async Task TestPythonParserEmitsClassesFunctionsAndContainment()
         HasNode(result, CodeNodeKind.Class, "Greeter");
         HasNode(result, CodeNodeKind.Method, "greet");
         HasNode(result, CodeNodeKind.Method, "normalize");
+        HasNode(result, CodeNodeKind.Method, "format_name");
+        Equal(
+            2,
+            result.Nodes.Count(node => node.Kind == CodeNodeKind.Method && node.Name == "configure"),
+            "Python parser did not keep same-named methods in distinct inline-body classes.");
         HasRelationshipBetween(
             result,
             "python:file:service.py",
@@ -3826,6 +4431,11 @@ static async Task TestPythonParserEmitsClassesFunctionsAndContainment()
 
         var normalize = result.Nodes.Single(node => node.Id == "python:method:service.normalize");
         Equal("True", normalize.Metadata["async"], "Python parser did not mark async functions.");
+        HasRelationshipBetween(
+            result,
+            "python:method:service.format_name",
+            normalize.Id,
+            CodeRelationshipKind.Invokes);
     }
     finally
     {
@@ -3861,6 +4471,224 @@ static async Task TestPythonParserParsesAgentAccessProject()
     HasNode(result, CodeNodeKind.Class, "CodeMeshReadStore");
     HasNode(result, CodeNodeKind.Method, "search_context");
     HasNode(result, CodeNodeKind.Method, "tool_manifest");
+}
+
+static async Task TestPythonParserEmitsImportsCallsAndTestCases()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-python-semantic-test-{Guid.NewGuid():N}");
+    try
+    {
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "native.py"),
+            """
+            from _onenine_feed_hub_native import replay as native_replay
+            from _onenine_feed_hub_native import replay as native_replay
+
+            def run_replay():
+                return native_replay()
+
+            def test_run_replay():
+                return run_replay()
+            """);
+
+        var result = await new PythonParseService().ParseAsync(new ParseRequest(
+            root,
+            null,
+            null,
+            "python",
+            new Dictionary<string, string>()));
+
+        var import = result.Nodes.Single(node =>
+            node.Metadata.TryGetValue("pythonKind", out var kind) && kind == "import");
+        var run = result.Nodes.Single(node => node.Name == "run_replay");
+        var test = result.Nodes.Single(node => node.Name == "test_run_replay");
+        Equal("_onenine_feed_hub_native", import.Metadata["importModule"], "Python import module metadata changed.");
+        Equal("replay", import.Metadata["importedName"], "Python imported-name metadata changed.");
+        Equal(CodeNodeKind.TestCase, test.Kind, "Python test function was not emitted as a test case.");
+        HasRelationshipBetween(result, run.Id, import.Id, CodeRelationshipKind.Invokes);
+        HasRelationshipBetween(result, test.Id, run.Id, CodeRelationshipKind.Invokes);
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static async Task TestRustParserEmitsDeclarationsRelationshipsTestsAndPyO3Exports()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-rust-parser-test-{Guid.NewGuid():N}");
+    try
+    {
+        Directory.CreateDirectory(Path.Combine(root, "src"));
+        Directory.CreateDirectory(Path.Combine(root, "target", "debug"));
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "src", "lib.rs"),
+            """
+            use pyo3::prelude::*;
+
+            trait Runner {
+                fn run(&self);
+            }
+
+            #[pyclass]
+            struct Replay;
+
+            impl Runner for Replay {
+                fn run(&self) {
+                    helper();
+                }
+            }
+
+            fn helper() {}
+
+            #[pyfunction]
+            #[pyo3(name = "replay")]
+            fn replay_impl(value: Replay) -> Replay {
+                helper();
+                value
+            }
+
+            #[pymodule]
+            fn _onenine_feed_hub_native() {}
+
+            #[test]
+            fn test_replay() {
+                replay_impl(Replay);
+            }
+            """);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "target", "debug", "generated.rs"),
+            "fn must_not_be_indexed() {}\n");
+
+        var result = await new RustParseService().ParseAsync(new ParseRequest(
+            root,
+            null,
+            null,
+            "rust",
+            new Dictionary<string, string>()));
+        var repeatedResult = await new RustParseService().ParseAsync(new ParseRequest(
+            root,
+            null,
+            null,
+            "rust",
+            new Dictionary<string, string>()));
+
+        Equal("codemesh-parser-rust", result.ParserName, "Rust parser name changed.");
+        Equal(0, result.Diagnostics.Count(item => item.Severity == "error"), "Rust parser emitted errors.");
+        Equal(
+            string.Join('\n', result.Nodes.Select(node => node.Id).Order(StringComparer.Ordinal)),
+            string.Join('\n', repeatedResult.Nodes.Select(node => node.Id).Order(StringComparer.Ordinal)),
+            "Rust node identities were not deterministic.");
+        Equal(
+            string.Join('\n', result.Relationships.Select(relationship => relationship.Id).Order(StringComparer.Ordinal)),
+            string.Join('\n', repeatedResult.Relationships.Select(relationship => relationship.Id).Order(StringComparer.Ordinal)),
+            "Rust relationship identities were not deterministic.");
+        HasNode(result, CodeNodeKind.Interface, "Runner");
+        HasNode(result, CodeNodeKind.Struct, "Replay");
+        HasNode(result, CodeNodeKind.Method, "helper");
+        HasNode(result, CodeNodeKind.TestCase, "test_replay");
+        Equal(false, result.Nodes.Any(node => node.Name == "must_not_be_indexed"), "Rust parser indexed Cargo target output.");
+
+        var implementation = result.Nodes.Single(node =>
+            node.Metadata.TryGetValue("rustKind", out var kind) && kind == "impl");
+        var traitNode = result.Nodes.Single(node => node.Name == "Runner" && node.Kind == CodeNodeKind.Interface);
+        HasRelationshipBetween(result, implementation.Id, traitNode.Id, CodeRelationshipKind.Implements);
+
+        var replay = result.Nodes.Single(node =>
+            node.Metadata.TryGetValue("pythonExportName", out var name) && name == "replay");
+        Equal("function", replay.Metadata["pythonExportKind"], "Rust PyO3 function export metadata changed.");
+        var module = result.Nodes.Single(node =>
+            node.Metadata.TryGetValue("pythonExportKind", out var kind) && kind == "module");
+        Equal("_onenine_feed_hub_native", module.Metadata["pythonExportName"], "Rust PyO3 module name changed.");
+        HasRelationship(result, CodeRelationshipKind.Invokes);
+        HasRelationship(result, CodeRelationshipKind.UsesType);
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static async Task TestCompositeParserLinksPythonCallsToRustPyO3Exports()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codemesh-pyo3-boundary-test-{Guid.NewGuid():N}");
+    try
+    {
+        Directory.CreateDirectory(Path.Combine(root, "src"));
+        Directory.CreateDirectory(Path.Combine(root, "ignored"));
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "bridge.py"),
+            """
+            from _onenine_feed_hub_native import replay
+
+            def run():
+                replay()
+                return replay()
+            """);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "src", "lib.rs"),
+            """
+            #[pyfunction]
+            fn replay() {}
+
+            #[pymodule]
+            fn _onenine_feed_hub_native() {}
+            """);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "ignored", "skip.py"),
+            "def must_not_be_indexed(): pass\n");
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "ignored", "skip.rs"),
+            "fn must_not_be_indexed() {}\n");
+
+        var parser = new CompositeParserClient(new Dictionary<string, IParserClient>
+        {
+            ["python"] = new LocalPythonFixtureClient(),
+            ["rust"] = new LocalRustFixtureClient()
+        });
+        var result = await parser.ParseAsync(new ParseRequest(
+            root,
+            null,
+            null,
+            "python,rust",
+            new Dictionary<string, string>(),
+            new RepositoryPathFilter(DenyPatterns: ["ignored/**"])));
+
+        var pythonRun = result.Nodes.Single(node => node.Language == "python" && node.Name == "run");
+        var rustReplay = result.Nodes.Single(node =>
+            node.Language == "rust" &&
+            node.Metadata.TryGetValue("pythonExportName", out var name) &&
+            name == "replay");
+        var boundary = result.Relationships.SingleOrDefault(relationship =>
+            relationship.SourceNodeId == pythonRun.Id &&
+            relationship.TargetNodeId == rustReplay.Id &&
+            relationship.Kind == CodeRelationshipKind.Invokes &&
+            relationship.Metadata.TryGetValue("boundary", out var value) &&
+            value == "pyo3");
+        NotNull(boundary, "Composite parser did not link Python invocation to Rust PyO3 export.");
+        Equal(false, result.Nodes.Any(node => node.Name == "must_not_be_indexed"), "Composite parser did not apply the shared deny pattern.");
+        Equal(
+            1,
+            result.Relationships.Count(relationship =>
+                relationship.SourceNodeId == pythonRun.Id &&
+                relationship.TargetNodeId == rustReplay.Id &&
+                relationship.Kind == CodeRelationshipKind.Invokes),
+            "Composite parser did not coalesce repeated calls across the PyO3 boundary.");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }
 
 static async Task TestYoutubeDownloaderSampleParser()
@@ -4289,6 +5117,92 @@ sealed class FakeParserClient : IParserClient
     }
 }
 
+sealed class LanguageFixtureParserClient(string language, string extension) : IParserClient
+{
+    public Task<ParserCapability> GetCapabilityAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new ParserCapability(
+            $"fixture-{language}",
+            language,
+            "test",
+            [extension],
+            ["repositoryRoot"]));
+    }
+
+    public Task<ParseResult> ParseAsync(
+        ParseRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(language, request.Language, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Composite parser did not isolate the language request.");
+        }
+        var now = DateTimeOffset.UtcNow;
+        var filePath = $"sample{extension}";
+        var text = $"{language} fixture";
+        var contentHash = CodeMeshHash.Sha256Hex(text);
+        var node = new CodeNode(
+            $"{language}:file:{filePath}",
+            $"{language}:file:{filePath}",
+            CodeNodeKind.File,
+            filePath,
+            language,
+            null,
+            new SourceSpan(filePath, 1, 1, 1, text.Length),
+            contentHash,
+            new Dictionary<string, string>());
+        var content = new CodeContent(
+            contentHash,
+            text,
+            "text/plain",
+            now,
+            now);
+        return Task.FromResult(new ParseResult(
+            $"fixture-{language}",
+            language,
+            [node],
+            Array.Empty<CodeRelationship>(),
+            [content],
+            Array.Empty<ParserDiagnostic>(),
+            now));
+    }
+}
+
+sealed class LocalPythonFixtureClient : IParserClient
+{
+    private readonly PythonParseService _parser = new();
+
+    public Task<ParserCapability> GetCapabilityAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(PythonParseService.Capability);
+    }
+
+    public Task<ParseResult> ParseAsync(
+        ParseRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return _parser.ParseAsync(request, cancellationToken);
+    }
+}
+
+sealed class LocalRustFixtureClient : IParserClient
+{
+    private readonly RustParseService _parser = new();
+
+    public Task<ParserCapability> GetCapabilityAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(RustParseService.Capability);
+    }
+
+    public Task<ParseResult> ParseAsync(
+        ParseRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return _parser.ParseAsync(request, cancellationToken);
+    }
+}
+
 sealed class SecretParserClient : IParserClient
 {
     public const string SecretValue = "super-secret-value";
@@ -4561,7 +5475,9 @@ sealed class FakeOllamaSummaryHandler : HttpMessageHandler
                   "message": {
                     "role": "assistant",
                     "content": "{\"summary\":\"Adds two integers and returns their sum.\",\"tags\":[\"addition\"],\"confidence\":\"high\"}"
-                  }
+                  },
+                  "prompt_eval_count": 72,
+                  "eval_count": 18
                 }
                 """,
                 System.Text.Encoding.UTF8,
@@ -4685,7 +5601,12 @@ sealed class FakeLmStudioSummaryHandler : HttpMessageHandler
                       },
                       "finish_reason": "stop"
                     }
-                  ]
+                  ],
+                  "usage": {
+                    "prompt_tokens": 96,
+                    "completion_tokens": 24,
+                    "total_tokens": 120
+                  }
                 }
                 """,
                 System.Text.Encoding.UTF8,

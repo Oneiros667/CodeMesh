@@ -1,0 +1,140 @@
+{
+  "schema_version": "codemesh-configured-onenine-provider-free-v1",
+  "evidence_class": "provider-free-local-configured-integration",
+  "recorded_at": "2026-09-01T11:05:42Z",
+  "codemesh": {
+    "commit": "8844c21baf7aa6b5fcce2c535d510c2ad2788e71",
+    "clean_detached_checkout": true,
+    "one_step_context_package_entry_included": true,
+    "status_next_action_compatibility_retained": true,
+    "python_tests_passed": 125,
+    "python_test_warnings": 2,
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "fixture_suite_cases_passed": 5,
+    "dotnet_verification": {
+      "status": "passed_with_warning_and_skip",
+      "locked_restore": "passed",
+      "build_passed": true,
+      "build_warning_count": 1,
+      "tests_passed": 69,
+      "tests_failed": 0,
+      "tests_skipped": 1,
+      "skip_reason": "CODEMESH_SAMPLE_CSHARP_ROOT not configured for YoutubeDownloader sample; synthetic parser tests passed",
+      "format_verify_no_changes": true,
+      "retained_diagnostic": "The first attended service-backed attempt encountered a Neo4j cold-start cancellation; the initialized-store rerun passed and is the accepted gate."
+    },
+    "repository_standards": {
+      "markdownlint": "passed",
+      "links": "passed",
+      "publication_safety": "passed",
+      "workflow_policy": "passed",
+      "diff_check": "passed"
+    }
+  },
+  "onenine_instance_configuration": {
+    "commit": "f9f199d568d1450690459075dc0be38c8155a0c1",
+    "primary_binding_updated": true,
+    "all_generated_instance_checks_passed": true,
+    "additional_instances_activated": false
+  },
+  "onenine_primary": {
+    "commit": "fe2f761583bf78601961ff17934185c4b6a632f9",
+    "clean_detached_checkout_during_gates": true,
+    "restored_main_commit": "162fa515f7837efbc3a67372c5bd0d2e2d36b6fd",
+    "project_id": "prj_a570a726917d4d0ca596085aaf07af50",
+    "checkout_id": "chk_70c50c5494de4837ab0627aca021eab2",
+    "snapshot_id": "snp_bf026d3f2e2b5a40f3c9fa112ae36b7e026b0f5a0f0483a23796b0a6adc9243e",
+    "source_view_hash": "fea1951d1eeb93ac265112aef7000dcac1a9832b000ea81b360b0851df56e69b",
+    "freshness_status": "fresh"
+  },
+  "configured_preflight": {
+    "passed": true,
+    "integration_mode": "configured",
+    "prompt_parity": true,
+    "profile": "normal",
+    "provider": "none",
+    "plan_hash": "fcadac37ae4df261e8b746e14f9191e22a7b6399b991925d4d1e12a5947daf34",
+    "installation_file_sha256": "d2f6605df75dc5f93be6d8b0b7aea10b3754cb333ddd6d12187e84b262ed484c",
+    "guidance": {
+      "path": "AGENTS.override.md",
+      "source": "installed-ignored",
+      "sha256": "72f9a446e9e77886ba901f3e1a1eb28705230c8232ff42756920c23cc975cd79"
+    },
+    "expected_paths": [
+      "app/feed_hub/native_replay.py",
+      "native/feed_hub_replay/src/lib.rs"
+    ],
+    "returned_path_count": 8,
+    "wrong_checkout_rejected": true,
+    "report_sha256": "15c75818160ccf47edbfeb7a5966043bcd4f206acef91510d403d51c61b69585"
+  },
+  "onenine_frozen_pilot": {
+    "passed": true,
+    "gate_count": 8,
+    "positive_gate_count": 4,
+    "rejection_gate_count": 4,
+    "rejection_issue_codes": [
+      "bound_repository_missing",
+      "repository_root_mismatch",
+      "source_view_hash_mismatch",
+      "snapshot_not_fresh"
+    ],
+    "feedback_packets_valid": 3,
+    "report_sha256": "2697a5e927ce473951b683fc06a28f7907b11af78841f92ea97c0d52a4afc227"
+  },
+  "youtube_downloader_live": {
+    "passed": true,
+    "comparable": true,
+    "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+    "case_count": 6,
+    "tool_call_count": 18,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 0.9,
+    "mean_ndcg_at_k": 0.926186,
+    "secret_leaks": 0,
+    "provider": "none",
+    "report_sha256": "254f442da4fba50cfcf93d053aa076ecb4fb15e4cd7ce75246db639ac6ddd7c2"
+  },
+  "retained_prior_campaigns": [
+    {
+      "codemesh_commit": "0bde606cc73b4a0b081067a039822a53672459a1",
+      "verdict": "insufficient",
+      "context_retrieval_call_count": 0,
+      "preserved_unchanged": true
+    },
+    {
+      "codemesh_commit": "03787409bfb1bbbb53ba83ea1a3de4f3bf8f6fc9",
+      "verdict": "insufficient",
+      "context_retrieval_call_count": 0,
+      "preserved_unchanged": true
+    }
+  ],
+  "claim_ceiling": {
+    "established": [
+      "provider_free_one_step_entry_candidate_verification",
+      "provider_free_configured_plan_and_runtime_identity",
+      "prompt_parity_preflight_configuration",
+      "frozen_onenine_retrieval_and_rejection_gates",
+      "comparable_youtube_downloader_retrieval_gate"
+    ],
+    "not_established": [
+      "normal_agent_context_package_adoption",
+      "model_backed_correctness_or_efficiency_benefit",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "boundaries": {
+    "raw_prompts_or_payloads_retained": false,
+    "model_provider_invoked": false,
+    "model_backed_agent_evaluation": "not_run_requires_new_explicit_spend_authority",
+    "config_net_configured_replication": "not_run_requires_valid_onenine_model_campaign_first",
+    "secondary_tertiary_release_hotfix_onboarding": "not_authorized",
+    "run_only": "excluded",
+    "release": "not_authorized",
+    "deployment": "not_authorized",
+    "live_trading": "not_authorized"
+  }
+}

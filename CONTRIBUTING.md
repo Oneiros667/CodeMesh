@@ -7,17 +7,21 @@ the owner explicitly activates a deferred area.
 
 The [Documentation Hub](docs/README.md) identifies current references,
 operating guides, status, planning documents, and historical evidence.
+Supported repository commands are indexed in [`COMMANDS.md`](COMMANDS.md).
+
+Start with the [Developer Handbook](docs/guides/developer-handbook.md) to learn
+the architecture, domain vocabulary, and implementation flows. Use
+[Development and Debugging](docs/guides/development-and-debugging.md) for local
+diagnosis and [Making Changes](docs/guides/making-changes.md) to trace a change
+across producers, consumers, contracts, and tests.
 
 ## Development setup
 
 Required tools are the .NET 10 SDK, Python 3.12 or newer, `uv`, and Git. Docker
 Compose is needed only for live-store and end-to-end work.
 
-```powershell
-dotnet restore CodeMesh.sln --locked-mode
-Set-Location agent-access
-uv sync --locked
-```
+Use the locked .NET restore and Python Agent Access environment commands in
+[`COMMANDS.md`](COMMANDS.md#deterministic-verification).
 
 Copy `.env.example` to `.env` only for local services, set a unique development
 password, and never commit the resulting file.
@@ -45,12 +49,14 @@ password, and never commit the resulting file.
 
 ## Validation
 
-Use the canonical risk-scaled commands and selection rules in
-[Testing](docs/evaluation/testing.md). Run .NET commands serially because the solution
-shares intermediate outputs. Use the end-to-end smoke path only for changes
-that cross live stores, repository lifecycle, cleanup, Docker, or Agent Access
-integration boundaries. Do not run provider-backed evaluation without explicit
-authorization.
+Use the supported invocations in [`COMMANDS.md`](COMMANDS.md) and the
+risk-scaled selection rules in [Testing](docs/evaluation/testing.md). Run .NET
+commands serially because the solution shares intermediate outputs. Use the
+end-to-end smoke path only for changes that cross live stores, repository
+lifecycle, cleanup, Docker, or Agent Access integration boundaries. Do not run
+provider-backed evaluation without explicit authorization.
 
 The full engineering policy is in
-[Engineering Standards](docs/engineering/standards.md).
+[Engineering Standards](docs/engineering/standards.md), with evidence and
+authority boundaries in the
+[Software Engineering Methodology](docs/engineering/methodology.md).

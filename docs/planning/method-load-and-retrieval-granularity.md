@@ -70,9 +70,10 @@ CodeMesh already contains related mechanisms, but not this capability:
 - C# parsing emits logical symbol nodes, source declaration nodes, source spans,
   and semantic relationships. Roslyn provides a suitable base for future
   control-flow and data-flow measurements.
-- Python parsing emits files, classes, functions, async functions, and
-  containment. It does not yet provide Python call relationships or a
-  comparable control-flow model.
+- Python parsing emits files, classes, functions, async functions, containment,
+  imports, calls, test relationships, and bounded PyO3 links for the activated
+  pilot. These heuristic relationships do not provide a comparable semantic
+  control-flow model or calibrated method-load findings.
 - Summary generation assigns complexity tiers using node kind, source lines,
   characters, truncation, and optional complexity metadata. Those tiers select
   generation budgets; they are not maintainability classifications.

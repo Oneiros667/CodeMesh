@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "kind": "agent",
+  "name": "onenine-native-replay-configured-agent",
+  "description": "Pinned configured/onboarded one|nine Python-to-Rust native replay change-impact task.",
+  "repository_id": "onenine",
+  "repository_commit": "fe2f761583bf78601961ff17934185c4b6a632f9",
+  "integration_mode": "configured",
+  "thresholds": {
+    "efficiency_delta": 0.10,
+    "minimum_completed_pairs": 3
+  },
+  "tasks": [
+    {
+      "id": "native-replay-four-worker-impact",
+      "description": "Distinguish the native replay contract changes required to allow four parallel workers from unrelated worker-count settings.",
+      "task_type": "answer",
+      "prompt": "Plan the likely impact of allowing four workers in native feed-hub replay parallel processing instead of the current maximum of three. Trace the Python adapter and session validation, the PyO3 boundary and Rust worker/queue pipeline, telemetry and evidence validation, benchmark measurement loops, and focused tests. Identify the source and test changes actually required, distinguish unrelated strategy-job worker_count=4 paths that already use a separate contract, and recommend the risk-appropriate validation commands. Cite implementation and test files with exact line ranges. Do not implement the change.",
+      "targets": [
+        {
+          "file_path": "app/feed_hub/native_replay.py"
+        },
+        {
+          "file_path": "native/feed_hub_replay/src/lib.rs"
+        },
+        {
+          "file_path": "app/feed_hub/evidence.py"
+        },
+        {
+          "file_path": "tests/test_feed_hub_native_replay_adapter.py"
+        },
+        {
+          "file_path": "tests/test_feed_hub_native_replay_state.py"
+        },
+        {
+          "file_path": "tests/test_feed_hub_replay_runners.py"
+        },
+        {
+          "file_path": "tests/test_feed_hub_evidence.py"
+        }
+      ]
+    }
+  ]
+}

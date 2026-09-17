@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .binding import RepositoryBinding
 from .dependencies import get_store
 from .models import (
     ContextPackageQuery,
@@ -70,7 +71,9 @@ async def get_context_package(
     definition_limit: int | None = None,
     uses_type_limit: int | None = None,
     include_repository: bool = True,
+    binding: RepositoryBinding | None = None,
 ) -> ToolResult:
+    binding_arguments = {"binding": binding} if binding is not None else {}
     result = await get_store().get_context_package(
         ContextPackageQuery(
             query=query,
@@ -92,7 +95,8 @@ async def get_context_package(
             definition_limit=definition_limit,
             uses_type_limit=uses_type_limit,
             include_repository=include_repository,
-        )
+        ),
+        **binding_arguments,
     )
     return ToolResult(data=result.model_dump(mode="json"))
 
@@ -123,14 +127,17 @@ async def get_node(
     repository_id: str | None = None,
     include_content: bool = True,
     include_neighbors: bool = True,
+    binding: RepositoryBinding | None = None,
 ) -> ToolResult:
+    binding_arguments = {"binding": binding} if binding is not None else {}
     result = await get_store().get_node(
         NodeLookup(
             node_id=node_id,
             repository_id=repository_id,
             include_content=include_content,
             include_neighbors=include_neighbors,
-        )
+        ),
+        **binding_arguments,
     )
     return ToolResult(data=result.model_dump(mode="json"))
 
@@ -152,8 +159,15 @@ async def get_neighbors(
     return ToolResult(data=result.model_dump(mode="json"))
 
 
-async def list_repositories(limit: int = 50) -> ToolResult:
-    result = await get_store().list_repositories(limit=limit)
+async def list_repositories(
+    limit: int = 50,
+    binding: RepositoryBinding | None = None,
+) -> ToolResult:
+    binding_arguments = {"binding": binding} if binding is not None else {}
+    result = await get_store().list_repositories(
+        limit=limit,
+        **binding_arguments,
+    )
     return ToolResult(data=result.model_dump(mode="json"))
 
 
@@ -174,8 +188,15 @@ async def get_summary_coverage(repository_id: str) -> ToolResult:
     return ToolResult(data=result.model_dump(mode="json"))
 
 
-async def get_repository_status(repository_id: str) -> ToolResult:
-    result = await get_store().get_repository_status(repository_id)
+async def get_repository_status(
+    repository_id: str,
+    binding: RepositoryBinding | None = None,
+) -> ToolResult:
+    binding_arguments = {"binding": binding} if binding is not None else {}
+    result = await get_store().get_repository_status(
+        repository_id,
+        **binding_arguments,
+    )
     return ToolResult(data=result.model_dump(mode="json"))
 
 

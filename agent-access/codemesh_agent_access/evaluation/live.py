@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -36,8 +37,13 @@ class McpEvaluationClient:
         args: list[str] | None = None,
         cwd: str | Path | None = None,
         timeout_seconds: int = 60,
+        capture_context_package_timings: bool = False,
     ) -> None:
         package_root = Path(__file__).resolve().parents[2]
+        environment = None
+        if capture_context_package_timings:
+            environment = os.environ.copy()
+            environment["CODEMESH_CONTEXT_PACKAGE_TIMINGS"] = "1"
         self.parameters = StdioServerParameters(
             command=command or sys.executable,
             args=args
@@ -49,11 +55,15 @@ class McpEvaluationClient:
                 "diagnostic",
             ],
             cwd=Path(cwd) if cwd else package_root,
+            env=environment,
         )
         self.timeout = timedelta(seconds=timeout_seconds)
         self.session: ClientSession | None = None
         self.startup_ms = 0.0
         self.tool_names: list[str] = []
+        self.capture_context_package_timings = capture_context_package_timings
+        self.context_package_timing_labels: list[str | None] = []
+        self.context_package_timings: list[dict[str, Any]] = []
 
     @asynccontextmanager
     async def connect(self) -> AsyncIterator["McpEvaluationClient"]:
@@ -86,16 +96,30 @@ class McpEvaluationClient:
                     f"Could not start or communicate with CodeMesh MCP: {type(exc).__name__}: {exc}"
                 ) from exc
             finally:
+                if self.capture_context_package_timings:
+                    errlog.seek(0)
+                    self.context_package_timings = _parse_context_package_timings(
+                        errlog.read()
+                    )
                 self.session = None
 
     async def call(
-        self, tool: str, arguments: dict[str, Any]
+        self,
+        tool: str,
+        arguments: dict[str, Any],
+        *,
+        timing_label: str | None = None,
     ) -> tuple[dict[str, Any], float]:
         if self.session is None:
             raise EvaluationInfrastructureError(
                 "The MCP evaluation client is not connected."
             )
         started = perf_counter()
+        if (
+            self.capture_context_package_timings
+            and tool == "codemesh_get_context_package"
+        ):
+            self.context_package_timing_labels.append(timing_label)
         try:
             result = await self.session.call_tool(
                 tool,
@@ -125,12 +149,18 @@ async def run_live_evaluation(
     command: str | None = None,
     command_args: list[str] | None = None,
     command_cwd: str | Path | None = None,
+    capture_context_package_timings: bool = False,
 ) -> LiveReport:
     if repetitions < 1 or warmup < 0:
         raise ValueError("Live evaluation requires repetitions >= 1 and warmup >= 0.")
     started = perf_counter()
     resolved_repository = repository_id or suite.repository_id
-    client = McpEvaluationClient(command, command_args, command_cwd)
+    client = McpEvaluationClient(
+        command,
+        command_args,
+        command_cwd,
+        capture_context_package_timings=capture_context_package_timings,
+    )
     tool_source = get_tool_source_identity(Path(client.parameters.cwd))
     tool_source_comparable = bool(tool_source.get("available")) and not bool(
         tool_source.get("working_tree_dirty")
@@ -229,6 +259,17 @@ async def run_live_evaluation(
                 )
             )
 
+    timing_summary: dict[str, Any] | None = None
+    if capture_context_package_timings:
+        timing_summary = _context_package_timing_summary(
+            client.context_package_timings,
+            client.context_package_timing_labels,
+        )
+        for case_report in case_reports:
+            case_timing = timing_summary["cases"].get(case_report.id)
+            if case_timing is not None:
+                case_report.diagnostics["context_package_timing"] = case_timing
+
     retrieval_cases = [
         case
         for case, source in zip(case_reports, suite.cases, strict=True)
@@ -314,6 +355,11 @@ async def run_live_evaluation(
                 [latency for case in case_reports for latency in case.latencies_ms],
                 0.95,
             ),
+            **(
+                {"context_package_timing": timing_summary}
+                if timing_summary is not None
+                else {}
+            ),
         },
         cases=case_reports,
         failures=failures,
@@ -332,9 +378,23 @@ async def get_repository_preflight(
     data = _data(payload)
     freshness = data.get("freshness") or {}
     if freshness.get("status") != "fresh":
-        raise EvaluationInfrastructureError(
+        identity = "; ".join(
+            f"{key}={freshness.get(key)!r}"
+            for key in (
+                "status",
+                "indexed_commit",
+                "current_commit",
+                "working_tree_dirty",
+                "indexed_source_view_hash",
+            )
+            if key in freshness
+        )
+        detail = (
             freshness.get("detail")
             or "Agent evaluation requires a fresh CodeMesh index."
+        )
+        raise EvaluationInfrastructureError(
+            f"{detail} Candidate identity: {identity}." if identity else detail
         )
     return data
 
@@ -383,7 +443,11 @@ async def _run_live_case(
     failures = []
     for _ in range(repetitions):
         try:
-            payload, latency = await client.call(case.tool, arguments)
+            payload, latency = await client.call(
+                case.tool,
+                arguments,
+                timing_label=case.id,
+            )
         except EvaluationInfrastructureError as exc:
             failures.append(str(exc))
             continue
@@ -446,6 +510,91 @@ async def _run_live_case(
         failures=failures,
         raw_responses=payloads if keep_raw_traces else None,
     )
+
+
+def _parse_context_package_timings(stderr: str) -> list[dict[str, Any]]:
+    prefix = "CODEMESH_CONTEXT_PACKAGE_TIMING "
+    records = []
+    for line in stderr.splitlines():
+        if not line.startswith(prefix):
+            continue
+        try:
+            payload = json.loads(line[len(prefix) :])
+        except json.JSONDecodeError as exc:
+            raise EvaluationInfrastructureError(
+                "CodeMesh emitted a malformed context-package timing record."
+            ) from exc
+        if (
+            not isinstance(payload, dict)
+            or payload.get("event") != "context_package_timing"
+        ):
+            raise EvaluationInfrastructureError(
+                "CodeMesh emitted an invalid context-package timing record."
+            )
+        records.append(payload)
+    return records
+
+
+def _context_package_timing_summary(
+    records: list[dict[str, Any]], labels: list[str | None]
+) -> dict[str, Any]:
+    if len(records) != len(labels):
+        raise EvaluationInfrastructureError(
+            "Context-package timing record count did not match measured MCP calls."
+        )
+    measured = [
+        (label, record)
+        for label, record in zip(labels, records, strict=True)
+        if label is not None
+    ]
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for label, record in measured:
+        grouped.setdefault(label, []).append(record)
+    return {
+        "captured": True,
+        "record_count": len(measured),
+        "cases": {
+            label: _summarize_timing_records(case_records)
+            for label, case_records in sorted(grouped.items())
+        },
+    }
+
+
+def _summarize_timing_records(records: list[dict[str, Any]]) -> dict[str, Any]:
+    stage_names = sorted(
+        {str(name) for record in records for name in (record.get("stages_ms") or {})}
+    )
+    operation_names = sorted(
+        {
+            str(name)
+            for record in records
+            for name in (record.get("operations_ms") or {})
+        }
+    )
+    return {
+        "calls": len(records),
+        "successful_calls": sum(record.get("outcome") == "ok" for record in records),
+        "p50_total_ms": p50([float(record.get("total_ms") or 0) for record in records]),
+        "p50_stages_ms": {
+            name: p50(
+                [
+                    float((record.get("stages_ms") or {}).get(name, 0))
+                    for record in records
+                ]
+            )
+            for name in stage_names
+        },
+        "p50_operations_ms": {
+            name: p50(
+                [
+                    float((record.get("operations_ms") or {}).get(name, 0))
+                    for record in records
+                ]
+            )
+            for name in operation_names
+        },
+        "counts": records[0].get("counts", {}) if records else {},
+    }
 
 
 def _tool_payload(result: Any) -> dict[str, Any]:

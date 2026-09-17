@@ -1,0 +1,126 @@
+{
+  "schema_version": "codemesh-config-net-focused-query-provider-free-v1",
+  "evidence_class": "provider-free-local-configured-integration",
+  "recorded_at": "2026-09-01T14:06:07Z",
+  "codemesh": {
+    "commit": "3804028ccc7d25304d95ff933c7291b79f3e43b5",
+    "clean_detached_checkout": true,
+    "change": "replace_one_long_full_task_query_guidance_with_small_focused_implementation_and_test_queries",
+    "context_package_remains_single_entry_tool": true,
+    "python_tests_passed": 125,
+    "python_test_warnings": 2,
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "fixture_suite_cases_passed": 5,
+    "dotnet_verification": "not_selected_no_dotnet_contract_or_source_change"
+  },
+  "config_net": {
+    "repository_url": "https://github.com/aloneguid/config.git",
+    "commit": "ae0af7d4b3781c66233bbb677b6e11df1f5b416b",
+    "branch": "master",
+    "tracked_files_changed": false,
+    "project_id": "prj_e5d8c89734dc41958892d6f8f9878b89",
+    "checkout_id": "chk_6d1d16158afa4964bd19c9bf4d3e9193",
+    "snapshot_id": "snp_165b1edc656765c92df79fa4369c7f49b0a99b1c9a6c884c96c2ab55b1cb0ec5",
+    "source_view_hash": "b4981658b9c7ae39100f3b92d871727234e4b6ec4adaee4e9918789187173e57",
+    "freshness_status": "fresh"
+  },
+  "configured_installation": {
+    "profile": "normal",
+    "provider": "none",
+    "configuration_only": true,
+    "plan_hash": "af015e6371b524b79159ff648c3121eb7952c72e50df167c25582bd2ea0f90f7",
+    "plan_report_sha256": "cb603917add6122ac987a6b3a5cac133293abcd08d01e4937d0d5a88b5a02fb7",
+    "launch_sha256": "25a5ab5148a841608bc8e837ad2914f09a790f31587b763c7cff09f9b62d1080",
+    "installation_file": {
+      "path": ".codex/config.toml",
+      "source": "installed-ignored",
+      "sha256": "65e12917b25979d51562c06df5f982712e9687c72d72e4959db0007b048753f2"
+    },
+    "guidance": {
+      "path": "AGENTS.override.md",
+      "source": "installed-ignored",
+      "sha256": "abb5fcdce32a53d14c618b18e842f0070e83fe9061e52d61a380d3a3086dd371"
+    },
+    "expected_tools": [
+      "codemesh_get_context_package",
+      "codemesh_get_repository_status",
+      "codemesh_list_repositories",
+      "codemesh_get_node"
+    ]
+  },
+  "configured_preflight": {
+    "passed": true,
+    "integration_mode": "configured",
+    "prompt_parity": true,
+    "provider": "none",
+    "probe_query": "IoHandler CacheFor Read Write",
+    "expected_paths": [
+      "src/Config.Net/Core/IoHandler.cs"
+    ],
+    "returned_path_count": 8,
+    "wrong_checkout_rejected": true,
+    "positive_probe_sha256": "24acada02426c12f88a17b6816ebc9e5bf89e6b26cb013cd188c88dbbeb4a4e8",
+    "rejection_probe_sha256": "18ea383a4f8f03e7e425fe3a05591529921e0944e6c96757c1bd6a4d922ef668",
+    "report_sha256": "771e851049f0383cbacef15c5c6102cc64323178bd8ebad6dd2d68bda589feb2"
+  },
+  "focused_live_gate": {
+    "suite": "config-net-cache-focused-live",
+    "passed": true,
+    "comparable": true,
+    "case_count": 5,
+    "tool_call_count": 15,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 0.660714,
+    "mean_ndcg_at_k": 0.76259,
+    "secret_leaks": 0,
+    "maximum_primary_rank": 8,
+    "maximum_primary_rank_target": "src/Config.Net/Core/LazyVar.cs",
+    "model_providers": [],
+    "report_sha256": "c81bd78d3cf67b15b098311dfa41bac6f088cd33ea41e87b51c420c61298074a"
+  },
+  "unchanged_canonical_live_gate": {
+    "suite": "config-net-cache-live",
+    "passed": true,
+    "comparable": true,
+    "case_count": 6,
+    "tool_call_count": 18,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 1.0,
+    "mean_ndcg_at_k": 1.0,
+    "secret_leaks": 0,
+    "model_providers": [],
+    "report_sha256": "79e0d7c234eeddb1dee67c186b95276962788634627d48ca62a725c67b91f0d0"
+  },
+  "claim_ceiling": {
+    "established": [
+      "focused_query_guidance_correction_committed_and_clean_candidate_verified",
+      "provider_free_configured_plan_and_runtime_identity",
+      "fresh_fail_closed_config_net_binding",
+      "focused_queries_cover_all_seven_required_targets",
+      "unchanged_canonical_retrieval_gate_preserved"
+    ],
+    "not_established": [
+      "normal_agent_compliance_with_focused_query_guidance",
+      "codemesh_correctness_or_efficiency_benefit_on_config_net",
+      "repeatable_cross_repository_product_benefit",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "limitations": [
+    "The provider-free gates verify the installed guidance, runtime identity, fail-closed rejection, and retrieval strategy; they do not test model behavior.",
+    "LazyVar remains at the focused suite's maximum accepted primary rank of eight.",
+    "The retained paid campaign did not preserve raw context-package calls or final workspaces, so this evidence cannot attribute its misses to a specific query."
+  ],
+  "boundaries": {
+    "model_provider_invoked": false,
+    "paid_campaign_retry_authorized": false,
+    "push": "not_authorized",
+    "release": "not_authorized",
+    "deployment": "not_authorized",
+    "live_trading": "not_authorized"
+  }
+}

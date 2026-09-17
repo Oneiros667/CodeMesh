@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "summary-qualification-review",
+  "runId": "replace-with-run-id",
+  "reviewerId": "replace-with-pseudonymous-reviewer-id",
+  "blinded": true,
+  "resolutionRecordHash": "replace-with-shared-resolution-record-sha256",
+  "samples": [
+    {
+      "sampleId": "replace-with-sample-id-from-review-packet",
+      "itemId": "replace-with-corpus-item-id",
+      "supportedFactCount": 0,
+      "generatedFactCount": 0,
+      "requiredFactCount": 0,
+      "requiredFactPresentCount": 0,
+      "criticalHallucination": false,
+      "contradiction": false,
+      "purposeAccurate": false,
+      "behaviorFactCount": 0,
+      "behaviorFactPresentCount": 0,
+      "usefulSupportedFactCount": 0,
+      "overallFactuallyCorrect": false,
+      "confidenceAppropriate": false,
+      "tagTruePositiveCount": 0,
+      "tagFalsePositiveCount": 0,
+      "tagFalseNegativeCount": 0,
+      "safetyFailureCount": 0,
+      "limitation": null
+    }
+  ]
+}

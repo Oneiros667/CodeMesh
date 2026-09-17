@@ -2,14 +2,20 @@
 
 ## Status
 
-This document defines a design and operating procedure. The dedicated
-qualification command and report schema described here are not implemented yet.
-Existing ingestion and live-evaluation commands can be used to run parts of the
-procedure manually.
+This document defines the implemented runner contract and its operating
+procedure. `codemesh summaries qualify run`, `bind-retrieval`, `compile`, and
+`compare` now provide provider-neutral generation, blinded review packets,
+live-report binding, gate enforcement, sanitized reports, and fail-closed
+comparison compatibility. The production-generation/live-retrieval boundary is
+recorded in
+[ADR 0002](../decisions/0002-summary-qualification-evidence-boundary.md).
 
 CodeMesh does implement versioned, complexity-tiered summary prompts and
-completion ceilings. The qualification automation and certification report
-remain planned.
+completion ceilings. The runner deliberately does not authorize model spend,
+approve source transmission, label a corpus, perform human review, or silently
+create live stores. Operators must supply those separately, and
+`bind-retrieval` requires an explicit assertion that the no-summary and
+candidate indexes were isolated.
 
 No summary deployment profile is currently CodeMesh-qualified. Generated
 summaries are optional and must remain outside the core C#/.NET product-proof
@@ -348,39 +354,64 @@ report. Store them only in an access-controlled evidence directory when
 explicitly requested. Reports must never contain credentials or unredacted
 secret values.
 
-## Proposed Automation
+## Implemented Automation
 
-A future implementation should add a versioned suite and commands similar to:
+The .NET CLI implements the runner because it can directly reuse the production
+summary prompt, parser, budget policy, provider adapters, and redaction path:
 
 ```powershell
-cd agent-access
-uv run python -m codemesh_agent_access eval summaries `
-  --suite codemesh-summary-model `
-  --provider lmstudio `
-  --model <model-id> `
-  --profile local-offline
-
-uv run python -m codemesh_agent_access eval summaries `
-  --suite codemesh-summary-model `
-  --provider openai `
-  --model <model-id> `
-  --profile online-approved-data
-
-uv run python -m codemesh_agent_access eval summaries compare `
-  candidate-a.json candidate-b.json reference.json
+dotnet run --project src/CodeMesh.Cli -- summaries qualify run `
+  --suite <frozen-suite.json> `
+  --profile <deployment-profile.json> `
+  --private-output <private-archive.json> `
+  --review-output <blinded-review-packet.json> `
+  --summary-provider <provider> `
+  --summary-model <exact-model-id>
 ```
 
-The runner should:
+The remaining commands and exact options are indexed in
+[`COMMANDS.md`](../../COMMANDS.md). Checked-in
+[`summary-qualification-suite.example.json`](../evaluation/assets/summary-qualification-suite.example.json)
+and
+[`summary-qualification-profile.example.json`](../evaluation/assets/summary-qualification-profile.example.json)
+and
+[`summary-qualification-review.example.json`](../evaluation/assets/summary-qualification-review.example.json)
+plus the
+[`summary-qualification-retrieval-assessment.example.json`](../evaluation/assets/summary-qualification-retrieval-assessment.example.json)
+and
+[`summary-qualification-deployment-evidence.example.json`](../evaluation/assets/summary-qualification-deployment-evidence.example.json)
+show the versioned suite, profile, reviewer, query-level retrieval, and
+resource/cost evidence schemas. The suite is intentionally synthetic and
+small: it tests runner wiring but cannot support a real qualification claim.
+Its deployment budgets are illustrative and must be replaced before a real
+run.
 
-- Prepare redacted inputs through the production summary prompt.
-- Isolate each candidate's summary store or database namespace.
-- Capture provider usage without retaining credentials.
-- Generate blinded review packets.
-- Run the live retrieval suite against each isolated index.
-- Enforce predeclared gates and emit machine-readable and human-readable
-  reports.
-- Reject comparisons with incompatible corpus, prompt, repository, or ranking
+The runner:
+
+- Prepares redacted inputs through the production summary prompt.
+- Requires distinct `calibration` and held-out `qualification` partitions,
+  uses calibration only for warm-up, and runs at least three measured
+  repetitions over qualification items. Runner schema v1 supports only an
+  explicit no-retry policy, so first-attempt and eventual completion rates
+  remain separately visible but equal.
+- Requires separately isolated no-summary and candidate stores, then binds the
+  resulting live reports and a reviewed query-level assessment to the
+  qualification identity.
+- Requires measured host/accelerator resource evidence for local or private
+  profiles, or provider cost bound to the recorded pricing snapshot for online
+  profiles.
+- Captures provider usage without retaining credentials.
+- Generates blinded review packets.
+- Reuses the live retrieval suite rather than duplicating its ranking metrics.
+- Enforces predeclared gates, emits a machine-readable report, and prints a
+  concise human-readable outcome.
+- Rejects comparisons with incompatible corpus, prompt, repository, or ranking
   identities.
 
-Until that automation exists, manual results are research evidence only and
-must not be presented as a CodeMesh-qualified deployment profile.
+Private archives and blinded packets are create-new, restricted artifacts and
+are not publication-safe by default. The compiled report omits source and
+generated response text. Both review files must bind the same non-empty hash of
+their disagreement-resolution record. A report is `invalid-run` when reviews,
+resolution, retrieval assessment, deployment measurement, clean source
+identity, suite identity, or profile identity is missing; only a complete
+passing report may claim a deployment profile is qualified.

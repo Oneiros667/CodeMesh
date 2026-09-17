@@ -224,8 +224,11 @@ without requiring the full Neo4j, MongoDB, and Qdrant profile.
 
 Portable artifact design is distinct from live multi-checkout identity and
 retention. [Repository Identity and Snapshot Retention](repository-identity-and-snapshot-retention.md)
-defines the planning-only requirements for project, checkout, and live index
-snapshots, branch and working-state slots, cleanup, and shared stores.
+records the implemented local project/checkout/snapshot identity, branch and
+working-state slots, retention, and cleanup baseline alongside proposed shared-
+store requirements. Portable artifacts and shared coordination remain future
+work; see [Identity and Persistence](../current/identity-and-persistence.md) for
+the current local implementation.
 
 Minimum snapshot contents:
 

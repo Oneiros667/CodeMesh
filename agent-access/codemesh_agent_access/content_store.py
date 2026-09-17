@@ -107,6 +107,81 @@ class MongoContentStore:
         )
         return normalize_repository(document) if document else None
 
+    async def get_bound_repository(
+        self, project_id: str, checkout_id: str
+    ) -> RepositorySummary | None:
+        """Resolve one checkout-current slot without using compatibility metadata."""
+        if MongoClient is None:
+            return None
+
+        def find_bound() -> dict[str, Any] | None:
+            database = self._mongo()[self._settings.mongo_database]
+            repositories = database[self._settings.mongo_repositories_collection]
+            base = find_repository_document(repositories, project_id)
+            resolved_project_id = str(
+                (base or {}).get("_id")
+                or (base or {}).get("repositoryId")
+                or project_id
+            )
+            checkout = database["snapshot_checkouts"].find_one({"_id": checkout_id})
+            if (
+                checkout is None
+                or str(checkout.get("projectId") or "") != resolved_project_id
+            ):
+                return None
+
+            project = database["snapshot_projects"].find_one(
+                {"_id": resolved_project_id}
+            )
+            slots = [
+                dict(slot)
+                for slot in (project or {}).get("slots", [])
+                if str(slot.get("kind") or "") == "CheckoutCurrent"
+                and str(slot.get("key") or "") == checkout_id
+            ]
+            if len(slots) > 1:
+                raise RuntimeError(
+                    f"Checkout '{checkout_id}' has multiple checkout-current slots."
+                )
+            if not slots:
+                return None
+
+            slot = slots[0]
+            snapshot_id = str(slot.get("snapshotId") or "")
+            snapshot = database["snapshots"].find_one({"_id": snapshot_id})
+            if (
+                snapshot is None
+                or str(snapshot.get("projectId") or "") != resolved_project_id
+            ):
+                return None
+
+            observations = list(
+                database["snapshot_observations"]
+                .find(
+                    {
+                        "projectId": resolved_project_id,
+                        "checkoutId": checkout_id,
+                        "snapshotId": snapshot_id,
+                    }
+                )
+                .sort("observedAtUtc", -1)
+                .limit(1)
+            )
+            observation = observations[0] if observations else None
+            return bound_repository_document(
+                base,
+                dict(checkout),
+                slot,
+                dict(snapshot),
+                dict(observation) if observation else None,
+            )
+
+        try:
+            document = await asyncio.to_thread(find_bound)
+        except PyMongoError:
+            return None
+        return normalize_repository(document) if document else None
+
     async def delete_repository(self, repository_id: str) -> None:
         if not repository_id or MongoClient is None:
             return
@@ -325,6 +400,51 @@ def normalize_repository(document: dict[str, Any]) -> RepositorySummary:
         embedding_count=optional_int(document.get("embeddingCount")),
         metadata=metadata,
     )
+
+
+def bound_repository_document(
+    base: dict[str, Any] | None,
+    checkout: dict[str, Any],
+    slot: dict[str, Any],
+    snapshot: dict[str, Any],
+    observation: dict[str, Any] | None,
+) -> dict[str, Any]:
+    project_id = str(snapshot.get("projectId") or checkout.get("projectId") or "")
+    checkout_id = str(checkout.get("_id") or "")
+    snapshot_id = str(snapshot.get("_id") or slot.get("snapshotId") or "")
+    metadata = string_dict((base or {}).get("metadata"))
+    metadata.update(
+        {
+            "projectId": project_id,
+            "checkoutId": checkout_id,
+            "snapshotId": snapshot_id,
+            "observedSnapshotId": snapshot_id,
+            "slotKind": str(slot.get("kind") or "CheckoutCurrent"),
+            "sourceViewHash": str(snapshot.get("sourceViewHash") or ""),
+        }
+    )
+    if observation is not None:
+        metadata["workingTreeDirty"] = str(
+            bool(observation.get("workingTreeDirty"))
+        ).lower()
+
+    document = dict(base or {})
+    document.update(
+        {
+            "_id": project_id,
+            "rootPath": str(checkout.get("rootPath") or ""),
+            "branch": (observation or {}).get("branch"),
+            "commit": (observation or {}).get("commit"),
+            "lastSeenAtUtc": checkout.get("lastSeenAtUtc")
+            or (base or {}).get("lastSeenAtUtc"),
+            "nodeCount": snapshot.get("nodeCount", 0),
+            "relationshipCount": snapshot.get("relationshipCount", 0),
+            "contentCount": snapshot.get("contentCount", 0),
+            "embeddingCount": snapshot.get("embeddingCount"),
+            "metadata": metadata,
+        }
+    )
+    return document
 
 
 def normalize_ingestion_run(document: dict[str, Any]) -> IngestionRunSummary:

@@ -16,8 +16,8 @@ summary generation is not equivalent to autonomous MCP tool use or repair
 ability. [Summary Model Qualification](../planning/summary-model-qualification.md) defines
 a provider-neutral procedure for local and online candidates, including factual
 accuracy, reliability, speed, token efficiency, privacy, cost, and downstream
-retrieval gates. The dedicated qualification runner described there is planned
-and is not an available CLI command yet.
+retrieval gates. The dedicated qualification runner and report compiler are
+implemented, but no summary deployment profile is CodeMesh-qualified.
 
 ## Product Decision Role
 
@@ -37,17 +37,49 @@ The evidence position is summarized in [Project Status](../current/project-statu
 - the independent prompt-parity Config.Net campaign completed three pairs but
   recorded zero CodeMesh calls or call attempts, so it is negative
   discoverability evidence and its overall efficiency variance is not
-  attributable to CodeMesh; and
+  attributable to CodeMesh;
+- the first configured Config.Net campaign achieved full adoption but regressed
+  correctness in two treatments; its separately corrected campaign improved
+  with one attributable win, but that bounded result is not repeatable benefit;
+- the first independent configured YoutubeDownloader campaign preserved full
+  correctness and adoption but regressed duration and token efficiency;
+- the `fbc1433` task-adaptive campaign preserved full correctness and adoption,
+  reduced each treatment to one package and median tokens by 6.63%, but
+  regressed median duration by 10.0192% and exceeded its authorized aggregate
+  reported-token ceiling because the historical evaluator lacked a hard stop;
+  and
 - no summary model is qualified, so the core baseline remains summary-free.
 
 Explicit repository onboarding is now the selected v1 product contract; see
 [Agent Integration Contract](../planning/agent-integration-contract.md). The
-current product-proof work is to implement that integration and evaluate the
-exact guidance, tool profile, checkout binding, and setup process shipped to
-normal users. Preserve the same independent task, prompt, grading targets, and
-control behavior. The retained zero-adoption campaign remains negative
-spontaneous-discovery evidence and must not be rewritten as a transport defect
-or configured-product result.
+checkout-local integration and provider-free probes are implemented and passed
+their clean-candidate gates. The paired-agent evaluator now represents that
+configured integration. The one-step context-package entry contract and its
+exact-candidate preflight, frozen one|nine gates, and YoutubeDownloader
+provider-free gate pass at candidate `8844c21`. The first configured campaign,
+retained at candidate `0bde606`, completed all three pairs correctly and safely
+but was insufficient: two treatments called repository status, none retrieved a
+context package, and there were no attributable wins. The separately authorized
+campaign through corrected candidate `0378740` was also correct and safe but
+insufficient: one treatment called status, none retrieved context, and there
+were no attributable wins. The one-step `8844c21` campaign then completed all
+three pairs correctly and safely with context-package adoption in every
+treatment. Its verdict was `neutral`, with no attributable wins or regressions;
+median duration was 1.39% lower and median tokens were 4.13% higher. Preserve
+all three results and their frozen task, prompt, grading targets, and control
+behavior. The separate Config.Net zero-adoption prompt-parity campaign remains
+negative spontaneous-discovery evidence and must not be rewritten as a
+transport defect or configured-product result.
+
+The current agent-campaign path now fails closed on reported-token budgeting.
+It defines reported tokens as input plus output plus reasoning-output tokens,
+requires a runner-declared compatible hard cap before repository preflight,
+passes the remaining allowance to every execution, stops at the boundary or an
+incomplete execution, and never retries automatically. Cached input is already
+part of input tokens and is not counted again. The default `codex` runner
+cannot guarantee this contract and is refused before any model call. Explicit
+`capped-codex` implements it; its consumed credit-blocked campaign is retained
+below without product-benefit claims.
 
 Reports must compare correctness, safety, freshness, citations, elapsed time,
 tokens, tool calls, adoption, and correction loops. A tied-correctness result is
@@ -66,11 +98,11 @@ Classify agent evidence by the integration the treatment actually receives:
   treatment receives the exact repository guidance, tool profile, checkout
   binding, and setup process shipped to normal users.
 
-The current harness records spontaneous and assisted modes. Extend its report
-schema before claiming configured/onboarded evidence so the installed guidance
-and profile identities are retained. Never relabel earlier assisted evidence as
-configured product evidence. If adoption remains zero, retain that negative
-result rather than weakening the comparison.
+The harness records spontaneous, assisted, and configured modes. Configured
+reports retain installed guidance, baseline MCP, profile, binding, plan, and
+probe identities. Never relabel earlier assisted evidence as configured product
+evidence. If adoption remains zero, retain that negative result rather than
+weakening the comparison.
 
 ## Representative External C# Baseline
 
@@ -92,6 +124,15 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
   --solution references/YoutubeDownloader/YoutubeDownloader.slnx `
   --skip-embeddings
 ```
+
+Cross-project semantic relationships also require restored sample dependencies.
+The [fresh-clone upgrade rehearsal](evidence/local-development-upgrade-ce23f2e.json)
+passed source discovery but failed relationship coverage without those assets.
+Run `dotnet restore references/YoutubeDownloader/YoutubeDownloader.slnx --locked-mode`
+and retain its result before ingestion. The frozen sample currently reports the
+AngleSharp advisory `GHSA-pgww-w46g-26qg` as an error; do not suppress that gate or
+change the pinned source to manufacture a pass. Source analysis using emitted
+assets can be inspected separately, but does not make dependency acceptance pass.
 
 Explicit `--solution` and `--project` paths may be absolute, relative to the
 repository root, or relative to the directory that launches the CLI. A missing
@@ -116,7 +157,8 @@ source/index freshness. After it passes, run the paired agent comparison:
 uv run python -m codemesh_agent_access eval agent `
   --suite youtube-downloader-agent `
   --repository-root ..\references\YoutubeDownloader `
-  --model <model-id>
+  --model <model-id> `
+  --max-reported-tokens <authorized-hard-cap>
 ```
 
 The three task families are implementation discovery, likely change impact,
@@ -135,14 +177,23 @@ uv run python -m codemesh_agent_access eval live `
   --suite youtube-downloader-impact-live `
   --output ..\.codemesh-evals\youtube-downloader-impact-live\report.json
 
+uv run python -m codemesh_agent_access eval live `
+  --suite youtube-downloader-impact-adaptive-live `
+  --output ..\.codemesh-evals\youtube-downloader-impact-adaptive-live\report.json
+
 uv run python -m codemesh_agent_access eval agent `
   --suite youtube-downloader-impact-agent `
   --repository-root ..\references\YoutubeDownloader `
-  --model <model-id>
+  --model <model-id> `
+  --max-reported-tokens <authorized-hard-cap>
 ```
 
 Keep these suites separate from the original live and three-task agent suites so
-their outcomes do not rewrite the frozen baseline.
+their outcomes do not rewrite the frozen baseline. The adaptive live suite is
+provider-free: it compares the frozen task-shaped package with three bounded
+focused facets while preserving the same repository commit, six targets, and
+retrieval thresholds. It is a retrieval and package-budget gate, not a paired
+agent campaign.
 
 If the spontaneous complex campaign has zero adoption, the separate
 `youtube-downloader-impact-assisted-agent` suite adds transparent treatment-only
@@ -156,12 +207,21 @@ substitute for spontaneous-discovery evidence:
 uv run python -m codemesh_agent_access eval agent `
   --suite youtube-downloader-impact-assisted-agent `
   --repository-root ..\references\YoutubeDownloader `
-  --model <model-id>
+  --model <model-id> `
+  --max-reported-tokens <authorized-hard-cap>
 ```
+
+The `youtube-downloader-impact-configured-agent` suite preserves the same
+frozen prompt, targets, thresholds, and source commit while setting
+`integration_mode = "configured"`. It uses the reviewed repository-owned
+normal installation and guidance, keeps control and treatment prompts equal,
+and forbids evaluator-only treatment guidance. Run its configured preflight and
+retrieval gates before any separately authorized model campaign.
 
 ## Independent Replication And Discoverability
 
-The `config-net-cache-live` and `config-net-cache-assisted-agent` suites pin the
+The `config-net-cache-live`, `config-net-cache-assisted-agent`,
+`config-net-cache-agent`, and `config-net-cache-configured-agent` suites pin the
 MIT-licensed Config.Net repository at commit
 `ae0af7d4b3781c66233bbb677b6e11df1f5b416b`. This is a separate repository,
 author, architecture, and task family from YoutubeDownloader. The task traces
@@ -192,7 +252,8 @@ uv run python -m codemesh_agent_access eval live `
 uv run python -m codemesh_agent_access eval agent `
   --suite config-net-cache-assisted-agent `
   --repository-root ..\references\Config.Net `
-  --model <model-id>
+  --model <model-id> `
+  --max-reported-tokens <authorized-hard-cap>
 ```
 
 The assisted suite records `prompt_parity = false`; it can replicate utility
@@ -217,7 +278,8 @@ including its canonical initialization instructions and tool contracts:
 uv run python -m codemesh_agent_access eval agent `
   --suite config-net-cache-agent `
   --repository-root ..\references\Config.Net `
-  --model <model-id>
+  --model <model-id> `
+  --max-reported-tokens <authorized-hard-cap>
 ```
 
 This campaign is model-cost-bearing. Run it only with explicit authorization
@@ -234,12 +296,233 @@ to CodeMesh. Preserve this as negative discoverability evidence. The sanitized
 transcription is
 [`docs/evaluation/evidence/config-net-prompt-parity-647d83d.json`](evidence/config-net-prompt-parity-647d83d.json).
 
-Before another paid run, implement and verify the selected explicit-onboarding
-contract. The treatment must use the same repository guidance and normal-user
-tool profile shipped outside the evaluator; do not create an evaluator-only
-tool-selection advantage. Record the result as configured/onboarded, not
-spontaneous or evaluator-assisted, and retain the prompt-parity failure
-separately.
+Exact clean candidate `b16eee7` adds the configured suite while preserving that
+prompt, target set, threshold, and source commit. Its reviewed normal-profile
+plan and ignored repository guidance passed the configured preflight with
+prompt parity, a fresh exact binding, positive context retrieval, and
+fail-closed rejection. The full six-case live gate then passed all 18 calls
+with recall, MRR, and nDCG of 1.0 and zero secret leaks. No model provider was
+invoked. The sanitized record is
+[configured Config.Net provider-free evidence](evidence/configured-config-net-provider-free-b16eee7.json).
+That gate also retained an earlier broad task-query diagnostic: it returned
+tests but missed requested implementation paths, whereas the canonical
+decomposed live cases all passed. This did not establish a root cause.
+
+The separately authorized configured campaign completed all three pairs with
+context-package adoption in every treatment and no safety, MCP transport, or
+command-policy failure. All three controls passed. Treatments passed one of
+three: repetition one omitted `ConfigurationBuilder.cs`, and repetition two
+omitted `LazyVar.cs`, `ConfigurationBuilder.cs`, `LogicTest.cs`, and
+`ConfigurableMethodsTest.cs`. The verdict was `regressed`, with no attributable
+wins. On the only jointly successful pair, treatment duration was 21.31% higher
+and token use was 117.18% higher. The sanitized record is
+[configured Config.Net agent evidence](evidence/configured-config-net-agent-b16eee7.json).
+Preserve this consumed negative configured-product artifact and do not retry it
+automatically. This result activated provider-free reproduction of full-task
+context-package coverage against every required target, correlated with the
+retained broad-query miss but without claiming a cause that raw campaign
+packages and final messages could not establish.
+
+That provider-free diagnosis is now retained separately. The exact frozen
+58-term task query returned eight test paths and only `LogicTest.cs` from the
+seven required targets. Four concise task-derived queries covering cached
+writes, setter routing, proxy interception, and cache expiration recovered all
+seven targets. The separate `config-net-cache-focused-live` diagnostic passed
+five cases and all 15 calls with recall 1.0, MRR 0.660714, nDCG 0.76259, and
+zero secret leaks against clean `b16eee7`; the unchanged canonical suite also
+passed all 18 calls. Its suite definition was uncommitted, so this validates the
+retrieval strategy rather than an exact correction candidate. The sanitized
+record is
+[focused-query diagnosis](evidence/config-net-focused-query-diagnosis-b16eee7.json).
+
+Exact clean detached candidate `3804028` retains the context package as the
+one-step entry tool but replaces one-long-full-task guidance with a small set of
+focused implementation and test queries for multi-part work. Its 125 Python
+tests, Ruff checks, and five fixture cases pass. The reviewed configuration-only
+plan and ignored guidance passed configured preflight, a positive package
+probe, and wrong-checkout rejection with provider mode `none`. The committed
+focused suite passed five cases and 15 calls with recall 1.0, MRR 0.660714,
+nDCG 0.76259, and zero leaks; `LazyVar.cs` remains at rank eight. The unchanged
+canonical suite passed six cases and 18 calls with recall, MRR, and nDCG of 1.0
+and zero leaks. The sanitized exact-candidate record is
+[focused-query provider-free evidence](evidence/config-net-focused-query-provider-free-3804028.json).
+This is provider-free correction readiness, not normal-agent compliance or
+product-benefit evidence.
+
+The separately authorized exact-candidate campaign retained the frozen task,
+grading, repository, model, reasoning effort, seed, repetitions, normal profile,
+and prompt parity. It completed all three pairs with an `improved` verdict.
+Every treatment adopted the context package, made two or three package attempts,
+and passed; controls passed two of three because repetition two missed
+`ConfigurationBuilder.cs`. The report therefore records one
+CodeMesh-attributable win, zero treatment regressions, and no safety, MCP, or
+command-policy failures. Across the two jointly successful pairs, treatment
+median duration was 13.69% lower and median tokens were 3.59% lower. The
+sanitized record is
+[focused-query configured campaign evidence](evidence/configured-config-net-agent-3804028.json).
+This is positive configured evidence for one bounded campaign. Raw package
+arguments and final messages were not retained, so it neither proves exact
+query wording nor establishes causal or repeatable product benefit.
+
+Independent clean candidate `64d4052` added the configured YoutubeDownloader
+impact suite while preserving the frozen task and repository identity. Its full
+deterministic checks, reviewed configuration-only plan, configured preflight,
+positive and wrong-checkout probes, two-case impact live gate, and unchanged
+six-case live gate passed with provider mode `none`. The impact gate returned
+all six targets with recall and MRR 1.0, nDCG 0.891323, and zero leaks; the
+canonical gate retained recall 1.0, MRR 0.9, nDCG 0.926186, and zero leaks. The
+sanitized record is
+[configured YoutubeDownloader provider-free evidence](evidence/configured-youtube-downloader-provider-free-64d4052.json).
+
+The separately authorized campaign completed every control and treatment
+correctly and safely, with context-package adoption in every treatment and no
+failed MCP calls. Treatments attempted two, two, and three packages. There were
+no correctness wins or regressions, while treatment median duration was 49.79%
+higher and median tokens were 41.00% higher across all three matched pairs. The
+efficiency threshold therefore produced a valid `regressed` verdict. The
+sanitized record is
+[configured YoutubeDownloader campaign evidence](evidence/configured-youtube-downloader-agent-64d4052.json).
+This replicates configured adoption and correctness on an independent C# task,
+not repeatable product benefit. Because raw query arguments were not retained,
+the package-attempt count motivates provider-free adaptive-query diagnosis but
+does not establish the regression's cause.
+
+That provider-free diagnosis preserves the frozen YoutubeDownloader task, six
+targets, source identity, and thresholds. One 29-term task-shaped package
+covered all six targets in one call with primary rank two and a 12,000-character
+agent package. Three focused implementation/test-facet packages also covered
+all six, but used 35,991 formatted characters across three calls and repeated
+five of 24 ranked item occurrences. The observed one-call latency was
+17,177.121 ms versus 18,669.373 ms summed across the three focused calls. The
+one-repetition comparison ran while the new suite and guidance were uncommitted,
+so it establishes the retrieval-shape decision rather than exact-candidate
+readiness. The sanitized record is the
+[task-adaptive query diagnosis](evidence/youtube-downloader-task-adaptive-query-diagnosis-e2e1bca.json).
+
+Exact clean detached candidate `fbc1433` implements the bounded correction:
+start with one concise task-shaped package, stop when every required facet is
+resolved, and issue a focused follow-up only for a specific unresolved
+implementation or test facet, with at most three non-overlapping packages per
+task. Its 125 Python tests, Ruff checks, five fixture cases, reviewed
+normal-profile preflight, positive probe, and wrong-checkout rejection passed.
+The committed adaptive suite passed all 15 calls with recall 1.0, MRR 0.875,
+nDCG 0.862253, and zero leaks. The unchanged impact suite passed all six calls
+with recall and MRR 1.0 and nDCG 0.891323; the unchanged canonical suite passed
+all 18 calls with recall 1.0, MRR 0.9, and nDCG 0.926186. No model provider was
+invoked. The sanitized record is
+[task-adaptive provider-free evidence](evidence/youtube-downloader-task-adaptive-provider-free-fbc1433.json).
+
+The separately authorized configured campaign at the same exact candidate then
+completed all three pairs and all six executions correctly and safely. Every
+treatment made exactly one successful context-package call, with no MCP or
+command-policy failure. There were no treatment wins, attributable wins, or
+regressions. Median treatment tokens fell 6.63%, while median duration rose
+10.0192%, exceeding the frozen 10% threshold by 0.0192 percentage points and
+producing a `regressed` verdict. The six runs reported 2,596,056 aggregate
+tokens, including 2,219,264 cached-input tokens, and exceeded the authorized
+1.6M reported-token ceiling. The historical evaluator had no hard
+aggregate-token stop; record that control failure and do not retry the consumed
+campaign. Raw traces and exact query arguments were not retained. The sanitized record is
+[task-adaptive configured campaign evidence](evidence/configured-youtube-downloader-agent-fbc1433.json).
+
+This establishes configured single-package adoption and correct/safe completion
+for the frozen task. It does not establish overall efficiency benefit,
+causality, repeatability, release readiness, or production fitness. The current
+evaluator now has a tested fail-closed reported-token contract. The default
+`codex` runner is refused before model calls; explicit `capped-codex` implements
+the contract, and its consumed incomplete campaign is retained separately.
+Any future paid campaign needs fresh candidate gates and separate authority.
+The provider-free search correction is performance evidence only.
+
+Candidate `0bde606` passed the configured preflight for the selected explicit-
+onboarding contract against exact Primary commit `fe2f761`. Its first paid run
+completed three correct and safe pairs, with repository-status adoption in two
+treatments, no context-package calls, no attributable wins, and verdict
+`insufficient`. The sanitized record is
+[configured one|nine agent evidence](evidence/configured-onenine-agent-0bde606.json).
+Preserve that frozen identity and result. The corrected run used a new exact
+clean candidate while keeping repository guidance, task prompt, grading,
+normal-user tool profile, model settings, and control behavior fixed; it did not
+create an evaluator-only tool-selection advantage.
+
+Clean detached candidate `0378740` contains the bounded status-to-context
+correction and passed the full deterministic checks, configured preflight, all
+eight frozen one|nine retrieval and rejection gates, all three retained feedback
+packet validations, and the pinned YoutubeDownloader live gate with provider
+mode `none`. The sanitized record is
+[corrected provider-free evidence](evidence/configured-onenine-provider-free-0378740.json).
+This established readiness for the separately authorized model campaign; it did
+not establish agent context adoption or product benefit.
+
+The authorized `0378740` campaign completed three correct and safe pairs with
+prompt parity and the exact reviewed normal-profile installation. Only one
+treatment called repository status, no treatment called the context-package
+tool, and there were no attributable wins. Its verdict was `insufficient`.
+Overall treatment medians were 6.07% slower and used 4.17% more tokens; those
+differences are diagnostic because context retrieval never occurred. The
+sanitized record is
+[corrected configured campaign evidence](evidence/configured-onenine-agent-0378740.json).
+Preserve this consumed artifact and do not retry it automatically.
+
+The subsequent provider-free implementation removes the measured two-step
+dependency by making the fail-closed context package the single normal-host
+entry action across MCP instructions, tool descriptions, and generated
+repository onboarding. Status remains an explicit diagnostic tool. Exact clean
+candidate `8844c21` passed the full deterministic checks, configured preflight,
+all eight frozen one|nine gates, all three retained feedback packet validations,
+and the pinned YoutubeDownloader live gate with provider mode `none`. The
+sanitized record is
+[one-step provider-free evidence](evidence/configured-onenine-provider-free-8844c21.json).
+The authorized campaign from those identities retrieved a context package in
+all three treatments and passed every control and treatment safely. It produced
+no attributable win or regression, so the verdict was `neutral`; both median
+efficiency deltas remained inside the 10% threshold. The sanitized record is
+[one-step configured campaign evidence](evidence/configured-onenine-agent-8844c21.json).
+This establishes adoption for the selected one|nine task, not product benefit.
+The later Config.Net configured campaign also established adoption but
+regressed correctness, so adoption now spans two repositories without
+establishing repeatable product benefit.
+
+## Configured Agent Preflight And Campaign
+
+A configured suite sets `integration_mode` to `configured`, pins
+`repository_commit`, and may list `baseline_mcp_servers`. Named baseline servers
+must be present in the reviewed checkout-local `.codex/config.toml`; control and
+treatment receive the same selected baseline, while treatment additionally
+receives the reviewed CodeMesh normal-profile launch. Embedded environment
+values are rejected for baseline servers; use declared `env_vars` names.
+
+From `agent-access`, run the provider-free gate first:
+
+```powershell
+uv run python -m codemesh_agent_access eval agent `
+  --suite <configured-suite.json> `
+  --repository-root <pinned-checkout> `
+  --max-reported-tokens <authorized-hard-cap> `
+  --configured-plan <reviewed-plan.json> `
+  --configured-guidance-path AGENTS.override.md `
+  --configured-probe-query "<frozen retrieval query>" `
+  --configured-expected-path <expected-path> `
+  --preflight-only `
+  --preflight-output <preflight-report.json>
+```
+
+The guidance path may be a committed repository file or an explicitly installed
+ignored file such as instance-generated `AGENTS.override.md`. The evaluator
+copies the same reviewed bytes into both temporary conditions and records the
+path, source classification, and SHA-256 hash rather than raw guidance.
+
+The preflight rejects dirty or stale source state, a dirty CodeMesh tool checkout,
+commit, checkout, root, or source-view mismatch, changed installation files, a
+non-normal tool surface, uncommitted guidance, a failed context probe, or a
+failed wrong-checkout rejection probe. The report records stable identities and
+hashes, not raw guidance or MCP payloads.
+
+Only after the preflight and repository-specific frozen retrieval gates pass,
+and only with explicit model-spend authority, remove `--preflight-only`, add
+`--model <model-id>` and `--output-dir <artifact-directory>`, and run the paired
+campaign. The task prompt, model, reasoning effort, temporary checkout, and
+declared baseline MCP servers stay identical across conditions.
 
 ## Deterministic Fixture Suite
 
@@ -273,6 +556,7 @@ uv run python -m codemesh_agent_access eval live --repository-id code_mesh --rep
 uv run python -m codemesh_agent_access eval live --suite path/to/live-suite.json
 uv run python -m codemesh_agent_access eval live --allow-stale
 uv run python -m codemesh_agent_access eval live --keep-raw-traces
+uv run python -m codemesh_agent_access eval live --capture-context-package-timings
 ```
 
 Without `--allow-stale`, the indexed commit must match a clean local checkout
@@ -293,6 +577,29 @@ The report contains:
 
 It intentionally omits snippets, credentials, environment values, and full MCP responses unless raw traces are requested.
 
+`--capture-context-package-timings` enables opt-in sideband timing for context
+packages. The MCP process emits only fixed stage and operation names, elapsed
+times, counts, and success state to its captured standard error. It does not
+emit queries, repository or node identifiers, paths, content, credentials, or
+environment values, and it does not change MCP JSON, agent-formatted content,
+ranking, or character budgets. The live report adds per-case p50 timing for
+repository and binding resolution, search, repository metadata, item hydration,
+assembly, and total time, with node, content-fallback, summary, and relationship
+operation totals inside hydration. Warm-up calls are captured for record
+alignment but excluded from the per-case summaries.
+
+Search attribution additionally records `search_` operation totals and call
+counts for repository resolution, optional embedding, lexical/vector/summary
+pipelines and their store fetches, lexical candidate selection, context
+expansion, primary declarations, source content, optional relationships, and
+final ranking. Timing belongs to the individual package request, including
+concurrent source tasks; overlapping packages cannot share accumulators.
+Pipeline totals include their child operations, and concurrently executing
+operations overlap in elapsed time. Do not add these totals together or treat
+their sum as package wall-clock time. An operation count identifies repeated
+candidate work without retaining a node id or query. Direct search calls
+outside a package do not emit package timing records.
+
 ## Agent A/B Benchmark
 
 Agent evaluation requires:
@@ -302,32 +609,43 @@ Agent evaluation requires:
   commit and branch separately from the benchmark repository identity.
 - A working `codex` installation and existing authentication.
 - An explicit model selection.
+- A positive `--max-reported-tokens` value and a selected runner that guarantees
+  that exact hard-cap accounting contract.
 - Enough time and model budget for three runs per task and condition by default.
 
 Run from the repository root or pass `--repository-root`:
 
 ```powershell
 cd agent-access
-uv run python -m codemesh_agent_access eval agent --model <model-id>
+uv run python -m codemesh_agent_access eval agent `
+  --runner capped-codex `
+  --model <model-id> `
+  --max-reported-tokens <authorized-hard-cap>
 ```
 
 Optional controls:
 
 ```powershell
 uv run python -m codemesh_agent_access eval agent `
+  --runner capped-codex `
   --model <model-id> `
+  --max-reported-tokens <authorized-hard-cap> `
   --reasoning-effort medium `
   --repetitions 3 `
   --seed 42 `
   --output-dir ..\.codemesh-evals\manual-run
 ```
 
-To evaluate a model served locally by LM Studio or Ollama, select the local
-provider explicitly. The same provider and model are used for both conditions:
+The capped runner uses the OpenAI Responses and input-token endpoints and does
+not support LM Studio or Ollama. The uncapped Codex runner retains its local
+provider interface for non-agent harnesses, but it cannot pass the agent
+campaign's hard-cap capability gate:
 
 ```powershell
 uv run python -m codemesh_agent_access eval agent `
+  --runner codex `
   --model <local-model-id> `
+  --max-reported-tokens <authorized-hard-cap> `
   --local-provider lmstudio
 ```
 
@@ -338,7 +656,46 @@ that combination. The runner detects older builds that lack
 `--ignore-user-config` and gives local-provider runs a temporary isolated
 `CODEX_HOME`; it never reads the user's Codex configuration in that mode.
 
-Each control and treatment run receives the same task prompt, model, reasoning effort, sandbox, and isolated temporary clone. Both run non-interactively with `--ask-for-approval never`. The control has an empty MCP server map. The treatment adds CodeMesh as a required stdio MCP server, explicitly selects the non-destructive `diagnostic` profile to preserve the frozen historical tool surface, and approves its allowlisted tools so non-interactive calls execute instead of being canceled at the client approval boundary. Under the current report schema, suites without `treatment_guidance` preserve prompt parity and measure spontaneous adoption. Suites with guidance are reported as assisted, preserve the guidance in report metadata, and isolate best-case utility from discoverability. Configured/onboarded mode must be implemented before the runner can represent the selected v1 contract; that future mode must use and record the shipped `normal` profile rather than inheriting the evaluator's diagnostic surface.
+Reported-token accounting is `input_tokens + output_tokens +
+reasoning_output_tokens`. Cached input remains part of `input_tokens` and is
+not added again. Before repository preflight or any model call, the runner must
+declare that it hard-limits each complete invocation to the remaining campaign
+allowance using this accounting. The campaign stops before the next run at zero
+and stops after an incomplete run without retry. Missing or inconsistent usage
+and any declared-cap violation fail as infrastructure errors.
+
+`--runner codex` remains the default and fails capability preflight because the
+Codex CLI exposes usage only after completion and has no compatible hard-limit
+option. `--runner capped-codex` is the explicitly selected compatible mode. For
+each agent execution it starts an ephemeral loopback Responses proxy, uses the
+official input-token endpoint to count the complete submitted input before each
+model request, reserves that input plus twice the allowed generated-token
+envelope, and clamps `max_output_tokens` to the remaining allowance. The factor
+of two is the worst case under the committed accounting because Codex's
+`output_tokens` includes reasoning and `reasoning_output_tokens` is then added
+again. The Codex custom provider has request and stream retries set to zero.
+
+The proxy accepts only foreground `/responses` calls and local function/custom
+tools. It rejects background mode, context compaction, other provider
+endpoints, cost-bearing built-in tools, duplicate or declared retry activity,
+insufficient allowance, missing usage, and accounting disagreement. A completed
+response releases only the proven-unused part of its reservation. An interrupted
+or unknown response retains the entire reservation and makes the execution
+incomplete, so it cannot fund another attempt. Codex final cumulative usage must
+match the proxy ledger before completion is accepted. Reports retain only the
+sanitized ceiling, committed and reported totals, remainder, request counts,
+retry configuration, normalized usage, and fixed failure messages; neither
+credential values nor request content enters the ledger.
+
+Before starting the proxy, the runner loads the selected model's exact bundled
+catalog entry from the selected Codex executable and supplies only that entry
+through an ephemeral `model_catalog_json`. This preserves Codex's model-specific
+shell and MCP tool contract without persisting instructions or trusting a
+remote custom-provider catalog. An absent or malformed bundled entry fails
+before any provider call. Codex's cost-free `/models` discovery receives an
+empty local catalog and is never forwarded upstream.
+
+Each control and treatment run receives the same task prompt, model, reasoning effort, sandbox, and isolated temporary clone. Both run non-interactively with `--ask-for-approval never`. Historical spontaneous and assisted suites preserve their frozen behavior: control has an empty MCP map and treatment adds the unbound `diagnostic` profile. Configured suites instead give both conditions the same explicitly selected baseline MCP servers and add only the exact reviewed, bound `normal` CodeMesh installation to treatment. Suites without explicit mode preserve compatibility by deriving spontaneous or assisted classification from `treatment_guidance`; configured suites forbid evaluator-only guidance and preserve prompt parity.
 
 The treatment configuration allowlists CodeMesh read tools and does not expose repository deletion to the benchmark agent.
 
@@ -353,7 +710,30 @@ tied, a 10% time or token improvement counts only when the other efficiency
 metric does not regress by more than 10%. Any treatment safety violation is a
 regression.
 
+Suites and the selected executable must be trusted local inputs: validation
+commands execute with the operator's privileges through shell-free argv. Agent
+and model suite names and task/question/scenario identifiers must be safe ASCII
+path segments and unique ignoring case; setup patches must be existing files
+contained within the suite directory, using relative forward-slash paths. The
+entire suite is checked before evaluation preparation or model execution.
+Generated artifact descendants cannot resolve outside the selected output
+root. See [Security and Redaction](../current/security-and-redaction.md#local-evaluation-and-inspection-boundaries)
+for the exact constraints and remaining local trust boundary.
+
 Default artifacts are written under `.codemesh-evals/` and contain the report, validation summaries, changed paths, and secret-scrubbed diffs. `--keep-raw-traces` additionally retains exact Codex JSONL, final messages, full diffs, and raw MCP output; treat that option as sensitive.
+
+### Retained capped-runner campaign
+
+Exact clean candidate `0f18071` passed the deterministic, configured
+positive/rejection, adaptive, impact, canonical, and synthetic capped-runner
+gates provider-free. Its one authorized `gpt-5.6-sol`, medium-reasoning,
+three-repetition campaign stopped after the first control execution because the
+provider reported unavailable credits. No pair completed and no retry or top-up
+occurred. The interrupted response retained its full 267,528-token reservation,
+and the ledger recorded one request, zero completed requests, and zero configured
+request or stream retries. This is retained fail-closed runner evidence, not a
+product verdict or a claim about provider spend. The campaign is consumed; see
+the [sanitized evidence record](evidence/configured-youtube-downloader-agent-0f18071.json).
 
 ## Model Benchmark
 

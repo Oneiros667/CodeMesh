@@ -1,5 +1,7 @@
 **
 !CodeMesh.sln
+!Directory.Build.props
+!VERSION
 !NuGet.config
 !src/
 !src/CodeMesh.Domain/

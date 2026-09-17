@@ -10,6 +10,12 @@
 - Follow the product priorities and deferred-work boundary in
   [`docs/planning/next-steps.md`](../planning/next-steps.md).
 
+The [Software Engineering Methodology](methodology.md) defines the evidence
+states, authority boundaries, guidance placement, and admission test for new
+reusable controls. Do not add a hook, skill, agent role, plugin, workflow, or
+overlapping repository tool without evidence that it changes a material
+CodeMesh decision.
+
 ## Commits
 
 Use [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/):
@@ -22,19 +28,16 @@ Common types are `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`,
 `ci`, and `chore`. Use `!` and a `BREAKING CHANGE:` footer together for an
 incompatible public-contract change. Commit only task-related files or hunks.
 
-The repository includes a non-mutating checker:
-
-```bash
-python tools/check_conventional_commit.py --range origin/main..HEAD
-```
-
-It does not install Git hooks or alter Git configuration. See
+The repository includes the non-mutating checker listed in
+[`COMMANDS.md`](../../COMMANDS.md#repository-standards). It does not install
+Git hooks or alter Git configuration. See
 [Conventional Commit validation](conventional-commits.md).
 
 ## Verification
 
-Use risk-scaled verification. The canonical commands and end-to-end selection
-rules are in [`docs/evaluation/testing.md`](../evaluation/testing.md).
+Use the supported invocations in the repository-level
+[`COMMANDS.md`](../../COMMANDS.md) and the risk-scaled selection rules in
+[`docs/evaluation/testing.md`](../evaluation/testing.md).
 
 - Run both .NET and Python suites after shared-contract, integration,
   serialization, lifecycle, or end-to-end changes.
@@ -45,27 +48,13 @@ rules are in [`docs/evaluation/testing.md`](../evaluation/testing.md).
   without explicit authorization and appropriate gates.
 - Report passed, failed, skipped, and unavailable checks separately.
 
-For every change, run:
-
-```bash
-git diff --check
-```
-
-For Git-owned Markdown changes, run:
-
-```bash
-npx --yes markdownlint-cli2@0.23.1 "**/*.md"
-python tools/check_markdown_links.py
-```
-
-The link checker is local-only and performs no network requests.
-
 ## Documentation and decisions
 
 - Update documentation with behavior, commands, contracts, setup,
   architecture, or verified status changes.
-- Distinguish proposed, implemented, automatically tested, manually inspected,
-  accepted, released, and deployed states.
+- Distinguish proposed, implemented, automatically verified, inspected, locally
+  accepted, externally accepted, released, deployed, and production-authorized
+  states.
 - Keep normative guidance in one canonical location and link to it elsewhere.
 - Use the [Documentation Hub](../README.md) to preserve the boundary between
   current references, status, execution order, proposals, and historical
@@ -73,6 +62,23 @@ The link checker is local-only and performs no network requests.
 - Record consequential implemented architecture choices using
   [`docs/decisions/0000-decision-record-template.md`](../decisions/0000-decision-record-template.md).
 - Keep dates, versions, links, measurements, and test claims truthful.
+
+## Releases and versioning
+
+CodeMesh has no published release or supported released-version line.
+`VERSION` is the canonical source version; .NET consumes it during build,
+Python declarations are checked for agreement, and REST uses the Python export.
+Configuration and evidence schemas have independent versions.
+
+[Release Preparation](release-preparation.md) defines the candidate API scope,
+compatibility rules, verification and migration gates, and a reviewable release
+runbook. The runbook still needs owner acceptance and completed release evidence
+before use. Apply [Semantic Versioning 2.0.0](https://semver.org/) to published
+versions. Released tags and artifacts must be immutable.
+
+Use the [Release Notes Template](release-notes-template.md) to keep preparation,
+tagging, publication, deployment, and stable promotion visibly separate. The
+template and a completed implementation do not authorize any of those actions.
 
 ## Definition of done
 

@@ -2,14 +2,83 @@
 
 Document type: selected product contract and implementation plan
 
-Reviewed: 2026-08-12
+Reviewed: 2026-09-01
 
 This document selects the v1 integration contract for CodeMesh in coding-agent
-hosts. It defines the product behavior that future implementation and evaluation
-must target. The MCP server instructions, manual repository guidance in
-[MCP Setup](../guides/mcp-setup.md), and normal/diagnostic tool profiles are
-implemented. The probe, checkout binding, fail-closed package freshness, and
-installation behavior below are not implemented yet.
+hosts. The MCP server instructions, manual repository guidance in
+[MCP Setup](../guides/mcp-setup.md), normal/diagnostic tool profiles, exact
+checkout binding, fail-closed package freshness, reviewable installation, and
+provider-free probes are implemented and passed their clean-candidate gates at
+`ee1d4d9`. Configured/onboarded evaluator support is implemented and its live
+stale-candidate rejection is verified through `9f3216c`. Exact-candidate
+preflight, the frozen one|nine retrieval and rejection gates, and the pinned
+YoutubeDownloader live gate passed again with the status-to-context correction
+at exact clean candidate `0378740`. The first configured normal-host campaign
+remains frozen at `0bde606`; it completed safely and correctly but was
+insufficient because two treatments stopped after status and none retrieved
+task context. The separately authorized `0378740` campaign was also safe and
+correct but insufficient: one treatment stopped after status and none retrieved
+task context. The status-result next-action field therefore did not establish
+the required normal-host transition. The current implementation instead makes
+the fail-closed context package the single normal-host entry action and retains
+status for explicit diagnostics. Exact clean candidate `8844c21` passed the
+full deterministic and provider-free gates. Its authorized paired campaign
+then retrieved a context package in all three treatments and passed all six
+executions safely. The verdict was `neutral`, with no attributable wins or
+regressions, so adoption is established for the selected task but product
+benefit is not.
+
+The separately authorized Config.Net campaign at exact candidate `b16eee7`
+also retrieved a context package in every treatment, but two of three
+treatments missed required citations while all controls passed. Its `regressed`
+verdict establishes configured adoption on a second repository, not product
+benefit. Preserve the consumed campaign without an automatic retry.
+
+The bounded follow-up correction is frozen at exact clean candidate `3804028`.
+It keeps the context package as the single entry tool and directs multi-part
+work to focused implementation and test queries. The reviewed configured
+preflight, positive and fail-closed probes, focused-query live suite, unchanged
+canonical live suite, and deterministic Python checks all pass with provider
+mode `none`. This establishes correction readiness only; normal-agent guidance
+compliance and product benefit still require a separately authorized campaign.
+
+That separately authorized campaign completed at the same exact candidate with
+the frozen Config.Net comparison conditions. All three treatments adopted the
+context package and passed safely; controls passed two of three, producing one
+CodeMesh-attributable win, zero treatment regressions, and an `improved`
+verdict. Efficiency medians were also favorable across the two jointly
+successful pairs. This is positive evidence for the bounded campaign, not proof
+that focused wording caused the change or that benefit repeats elsewhere.
+
+The independent configured YoutubeDownloader impact campaign at clean
+candidate `64d4052` then preserved a different frozen C# task and repository.
+Every control and treatment passed safely, and every treatment adopted the
+context package, but treatment medians were 49.79% slower and used 41.00% more
+tokens across all three pairs. Its `regressed` verdict is an efficiency result,
+not a correctness regression. Configured adoption and correctness now repeat
+across repositories, but product benefit does not. Raw query arguments were not
+retained, so that campaign does not establish its exact query behavior or the
+cause of the regression.
+
+The provider-free task-adaptive diagnosis and correction are now frozen at
+exact clean candidate `fbc1433`. One task-shaped package covered all six frozen
+YoutubeDownloader targets, while three proactive focused packages repeated five
+ranked items and used three times the formatted package budget. The current
+guidance therefore starts with one package, stops when it resolves every facet,
+and decomposes only a specific unresolved implementation or test facet, under a
+three-package ceiling. Deterministic, configured preflight, positive, rejection,
+adaptive, unchanged impact, and unchanged canonical gates all pass without a
+model provider. This establishes correction readiness, not agent compliance or
+product benefit.
+
+The separately authorized configured campaign at exact candidate `fbc1433`
+then completed all six runs correctly and safely with one context package in
+every treatment. Median treatment tokens fell 6.63%, but median duration rose
+10.0192%, just beyond the frozen regression threshold. Its `regressed` verdict
+is an efficiency result, not a correctness regression. The campaign also
+exceeded its authorized 1.6M aggregate reported-token ceiling because the
+historical evaluator lacked a hard stop. Preserve the consumed result and
+control failure; do not retry it.
 
 ## Decision
 
@@ -52,7 +121,10 @@ hold:
    matching repository snapshot.
 5. Agents begin relevant tasks with a context package, verify consequential
    findings against current source, and fall back to normal repository
-   exploration when CodeMesh is unavailable, stale, or ambiguous.
+   exploration when CodeMesh is unavailable, stale, or ambiguous. Agents start
+   with one concise task-shaped package and stop retrieving when it covers every
+   required facet. A specific unresolved implementation or test facet permits
+   one focused follow-up, with at most three non-overlapping packages per task.
 
 The supported claim should remain bounded:
 
@@ -67,10 +139,11 @@ product benefit.
 
 ## Repository-Owned Onboarding
 
-The canonical manual block lives in [MCP Setup](../guides/mcp-setup.md). A future
-installer may add or update only the marked block after showing a reviewable
-diff and receiving explicit owner approval. It must not silently create,
-replace, or rewrite unrelated repository instructions.
+The canonical manual block lives in [MCP Setup](../guides/mcp-setup.md). The
+installer generates a complete hashed plan, and applies only that unchanged
+reviewed plan after its hash is supplied explicitly. It may manage the marked
+guidance block or run in configuration-only mode when another repository owns
+generated guidance. It does not silently replace unrelated instructions.
 
 Repository guidance is the portable contract. Host-specific hooks may display
 freshness warnings or reminders, but correctness must not depend on a hook that
@@ -98,22 +171,21 @@ only through the explicit administrative REST and Python CLI surfaces.
 
 ## Checkout And Freshness Behavior
 
-The integration must bind a host configuration to a stable project and checkout
-identity or a unique repository alias. It must fail clearly when selection is
-missing or ambiguous rather than using whichever indexed repository looks most
-recent.
+The normal MCP integration binds host configuration to an exact project,
+checkout, repository root, and optional source-view hash. It fails clearly when
+selection is missing, wrong, ambiguous, dirty, or stale rather than using
+whichever indexed repository looks most recent.
 
-Freshness is a server-side acceptance condition. Before returning task context
-as trustworthy, CodeMesh must compare the configured checkout and source state
-with the active indexed snapshot and expose the result in the response. A hook
-or client warning may improve visibility, but it cannot convert stale data into
-accepted evidence.
+Freshness is a server-side acceptance condition. Before returning task context,
+CodeMesh compares the configured checkout and source state with the active
+indexed snapshot and exposes the assessment in the response. Client warnings
+cannot convert stale data into accepted evidence.
 
 ## Live Runtime Probe
 
 Static configuration validation and manifest printing are insufficient because
 they do not prove that the configured process can initialize in the target
-environment. The planned probe must:
+environment. The implemented positive probe:
 
 1. launch the exact stdio command and working directory used by the host;
 2. complete MCP initialization and inspect the server instructions;
@@ -122,8 +194,10 @@ environment. The planned probe must:
 5. resolve the configured repository without ambiguity; and
 6. confirm current checkout and snapshot freshness.
 
-It must exit nonzero with a specific diagnostic when any required condition
-fails. The probe must be provider-free and must not invoke a paid model.
+It exits nonzero with a specific diagnostic when any required condition fails.
+The companion rejection probe launches the same normal profile with an unsafe
+binding and proves that it fails closed. Both probes force provider mode to
+`none` and do not invoke a paid model.
 
 ## Evaluation Classification
 
@@ -141,23 +215,90 @@ Configured/onboarded evidence supports the selected v1 contract. It must not be
 relabeled as spontaneous discovery, and older evaluator-assisted runs must not
 be retroactively relabeled as configured product evidence.
 
-Before another model-cost-bearing campaign, the evaluation harness must record
-the integration mode and the identities of the installed guidance and selected
-tool profile. The frozen task, grading targets, model settings, clean-checkout
-requirements, and summary-free live gate remain unchanged.
+The implemented configured mode records integration mode and exact identities
+for installed guidance, baseline MCP servers, selected tool profile, binding,
+reviewed plan, and positive and rejection probes. It gives control the declared
+baseline servers and treatment the identical baseline plus CodeMesh, without
+changing the task prompt. The frozen task, grading targets, model settings,
+clean-checkout requirements, and summary-free live gate remain unchanged.
+
+The provider-free preflight must pass against the exact candidate before a
+campaign. Across the first two authorized one|nine configured campaigns, three
+treatments called repository status but none retrieved a context package or
+produced an attributable win. The `8844c21` campaign then retrieved a context
+package in every treatment, but its neutral result still produced no
+attributable win. The `b16eee7` Config.Net campaign also achieved full adoption
+but regressed correctness in two treatments. Any further paired comparison
+remains model-cost-bearing and requires new separate authorization. The
+separately consumed `3804028` Config.Net campaign later produced one
+attributable win and zero regressions, but its single-task result does not make
+benefit repeatable. The independent `64d4052` YoutubeDownloader campaign then
+preserved full adoption and correctness on a different C# repository, but its
+49.79% median duration regression and 41.00% median token regression produced a
+`regressed` verdict. The separate `fbc1433` task-adaptive campaign reduced
+treatments to one package and lowered median tokens by 6.63%, but its 10.0192%
+median duration regression also produced a `regressed` verdict. It exceeded its
+authorized aggregate reported-token ceiling because the evaluator lacked a
+hard stop. No automatic paid retry is authorized.
 
 ## Completion Gates
 
-Complete the integration in this order:
+Complete the product-evidence sequence in this order:
 
 1. retain the canonical manual onboarding block and its opt-in boundary;
 2. maintain the implemented normal-user and diagnostic tool profiles;
-3. implement unambiguous checkout binding and fail-closed freshness behavior;
-4. implement the provider-free live runtime probe;
-5. pass deterministic contracts and a clean summary-free live gate; and
-6. with explicit model-spend authorization, run a configured/onboarded campaign
-   using the shipped integration unchanged.
+3. maintain the implemented exact checkout binding and fail-closed freshness;
+4. maintain the implemented provider-free positive and rejection probes;
+5. maintain the clean-candidate deterministic contracts, summary-free live
+   gate, and frozen one|nine pilot gate verified for the one-step correction at
+   `8844c21`;
+6. maintain the passing configured/onboarded paired-evaluation preflight so the
+   implemented runner continues to prove the reviewed normal-profile
+   installation and its exact integration identities against the candidate;
+7. maintain the implemented one-step fail-closed context-package entry action
+   across MCP instructions, installed onboarding, and tool descriptions, as
+   provider-free verified at exact candidate `8844c21`; and
+8. retain the consumed `8844c21` configured/onboarded campaign that established
+   context-package adoption and a neutral outcome for the selected one|nine
+   task; and
+9. retain the consumed configured Config.Net campaign at exact candidate
+   `b16eee7`, which established full context-package adoption but regressed in
+   two treatments; and
+10. retain the provider-free full-task coverage diagnosis against every frozen
+    Config.Net implementation and test target; and
+11. retain the clean-candidate verification of the focused-query guidance
+    correction at `3804028`; and
+12. retain the separately consumed `3804028` Config.Net campaign, which passed
+    all treatments with one attributable win, zero regressions, and an
+    `improved` single-campaign verdict; and
+13. retain the independently consumed `64d4052` YoutubeDownloader campaign,
+    which preserved full adoption and correctness but regressed median duration
+    and token usage on a different frozen C# task; and
+14. retain the `fbc1433` provider-free task-adaptive diagnosis and clean-
+    candidate correction evidence; and
+15. retain the consumed `fbc1433` configured campaign, including its
+    single-package adoption, duration-regressed verdict, and aggregate-token
+    ceiling breach; retain the implemented fail-closed reported-token accounting,
+    compatible-runner capability gate, boundary stop, and no-retry behavior
+    before any future paid evaluation is considered.
 
-Do not claim the v1 integration complete from documentation, static manifests,
-fixtures, configured CI, or an MCP process that starts without passing these
-gates.
+The bounded one|nine path and configured preflight have passed their clean-
+candidate provider-free gates. The two status-first campaigns remain valid but
+`insufficient`; the one-step campaign is valid and `neutral` with full adoption,
+the `b16eee7` Config.Net campaign is valid and `regressed` with full adoption,
+and the separate `3804028` Config.Net campaign is valid and `improved` with one
+attributable win. The independent `64d4052` YoutubeDownloader campaign is valid
+and `regressed` on efficiency despite full adoption and correctness. The
+Config.Net improvement remains positive bounded evidence, but the independent
+efficiency regressions mean no result yet establishes repeatable product
+benefit. The `fbc1433` campaign establishes bounded single-package compliance,
+not overall efficiency benefit. Its historical budget-control failure is now
+closed in the evaluator. The default `codex` runner cannot guarantee the cap and
+fails before model calls; the explicit `capped-codex` runner implements the
+contract. Its separately authorized `0f18071` campaign stopped on unavailable
+provider credits without a completed pair and is consumed. That failure proves
+bounded fail-closed behavior, not product benefit.
+Do not claim benefit from documentation, static
+manifests, fixtures,
+configured CI, adoption alone, or an MCP process that starts without an
+attributable agent-outcome result.

@@ -27,7 +27,8 @@ public sealed record IngestionRequest(
     int SummaryReasoningTokenReserve = 768,
     int SummaryMaxCompletionTokens = 1536,
     string? ProjectId = null,
-    int SnapshotRetentionGraceSeconds = 86400);
+    int SnapshotRetentionGraceSeconds = 86400,
+    RepositoryPathFilter? PathFilter = null);
 
 public sealed record IngestionRun(
     string RunId,

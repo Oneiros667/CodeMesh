@@ -1,0 +1,64 @@
+{
+  "schema_version": "codemesh-codeql-triage-v1",
+  "evidence_class": "hosted-remote-read-only-triage",
+  "recorded_at": "2026-08-31T19:42:35Z",
+  "repository": "Oneiros667/CodeMesh",
+  "scanned_commit": "8e9c0da7b497fe51126e3ef66509a8587cfe8d83",
+  "latest_codeql_run": {
+    "database_id": 33318677130,
+    "conclusion": "success",
+    "created_at": "2026-08-30T15:05:55Z"
+  },
+  "open_alerts": {
+    "total": 39,
+    "critical": 3,
+    "high": 36,
+    "rules": {
+      "py/command-line-injection": 3,
+      "py/path-injection": 35,
+      "py/reflective-xss": 1
+    }
+  },
+  "triage": [
+    {
+      "priority": "P0",
+      "classification": "trusted-suite-boundary-hardening",
+      "alert_numbers": [7, 8, 9, 10, 11, 12, 13, 14, 22, 23, 24, 25, 26],
+      "count": 13,
+      "assessment": "Suite-provided setup-patch paths and task, question, or scenario identifiers reach artifact and retained-workspace paths. Current evaluation suites are explicit local operator inputs and may already declare validation commands, but containment and safe-segment validation should be enforced before accepting untrusted suites."
+    },
+    {
+      "priority": "P1",
+      "classification": "explicit-local-command-boundary",
+      "alert_numbers": [1, 2, 3],
+      "count": 3,
+      "assessment": "The evaluator executes argv arrays without a shell. One sink runs suite-declared validation and Git commands; two invoke the explicitly selected Codex executable. This is intentional opt-in local execution, not a remote command-injection surface, but suite and executable trust must remain explicit and should be hardened before broader distribution."
+    },
+    {
+      "priority": "P2",
+      "classification": "likely-false-positive-needs-regression-test",
+      "alert_numbers": [39],
+      "count": 1,
+      "assessment": "The HTML sink receives composed markup. Current request and store values are escaped for text or attributes, and repository identifiers are URL-quoted. Add adversarial route tests before dismissing the alert; the hosted success alone does not prove XSS safety."
+    },
+    {
+      "priority": "P3",
+      "classification": "explicit-operator-or-internal-path-boundary",
+      "alert_numbers": [4, 5, 6, 15, 16, 17, 18, 19, 20, 21, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38],
+      "count": 22,
+      "assessment": "These findings cover explicit CLI input/output paths, custom suite and report paths, internally supplied temporary response paths, repository roots, and a commit-message file. They are local operator-selected boundaries; add containment only where the command contract promises a managed destination."
+    }
+  ],
+  "recommended_order": [
+    "Validate suite identifiers as safe path segments and enforce suite-relative setup-patch containment.",
+    "Document and test the trusted-suite and explicit executable boundary while preserving shell-free argv execution.",
+    "Add adversarial UI route tests for request and stored values, then reassess alert 39.",
+    "Review remaining operator-selected paths against each CLI command's documented destination contract."
+  ],
+  "boundaries": {
+    "alert_dismissals": "not_performed",
+    "code_changes": "not_performed",
+    "local_unpublished_commits_scanned": false,
+    "security_clean_claim": false
+  }
+}

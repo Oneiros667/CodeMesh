@@ -1,0 +1,122 @@
+{
+  "schema_version": "codemesh-security-boundary-review-v1",
+  "recorded_at": "2026-09-05",
+  "evidence_class": "local-source-review-and-provider-free-regression-tests",
+  "base_commit": "32579cd",
+  "hosted_scan_commit": "8e9c0da7b497fe51126e3ef66509a8587cfe8d83",
+  "hosted_open_alerts_rechecked": 39,
+  "groups": [
+    {
+      "alerts": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        22,
+        23,
+        24,
+        25,
+        26
+      ],
+      "boundary": "suite task, question, scenario, patch and generated artifacts",
+      "action": "Safe identifiers, case-insensitive uniqueness, suite-relative resolved patch containment, generated descendant containment, exclusive raw directories; validate all artifacts before preparation and revalidate individual execution paths."
+    },
+    {
+      "alerts": [
+        1,
+        2,
+        3,
+        35
+      ],
+      "boundary": "suite argv and explicitly selected executable",
+      "action": "Preserve shell-free subprocess.run/create_subprocess_exec; document executable and suite trust. Real subprocess metacharacter test and Codex launch-argument regression passed. Executable paths are intentionally operator-selected."
+    },
+    {
+      "alerts": [
+        39
+      ],
+      "boundary": "five local HTML routes",
+      "action": "Source review and four adversarial payloads across every route verify escaped request and stored text, attributes and local URLs. No production rendering change or hosted dismissal."
+    },
+    {
+      "alerts": [
+        4,
+        5,
+        6,
+        18,
+        19,
+        20,
+        21
+      ],
+      "boundary": "evaluation output root, default run name, fixed report/review files and metadata",
+      "action": "Explicit output root remains operator-selected and created exclusively. Additional review found an unvalidated suite name in the model benchmark default run name; agent/model suite names now use safe identifiers and pre-execution validation. Fixed filenames and resolved metadata do not supply new destinations."
+    },
+    {
+      "alerts": [
+        15
+      ],
+      "boundary": "Git repository root resolution",
+      "action": "Explicit operator-selected repository root passed as one argv value to git -C, then resolved through rev-parse; no managed-directory containment promised."
+    },
+    {
+      "alerts": [
+        16,
+        30
+      ],
+      "boundary": "response output and JSON response/audit input",
+      "action": "Response filename comes from evaluator-created private temporary directory; audit path is a managed artifact descendant. Model tool accepts answer/facts/citations, not a destination. Internal read helper receives these evaluator-created paths."
+    },
+    {
+      "alerts": [
+        17
+      ],
+      "boundary": "Conventional Commit message input",
+      "action": "Explicit local --message-file path is intentionally read-only operator input; no directory restriction promised."
+    },
+    {
+      "alerts": [
+        27,
+        28,
+        29,
+        31
+      ],
+      "boundary": "selected model report/review input and finalized report output",
+      "action": "Operator-selected input and output files. Default reviewed-report.json is a fixed sibling of selected input; report metadata suite_path is also trusted input and documented. JSON/Pydantic parsing does not execute input."
+    },
+    {
+      "alerts": [
+        32,
+        33,
+        34
+      ],
+      "boundary": "CLI --output",
+      "action": "Explicit operator-selected report destination, including parent creation where documented; no implied repository-only destination."
+    },
+    {
+      "alerts": [
+        36,
+        37,
+        38
+      ],
+      "boundary": "built-in suite selection and explicit suite files",
+      "action": "Built-in names now validated before constructing packaged suite path; existing custom file paths remain operator-selected. Loaded agent/model suite artifacts are validated before return."
+    }
+  ],
+  "validation": {
+    "python_tests": 227,
+    "python_failures": 0,
+    "python_skipped": 0,
+    "existing_dependency_warnings": 2,
+    "dotnet": "Not rerun for Python-only evaluator validation and UI tests; no cross-language contract changed."
+  },
+  "limits": [
+    "No hosted scan of these changes or alert dismissal.",
+    "No claim that trusted local suites or selected executables are sandboxed.",
+    "No defense claimed against concurrent hostile local filesystem mutation.",
+    "No provider invocation, spend, release, or deployment."
+  ]
+}

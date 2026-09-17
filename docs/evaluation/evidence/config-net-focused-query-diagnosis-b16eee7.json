@@ -1,0 +1,121 @@
+{
+  "schema_version": "1.0",
+  "evidence_kind": "sanitized-provider-free-focused-query-diagnosis",
+  "generated_at": "2026-09-01T13:56:27.476741+00:00",
+  "baseline": {
+    "codemesh_commit": "b16eee7c82ee1c43e5dd73e9c92ff4c7451edae2",
+    "codemesh_clean_detached_checkout": true,
+    "repository_commit": "ae0af7d4b3781c66233bbb677b6e11df1f5b416b",
+    "repository_working_tree_dirty": false,
+    "project_id": "prj_e5d8c89734dc41958892d6f8f9878b89",
+    "checkout_id": "chk_6d1d16158afa4964bd19c9bf4d3e9193",
+    "snapshot_id": "snp_165b1edc656765c92df79fa4369c7f49b0a99b1c9a6c884c96c2ab55b1cb0ec5",
+    "source_view_hash": "b4981658b9c7ae39100f3b92d871727234e4b6ec4adaee4e9918789187173e57",
+    "provider": "none"
+  },
+  "full_task_probe": {
+    "passed": false,
+    "query_term_count": 58,
+    "limit": 8,
+    "required_target_count": 7,
+    "required_targets_returned": [
+      "src/Config.Net.Tests/LogicTest.cs"
+    ],
+    "required_targets_missed": [
+      "src/Config.Net/Core/IoHandler.cs",
+      "src/Config.Net/Core/LazyVar.cs",
+      "src/Config.Net/Core/DynamicWriter.cs",
+      "src/Config.Net/Core/InterfaceInterceptor.cs",
+      "src/Config.Net/ConfigurationBuilder.cs",
+      "src/Config.Net.Tests/ConfigurableMethodsTest.cs"
+    ],
+    "returned_paths": [
+      "src/Config.Net.Tests/LogicTest.cs",
+      "src/Config.Net.Tests/MultipleConfigurationFilesTest.cs",
+      "src/Config.Net.Tests/NotifyPropertyChangedTest.cs",
+      "src/Config.Net.Tests/Stores/Formats/IniKeyValueTest.cs",
+      "src/Config.Net.Tests/Stores/IniFileConfigStoreTest.cs",
+      "src/Config.Net.Tests/Stores/JsonFileCOnfigStoreTest.cs",
+      "src/Config.Net.Tests/Virtual/VirtualStoreTest.Basics.cs",
+      "src/Config.Net.Tests/Virtual/VirtualStoreTest.cs"
+    ]
+  },
+  "focused_query_suite": {
+    "suite": "config-net-cache-focused-live",
+    "suite_definition_status": "uncommitted_diagnostic_definition",
+    "suite_definition_sha256": "6ef9626b937194eda130aeb5ab32d9d61bdcaa4b968c163a6475444997a42c8d",
+    "passed": true,
+    "comparable_retrieval_report": true,
+    "case_count": 5,
+    "tool_call_count": 15,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 0.660714,
+    "mean_ndcg_at_k": 0.76259,
+    "secret_leaks": 0,
+    "maximum_primary_rank": 8,
+    "covered_required_targets": [
+      "src/Config.Net/Core/IoHandler.cs",
+      "src/Config.Net/Core/LazyVar.cs",
+      "src/Config.Net/Core/DynamicWriter.cs",
+      "src/Config.Net/Core/InterfaceInterceptor.cs",
+      "src/Config.Net/ConfigurationBuilder.cs",
+      "src/Config.Net.Tests/LogicTest.cs",
+      "src/Config.Net.Tests/ConfigurableMethodsTest.cs"
+    ],
+    "report_sha256": "df6fc7c2175c1af30f16390e43b301b0625e7d836f36dd44bfd70cb971c981d6"
+  },
+  "unchanged_canonical_live_gate": {
+    "suite": "config-net-cache-live",
+    "passed": true,
+    "comparable": true,
+    "case_count": 6,
+    "tool_call_count": 18,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 1.0,
+    "mean_ndcg_at_k": 1.0,
+    "secret_leaks": 0,
+    "report_sha256": "2c88997af63ab39e3d30ebf13944ea6d5b7fdd24fe95b1fdf9c41c8af75a9426"
+  },
+  "implemented_worktree_correction": {
+    "base_commit": "5d7d1099efdae913ae3db14fa4373f111b679f3d",
+    "committed": false,
+    "change": "replace_one_long_full_task_query_guidance_with_small_focused_implementation_and_test_queries",
+    "context_package_remains_single_entry_tool": true,
+    "python_tests_passed": 125,
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "fixture_suite_cases_passed": 5,
+    "clean_candidate_configured_preflight": "pending_commit_authority",
+    "clean_candidate_focused_live_gate": "pending_commit_authority"
+  },
+  "claim_ceiling": {
+    "established": [
+      "the_frozen_full_task_query_misses_six_of_seven_required_targets",
+      "four_focused_task_derived_queries_cover_all_seven_required_targets",
+      "the_unchanged_canonical_live_suite_still_passes",
+      "a_bounded_guidance_correction_is_implemented_and_deterministically_verified_in_the_worktree"
+    ],
+    "not_established": [
+      "clean_candidate_verification_of_the_guidance_correction",
+      "normal_agent_compliance_with_focused_query_guidance",
+      "correctness_or_efficiency_benefit",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "limitations": [
+    "The focused suite definition was uncommitted when the clean b16eee7 evaluator ran it, so the report validates the retrieval strategy but is not an exact clean-candidate correction gate.",
+    "The retained paid campaign did not preserve context-package call arguments, raw package payloads, final messages, or workspaces, so the diagnosis does not prove which query each treatment used.",
+    "LazyVar was returned at rank eight in its focused case, leaving limited ranking margin."
+  ],
+  "boundaries": {
+    "model_provider_invoked": false,
+    "paid_campaign_retry_authorized": false,
+    "commit_authorized": false,
+    "push": "not_authorized",
+    "release": "not_authorized",
+    "deployment": "not_authorized"
+  }
+}

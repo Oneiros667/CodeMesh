@@ -1,0 +1,122 @@
+{
+  "schema_version": "codemesh-configured-youtube-downloader-provider-free-v1",
+  "evidence_class": "provider-free-local-configured-integration",
+  "recorded_at": "2026-09-01T14:59:34Z",
+  "codemesh": {
+    "commit": "64d405282ffcb96207479dd46eab9947a0eb7aaf",
+    "clean_detached_checkout": true,
+    "configured_suite_added": "youtube-downloader-impact-configured-agent",
+    "frozen_prompt_targets_thresholds_and_repository_commit_preserved": true,
+    "python_tests_passed": 125,
+    "python_test_warnings": 2,
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "fixture_suite_cases_passed": 5,
+    "dotnet_verification": "not_selected_evaluation_fixture_only_change"
+  },
+  "youtube_downloader": {
+    "repository_url": "https://github.com/Tyrrrz/YoutubeDownloader.git",
+    "commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+    "branch": "HEAD",
+    "tracked_files_changed": false,
+    "project_id": "prj_3425db238d0d4a5fbcc1e3c9a28d1945",
+    "checkout_id": "chk_7e4ecde2ae4e45b4b9e475e0a587aa47",
+    "snapshot_id": "snp_1c7772010bcb7c8430fe062d975094271762a68627dbc53f4e2b9f0557687eae",
+    "source_view_hash": "d741906fcdcc5aa33a9d14f8a5e0cbdf7d2e572266a098beadddb595ce6853d9",
+    "freshness_status": "fresh"
+  },
+  "configured_installation": {
+    "profile": "normal",
+    "provider": "none",
+    "configuration_only": true,
+    "plan_hash": "c0e6a2e09d785cea4c1b4f33ac37a3b43cdb683832390e74dceea7508c98dc92",
+    "plan_report_sha256": "ddda6adc58636291bcbe70f059027e18a00c97d8a87195f39a1e1ae301017527",
+    "launch_sha256": "495b174bae76ba589c94631b8fff6b7a31bb72c1d1a8a967decd5a27d51f10cc",
+    "installation_file": {
+      "path": ".codex/config.toml",
+      "source": "installed-ignored",
+      "sha256": "9bb852f8ee26992009a8a2f1f709e4db2b95f42bf826df78e5efa66ee84275e8"
+    },
+    "guidance": {
+      "path": "AGENTS.override.md",
+      "source": "installed-ignored",
+      "sha256": "abb5fcdce32a53d14c618b18e842f0070e83fe9061e52d61a380d3a3086dd371"
+    },
+    "expected_tools": [
+      "codemesh_get_context_package",
+      "codemesh_get_repository_status",
+      "codemesh_list_repositories",
+      "codemesh_get_node"
+    ]
+  },
+  "configured_preflight": {
+    "passed": true,
+    "integration_mode": "configured",
+    "prompt_parity": true,
+    "provider": "none",
+    "probe_query": "audio-only container VideoDownloadOption DownloadMultipleSetupViewModel",
+    "expected_paths": [
+      "YoutubeDownloader.Core/Downloading/VideoDownloadOption.cs"
+    ],
+    "returned_path_count": 8,
+    "wrong_checkout_rejected": true,
+    "positive_probe_sha256": "fbff77ffdc1c860bb2241b8e9acb2d4ac587b5fc69f2ae512b1d24fb39d76281",
+    "rejection_probe_sha256": "24e652f49c397e407632fba3d89cc8bc43a4f1c427a5f3bda8842be5f51f9209",
+    "report_sha256": "534f83ae9fb14834a8170ea2cfcebfdb9907bdd98dca16ab602a0a95111c28ba"
+  },
+  "impact_live_gate": {
+    "suite": "youtube-downloader-impact-live",
+    "passed": true,
+    "comparable": true,
+    "case_count": 2,
+    "tool_call_count": 6,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 1.0,
+    "mean_ndcg_at_k": 0.891323,
+    "primary_rank": 2,
+    "secret_leaks": 0,
+    "model_providers": [],
+    "report_sha256": "54fc35442c28b85d5db492cf320b39c20d76e1f3dab5658ba0994a04da5a3709"
+  },
+  "unchanged_canonical_live_gate": {
+    "suite": "youtube-downloader-live",
+    "passed": true,
+    "comparable": true,
+    "case_count": 6,
+    "tool_call_count": 18,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 0.9,
+    "mean_ndcg_at_k": 0.926186,
+    "secret_leaks": 0,
+    "model_providers": [
+      "none"
+    ],
+    "report_sha256": "c510ad547bff20e3ce1c2d80ea4ffb6fb182224f4ef00bfec33c57db44a0cf3e"
+  },
+  "claim_ceiling": {
+    "established": [
+      "provider_free_configured_plan_and_runtime_identity",
+      "prompt_parity_preflight_configuration",
+      "fresh_fail_closed_youtube_downloader_binding",
+      "comparable_impact_retrieval_gate",
+      "unchanged_canonical_retrieval_gate_preserved"
+    ],
+    "not_established": [
+      "normal_agent_context_package_adoption",
+      "codemesh_correctness_or_efficiency_benefit",
+      "repeatable_configured_product_benefit",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "boundaries": {
+    "provider_free_gates_invoked_model": false,
+    "subsequent_model_campaign_recorded_separately": true,
+    "push": "not_authorized",
+    "release": "not_authorized",
+    "deployment": "not_authorized",
+    "live_trading": "not_authorized"
+  }
+}

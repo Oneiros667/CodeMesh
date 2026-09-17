@@ -1,16 +1,29 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AfterValidator, BaseModel, Field, model_validator
+
+from .paths import (
+    ARTIFACT_ID_PATTERN,
+    resolve_setup_patch,
+    validate_artifact_id,
+    validate_setup_patch_name,
+)
 
 
 SCHEMA_VERSION = "1.0"
 MODEL_BENCHMARK_SCHEMA_VERSION = "1.0"
 
 Difficulty = Literal["easy", "medium", "hard"]
+AgentIntegrationMode = Literal["spontaneous", "assisted", "configured"]
+ArtifactId = Annotated[
+    str, Field(pattern=ARTIFACT_ID_PATTERN), AfterValidator(validate_artifact_id)
+]
+SetupPatchPath = Annotated[str, AfterValidator(validate_setup_patch_name)]
 
 
 class RetrievalTarget(BaseModel):
@@ -95,12 +108,12 @@ class CommandPolicy(BaseModel):
 
 
 class AgentTask(BaseModel):
-    id: str
+    id: ArtifactId
     description: str
     task_type: Literal["answer", "change"]
     prompt: str
     targets: list[RetrievalTarget] = Field(default_factory=list)
-    setup_patch: str | None = None
+    setup_patch: SetupPatchPath | None = None
     validation: list[ValidationCommand] = Field(default_factory=list)
     required_changed_paths: list[str] = Field(default_factory=list)
     allowed_changed_paths: list[str] = Field(default_factory=list)
@@ -127,14 +140,62 @@ class AgentThresholds(BaseModel):
 class AgentSuite(BaseModel):
     schema_version: Literal["1.0"] = SCHEMA_VERSION
     kind: Literal["agent"] = "agent"
-    name: str
+    name: ArtifactId
     description: str = ""
     repository_id: str = "code_mesh"
     repository_url: str | None = None
     repository_commit: str | None = None
+    integration_mode: AgentIntegrationMode | None = None
+    baseline_mcp_servers: list[str] = Field(default_factory=list)
     treatment_guidance: str | None = None
     tasks: list[AgentTask]
     thresholds: AgentThresholds = Field(default_factory=AgentThresholds)
+
+    @model_validator(mode="after")
+    def validate_integration_mode(self) -> "AgentSuite":
+        _require_unique_artifact_ids(self.tasks)
+        if self.integration_mode == "configured" and self.treatment_guidance:
+            raise ValueError(
+                "Configured agent suites must use shipped repository guidance, "
+                "not evaluator-only treatment guidance."
+            )
+        if self.integration_mode == "configured" and not self.repository_commit:
+            raise ValueError(
+                "Configured agent suites require a pinned repository commit."
+            )
+        if self.baseline_mcp_servers and self.integration_mode != "configured":
+            raise ValueError(
+                "Baseline MCP servers can be selected only by configured suites."
+            )
+        normalized_servers = [value.strip() for value in self.baseline_mcp_servers]
+        if any(not value for value in normalized_servers) or len(
+            set(normalized_servers)
+        ) != len(normalized_servers):
+            raise ValueError("Baseline MCP server names must be non-empty and unique.")
+        if any(
+            re.fullmatch(r"[A-Za-z0-9_-]+", value) is None
+            for value in normalized_servers
+        ):
+            raise ValueError(
+                "Baseline MCP server names may contain only letters, digits, "
+                "underscores, and hyphens."
+            )
+        self.baseline_mcp_servers = normalized_servers
+        if self.integration_mode == "assisted" and not self.treatment_guidance:
+            raise ValueError(
+                "Assisted agent suites require evaluator treatment guidance."
+            )
+        if self.integration_mode == "spontaneous" and self.treatment_guidance:
+            raise ValueError(
+                "Spontaneous agent suites cannot include treatment guidance."
+            )
+        return self
+
+    @property
+    def resolved_integration_mode(self) -> AgentIntegrationMode:
+        if self.integration_mode is not None:
+            return self.integration_mode
+        return "assisted" if self.treatment_guidance else "spontaneous"
 
 
 class CriterionWeights(BaseModel):
@@ -182,7 +243,7 @@ class HumanRubric(BaseModel):
 
 
 class BenchmarkQuestion(BaseModel):
-    id: str
+    id: ArtifactId
     family_id: str
     difficulty: Difficulty
     description: str
@@ -196,12 +257,12 @@ class BenchmarkQuestion(BaseModel):
 
 
 class BenchmarkChangeScenario(BaseModel):
-    id: str
+    id: ArtifactId
     family_id: str
     difficulty: Difficulty
     description: str
     prompt: str
-    setup_patch: str
+    setup_patch: SetupPatchPath
     validation: list[ValidationCommand] = Field(min_length=1)
     required_changed_paths: list[str] = Field(min_length=1)
     allowed_changed_paths: list[str] = Field(min_length=1)
@@ -228,7 +289,7 @@ class ModelBenchmarkThresholds(BaseModel):
 class ModelBenchmarkSuite(BaseModel):
     schema_version: Literal["1.0"] = MODEL_BENCHMARK_SCHEMA_VERSION
     kind: Literal["model-benchmark"] = "model-benchmark"
-    name: str
+    name: ArtifactId
     description: str = ""
     repository_id: str = "code_mesh"
     weights: CriterionWeights = Field(default_factory=CriterionWeights)
@@ -240,6 +301,7 @@ class ModelBenchmarkSuite(BaseModel):
 
     @model_validator(mode="after")
     def validate_matrix(self) -> "ModelBenchmarkSuite":
+        _require_unique_artifact_ids([*self.questions, *self.change_scenarios])
         _require_difficulty_matrix(self.questions, family_count=8, label="question")
         _require_difficulty_matrix(
             self.change_scenarios, family_count=3, label="change scenario"
@@ -309,6 +371,8 @@ class AgentExecutionReport(BaseModel):
     cached_input_tokens: int = 0
     output_tokens: int = 0
     reasoning_output_tokens: int = 0
+    reported_tokens: int = 0
+    reported_token_limit: int | None = None
     mcp_calls: list[str] = Field(default_factory=list)
     mcp_call_attempts: list[str] = Field(default_factory=list)
     mcp_failed_calls: list[str] = Field(default_factory=list)
@@ -321,6 +385,7 @@ class AgentExecutionReport(BaseModel):
     sanitized_diff: str | None = None
     raw_events: list[dict[str, Any]] | None = None
     final_message: str | None = None
+    hard_cap_ledger: dict[str, Any] | None = None
 
 
 class AgentReport(BaseModel):
@@ -423,6 +488,7 @@ Suite = LiveSuite | AgentSuite | ModelBenchmarkSuite
 
 
 def built_in_suite_path(name: str) -> Path:
+    validate_artifact_id(name)
     path = Path(__file__).with_name("suites") / f"{name}.json"
     if not path.is_file():
         raise ValueError(f"Unknown built-in evaluation suite '{name}'.")
@@ -445,10 +511,35 @@ def load_suite(
     if kind == "live":
         return LiveSuite.model_validate(payload), path
     if kind == "agent":
-        return AgentSuite.model_validate(payload), path
-    if kind == "model-benchmark":
-        return ModelBenchmarkSuite.model_validate(payload), path
-    raise ValueError(f"Evaluation suite '{path}' has unsupported kind '{kind}'.")
+        suite = AgentSuite.model_validate(payload)
+    elif kind == "model-benchmark":
+        suite = ModelBenchmarkSuite.model_validate(payload)
+    else:
+        raise ValueError(f"Evaluation suite '{path}' has unsupported kind '{kind}'.")
+    validate_suite_artifacts(suite, path)
+    return suite, path
+
+
+def validate_suite_artifacts(
+    suite: AgentSuite | ModelBenchmarkSuite, suite_path: Path
+) -> None:
+    validate_artifact_id(suite.name)
+    items = (
+        suite.tasks
+        if isinstance(suite, AgentSuite)
+        else [*suite.questions, *suite.change_scenarios]
+    )
+    _require_unique_artifact_ids(items)
+    for item in items:
+        validate_artifact_id(item.id)
+        if patch := getattr(item, "setup_patch", None):
+            resolve_setup_patch(suite_path, patch)
+
+
+def _require_unique_artifact_ids(items: list[Any]) -> None:
+    identifiers = [item.id.casefold() for item in items]
+    if len(set(identifiers)) != len(identifiers):
+        raise ValueError("Evaluation identifiers must be unique ignoring case.")
 
 
 def suite_json_schema(kind: Literal["live", "agent", "model"]) -> dict[str, Any]:

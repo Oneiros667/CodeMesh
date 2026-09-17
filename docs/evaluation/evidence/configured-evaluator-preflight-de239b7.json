@@ -1,0 +1,55 @@
+{
+  "schema_version": "codemesh-configured-evaluator-candidate-v1",
+  "evidence_class": "provider-free-local-candidate",
+  "recorded_at": "2026-08-31T19:39:47Z",
+  "codemesh": {
+    "commit": "de239b7ba115ee726dfe8891c407707b4edd2898",
+    "clean_checkout": true
+  },
+  "deterministic_verification": {
+    "python_tests": {
+      "passed": 120,
+      "warnings": 2
+    },
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "fixture_suite": {
+      "passed": true,
+      "cases": 5
+    },
+    "documentation_standards": "passed"
+  },
+  "youtube_downloader": {
+    "status": "passed",
+    "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+    "comparable": true,
+    "case_count": 6,
+    "tool_call_count": 18,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 0.9,
+    "mean_ndcg_at_k": 0.926186,
+    "secret_leaks": 0,
+    "provider": "none",
+    "report_sha256": "783a7a72a4879d3d27ec29c77237a49b45e23dabaf34627f957057c7e065baff"
+  },
+  "onenine_primary": {
+    "status": "not_run_stale_candidate",
+    "frozen_indexed_commit": "e12d0281b687e58c2baac85f771a684df6fa8552",
+    "current_checkout_commit": "499ae2630e5c8c31a4a7904f91a67eacc6ba5621",
+    "working_tree_dirty": false,
+    "freshness_status": "stale",
+    "configured_plan_available": false,
+    "required_resolution": "Select and index an explicit clean one|nine candidate, then generate, review, apply, and retain its exact normal-profile plan before configured preflight."
+  },
+  "boundaries": {
+    "configured_agent_preflight": "not_run_until_onenine_identity_matches",
+    "model_backed_agent_evaluation": "not_run_requires_explicit_spend_authority",
+    "dotnet_suite": "not_run_python_evaluator_and_documentation_only_change",
+    "reindex_or_repoint_onenine": "not_authorized",
+    "release": "not_authorized",
+    "deployment": "not_authorized",
+    "provider_access": "not_authorized",
+    "live_trading": "not_authorized"
+  }
+}

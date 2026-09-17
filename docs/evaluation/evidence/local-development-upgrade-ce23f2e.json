@@ -1,0 +1,269 @@
+{
+  "schema_version": "codemesh-local-development-upgrade-rehearsal-v1",
+  "recorded_at": "2026-09-05",
+  "evidence_class": "provider-free-isolated-linux-upgrade-and-whole-set-rollback",
+  "baseline": "8e9c0da7b497fe51126e3ef66509a8587cfe8d83",
+  "candidate": "ce23f2e5eb2439353e6207fc373d5e82f9a6dd28",
+  "sample_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+  "sample_was_separate_clean_clone": true,
+  "private_archive": ".codemesh-evals/upgrade-8e9c0da-ce23f2e in main checkout",
+  "projects": {
+    "baseline": "codemesh-upgrade-old8e9",
+    "candidate": "codemesh-upgrade-newce23",
+    "rollback": "codemesh-upgrade-rollback8e9"
+  },
+  "baseline_images": {
+    "neo4j": "sha256:362542416de6c09a971484d1893878016cc3b5cdec166e54b1c824a220ecd6b9",
+    "mongodb": "sha256:340c1c56fb10e95cf79ff547f8664b96bc6ead9909bc355238cbf865a9695a6f",
+    "qdrant": "sha256:0bd98fa7977f1e75694779359ca4e212822e5a71334e28421182f72f209d5286",
+    "agent-access": "sha256:c066b6fd567f4545827ff5a9f471ba7534784fe61afd77ca8c3e2d1ccb46d0f5"
+  },
+  "candidate_images": {
+    "neo4j": "sha256:362542416de6c09a971484d1893878016cc3b5cdec166e54b1c824a220ecd6b9",
+    "mongodb": "sha256:340c1c56fb10e95cf79ff547f8664b96bc6ead9909bc355238cbf865a9695a6f",
+    "qdrant": "sha256:0bd98fa7977f1e75694779359ca4e212822e5a71334e28421182f72f209d5286",
+    "agent-access": "sha256:df889c292e2a0e74fe29db971cd68c35a6adc4730c474642a48732a5e4a86f0b"
+  },
+  "backups": [
+    {
+      "logical_volume": "neo4j_data",
+      "archive": "neo4j_data.tar.gz",
+      "bytes": 4799450,
+      "sha256": "e1412666b3750b590c5dd403983267d2471aae004f98b26afd59bf526cd8cee5"
+    },
+    {
+      "logical_volume": "neo4j_logs",
+      "archive": "neo4j_logs.tar.gz",
+      "bytes": 10377,
+      "sha256": "70246eeb2c5ea5101079ea80412a185aaf29c4ee240aab1d18b499685f236e40"
+    },
+    {
+      "logical_volume": "mongodb_data",
+      "archive": "mongodb_data.tar.gz",
+      "bytes": 920093,
+      "sha256": "b760645e39179fbef632cf7a68c80c4dab785e68c6c65fa6c528cb57deb758d1"
+    },
+    {
+      "logical_volume": "qdrant_data",
+      "archive": "qdrant_data.tar.gz",
+      "bytes": 389476,
+      "sha256": "ddc53b98eaf5879e7325a310091098ea2bd8e2a17afe1a9aa09492dd65536a9a"
+    }
+  ],
+  "passed": {
+    "original_stop_backup_and_restoration": "Complete stopped four-volume set restored into initially absent volumes; every graph, MongoDB, vector, registry, snapshot, repository and ordered context-item digest matches.",
+    "candidate_reader": "Existing stored data and indexes unchanged before re-ingestion; package ordering/scoring differs across reader revisions and is retained separately.",
+    "reingestion": "Project, checkout, commit and root preserved; new snapshots published; no summaries or embeddings requested.",
+    "candidate_source_citations": "Eight contained source spans, snapshot bindings, content hashes and snippets verified.",
+    "retrieval_after_dependency_assets": {
+      "case_count": 6,
+      "tool_call_count": 18,
+      "tool_success_rate": 1.0,
+      "mean_recall_at_k": 1.0,
+      "mean_mrr": 0.9,
+      "mean_ndcg_at_k": 0.926186,
+      "secret_leaks": 0,
+      "p50_latency_ms": 117.877,
+      "p95_latency_ms": 247.941
+    },
+    "scoped_deletion": {
+      "project": "codemesh-upgrade-newce23",
+      "result": {
+        "repository_id": "prj_c4c08e04f9ea4c7b903bc7f4be604f9d",
+        "deleted": true,
+        "registry_entry_existed": true,
+        "graph_cleaned": true,
+        "content_cleaned": true,
+        "embeddings_cleaned": true,
+        "summaries_cleaned": true
+      },
+      "graph_nodes": 0,
+      "graph_relationships": 0,
+      "mongo_collection_counts": {
+        "content": 0,
+        "snapshot_checkouts": 0,
+        "ingestion_runs": 0,
+        "node_summaries": 0,
+        "snapshot_projects": 0,
+        "ingestion_generations": 0,
+        "snapshot_observations": 0,
+        "snapshots": 0,
+        "repositories": 0
+      },
+      "unrelated_synthetic_vector_points_preserved": 3
+    },
+    "rollback": "Original application/store image identities and complete original backup restored into another new four-volume set; every original data, metadata and ordered context-item digest matches exactly.",
+    "cleanup": "All three task projects and networks removed; original, candidate and rollback volumes and private backups preserved."
+  },
+  "baseline_counts": {
+    "graph_nodes": 1683,
+    "graph_relationships": 3573,
+    "content": 1292,
+    "synthetic_vector_points": 3
+  },
+  "candidate_parsed_counts": {
+    "NodeCount": 1685,
+    "RelationshipCount": 3634,
+    "ContentCount": 1310,
+    "EmbeddingCount": 0,
+    "SummaryCount": 0
+  },
+  "failed_and_retained": {
+    "initial_retrieval": "5/6 cases passed; download-orchestration-impact relationship coverage was 0 instead of 1 on a fresh clone without dependency assets. All 18 tool calls succeeded; recall 1.0 and no secret leaks do not override this failure.",
+    "sample_locked_restore": "dotnet restore YoutubeDownloader.slnx --locked-mode exited 1: frozen AngleSharp 1.4.0 advisory GHSA-pgww-w46g-26qg is NU1902 treated as error. No audit or warning gate was suppressed and the frozen sample was not edited.",
+    "subsequent_source_analysis": "Assets emitted by that restore enabled the missing relationships after re-ingestion. The unchanged six-case/18-call suite passed, while two CMSHARP015 advisory warnings remained. This does not turn dependency restore into a pass.",
+    "helper_corrections": [
+      "Initial readiness helper expected ok rather than the actual healthy status; health was verified before recording baseline acceptance.",
+      "Initial offline citation helper used splitlines and omitted the final empty Roslyn source line. Corrected line accounting verifies all eight legacy citations."
+    ]
+  },
+  "validation_boundary": {
+    "dotnet": "Historical baseline locked restore/build pass; candidate .NET source is unchanged from f314043, whose 71-test/full-smoke evidence is separately retained.",
+    "python": "Candidate source unchanged from b73e19a, whose 235-test three-runtime and local CodeQL evidence is separately retained.",
+    "new_changes": "Documentation and retained evidence only."
+  },
+  "limits": [
+    "No supported published-version upgrade, Windows acceptance, production recovery or release approval.",
+    "Sample dependency acceptance remains failed for the frozen advisory.",
+    "No paid campaign, provider invocation, external publication, existing user-store mutation or one|nine instance change.",
+    "This is a local development-baseline rehearsal, not repeatable configured-agent product benefit."
+  ],
+  "artifacts": [
+    {
+      "file": "backup-copy.log",
+      "sha256": "c4110816172cffd7cae52889b5ed64ef05c77efa128ffb2136cd8fd5c42c3655"
+    },
+    {
+      "file": "candidate-after-assets-ingest.json",
+      "sha256": "8b3c9ab7877b3aef242bf553026ebcb7f9d66eaebbbfb18fcef4d333e679c29e"
+    },
+    {
+      "file": "candidate-after-assets-ingest.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "candidate-after-assets-live.json",
+      "sha256": "9509393acc7ce415e953d9e00bd7418556010d8008697ab55b83da5c3c5e46af"
+    },
+    {
+      "file": "candidate-after-assets-live.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "candidate-after-assets-live.stdout.log",
+      "sha256": "9509393acc7ce415e953d9e00bd7418556010d8008697ab55b83da5c3c5e46af"
+    },
+    {
+      "file": "candidate-after-assets.json",
+      "sha256": "68bc4023ddbf0d4f41d70775dda5cd07d0b52f362f71c78d7e50c6ebda6d3f7d"
+    },
+    {
+      "file": "candidate-after-citations.json",
+      "sha256": "1894695e631895b791c07cab380d9955c9362395a991c82778d3f794b0a243c3"
+    },
+    {
+      "file": "candidate-after-package.json",
+      "sha256": "147cf64a8ac06a3b9b03f01d009d16ee3a8cfa465fa33f2a8aa9d12d42d653d0"
+    },
+    {
+      "file": "candidate-after-reingest.json",
+      "sha256": "c762d3f49ea01c8b150c1f1aba19b5bdac99994c9bf6a727138904d9f137c816"
+    },
+    {
+      "file": "candidate-before-package.json",
+      "sha256": "36e28d4689c4a4a1aad43dda933b07693268a91587af50b1eb7355d792c9fd03"
+    },
+    {
+      "file": "candidate-before-reingest.json",
+      "sha256": "eca4d97908ac57c9201f51e8cf0b5016c133512a75c76869b483d0e90ae600b4"
+    },
+    {
+      "file": "candidate-ingest.json",
+      "sha256": "b9a6c8de4abc3db2f098e1e615cee63396b948f27e98b4d2d20ab8f0479f7aac"
+    },
+    {
+      "file": "candidate-ingest.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "candidate-live.json",
+      "sha256": "a665b74d649ecd9786e50c1c360296be721ab54604ab0525d1890fcf061e30a3"
+    },
+    {
+      "file": "candidate-live.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "candidate-live.stdout.log",
+      "sha256": "a665b74d649ecd9786e50c1c360296be721ab54604ab0525d1890fcf061e30a3"
+    },
+    {
+      "file": "candidate.override.json",
+      "sha256": "7ded024bfe59cd9fd9a7961b2f91404b81711dc373e437b919e54f01b68698eb"
+    },
+    {
+      "file": "codemesh-upgrade-new-image.log",
+      "sha256": "202a222c4c3b7ecdab1fc4fd944f6861ef4185479dd9e6550c485d37a9d30b96"
+    },
+    {
+      "file": "codemesh-upgrade-old-build.log",
+      "sha256": "1d02a64921cfa39d63d367cb4d33a2d01d95cc4f730a7c89915140c0302cc5c0"
+    },
+    {
+      "file": "codemesh-upgrade-old-image.log",
+      "sha256": "0d83dd8fcf654e6bc4a04daa38a7cd1dcfd76c99425d3eead46b279088bea5f5"
+    },
+    {
+      "file": "codemesh-upgrade-old-restore.log",
+      "sha256": "f72e309cef263c92c1dc1f3c0d8d9db5f47c84278048bd39eca995fb58409c19"
+    },
+    {
+      "file": "deletion-verification.json",
+      "sha256": "9c72f12b8fa3226e51cc9135a8daa24009274013f27ef6a1d6b94dcb01a1bb91"
+    },
+    {
+      "file": "legacy-span-probe-corrected.json",
+      "sha256": "dee4a9d3998348ce7096bb56e120c57e8a1ec1bc129786d06eac1773f90ab987"
+    },
+    {
+      "file": "legacy-span-probe.json",
+      "sha256": "8b7ad5dbffac7e938982f1828e47eda4861a7638c0d206625a34658b9ae5b5d8"
+    },
+    {
+      "file": "old-before.json",
+      "sha256": "b963fc20fd8e82c10a1adf452455bbba3456f2bc3c017770e79949f5df994bd1"
+    },
+    {
+      "file": "old-ingest.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "old-ingest.stdout.log",
+      "sha256": "6145b3b0df2a9b81dbeed397272478ce31d20660ffac3a0f81c0ec6d543eb51f"
+    },
+    {
+      "file": "old-restored.json",
+      "sha256": "b963fc20fd8e82c10a1adf452455bbba3456f2bc3c017770e79949f5df994bd1"
+    },
+    {
+      "file": "old.override.json",
+      "sha256": "384397625da72c0e47bd216d418c8734be7324b51276f125c82f21c31619db98"
+    },
+    {
+      "file": "reader-package-difference.json",
+      "sha256": "e52dea200c9854a9c827ea4b51af55966f9d1874f69707509451a6269a0783b0"
+    },
+    {
+      "file": "rollback-after.json",
+      "sha256": "b963fc20fd8e82c10a1adf452455bbba3456f2bc3c017770e79949f5df994bd1"
+    },
+    {
+      "file": "rollback-package.json",
+      "sha256": "1701f3cd437c1fe6ac26381df5a35bc86eb0e4cf16e892935c85f19f05032ddf"
+    },
+    {
+      "file": "sample-restore.log",
+      "sha256": "00dfcfb94c13beb13f86477b0ea0103dd8d7be27e5e3f77735378ee712369236"
+    }
+  ]
+}

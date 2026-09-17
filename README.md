@@ -13,11 +13,11 @@ is available under the [MIT License](LICENSE).
 
 | Status | Capability |
 | --- | --- |
-| Implemented and locally verified | C# ingestion through Roslyn; graph/content persistence; stable checkout identity and bounded local snapshots; repository freshness; REST, MCP, CLI, and .NET Agent Access; default normal and diagnostic MCP profiles; canonical manual onboarding; source spans; relationship-aware context packages; deterministic fixture evaluation; security redaction tests. |
-| Optional and environment-dependent | Neo4j, MongoDB, and Qdrant stores; Docker Compose; embeddings through a configured local provider; Python, Markdown, and deployment-artifact parsing with narrower relationships than C#. |
-| Retained, bounded evidence | Summary-free live retrieval passed on two repositories; assisted campaigns replicated utility after explicit onboarding; spontaneous and prompt-parity campaigns recorded zero CodeMesh adoption. These results do not establish broad generalization. |
+| Implemented and locally verified | C# ingestion through Roslyn; atomic multi-language ingestion; bounded Python and Rust parsing with PyO3 links; graph/content persistence; stable checkout identity and bounded local snapshots; exact checkout binding and fail-closed freshness; REST, MCP, CLI, and .NET Agent Access; normal and diagnostic MCP profiles; reviewable installation, configured-evaluation preflight, provider-free positive and rejection probes, and task-adaptive context-package guidance; agent feedback recording and summarization; source-backed context packages; deterministic fixture evaluation; pre-persistence redaction, default known-secret-file exclusion, repository-relative path filters, and the provider-neutral summary qualification runner/report compiler. |
+| Optional and environment-dependent | Neo4j, MongoDB, and Qdrant stores; Docker Compose; embeddings through a configured local provider; Python, Rust, Markdown, and deployment-artifact parsing with narrower relationships than C#. |
+| Retained, bounded evidence | Summary-free live retrieval passed for CodeMesh, YoutubeDownloader, and Config.Net, and the provider-free one\|nine Primary pilot passed its local retrieval, safety, and feedback gates. Configured campaigns include two insufficient status-first one\|nine results, a neutral one-step one\|nine result, regressed and improved Config.Net results, and two correctness-preserving but duration-regressed YoutubeDownloader results. Exact candidate `fbc1433` reduced treatment package attempts to one and reduced median tokens by 6.63%, but crossed the duration threshold by 0.0192 percentage points and exceeded its authorized aggregate reported-token ceiling. These results do not establish repeatable product benefit or broad generalization. |
 | Experimental or unqualified | Generated summaries, online model providers, model-selection benchmarks, and the read-only local web UI as a product surface. No summary model is CodeMesh-qualified. |
-| Planned | Unambiguous checkout binding, fail-closed package freshness, a provider-free live runtime probe, reviewable installation, configured/onboarded evaluation, configurable ingestion allow/deny policy, shared-service identity controls, and broader parser and SDLC coverage. |
+| Planned | Complete release prerequisites and obtain fresh exact-candidate evidence before any separately authorized product campaign. The explicit `capped-codex` runner is implemented; its first authorized campaign stopped for unavailable credits and is consumed. The default uncapped runner remains blocked before model calls. A measured repository-scoping correction improves provider-free search under controlled unrelated-node growth; it does not establish agent benefit. Keep expansion to additional one\|nine instances separately authorized. Shared-service identity controls and broader parser, UI, summary, memory, portability, and SDLC work remain deferred. |
 
 Passing tests establish the covered local behavior. They do not establish
 hosted CI success, generalized agent benefit, release readiness, deployment
@@ -97,19 +97,27 @@ a live index.
 - Source-scoped MCP context packages with freshness and redaction diagnostics.
 - Deterministic fixture, live retrieval, and opt-in agent/model evaluation
   layers with explicit evidence boundaries.
+- Provider-neutral summary qualification orchestration with clean-source,
+  corpus/profile, blinded-review, retrieval, and comparison gates; no model is
+  qualified by the runner's existence.
 - Local-first processing by default; generated summaries and external model
   providers are opt-in and unqualified.
 
 ## Verification
 
-Use the risk-scaled commands in [Testing](docs/evaluation/testing.md). Current status and
-retained product evidence are summarized in
+Use the supported invocations in [`COMMANDS.md`](COMMANDS.md) and select them
+with the risk-scaled rules in [Testing](docs/evaluation/testing.md). Current
+status and retained product evidence are summarized in
 [Project Status](docs/current/project-status.md); dated results apply only to the
 commits they identify.
 
 ## Repository map
 
 - `src/CodeMesh.Parser.CSharp`: Roslyn parser worker.
+- `src/CodeMesh.Parser.Python` and `src/CodeMesh.Parser.Rust`: bounded local
+  source-structural parsers used by the activated one|nine pilot.
+- `src/CodeMesh.Parser.Markdown` and `src/CodeMesh.Parser.Deployment`: bounded
+  documentation and runtime-artifact parsers.
 - `src/CodeMesh.Ingestion`: ingestion, cleanup, redaction, embeddings, and
   optional summary generation.
 - `src/CodeMesh.Storage`: Neo4j, MongoDB, Qdrant, and in-memory adapters.
@@ -117,6 +125,7 @@ commits they identify.
   operator commands.
 - `agent-access`: Python REST, MCP, CLI, ranking, and evaluation surfaces.
 - `tests/CodeMesh.Tests` and `agent-access/tests`: .NET and Python verification.
+- `COMMANDS.md`: supported contributor and coding-agent command index.
 
 Start with [Agent Quickstart](docs/guides/agent-quickstart.md) when working in the
 repository. The [Documentation Hub](docs/README.md) organizes current

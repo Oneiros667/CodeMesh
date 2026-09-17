@@ -1,0 +1,217 @@
+{
+  "schema_version": "codemesh-configured-runtime-verification-v1",
+  "recorded_at": "2026-09-05",
+  "candidate": "a158bc0308d9fdb8f373ec0d9d6f03233b984f9f",
+  "evidence_class": "local-installed-cli-and-configured-source-backed-mcp-runtime",
+  "private_archive": ".codemesh-evals/review-a158bc0 in main checkout",
+  "source_and_target_clean_before_and_after": true,
+  "installation_plan_hash": "67e9668b170d75016348f83574f011fc1e9638a543b00501ca778f4aa55ddfc4",
+  "installation_files": [
+    {
+      "path": ".codex/config.toml",
+      "previous_sha256": null,
+      "new_sha256": "644b30d73ced8b948ce2f7544f6fb29d554483eb847059b8cca07b312b46427f"
+    },
+    {
+      "path": "AGENTS.md",
+      "previous_sha256": null,
+      "new_sha256": "bd356195afbb8b945d003ff7b6802e270a8c6a97566697ce95b1c4a7c980aba3"
+    }
+  ],
+  "installation_review": "Full launch, binding, file contents and hashes reviewed before exact-plan application. Only two previously absent files in the isolated sample were written.",
+  "operator_cli": "Installed wheel from the verified a158bc0 package archive, used outside the source checkout.",
+  "mcp_launch": "Unmodified shipped uv source-backed launch from a separate clean a158bc0 checkout. This does not claim the server ran from the installed wheel.",
+  "target": "Separate frozen YoutubeDownloader clone at 05e63cddb6d2a96fc2d21b097129a0765824f251; local Git info/exclude keeps task-only configuration/onboarding outside source status.",
+  "images": [
+    {
+      "service": "neo4j",
+      "image_id": "sha256:362542416de6c09a971484d1893878016cc3b5cdec166e54b1c824a220ecd6b9"
+    },
+    {
+      "service": "mongodb",
+      "image_id": "sha256:340c1c56fb10e95cf79ff547f8664b96bc6ead9909bc355238cbf865a9695a6f"
+    },
+    {
+      "service": "qdrant",
+      "image_id": "sha256:0bd98fa7977f1e75694779359ca4e212822e5a71334e28421182f72f209d5286"
+    },
+    {
+      "service": "agent-access",
+      "image_id": "sha256:0ee08cb249a387e639840dda0b3327b975dd768f2771ede7025127eab89c7806"
+    }
+  ],
+  "reports": {
+    "runtime-positive.json": {
+      "binding_status": "accepted",
+      "checkout_id": "chk_7bd6f1df64644128a714bc9b3de7caa7",
+      "context_item_count": 8,
+      "context_query": "download filename template apply",
+      "current_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+      "duration_ms": 3086.595,
+      "expected_paths": [
+        "YoutubeDownloader.Core/Downloading/FileNameTemplate.cs"
+      ],
+      "freshness_status": "fresh",
+      "indexed_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+      "passed": true,
+      "profile": "normal",
+      "project_id": "prj_c4c08e04f9ea4c7b903bc7f4be604f9d",
+      "provider_mode": "none",
+      "returned_paths": [
+        "YoutubeDownloader.Core/Downloading/FFmpeg.cs",
+        "YoutubeDownloader.Core/Downloading/FileNameTemplate.cs",
+        "YoutubeDownloader.Core/Downloading/VideoDownloadOption.cs",
+        "YoutubeDownloader/Framework/ViewManager.cs",
+        "YoutubeDownloader/Localization/LocalizationManager.Spanish.cs",
+        "YoutubeDownloader/Services/SettingsService.AuthCookiesEncryptionConverter.cs",
+        "YoutubeDownloader/ViewModels/Components/DownloadViewModel.cs",
+        "YoutubeDownloader/ViewModels/Dialogs/SettingsViewModel.cs"
+      ],
+      "schema_version": "codemesh-runtime-probe-v1",
+      "server_name": "codemesh",
+      "snapshot_id": "snp_2e655b441a3e8a7bf8dc174b7a45af0c8cf8240050203762f4fdf725e1256ea0",
+      "source_view_hash": "7def3a130907855efb58f34158ce84c2420275456e2f1810ebed040ccd3e0425",
+      "tools": [
+        "codemesh_get_context_package",
+        "codemesh_get_node",
+        "codemesh_get_repository_status",
+        "codemesh_list_repositories"
+      ]
+    },
+    "rejection-source-view.json": {
+      "checkout_id": "chk_7bd6f1df64644128a714bc9b3de7caa7",
+      "diagnostic": "Indexed commit matches the local checkout and the working tree is clean. Configured repository binding or freshness was rejected: source_view_hash_mismatch",
+      "duration_ms": 1183.604,
+      "expected_substrings": [
+        "source_view_hash_mismatch"
+      ],
+      "passed": true,
+      "profile": "normal",
+      "project_id": "prj_c4c08e04f9ea4c7b903bc7f4be604f9d",
+      "provider_mode": "none",
+      "rejected": true,
+      "rejection_issues": [
+        "source_view_hash_mismatch"
+      ],
+      "schema_version": "codemesh-runtime-rejection-probe-v1",
+      "source_view_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "rejection-unknown-checkout.json": {
+      "checkout_id": "chk_00000000000000000000000000000000",
+      "diagnostic": "Repository was not found in the CodeMesh registry. Configured repository binding or freshness was rejected: bound_repository_missing, snapshot_not_fresh, snapshot_provenance_unknown",
+      "duration_ms": 1160.919,
+      "expected_substrings": [
+        "bound_repository_missing"
+      ],
+      "passed": true,
+      "profile": "normal",
+      "project_id": "prj_c4c08e04f9ea4c7b903bc7f4be604f9d",
+      "provider_mode": "none",
+      "rejected": true,
+      "rejection_issues": [
+        "bound_repository_missing",
+        "snapshot_not_fresh",
+        "snapshot_provenance_unknown"
+      ],
+      "schema_version": "codemesh-runtime-rejection-probe-v1",
+      "source_view_hash": "7def3a130907855efb58f34158ce84c2420275456e2f1810ebed040ccd3e0425"
+    },
+    "rejection-dirty.json": {
+      "checkout_id": "chk_7bd6f1df64644128a714bc9b3de7caa7",
+      "diagnostic": "Indexed commit, checkout state, or source-view provenance does not match a verifiable clean checkout. Configured repository binding or freshness was rejected: snapshot_not_fresh",
+      "duration_ms": 1179.081,
+      "expected_substrings": [
+        "snapshot_not_fresh"
+      ],
+      "passed": true,
+      "profile": "normal",
+      "project_id": "prj_c4c08e04f9ea4c7b903bc7f4be604f9d",
+      "provider_mode": "none",
+      "rejected": true,
+      "rejection_issues": [
+        "snapshot_not_fresh"
+      ],
+      "schema_version": "codemesh-runtime-rejection-probe-v1",
+      "source_view_hash": "7def3a130907855efb58f34158ce84c2420275456e2f1810ebed040ccd3e0425"
+    },
+    "runtime-restored.json": {
+      "binding_status": "accepted",
+      "checkout_id": "chk_7bd6f1df64644128a714bc9b3de7caa7",
+      "context_item_count": 8,
+      "context_query": "download filename template apply",
+      "current_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+      "duration_ms": 1180.876,
+      "expected_paths": [
+        "YoutubeDownloader.Core/Downloading/FileNameTemplate.cs"
+      ],
+      "freshness_status": "fresh",
+      "indexed_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+      "passed": true,
+      "profile": "normal",
+      "project_id": "prj_c4c08e04f9ea4c7b903bc7f4be604f9d",
+      "provider_mode": "none",
+      "returned_paths": [
+        "YoutubeDownloader.Core/Downloading/FFmpeg.cs",
+        "YoutubeDownloader.Core/Downloading/FileNameTemplate.cs",
+        "YoutubeDownloader.Core/Downloading/VideoDownloadOption.cs",
+        "YoutubeDownloader/Framework/ViewManager.cs",
+        "YoutubeDownloader/Localization/LocalizationManager.Spanish.cs",
+        "YoutubeDownloader/Services/SettingsService.AuthCookiesEncryptionConverter.cs",
+        "YoutubeDownloader/ViewModels/Components/DownloadViewModel.cs",
+        "YoutubeDownloader/ViewModels/Dialogs/SettingsViewModel.cs"
+      ],
+      "schema_version": "codemesh-runtime-probe-v1",
+      "server_name": "codemesh",
+      "snapshot_id": "snp_2e655b441a3e8a7bf8dc174b7a45af0c8cf8240050203762f4fdf725e1256ea0",
+      "source_view_hash": "7def3a130907855efb58f34158ce84c2420275456e2f1810ebed040ccd3e0425",
+      "tools": [
+        "codemesh_get_context_package",
+        "codemesh_get_node",
+        "codemesh_get_repository_status",
+        "codemesh_list_repositories"
+      ]
+    }
+  },
+  "artifact_hashes": [
+    {
+      "file": "runtime-positive.json",
+      "sha256": "a831ad72c70c08da6a5390ce7582579ea279deadbc38751f9b459335654f9567"
+    },
+    {
+      "file": "rejection-source-view.json",
+      "sha256": "a990ae2f69075fb41dfd3ead037df651c8d90a7d7deecf8091db795632397046"
+    },
+    {
+      "file": "rejection-unknown-checkout.json",
+      "sha256": "a113ced932bae3551c0ea35d00c875de25b07ae2a851dc03a043bb6362dc780c"
+    },
+    {
+      "file": "rejection-dirty.json",
+      "sha256": "bb7e5f0bf381fb905ba0920cb26706fb8ad72ec998220ccadc472d3bdca777ac"
+    },
+    {
+      "file": "runtime-restored.json",
+      "sha256": "013ce9c8b84bb749e911fde2225f7de90faf90f859b2b1c76c045d287416077d"
+    },
+    {
+      "file": "installation-plan.json",
+      "sha256": "f16d552134d1fa46fd408c0eb1b5c4809b73f0b662203ac35fdd2215f3fc15af"
+    },
+    {
+      "file": "installation-apply.json",
+      "sha256": "8b407185095ed2f18809e7d6cfe086795121261b737ef957634c34479100981f"
+    },
+    {
+      "file": "ingest.json",
+      "sha256": "5e335591e495129dd4647e377c2bbab5808861051e3f27f14d41d3de8a1e1a90"
+    }
+  ],
+  "retained_failed_assertion": "The first unknown-checkout probe expected the word checkout, but the server correctly rejected the missing bound repository. Original output is retained; a new probe passed against the observed bound_repository_missing diagnostic. No unsafe acceptance occurred.",
+  "cleanup": "All task containers and network removed; source bytes restored and both source/target checkouts clean; isolated volumes and ignored configuration preserved.",
+  "limits": [
+    "Provider-free configured runtime evidence only; no agent/model campaign or product-benefit claim.",
+    "Frozen sample dependency advisory remains open; restored assets were reused with parser advisory warnings retained.",
+    "The plan was applied only to a task-owned sample, not any one|nine or user working checkout.",
+    "No push, PR, merge, tag, publication or deployment was performed."
+  ]
+}

@@ -37,6 +37,8 @@ public sealed class LmStudioCodeSummaryProvider : ICodeSummaryProvider, IDisposa
 
     public string Model { get; }
 
+    public string GenerationConfigurationFingerprint => "temperature:0.1;response-format:text";
+
     public async Task<CodeSummaryResult> SummarizeAsync(
         CodeSummaryRequest request,
         CancellationToken cancellationToken = default)
@@ -67,7 +69,22 @@ public sealed class LmStudioCodeSummaryProvider : ICodeSummaryProvider, IDisposa
             .ConfigureAwait(false);
         var content = result?.Choices.FirstOrDefault()?.Message.Content;
 
-        return SummaryPrompt.ParseResult(content);
+        var summary = SummaryPrompt.ParseResult(content);
+        if (result?.Usage is { } usage)
+        {
+            summary = summary with
+            {
+                Usage = new CodeSummaryUsage(
+                    usage.PromptTokens,
+                    0,
+                    0,
+                    usage.CompletionTokens,
+                    0,
+                    usage.TotalTokens)
+            };
+        }
+
+        return summary;
     }
 
     public void Dispose()
@@ -104,7 +121,13 @@ public sealed class LmStudioCodeSummaryProvider : ICodeSummaryProvider, IDisposa
         [property: JsonPropertyName("type")] string Type);
 
     private sealed record ChatCompletionResponse(
-        [property: JsonPropertyName("choices")] IReadOnlyList<ChatChoice> Choices);
+        [property: JsonPropertyName("choices")] IReadOnlyList<ChatChoice> Choices,
+        [property: JsonPropertyName("usage")] ChatCompletionUsage? Usage);
+
+    private sealed record ChatCompletionUsage(
+        [property: JsonPropertyName("prompt_tokens")] int PromptTokens,
+        [property: JsonPropertyName("completion_tokens")] int CompletionTokens,
+        [property: JsonPropertyName("total_tokens")] int TotalTokens);
 
     private sealed record ChatChoice(
         [property: JsonPropertyName("message")] ChatChoiceMessage Message);

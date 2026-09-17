@@ -1,0 +1,92 @@
+{
+  "schema_version": "codemesh-search-scope-correction-v1",
+  "evidence_class": "provider-free-live-retrieval-with-controlled-synthetic-store-load",
+  "baseline_candidate": "2879e7f395a5f24ed3643042aae8d332f333d3d1",
+  "correction_candidate": "4fb9e813bb9bdcee5128c21476d709f99790acd5",
+  "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+  "provider": "none",
+  "same_target_snapshot_and_50000_unrelated_nodes": true,
+  "target_reindexed_between_measurements": false,
+  "warmup": 1,
+  "timing_repetitions": 5,
+  "ordered_candidates_identical_in_all_adaptive_cases": true,
+  "comparison": {
+    "baseline_task_shaped_p50_ms": 1504.467,
+    "correction_task_shaped_p50_ms": 391.808,
+    "package_reduction_percent": 73.96,
+    "baseline_lexical_fetch_p50_ms": 1227.914,
+    "correction_lexical_fetch_p50_ms": 124.113,
+    "lexical_fetch_reduction_percent": 89.89
+  },
+  "gates": {
+    "youtube-downloader-impact-adaptive-live": {
+      "passed": true,
+      "comparable": true,
+      "summary": {
+        "case_count": 5,
+        "tool_call_count": 25,
+        "tool_success_rate": 1.0,
+        "mean_recall_at_k": 1.0,
+        "mean_mrr": 0.875,
+        "mean_ndcg_at_k": 0.862253,
+        "secret_leaks": 0
+      },
+      "report_sha256": "b64a11a063e3533cb38601de063376c4f35ef80dc3c531088a9198013e4cf6a1"
+    },
+    "youtube-downloader-impact-live": {
+      "passed": true,
+      "comparable": true,
+      "summary": {
+        "case_count": 2,
+        "tool_call_count": 6,
+        "tool_success_rate": 1.0,
+        "mean_recall_at_k": 1.0,
+        "mean_mrr": 1.0,
+        "mean_ndcg_at_k": 0.891323,
+        "secret_leaks": 0
+      },
+      "report_sha256": "50f118f4bb3acf2f2529717e14357a37ba92510b57a79901b7b2f234276151e9"
+    },
+    "youtube-downloader-live": {
+      "passed": true,
+      "comparable": true,
+      "summary": {
+        "case_count": 6,
+        "tool_call_count": 18,
+        "tool_success_rate": 1.0,
+        "mean_recall_at_k": 1.0,
+        "mean_mrr": 0.9,
+        "mean_ndcg_at_k": 0.926186,
+        "secret_leaks": 0
+      },
+      "report_sha256": "cd8d667cc9fba1fb09c17cea0196576a9ed2e3a194d9aeb8be06e318f264f7a6"
+    }
+  },
+  "verification": {
+    "python_tests": "154 passed; two existing dependency warnings",
+    "ruff_check_and_format": "passed",
+    "deterministic_mcp_fixtures": "5 passed",
+    "end_to_end_smoke": "passed after correction in dedicated local Docker project",
+    "dotnet": "70 tests passed including configured sample, locked restore/build/format passed during instrumentation preparation; .NET source and tests unchanged by either performance commit; one existing CS8625 warning",
+    "repository_standards": "passed"
+  },
+  "claim_ceiling": {
+    "established": [
+      "scope-first lexical query reduces controlled unrelated-repository scoring overhead",
+      "unchanged frozen retrieval quality and candidate ordering",
+      "local provider-free integration and safety"
+    ],
+    "not_established": [
+      "cause of historical 16.7-second store latency",
+      "configured-agent adoption or benefit for this correction",
+      "repeatable product benefit",
+      "hosted security findings resolved",
+      "release or deployment acceptance"
+    ]
+  },
+  "limitations": [
+    "Synthetic unrelated nodes model one store-scaling mechanism only.",
+    "Historical and new isolated-store snapshots are distinct; their absolute timings are not an exact before/after comparison.",
+    "The frozen external sample retained two dependency-advisory parser warnings; its source and dependencies were not edited."
+  ]
+}

@@ -1,0 +1,174 @@
+{
+  "schema_version": "codemesh-youtube-downloader-capped-agent-v1",
+  "evidence_class": "incomplete-configured-onboarded-hard-cap-campaign",
+  "recorded_at": "2026-09-01T18:54:31.112867+00:00",
+  "codemesh": {
+    "candidate_commit": "0f180713407e4852c81232b87b234307097c2b20",
+    "clean_candidate_before_campaign": true,
+    "instrumentation_commit": "66033addceb9537566fb67567e50ae1f21a55eea",
+    "runner_commit": "0f180713407e4852c81232b87b234307097c2b20",
+    "hydration_optimization_applied": false
+  },
+  "youtube_downloader": {
+    "repository_url": "https://github.com/Tyrrrz/YoutubeDownloader.git",
+    "commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+    "branch": "HEAD",
+    "tracked_files_changed": false,
+    "project_id": "prj_3425db238d0d4a5fbcc1e3c9a28d1945",
+    "checkout_id": "chk_7e4ecde2ae4e45b4b9e475e0a587aa47",
+    "snapshot_id": "snp_c2aa867ffd967d7be6305ba8b051cfafadc8351421309772359d7c23ad24ae2f",
+    "source_view_hash": "7def3a130907855efb58f34158ce84c2420275456e2f1810ebed040ccd3e0425",
+    "freshness_status": "fresh",
+    "index_refreshed": false
+  },
+  "frozen_suites": {
+    "adaptive_sha256": "40b4d994ee704c7db22a973538c0a34f3bb28b6cab305857d553f2928f392ea8",
+    "impact_sha256": "b848b252a87713303e11f467bb0f5ef2e24178228141507c215acc958a11443a",
+    "canonical_sha256": "6b9d41c1bc4e5f002f8cdfb87d3745df3deb802b85a3b9a81cbd470ba73c0be6",
+    "configured_agent_sha256": "a3fd22c007ef9eaf8506dff231ce9035bdf26bfb74611e2258b56c764494d3d4"
+  },
+  "deterministic_checks": {
+    "python_tests_passed": 149,
+    "python_test_warnings": 2,
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "fixture_suite_cases_passed": 5,
+    "repository_standards": "passed",
+    "dotnet_verification": "not_selected_python_only_contract_and_evaluation_change"
+  },
+  "configured_preflight": {
+    "passed": true,
+    "provider": "none",
+    "runner": "capped-codex",
+    "hard_cap_capability_verified": true,
+    "prompt_parity": true,
+    "positive_probe_passed": true,
+    "wrong_checkout_rejected": true,
+    "plan_hash": "6ff0e3cd1ceef16a18c98daa7371c025ccb4e5576100d4deffe2d43c9e5437ec",
+    "plan_report_sha256": "6b376bc95b0055769416b354690c68ce3fdd0129a63e479229472c4771144dfb",
+    "guidance_sha256": "bd356195afbb8b945d003ff7b6802e270a8c6a97566697ce95b1c4a7c980aba3",
+    "report_sha256": "d790fc26a0e10b3d9f8548d36237cd2e192478491920575974b0f066efd5464a"
+  },
+  "provider_free_runner_compatibility": {
+    "installed_codex_version": "0.151.0",
+    "selected_model": "gpt-5.6-sol",
+    "synthetic_loopback_completed": true,
+    "request_count": 1,
+    "completed_request_count": 1,
+    "request_max_retries": 0,
+    "stream_max_retries": 0,
+    "reported_tokens": 101,
+    "retained_reservation_tokens": 0,
+    "codex_proxy_usage_agreed": true,
+    "model_catalog_sha256": "e140f868e626bcbfbcff765ea87c00adf0658029fc00d4425f8b0a56c82565bb",
+    "provider_invoked": false
+  },
+  "provider_free_gates": {
+    "adaptive_live": {
+      "passed": true,
+      "comparable": true,
+      "case_count": 5,
+      "tool_call_count": 25,
+      "mean_recall_at_k": 1.0,
+      "mean_mrr": 0.875,
+      "mean_ndcg_at_k": 0.862253,
+      "secret_leaks": 0,
+      "report_sha256": "1aedf6677da02c2dfb870113465ce7228e96054579ad31ba92d646ba881a2f5c"
+    },
+    "impact_live": {
+      "passed": true,
+      "comparable": true,
+      "case_count": 2,
+      "tool_call_count": 6,
+      "mean_recall_at_k": 1.0,
+      "mean_mrr": 1.0,
+      "mean_ndcg_at_k": 0.891323,
+      "secret_leaks": 0,
+      "report_sha256": "6043c3df127448985a31ef17c606c5fa4324255b89efbc04df88fcb27a67d39b"
+    },
+    "canonical_live": {
+      "passed": true,
+      "comparable": true,
+      "case_count": 6,
+      "tool_call_count": 18,
+      "mean_recall_at_k": 1.0,
+      "mean_mrr": 0.9,
+      "mean_ndcg_at_k": 0.926186,
+      "secret_leaks": 0,
+      "report_sha256": "6f20bb3142eab34b81b58ca52de8001e4417a2f6efa2a7752098ea00635564d8"
+    }
+  },
+  "timing_attribution": {
+    "evidence_is_separate_from_retrieval_claims": true,
+    "task_shaped_total_p50_ms": 16740.163,
+    "task_shaped_search_p50_ms": 16648.307,
+    "task_shaped_hydration_p50_ms": 88.87,
+    "hydration_share": 0.005309,
+    "hydration_dominance_gate_passed": false,
+    "decision": "retain_diagnosis_and_do_not_apply_hydration_concurrency"
+  },
+  "authorized_campaign": {
+    "suite": "youtube-downloader-impact-configured-agent",
+    "runner": "capped-codex",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "medium",
+    "seed": 42,
+    "requested_repetitions": 3,
+    "reported_token_ceiling": 1600000,
+    "automatic_retries": false,
+    "verdict": "insufficient",
+    "harness_passed": false,
+    "completed_pair_count": 0,
+    "execution_count": 1,
+    "completed_execution_count": 0,
+    "stopped_after_incomplete_execution": true,
+    "provider_failure": "upstream_generation_rejected_for_unavailable_credits",
+    "aggregate_completed_response_usage": 0,
+    "aggregate_usage_is_not_a_spend_claim": true,
+    "report_sha256": "1c45cba02fad306e1167197b87a73fa4a6e66187c7306cd8c11712eb9ca47bcf"
+  },
+  "hard_cap_failure_ledger": {
+    "accounting": "input-output-reasoning-v1",
+    "ceiling": 1600000,
+    "committed_tokens": 267528,
+    "reported_tokens": 0,
+    "retained_reservation_tokens": 267528,
+    "remaining_tokens": 1332472,
+    "request_count": 1,
+    "completed_request_count": 0,
+    "request_max_retries": 0,
+    "stream_max_retries": 0,
+    "complete": false,
+    "failure": "stream_ended_without_completed_usage_and_reservation_was_retained",
+    "subsequent_request_admitted": false
+  },
+  "claim_ceiling": {
+    "established": [
+      "exact_candidate_provider_free_gates_passed",
+      "configured_positive_and_rejection_probes_passed",
+      "capped_runner_failed_closed_on_interrupted_provider_response",
+      "ambiguous_reservation_was_retained",
+      "no_retry_or_top_up_occurred"
+    ],
+    "not_established": [
+      "a_completed_control_treatment_pair",
+      "agent_adoption_or_task_correctness",
+      "codemesh_efficiency_or_correctness_benefit",
+      "provider_spend_from_missing_usage",
+      "repeatable_product_benefit",
+      "causality",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "boundaries": {
+    "campaign_consumed": true,
+    "retry_authorized": false,
+    "top_up_authorized": false,
+    "additional_model_spend_authorized": false,
+    "raw_traces_retained": false,
+    "push": "not_performed",
+    "release": "not_performed",
+    "deployment": "not_performed"
+  }
+}

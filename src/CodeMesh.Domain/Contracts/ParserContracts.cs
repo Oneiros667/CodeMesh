@@ -7,7 +7,13 @@ public sealed record ParseRequest(
     string? SolutionPath,
     string? ProjectPath,
     string Language,
-    IReadOnlyDictionary<string, string> Options);
+    IReadOnlyDictionary<string, string> Options,
+    RepositoryPathFilter? PathFilter = null);
+
+public sealed record RepositoryPathFilter(
+    IReadOnlyList<string>? AllowPatterns = null,
+    IReadOnlyList<string>? DenyPatterns = null,
+    bool ExcludeKnownSecretFiles = true);
 
 public sealed record ParserCapability(
     string WorkerName,
