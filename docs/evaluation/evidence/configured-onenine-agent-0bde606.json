@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0",
+  "evidence_kind": "sanitized-configured-onboarded-agent-campaign",
+  "generated_at": "2026-09-01T00:03:50.903659+00:00",
+  "codemesh": {
+    "commit": "0bde606cc73b4a0b081067a039822a53672459a1",
+    "clean_detached_checkout": true
+  },
+  "repository": {
+    "project_id": "prj_a570a726917d4d0ca596085aaf07af50",
+    "checkout_id": "chk_70c50c5494de4837ab0627aca021eab2",
+    "commit": "fe2f761583bf78601961ff17934185c4b6a632f9",
+    "clean_detached_checkout": true,
+    "snapshot_id": "snp_bf026d3f2e2b5a40f3c9fa112ae36b7e026b0f5a0f0483a23796b0a6adc9243e",
+    "source_view_hash": "fea1951d1eeb93ac265112aef7000dcac1a9832b000ea81b360b0851df56e69b"
+  },
+  "configured_integration": {
+    "profile": "normal",
+    "plan_hash": "6f5e68c225f88b6162f386e4c3bfb9ae1d974f70d56b04a50c142be7542c004e",
+    "installation_file_sha256": "f27c4060e9ae39f6d055e8fb7b052e0784a768ce61a79cb671cd19e71a755dfc",
+    "guidance_sha256": "dbd0faca021b144f57594d91eb04b02a089fd6599234b713efe78693c92deb76",
+    "baseline_mcp_servers": [],
+    "prompt_parity": true,
+    "positive_probe_passed": true,
+    "wrong_checkout_rejected": true,
+    "preflight_report_sha256": "c4ea8e3bc644c81b37b9197f9216049165dff6ba7b1afaa6a75a5578d367aefb"
+  },
+  "campaign": {
+    "suite": "onenine-native-replay-configured-agent",
+    "provider": "default",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "medium",
+    "seed": 42,
+    "repetitions": 3,
+    "pair_count": 3,
+    "completed_pair_count": 3,
+    "verdict": "insufficient",
+    "harness_passed": true,
+    "treatment_wins": 0,
+    "codemesh_attributable_wins": 0,
+    "treatment_regressions": 0,
+    "treatment_safety_violations": 0,
+    "control_success_rate": 1.0,
+    "treatment_success_rate": 1.0,
+    "codemesh_adoption_rate": 0.666667,
+    "codemesh_adopted_pair_count": 2,
+    "context_retrieval_call_count": 0,
+    "repository_status_call_count": 2,
+    "mcp_failed_call_count": 0,
+    "command_policy_violation_count": 0,
+    "median_control_duration_ms": 199159.923,
+    "median_treatment_duration_ms": 259492.728,
+    "overall_duration_delta": 0.302936,
+    "median_control_tokens": 1558710.0,
+    "median_treatment_tokens": 2285269.0,
+    "overall_token_delta": 0.466128,
+    "adopted_pair_median_control_duration_ms": 232170.665,
+    "adopted_pair_median_treatment_duration_ms": 237317.304,
+    "adopted_pair_duration_delta": 0.022167,
+    "adopted_pair_median_control_tokens": 1867908.5,
+    "adopted_pair_median_treatment_tokens": 1982526.0,
+    "adopted_pair_token_delta": 0.061361,
+    "report_sha256": "a10de0d676e2abbe875c23616cf5bb5304fc975ec348bd3a340f5df0f540aff2"
+  },
+  "claim_ceiling": {
+    "established": [
+      "configured_prompt_parity_and_exact_binding",
+      "three_completed_correct_and_safe_pairs",
+      "repository_status_adoption_in_two_treatment_runs",
+      "no_codemesh_attributable_win"
+    ],
+    "not_established": [
+      "context_package_adoption",
+      "codemesh_correctness_benefit",
+      "codemesh_efficiency_benefit",
+      "repeatable_configured_product_benefit",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "limitations": [
+    "The harness passed because it recorded no matched regression; the insufficient verdict is not a product-benefit pass.",
+    "Two treatment runs called only repository status and did not continue to context retrieval, so their timing and token differences are not evidence of context-package utility.",
+    "The campaign covers one answer task in one private repository with one model and three repetitions.",
+    "Raw events, final messages, workspaces, prompts, source excerpts, and credentials were not retained."
+  ]
+}

@@ -40,7 +40,9 @@ from .models import (
     ReviewFile,
     ToolPolicy,
     load_suite,
+    validate_suite_artifacts,
 )
+from .paths import managed_artifact_path, validate_artifact_id
 
 
 _CRITERIA = (
@@ -87,6 +89,7 @@ async def run_model_benchmark(
             f"Model benchmark requires at least {suite.thresholds.minimum_repetitions} repetitions."
         )
     started = perf_counter()
+    validate_suite_artifacts(suite, suite_path)
     root = _git_root(Path(repository_root) if repository_root else Path.cwd())
     if _git(root, "status", "--porcelain"):
         raise EvaluationInfrastructureError(
@@ -248,6 +251,13 @@ async def _run_query(
     keep_workspace: bool,
     weights: CriterionWeights,
 ) -> BenchmarkRunReport:
+    validate_artifact_id(question.id)
+    run_dir = managed_artifact_path(
+        artifact_dir, f"{question.id}-{repetition}-treatment"
+    )
+    retained = managed_artifact_path(
+        artifact_dir, "workspaces", f"{question.id}-{repetition}"
+    )
     temp_parent = Path(tempfile.mkdtemp(prefix="codemesh-model-query-"))
     workspace = temp_parent / "workspace"
     response_path = temp_parent / "response.json"
@@ -288,8 +298,7 @@ async def _run_query(
         if not keep_raw_traces:
             report.raw_events = None
         if keep_raw_traces:
-            run_dir = artifact_dir / f"{question.id}-{repetition}-treatment"
-            run_dir.mkdir(parents=True, exist_ok=True)
+            run_dir.mkdir(parents=True, exist_ok=False)
             (run_dir / "events.jsonl").write_text(
                 "\n".join(json.dumps(event) for event in result.raw_events),
                 encoding="utf-8",
@@ -298,7 +307,6 @@ async def _run_query(
                 json.dumps(payload, indent=2), encoding="utf-8"
             )
         if keep_workspace:
-            retained = artifact_dir / "workspaces" / f"{question.id}-{repetition}"
             retained.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(workspace), retained)
         return report
@@ -324,8 +332,9 @@ async def _run_change(
     keep_workspaces: bool,
     weights: CriterionWeights,
 ) -> BenchmarkRunReport:
-    audit_path = (
-        artifact_dir / ".runtime" / f"{scenario.id}-{repetition}-{condition}.json"
+    validate_artifact_id(scenario.id)
+    audit_path = managed_artifact_path(
+        artifact_dir, ".runtime", f"{scenario.id}-{repetition}-{condition}.json"
     )
     policy = scenario.tool_policy
     mcp_config = (

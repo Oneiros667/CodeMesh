@@ -1,0 +1,52 @@
+{
+  "schema_version": "codemesh-configured-preflight-rejection-v1",
+  "evidence_class": "provider-free-live-rejection",
+  "recorded_at": "2026-08-31T19:45:46Z",
+  "passed": true,
+  "codemesh": {
+    "commit": "9f3216cc9f32a187b7e4cda64f882cd4d84a0339",
+    "clean_checkout": true,
+    "python_tests_passed": 121,
+    "python_test_warnings": 2,
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "fixture_suite_cases_passed": 5
+  },
+  "onenine_primary": {
+    "project_id": "prj_a570a726917d4d0ca596085aaf07af50",
+    "checkout_id": "chk_70c50c5494de4837ab0627aca021eab2",
+    "configured_suite_commit": "499ae2630e5c8c31a4a7904f91a67eacc6ba5621",
+    "indexed_commit": "e12d0281b687e58c2baac85f771a684df6fa8552",
+    "current_commit": "499ae2630e5c8c31a4a7904f91a67eacc6ba5621",
+    "working_tree_dirty": false,
+    "indexed_source_view_hash": "ce3c63a66e3e4821bf5431d9997314070d60ec61f9ab8b35aa0cdcafbacace4a",
+    "freshness_status": "stale",
+    "rejection_class": "stale-index",
+    "configured_preflight_rejected": true
+  },
+  "instance_registry": {
+    "repository_commit": "515af59b94926f2dea3e1a5b3d28b0316217c554",
+    "pinned_primary_commit": "e12d0281b687e58c2baac85f771a684df6fa8552",
+    "pinned_codemesh_commit": "ee1d4d9306a5fce2322d624ae17648c82ff0918a",
+    "detached_codemesh_candidate_role": "default oneNine CodeMesh candidate worktree",
+    "registry_matches_active_primary": false,
+    "registry_contains_configured_evaluator_candidate": false
+  },
+  "diagnostic_contract": {
+    "reported_status": true,
+    "reported_indexed_commit": true,
+    "reported_current_commit": true,
+    "reported_dirty_state": true,
+    "reported_indexed_source_view_hash": true
+  },
+  "boundaries": {
+    "model_provider_invoked": false,
+    "installation_plan_loaded": false,
+    "reindex_or_repoint_onenine": "not_performed",
+    "candidate_or_binding_registry_repin": "not_performed_requires_explicit_authority",
+    "model_backed_agent_evaluation": "not_run_requires_explicit_spend_authority",
+    "release": "not_authorized",
+    "deployment": "not_authorized",
+    "live_trading": "not_authorized"
+  }
+}

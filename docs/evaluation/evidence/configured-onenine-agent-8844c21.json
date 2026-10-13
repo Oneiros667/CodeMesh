@@ -1,0 +1,114 @@
+{
+  "schema_version": "1.0",
+  "evidence_kind": "sanitized-configured-onboarded-agent-campaign",
+  "generated_at": "2026-09-01T11:59:09.113856+00:00",
+  "codemesh": {
+    "commit": "8844c21baf7aa6b5fcce2c535d510c2ad2788e71",
+    "clean_detached_checkout": true,
+    "one_step_context_package_entry_included": true
+  },
+  "repository": {
+    "project_id": "prj_a570a726917d4d0ca596085aaf07af50",
+    "checkout_id": "chk_70c50c5494de4837ab0627aca021eab2",
+    "commit": "fe2f761583bf78601961ff17934185c4b6a632f9",
+    "clean_detached_checkout": true,
+    "snapshot_id": "snp_bf026d3f2e2b5a40f3c9fa112ae36b7e026b0f5a0f0483a23796b0a6adc9243e",
+    "source_view_hash": "fea1951d1eeb93ac265112aef7000dcac1a9832b000ea81b360b0851df56e69b",
+    "restored_main_commit": "162fa515f7837efbc3a67372c5bd0d2e2d36b6fd"
+  },
+  "configured_integration": {
+    "profile": "normal",
+    "plan_hash": "fcadac37ae4df261e8b746e14f9191e22a7b6399b991925d4d1e12a5947daf34",
+    "installation_file_sha256": "d2f6605df75dc5f93be6d8b0b7aea10b3754cb333ddd6d12187e84b262ed484c",
+    "guidance_sha256": "72f9a446e9e77886ba901f3e1a1eb28705230c8232ff42756920c23cc975cd79",
+    "baseline_mcp_servers": [],
+    "prompt_parity": true,
+    "positive_probe_passed": true,
+    "wrong_checkout_rejected": true,
+    "preflight_report_sha256": "15c75818160ccf47edbfeb7a5966043bcd4f206acef91510d403d51c61b69585"
+  },
+  "campaign": {
+    "suite": "onenine-native-replay-configured-agent",
+    "provider": "default",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "medium",
+    "seed": 42,
+    "repetitions": 3,
+    "pair_count": 3,
+    "completed_pair_count": 3,
+    "verdict": "neutral",
+    "harness_passed": true,
+    "treatment_wins": 0,
+    "codemesh_attributable_wins": 0,
+    "treatment_regressions": 0,
+    "treatment_safety_violations": 0,
+    "control_success_rate": 1.0,
+    "treatment_success_rate": 1.0,
+    "codemesh_adoption_rate": 1.0,
+    "codemesh_adopted_pair_count": 3,
+    "context_retrieval_call_count": 3,
+    "repository_status_call_count": 0,
+    "mcp_failed_call_count": 0,
+    "command_policy_violation_count": 0,
+    "median_control_duration_ms": 259055.847,
+    "median_treatment_duration_ms": 255449.851,
+    "duration_delta": -0.01392,
+    "median_control_tokens": 1784386.0,
+    "median_treatment_tokens": 1858085.0,
+    "token_delta": 0.041302,
+    "median_control_command_count": 22,
+    "median_treatment_command_count": 19,
+    "maximum_treatment_command_count": 110,
+    "report_sha256": "a76a94ff9caa50cfd52673c7d15dc9e65454129ca57f292ae54eb584fa26e0a5"
+  },
+  "measured_correction_outcome": {
+    "one_step_context_package_entry_present": true,
+    "treatment_context_package_call_count": 3,
+    "context_handoff_observed_in_every_treatment": true,
+    "result": "produced_full_context_package_adoption"
+  },
+  "comparison_to_retained_campaigns": {
+    "same_task_prompt_grading_control_model_and_repository_identity": true,
+    "prior_campaign_context_retrieval_call_count": 0,
+    "current_context_retrieval_call_count": 3,
+    "prior_verdicts": [
+      "insufficient",
+      "insufficient"
+    ],
+    "current_verdict": "neutral"
+  },
+  "claim_ceiling": {
+    "established": [
+      "configured_prompt_parity_and_exact_binding",
+      "three_completed_correct_and_safe_pairs",
+      "context_package_adoption_in_every_treatment",
+      "one_step_entry_resolved_the_measured_adoption_gap",
+      "neutral_outcome_with_no_matched_regression"
+    ],
+    "not_established": [
+      "codemesh_correctness_benefit",
+      "codemesh_efficiency_benefit",
+      "repeatable_configured_product_benefit",
+      "cross_repository_generalization",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "limitations": [
+    "Both conditions passed every repetition, so the campaign produced no CodeMesh-attributable correctness win.",
+    "Median treatment duration was 1.39 percent lower and median tokens were 4.13 percent higher; both remain inside the 10 percent neutrality threshold.",
+    "One treatment used 110 shell commands while the other treatments used 19 each; the campaign median is retained, but the outlier remains diagnostic.",
+    "The campaign covers one answer task in one private repository with one model and three repetitions.",
+    "Raw events, final messages, workspaces, prompts, source excerpts, and credentials were not retained."
+  ],
+  "boundaries": {
+    "campaign_consumed": true,
+    "automatic_retry_authorized": false,
+    "config_net_provider_free_preparation": "eligible_next_work_subject_to_exact_identity_and_setup_review",
+    "config_net_model_campaign": "requires_separate_explicit_model_spend_authority",
+    "additional_onenine_checkout_onboarding": "not_authorized",
+    "release": "not_authorized",
+    "deployment": "not_authorized",
+    "live_trading": "not_authorized"
+  }
+}

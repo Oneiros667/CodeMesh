@@ -2,19 +2,66 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from datetime import datetime
 import json
 import sys
 from pathlib import Path
 
 import uvicorn
 
+from .binding import binding_from_values
 from .config import Settings
-from . import evaluation, mcp, tools
+from . import __version__, evaluation, feedback, feedback_session, mcp, tools
 from .formatting import format_context_package_for_agent
+from .installer import (
+    apply_installation_plan,
+    create_installation_plan,
+    load_installation_plan,
+    write_installation_plan,
+)
+from .probe import (
+    RuntimeProbeError,
+    run_feedback_runtime_probe,
+    run_runtime_probe,
+    run_runtime_rejection_probe,
+)
+
+
+def _add_binding_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--project-id",
+        help="Stable CodeMesh project id (or CODEMESH_PROJECT_ID).",
+    )
+    parser.add_argument(
+        "--checkout-id",
+        help="Stable CodeMesh checkout id (or CODEMESH_CHECKOUT_ID).",
+    )
+    parser.add_argument(
+        "--repository-root",
+        help="Absolute bound checkout root (or CODEMESH_REPOSITORY_ROOT).",
+    )
+    parser.add_argument(
+        "--source-view-hash",
+        help="Optional exact indexed source-view hash (or CODEMESH_SOURCE_VIEW_HASH).",
+    )
+
+
+def _add_feedback_session_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--feedback-session",
+        help="Absolute active development-feedback session manifest path.",
+    )
+    parser.add_argument(
+        "--feedback-session-sha256",
+        help="Expected SHA-256 of the exact active session manifest file.",
+    )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="codemesh-agent-access")
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
     subcommands = parser.add_subparsers(dest="command", required=True)
     subcommands.add_parser("rest", help="Run the REST API.")
     mcp_parser = subcommands.add_parser("mcp", help="Run the MCP server over stdio.")
@@ -24,6 +71,8 @@ def main() -> None:
         default=mcp.DEFAULT_TOOL_PROFILE,
         help="Select the MCP tool surface (default: normal).",
     )
+    _add_binding_arguments(mcp_parser)
+    _add_feedback_session_arguments(mcp_parser)
     manifest_parser = subcommands.add_parser(
         "mcp-manifest", help="Print the MCP tool contract manifest JSON."
     )
@@ -33,6 +82,196 @@ def main() -> None:
         default=mcp.DEFAULT_TOOL_PROFILE,
         help="Select the MCP tool surface (default: normal).",
     )
+    _add_binding_arguments(manifest_parser)
+    _add_feedback_session_arguments(manifest_parser)
+    install_parser = subcommands.add_parser(
+        "install",
+        help="Plan or apply a reviewable checkout-bound MCP installation.",
+    )
+    install_actions = install_parser.add_subparsers(
+        dest="install_action",
+        required=True,
+    )
+    install_plan_parser = install_actions.add_parser(
+        "plan",
+        help="Print a reviewable installation plan without modifying the target.",
+    )
+    install_plan_parser.add_argument("--target-root", required=True)
+    install_plan_parser.add_argument("--codemesh-root", required=True)
+    install_plan_parser.add_argument("--project-id", required=True)
+    install_plan_parser.add_argument("--checkout-id", required=True)
+    install_plan_parser.add_argument("--source-view-hash")
+    install_plan_parser.add_argument("--server-name", default="codemesh")
+    install_plan_parser.add_argument(
+        "--profile",
+        choices=mcp.tool_profile_names(),
+        default=mcp.DEFAULT_TOOL_PROFILE,
+    )
+    _add_feedback_session_arguments(install_plan_parser)
+    install_plan_parser.add_argument(
+        "--configuration-only",
+        action="store_true",
+        help="Plan only MCP configuration when repository guidance is managed elsewhere.",
+    )
+    install_plan_parser.add_argument("--output")
+    install_apply_parser = install_actions.add_parser(
+        "apply",
+        help="Apply an unchanged reviewed plan with its explicit hash.",
+    )
+    install_apply_parser.add_argument("plan")
+    install_apply_parser.add_argument("--approve-plan-hash", required=True)
+    probe_parser = subcommands.add_parser(
+        "mcp-probe",
+        help="Launch and verify the exact MCP command in an applied installation plan.",
+    )
+    probe_parser.add_argument("--plan", required=True)
+    probe_parser.add_argument("--timeout-seconds", type=int, default=30)
+    probe_parser.add_argument(
+        "--query", default="repository implementation entry points"
+    )
+    probe_parser.add_argument("--expected-path", action="append", default=[])
+    rejection_probe_parser = subcommands.add_parser(
+        "mcp-rejection-probe",
+        help="Prove that an unsafe normal-profile binding fails closed.",
+    )
+    rejection_probe_parser.add_argument("--plan", required=True)
+    rejection_probe_parser.add_argument("--timeout-seconds", type=int, default=30)
+    rejection_probe_parser.add_argument("--project-id")
+    rejection_probe_parser.add_argument("--checkout-id")
+    rejection_probe_parser.add_argument("--repository-root")
+    rejection_probe_parser.add_argument("--source-view-hash")
+    rejection_probe_parser.add_argument(
+        "--expected-substring", action="append", default=[]
+    )
+    feedback_parser = subcommands.add_parser(
+        "feedback",
+        help="Record, validate, or summarize sanitized CodeMesh feedback.",
+    )
+    feedback_actions = feedback_parser.add_subparsers(
+        dest="feedback_action",
+        required=True,
+    )
+    feedback_session_parser = feedback_actions.add_parser(
+        "session",
+        help="Plan, activate, inspect, or revoke a development feedback session.",
+    )
+    feedback_session_actions = feedback_session_parser.add_subparsers(
+        dest="feedback_session_action",
+        required=True,
+    )
+    feedback_session_plan = feedback_session_actions.add_parser(
+        "plan",
+        help="Create a reviewable immutable-session activation plan.",
+    )
+    feedback_session_plan.add_argument("--manifest-path", required=True)
+    feedback_session_plan.add_argument("--codemesh-root", required=True)
+    feedback_session_plan.add_argument("--codemesh-project-id", required=True)
+    feedback_session_plan.add_argument("--codemesh-checkout-id", required=True)
+    feedback_session_plan.add_argument(
+        "--client-json",
+        action="append",
+        required=True,
+        help=(
+            "JSON object with project_id, checkout_id, repository_root, and "
+            "reporter_role; repeat for each client."
+        ),
+    )
+    feedback_session_plan.add_argument("--expires-at", required=True)
+    feedback_session_plan.add_argument("--max-packets", type=int, default=100)
+    feedback_session_plan.add_argument(
+        "--max-requests-per-minute", type=int, default=20
+    )
+    feedback_session_plan.add_argument("--max-text-characters", type=int, default=500)
+    feedback_session_plan.add_argument("--max-paths", type=int, default=32)
+    feedback_session_plan.add_argument("--output")
+    feedback_session_activate = feedback_session_actions.add_parser(
+        "activate",
+        help="Create the exact reviewed session manifest exclusively.",
+    )
+    feedback_session_activate.add_argument("plan")
+    feedback_session_activate.add_argument("--approve-plan-hash", required=True)
+    feedback_session_inspect = feedback_session_actions.add_parser(
+        "inspect",
+        help="Inspect a session without exposing client roots.",
+    )
+    feedback_session_inspect.add_argument("--manifest", required=True)
+    feedback_session_inspect.add_argument("--manifest-sha256", required=True)
+    feedback_session_revoke = feedback_session_actions.add_parser(
+        "revoke",
+        help="Close a session by creating an immutable revocation record.",
+    )
+    feedback_session_revoke.add_argument("--manifest", required=True)
+    feedback_session_revoke.add_argument("--manifest-sha256", required=True)
+    feedback_session_revoke.add_argument("--reason", required=True)
+    feedback_record_parser = feedback_actions.add_parser(
+        "record",
+        help="Write one versioned packet to an ignored checkout outbox.",
+    )
+    feedback_record_parser.add_argument("--repository-root", required=True)
+    feedback_record_parser.add_argument("--codemesh-root")
+    feedback_record_parser.add_argument("--role", required=True)
+    feedback_record_parser.add_argument(
+        "--classification",
+        choices=["diagnostic", "controlled-evaluation"],
+        required=True,
+    )
+    feedback_record_parser.add_argument(
+        "--confidence", choices=["low", "medium", "high"], required=True
+    )
+    feedback_record_parser.add_argument("--project-id", required=True)
+    feedback_record_parser.add_argument("--checkout-id", required=True)
+    feedback_record_parser.add_argument("--snapshot-id", required=True)
+    feedback_record_parser.add_argument(
+        "--language", action="append", required=True, dest="languages"
+    )
+    feedback_record_parser.add_argument("--parser-profile", required=True)
+    feedback_record_parser.add_argument("--task-family", required=True)
+    feedback_record_parser.add_argument(
+        "--issue-category",
+        choices=[
+            "setup",
+            "binding",
+            "freshness",
+            "missing-language",
+            "missing-relationship",
+            "ranking",
+            "budget",
+            "validation",
+            "other",
+        ],
+        required=True,
+    )
+    feedback_record_parser.add_argument(
+        "--validation-outcome",
+        choices=["passed", "failed", "not-run", "inconclusive"],
+        required=True,
+    )
+    feedback_record_parser.add_argument("--tool-attempted", action="append", default=[])
+    feedback_record_parser.add_argument("--tool-called", action="append", default=[])
+    feedback_record_parser.add_argument("--helpful-path", action="append", default=[])
+    feedback_record_parser.add_argument("--incorrect-path", action="append", default=[])
+    feedback_record_parser.add_argument("--missed-path", action="append", default=[])
+    feedback_record_parser.add_argument("--stale-path", action="append", default=[])
+    feedback_record_parser.add_argument("--ambiguous-path", action="append", default=[])
+    feedback_record_parser.add_argument("--fallback-reason")
+    feedback_record_parser.add_argument("--minimal-reproduction")
+    feedback_record_parser.add_argument(
+        "--expected-target", action="append", default=[]
+    )
+    feedback_record_parser.add_argument("--proposed-correction")
+    feedback_record_parser.add_argument(
+        "--supersedes-feedback-id", action="append", default=[]
+    )
+    feedback_validate_parser = feedback_actions.add_parser(
+        "validate", help="Validate packet schema, content id, and provenance shape."
+    )
+    feedback_validate_parser.add_argument("packets", nargs="+")
+    feedback_summarize_parser = feedback_actions.add_parser(
+        "summarize",
+        help="Build a prioritized review packet from managed checkout outboxes.",
+    )
+    feedback_summarize_parser.add_argument("roots", nargs="+")
+    feedback_summarize_parser.add_argument("--output")
     eval_parser = subcommands.add_parser(
         "eval", help="Run deterministic, live, or agent effectiveness evaluations."
     )
@@ -48,23 +287,72 @@ def main() -> None:
     live_eval_parser.add_argument("--warmup", type=int, default=1)
     live_eval_parser.add_argument("--allow-stale", action="store_true")
     live_eval_parser.add_argument("--keep-raw-traces", action="store_true")
+    live_eval_parser.add_argument(
+        "--capture-context-package-timings",
+        action="store_true",
+        help="Capture sanitized sideband context-package stage timings.",
+    )
     live_eval_parser.add_argument("--output")
 
     agent_eval_parser = eval_modes.add_parser(
         "agent", help="Run paired agent tasks with and without CodeMesh."
     )
     agent_eval_parser.add_argument("--suite", default="codemesh-agent")
-    agent_eval_parser.add_argument("--model", required=True)
+    agent_eval_parser.add_argument("--model")
     agent_eval_parser.add_argument("--local-provider", choices=["lmstudio", "ollama"])
     agent_eval_parser.add_argument("--codex-executable", default="codex")
+    agent_eval_parser.add_argument(
+        "--runner",
+        choices=["codex", "capped-codex"],
+        default="codex",
+        help="Agent runner; capped-codex enforces complete-invocation accounting.",
+    )
     agent_eval_parser.add_argument("--reasoning-effort", default="medium")
     agent_eval_parser.add_argument("--repetitions", type=int, default=3)
+    agent_eval_parser.add_argument(
+        "--max-reported-tokens",
+        type=int,
+        help=(
+            "Required hard campaign cap using input + output + reasoning tokens; "
+            "cached input is already included in input tokens."
+        ),
+    )
     agent_eval_parser.add_argument("--seed", type=int, default=42)
     agent_eval_parser.add_argument("--repository-root")
     agent_eval_parser.add_argument("--repository-id")
     agent_eval_parser.add_argument("--output-dir")
     agent_eval_parser.add_argument("--keep-raw-traces", action="store_true")
     agent_eval_parser.add_argument("--keep-workspaces", action="store_true")
+    agent_eval_parser.add_argument(
+        "--configured-plan",
+        help="Reviewed and applied installation plan for a configured suite.",
+    )
+    agent_eval_parser.add_argument(
+        "--configured-guidance-path",
+        action="append",
+        default=[],
+        help="Committed repository guidance file to identify (default: AGENTS.md).",
+    )
+    agent_eval_parser.add_argument(
+        "--configured-probe-query",
+        default="repository implementation entry points",
+    )
+    agent_eval_parser.add_argument(
+        "--configured-expected-path",
+        action="append",
+        default=[],
+    )
+    agent_eval_parser.add_argument(
+        "--configured-probe-timeout-seconds",
+        type=int,
+        default=30,
+    )
+    agent_eval_parser.add_argument(
+        "--preflight-only",
+        action="store_true",
+        help="Verify configured identity and positive/rejection probes without a model.",
+    )
+    agent_eval_parser.add_argument("--preflight-output")
 
     model_eval_parser = eval_modes.add_parser(
         "model", help="Benchmark a model on CodeMesh query and change scenarios."
@@ -228,11 +516,285 @@ def main() -> None:
         return
 
     if args.command == "mcp":
-        mcp.run(profile=args.profile)
+        try:
+            binding = binding_from_values(
+                args.project_id,
+                args.checkout_id,
+                args.repository_root,
+                args.source_view_hash,
+            )
+            runtime = _feedback_runtime_from_args(args, binding)
+            if runtime is None:
+                mcp.run(profile=args.profile, binding=binding)
+            else:
+                mcp.run(
+                    profile=args.profile,
+                    binding=binding,
+                    feedback_runtime=runtime,
+                )
+        except ValueError as exc:
+            parser.error(str(exc))
         return
 
     if args.command == "mcp-manifest":
-        print(json.dumps(mcp.tool_manifest(profile=args.profile), indent=2))
+        try:
+            binding = binding_from_values(
+                args.project_id,
+                args.checkout_id,
+                args.repository_root,
+                args.source_view_hash,
+            )
+            _feedback_runtime_from_args(args, binding)
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(
+            json.dumps(
+                mcp.tool_manifest(profile=args.profile, binding=binding),
+                indent=2,
+            )
+        )
+        return
+
+    if args.command == "install":
+        try:
+            if args.install_action == "plan":
+                binding = binding_from_values(
+                    args.project_id,
+                    args.checkout_id,
+                    args.target_root,
+                    args.source_view_hash,
+                )
+                assert binding is not None
+                plan = create_installation_plan(
+                    args.target_root,
+                    args.codemesh_root,
+                    binding,
+                    server_name=args.server_name,
+                    profile=args.profile,
+                    include_onboarding=not args.configuration_only,
+                    feedback_session_path=args.feedback_session,
+                    feedback_session_sha256=args.feedback_session_sha256,
+                )
+                if args.output:
+                    write_installation_plan(plan, args.output)
+                print(json.dumps(plan.to_dict(), indent=2, sort_keys=True))
+                return
+
+            plan = load_installation_plan(args.plan)
+            changed = apply_installation_plan(plan, args.approve_plan_hash)
+            print(
+                json.dumps(
+                    {
+                        "applied": True,
+                        "plan_hash": plan.plan_hash,
+                        "changed_files": changed,
+                    },
+                    indent=2,
+                )
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"applied": False, "error": str(exc)}), file=sys.stderr)
+            raise SystemExit(1) from exc
+        return
+
+    if args.command == "mcp-probe":
+        try:
+            plan = load_installation_plan(args.plan)
+            if plan.profile in feedback_session.FEEDBACK_PROFILES:
+                report = asyncio.run(
+                    run_feedback_runtime_probe(
+                        plan,
+                        timeout_seconds=args.timeout_seconds,
+                    )
+                )
+            else:
+                report = asyncio.run(
+                    run_runtime_probe(
+                        plan,
+                        timeout_seconds=args.timeout_seconds,
+                        query=args.query,
+                        expected_paths=args.expected_path,
+                    )
+                )
+            print(json.dumps(report, indent=2, sort_keys=True))
+        except (OSError, ValueError, RuntimeProbeError) as exc:
+            print(json.dumps({"passed": False, "error": str(exc)}), file=sys.stderr)
+            raise SystemExit(1) from exc
+        return
+
+    if args.command == "mcp-rejection-probe":
+        try:
+            plan = load_installation_plan(args.plan)
+            report = asyncio.run(
+                run_runtime_rejection_probe(
+                    plan,
+                    timeout_seconds=args.timeout_seconds,
+                    project_id=args.project_id,
+                    checkout_id=args.checkout_id,
+                    repository_root=args.repository_root,
+                    source_view_hash=args.source_view_hash,
+                    expected_substrings=args.expected_substring,
+                )
+            )
+            print(json.dumps(report, indent=2, sort_keys=True))
+        except (OSError, ValueError, RuntimeProbeError) as exc:
+            print(json.dumps({"passed": False, "error": str(exc)}), file=sys.stderr)
+            raise SystemExit(1) from exc
+        return
+
+    if args.command == "feedback":
+        try:
+            if args.feedback_action == "session":
+                if args.feedback_session_action == "plan":
+                    clients = [
+                        feedback_session.SessionParticipant.model_validate_json(value)
+                        for value in args.client_json
+                    ]
+                    plan = feedback_session.create_session_plan(
+                        manifest_path=args.manifest_path,
+                        codemesh=feedback_session.SessionParticipant(
+                            project_id=args.codemesh_project_id,
+                            checkout_id=args.codemesh_checkout_id,
+                            repository_root=args.codemesh_root,
+                            reporter_role="maintainer",
+                        ),
+                        clients=clients,
+                        expires_at=_parse_datetime(args.expires_at),
+                        bounds=feedback_session.SessionBounds(
+                            max_packets=args.max_packets,
+                            max_requests_per_minute=args.max_requests_per_minute,
+                            max_text_characters=args.max_text_characters,
+                            max_paths=args.max_paths,
+                        ),
+                    )
+                    if args.output:
+                        feedback_session.write_session_plan(plan, args.output)
+                    print(
+                        json.dumps(
+                            plan.model_dump(mode="json"), indent=2, sort_keys=True
+                        )
+                    )
+                    return
+
+                if args.feedback_session_action == "activate":
+                    plan = feedback_session.load_session_plan(args.plan)
+                    output = feedback_session.activate_session(
+                        plan,
+                        args.approve_plan_hash,
+                    )
+                    print(
+                        json.dumps(
+                            {
+                                "activated": True,
+                                "session_id": plan.manifest.payload.session_id,
+                                "manifest_path": str(output),
+                                "manifest_file_sha256": plan.manifest_file_sha256,
+                            },
+                            indent=2,
+                            sort_keys=True,
+                        )
+                    )
+                    return
+
+                if args.feedback_session_action == "inspect":
+                    print(
+                        json.dumps(
+                            feedback_session.inspect_session(
+                                args.manifest,
+                                args.manifest_sha256,
+                            ),
+                            indent=2,
+                            sort_keys=True,
+                        )
+                    )
+                    return
+
+                output = feedback_session.revoke_session(
+                    args.manifest,
+                    args.manifest_sha256,
+                    reason=args.reason,
+                )
+                print(
+                    json.dumps(
+                        {"revoked": True, "revocation_path": str(output)},
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
+                return
+
+            if args.feedback_action == "record":
+                packet, output = feedback.record_feedback(
+                    repository_root=args.repository_root,
+                    codemesh_root=args.codemesh_root,
+                    role=args.role,
+                    classification=args.classification,
+                    confidence=args.confidence,
+                    project_id=args.project_id,
+                    checkout_id=args.checkout_id,
+                    snapshot_id=args.snapshot_id,
+                    languages=args.languages,
+                    parser_profile=args.parser_profile,
+                    task_family=args.task_family,
+                    issue_category=args.issue_category,
+                    validation_outcome=args.validation_outcome,
+                    tools_attempted=args.tool_attempted,
+                    tools_called=args.tool_called,
+                    helpful_paths=args.helpful_path,
+                    incorrect_paths=args.incorrect_path,
+                    missed_paths=args.missed_path,
+                    stale_paths=args.stale_path,
+                    ambiguous_paths=args.ambiguous_path,
+                    fallback_reason=args.fallback_reason,
+                    minimal_reproduction=args.minimal_reproduction,
+                    expected_targets=args.expected_target,
+                    proposed_correction=args.proposed_correction,
+                    supersedes_feedback_ids=args.supersedes_feedback_id,
+                )
+                print(
+                    json.dumps(
+                        {
+                            "recorded": True,
+                            "feedback_id": packet.feedback_id,
+                            "path": str(output),
+                        },
+                        indent=2,
+                    )
+                )
+                return
+
+            if args.feedback_action == "validate":
+                packets = [
+                    feedback.validate_feedback(path).model_dump(mode="json")
+                    for path in args.packets
+                ]
+                print(
+                    json.dumps(
+                        {
+                            "valid": True,
+                            "packet_count": len(packets),
+                            "feedback_ids": [
+                                packet["feedback_id"] for packet in packets
+                            ],
+                        },
+                        indent=2,
+                    )
+                )
+                return
+
+            report = feedback.summarize_feedback(args.roots)
+            payload = json.dumps(report, indent=2, sort_keys=True) + "\n"
+            if args.output:
+                output_path = Path(args.output)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(payload, encoding="utf-8")
+            print(payload, end="")
+        except (OSError, ValueError) as exc:
+            print(
+                json.dumps({"valid": False, "error": str(exc)}, indent=2),
+                file=sys.stderr,
+            )
+            raise SystemExit(1) from exc
         return
 
     if args.command == "eval":
@@ -272,6 +834,9 @@ def main() -> None:
                         warmup=args.warmup,
                         allow_stale=args.allow_stale,
                         keep_raw_traces=args.keep_raw_traces,
+                        capture_context_package_timings=(
+                            args.capture_context_package_timings
+                        ),
                     )
                 )
                 payload = json.dumps(report.model_dump(mode="json"), indent=2)
@@ -284,6 +849,52 @@ def main() -> None:
 
             if args.eval_mode == "agent":
                 suite, suite_path = evaluation.load_suite(args.suite, "agent")
+                if args.max_reported_tokens is None:
+                    raise ValueError(
+                        "eval agent requires --max-reported-tokens so campaign "
+                        "budgeting can fail closed."
+                    )
+                configured_plan = (
+                    load_installation_plan(args.configured_plan)
+                    if args.configured_plan
+                    else None
+                )
+                configured_options = {
+                    "configured_plan": configured_plan,
+                    "configured_guidance_paths": args.configured_guidance_path or None,
+                    "configured_probe_query": args.configured_probe_query,
+                    "configured_expected_paths": args.configured_expected_path,
+                    "configured_probe_timeout_seconds": (
+                        args.configured_probe_timeout_seconds
+                    ),
+                }
+                selected_runner = (
+                    evaluation.CappedCodexRunner(args.codex_executable)
+                    if args.runner == "capped-codex"
+                    else evaluation.CodexRunner(args.codex_executable)
+                )
+                if args.preflight_only:
+                    report = asyncio.run(
+                        evaluation.run_agent_preflight(
+                            suite,
+                            max_reported_tokens=args.max_reported_tokens,
+                            runner=selected_runner,
+                            repository_root=args.repository_root,
+                            repository_id=args.repository_id,
+                            **configured_options,
+                        )
+                    )
+                    payload = json.dumps(report, indent=2)
+                    if args.preflight_output:
+                        output_path = Path(args.preflight_output)
+                        output_path.parent.mkdir(parents=True, exist_ok=True)
+                        output_path.write_text(payload + "\n", encoding="utf-8")
+                    print(payload)
+                    return
+                if not args.model:
+                    raise ValueError(
+                        "eval agent requires --model <id> unless --preflight-only is used."
+                    )
                 report = asyncio.run(
                     evaluation.run_agent_evaluation(
                         suite,
@@ -292,6 +903,7 @@ def main() -> None:
                         local_provider=args.local_provider,
                         codex_executable=args.codex_executable,
                         reasoning_effort=args.reasoning_effort,
+                        max_reported_tokens=args.max_reported_tokens,
                         repetitions=args.repetitions,
                         seed=args.seed,
                         repository_root=args.repository_root,
@@ -299,6 +911,8 @@ def main() -> None:
                         output_dir=args.output_dir,
                         keep_raw_traces=args.keep_raw_traces,
                         keep_workspaces=args.keep_workspaces,
+                        runner=selected_runner,
+                        **configured_options,
                     )
                 )
                 print(json.dumps(report.model_dump(mode="json"), indent=2))
@@ -517,3 +1131,37 @@ def _parse_filters(values: list[str]) -> dict[str, str]:
         filters[key] = item
 
     return filters
+
+
+def _parse_datetime(value: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError(f"Invalid ISO-8601 timestamp: {value}") from exc
+    if parsed.tzinfo is None:
+        raise ValueError("Session timestamp must include a timezone.")
+    return parsed
+
+
+def _feedback_runtime_from_args(
+    args: argparse.Namespace,
+    binding,
+):
+    manifest = getattr(args, "feedback_session", None)
+    expected_hash = getattr(args, "feedback_session_sha256", None)
+    profile = args.profile
+    if profile in feedback_session.FEEDBACK_PROFILES:
+        if binding is None or not manifest or not expected_hash:
+            raise ValueError(
+                "Feedback MCP profiles require --feedback-session, "
+                "--feedback-session-sha256, and a complete repository binding."
+            )
+        return feedback_session.create_session_runtime(
+            manifest,
+            expected_hash,
+            profile=profile,
+            binding=binding,
+        )
+    if manifest or expected_hash:
+        raise ValueError("Feedback session options require a feedback MCP profile.")
+    return None

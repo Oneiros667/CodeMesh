@@ -1,0 +1,120 @@
+{
+  "schema_version": "1.0",
+  "kind": "live",
+  "name": "config-net-cache-focused-live",
+  "description": "Provider-free focused-query coverage for the multi-part Config.Net cached-write impact task.",
+  "repository_id": "config_net",
+  "repository_url": "https://github.com/aloneguid/config.git",
+  "repository_commit": "ae0af7d4b3781c66233bbb677b6e11df1f5b416b",
+  "cases": [
+    {
+      "id": "cached-write-core",
+      "description": "Find cache configuration, shared I/O, and existing cached-property tests.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {
+        "query": "cached writes CacheFor TTL",
+        "repository_id": "config_net",
+        "limit": 8,
+        "max_characters": 12000
+      },
+      "targets": [
+        {
+          "file_path": "src/Config.Net/Core/IoHandler.cs",
+          "primary": true
+        },
+        {
+          "file_path": "src/Config.Net/ConfigurationBuilder.cs"
+        },
+        {
+          "file_path": "src/Config.Net.Tests/LogicTest.cs"
+        }
+      ],
+      "min_hit_count": 3,
+      "top_k": 8
+    },
+    {
+      "id": "setter-routing",
+      "description": "Find property and configurable-method setter paths and tests.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {
+        "query": "property configurable method setters",
+        "repository_id": "config_net",
+        "limit": 8,
+        "max_characters": 12000
+      },
+      "targets": [
+        {
+          "file_path": "src/Config.Net/Core/DynamicWriter.cs",
+          "primary": true
+        },
+        {
+          "file_path": "src/Config.Net.Tests/ConfigurableMethodsTest.cs"
+        }
+      ],
+      "min_hit_count": 2,
+      "top_k": 8
+    },
+    {
+      "id": "proxy-interception",
+      "description": "Find proxy interception and its writer handoff.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {
+        "query": "proxy intercept writes",
+        "repository_id": "config_net",
+        "limit": 8,
+        "max_characters": 12000
+      },
+      "targets": [
+        {
+          "file_path": "src/Config.Net/Core/InterfaceInterceptor.cs",
+          "primary": true
+        },
+        {
+          "file_path": "src/Config.Net/Core/DynamicWriter.cs"
+        }
+      ],
+      "min_hit_count": 2,
+      "top_k": 8
+    },
+    {
+      "id": "cache-expiration-value",
+      "description": "Find the expiring keyed cache value and cache-duration configuration.",
+      "tool": "codemesh_get_context_package",
+      "arguments": {
+        "query": "TTL expiration TimeSpan cached value",
+        "repository_id": "config_net",
+        "limit": 8,
+        "max_characters": 12000
+      },
+      "targets": [
+        {
+          "file_path": "src/Config.Net/Core/LazyVar.cs",
+          "primary": true
+        },
+        {
+          "file_path": "src/Config.Net/ConfigurationBuilder.cs"
+        }
+      ],
+      "min_hit_count": 2,
+      "top_k": 8
+    },
+    {
+      "id": "freshness",
+      "description": "Require the pinned Config.Net checkout to remain freshly indexed.",
+      "tool": "codemesh_get_repository_status",
+      "arguments": {
+        "repository_id": "config_net"
+      },
+      "expected_values": {
+        "freshness.status": "fresh"
+      }
+    }
+  ],
+  "thresholds": {
+    "min_tool_success_rate": 1.0,
+    "min_recall_at_k": 1.0,
+    "min_mrr": 0.25,
+    "max_primary_rank": 8,
+    "max_secret_leaks": 0
+  }
+}

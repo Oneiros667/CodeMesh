@@ -1,0 +1,66 @@
+{
+  "normalization": "Exclude only CodeContent.createdAt and updatedAt observation timestamps; preserve every node, edge, content field and list order.",
+  "parses": [
+    {
+      "counts": {
+        "nodes": 1229,
+        "relationships": 1906,
+        "contents": 1229
+      },
+      "content_sha256": "f665d16b2ec14f4112606e8e1383557280b9955c37bd3147a7195631bf1fac03",
+      "diagnostics": [
+        {
+          "code": "CMSHARP011",
+          "message": "Loaded project with MSBuildWorkspace: /workspace/src/CodeMesh.Domain/CodeMesh.Domain.csproj",
+          "severity": "info",
+          "span": null
+        }
+      ]
+    },
+    {
+      "counts": {
+        "nodes": 1229,
+        "relationships": 1906,
+        "contents": 1229
+      },
+      "content_sha256": "f665d16b2ec14f4112606e8e1383557280b9955c37bd3147a7195631bf1fac03",
+      "diagnostics": [
+        {
+          "code": "CMSHARP011",
+          "message": "Loaded project with MSBuildWorkspace: /workspace/src/CodeMesh.Domain/CodeMesh.Domain.csproj",
+          "severity": "info",
+          "span": null
+        }
+      ]
+    }
+  ],
+  "scratch_directories_remaining": 0,
+  "evidence_class": "local-provider-free-container-probe",
+  "base_commit": "f327291c5027a8f704c178cdfea3d69104d63aaf",
+  "parser_capability": "0.2.3",
+  "image_id": "sha256:06708986508b04fdbd5a2cd0be992dbc46789de437509df0bddc3c543ee82708",
+  "source_mount": {
+    "destination": "/workspace",
+    "read_only": true
+  },
+  "dotnet_tests": {
+    "passed": 71,
+    "skipped": 0
+  },
+  "python_tests": {
+    "passed": 228,
+    "warnings": 2
+  },
+  "mcp_fixture_cases": 5,
+  "earlier_checks": {
+    "without_live_stores": "66 .NET passed, 5 store tests skipped; rerun with disposable stores passed all 71.",
+    "editor_config_only_redirect": "Removed editor-config write warning but exposed assembly-info cache write failure; expanded to standard output isolation.",
+    "raw_hash_comparison": "Included content creation/update timestamps and differed as expected; final equality excludes only those observation timestamps."
+  },
+  "limits": [
+    "SDK/container fixture coverage, not all project configurations or Windows acceptance.",
+    "No hosted scan, provider campaign, release or deployment."
+  ],
+  "implementation_commit": "f314043305b335352061ddfa868981e6616e85c7",
+  "full_smoke_at_implementation_commit": "passed"
+}

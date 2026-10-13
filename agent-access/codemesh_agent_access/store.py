@@ -4,8 +4,19 @@ import asyncio
 import json
 import os
 import subprocess
-from typing import Any
+import sys
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass, field
+from time import perf_counter
+from typing import Any, Awaitable, Callable, Iterator, TypeVar
 
+from .binding import (
+    RepositoryBinding,
+    assess_binding,
+    bound_repository_reference,
+    require_accepted_binding,
+)
 from .config import Settings
 from .content_store import MongoContentStore, PyMongoError
 from .embeddings import QueryEmbeddingProvider
@@ -104,6 +115,116 @@ _KIND_WEIGHTS = {
     "unknown": 0.40,
 }
 
+_CONTEXT_PACKAGE_TIMING_ENV = "CODEMESH_CONTEXT_PACKAGE_TIMINGS"
+_CONTEXT_PACKAGE_TIMING_PREFIX = "CODEMESH_CONTEXT_PACKAGE_TIMING "
+_T = TypeVar("_T")
+
+
+@dataclass
+class _ContextPackageTiming:
+    enabled: bool
+    clock: Callable[[], float]
+    started: float = field(init=False)
+    stages_ms: dict[str, float] = field(default_factory=dict)
+    operations_ms: dict[str, float] = field(default_factory=dict)
+    counts: dict[str, int] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        self.started = self.clock()
+
+    def start(self) -> float:
+        return self.clock()
+
+    def record_stage(self, name: str, started: float) -> None:
+        if self.enabled:
+            self.stages_ms[name] = _elapsed_ms(self.clock() - started)
+
+    def record_operation(self, name: str, started: float) -> None:
+        if self.enabled:
+            self.operations_ms[name] = round(
+                self.operations_ms.get(name, 0.0)
+                + max(0.0, (self.clock() - started) * 1000),
+                3,
+            )
+
+    def emit(self, outcome: str) -> None:
+        if not self.enabled:
+            return
+        payload = {
+            "event": "context_package_timing",
+            "outcome": outcome,
+            "total_ms": _elapsed_ms(self.clock() - self.started),
+            "stages_ms": self.stages_ms,
+            "operations_ms": self.operations_ms,
+            "counts": self.counts,
+        }
+        print(
+            _CONTEXT_PACKAGE_TIMING_PREFIX
+            + json.dumps(payload, sort_keys=True, separators=(",", ":")),
+            file=sys.stderr,
+            flush=True,
+        )
+
+
+_active_package_timing: ContextVar[_ContextPackageTiming | None] = ContextVar(
+    "codemesh_package_timing", default=None
+)
+
+
+@contextmanager
+def _search_operation(name: str) -> Iterator[None]:
+    timing = _active_package_timing.get()
+    if timing is None or not timing.enabled:
+        yield
+        return
+    started = timing.start()
+    count_name = f"{name}_calls"
+    timing.counts[count_name] = timing.counts.get(count_name, 0) + 1
+    try:
+        yield
+    finally:
+        timing.record_operation(name, started)
+
+
+async def _timed_search_operation(name: str, awaitable: Awaitable[_T]) -> _T:
+    with _search_operation(name):
+        return await awaitable
+
+
+@dataclass(frozen=True)
+class _HydratedContextPackageItem:
+    hit: ContextHit
+    node: dict[str, Any] | None
+    content: dict[str, Any] | None
+    content_document: dict[str, Any] | None
+    summary: dict[str, Any] | None
+    relationships: list[dict[str, Any]]
+
+
+def _elapsed_ms(seconds: float) -> float:
+    return round(max(0.0, seconds * 1000), 3)
+
+
+def _context_package_timing_enabled() -> bool:
+    return os.getenv(_CONTEXT_PACKAGE_TIMING_ENV, "").strip().casefold() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+async def _timed_operation(
+    timing: _ContextPackageTiming,
+    name: str,
+    awaitable: Awaitable[_T],
+) -> _T:
+    started = timing.start()
+    try:
+        return await awaitable
+    finally:
+        timing.record_operation(name, started)
+
 
 class CodeMeshReadStore:
     """Read-side facade for graph, content, and vector intelligence."""
@@ -115,6 +236,7 @@ class CodeMeshReadStore:
         self._embeddings = QueryEmbeddingProvider(settings)
         self._graph = Neo4jGraphStore(settings)
         self._vectors = QdrantSearchClient(settings)
+        self._context_package_clock = perf_counter
 
     async def close(self) -> None:
         await self._graph.close()
@@ -139,28 +261,45 @@ class CodeMeshReadStore:
         return HealthResponse(status=status, components=components)
 
     async def search_context(self, query: ContextQuery) -> ContextResponse:
-        query = await self._resolve_context_query_repository(query)
+        query = await _timed_search_operation(
+            "search_repository_resolution",
+            self._resolve_context_query_repository(query),
+        )
         vector = query.vector
         embedding_attempted = False
         embedding_source = "provided" if vector else "none"
         if not vector and self._embeddings.is_enabled and query.query.strip():
             embedding_attempted = True
-            vector = await self._embeddings.embed_query(query.query)
+            vector = await _timed_search_operation(
+                "search_embedding", self._embeddings.embed_query(query.query)
+            )
             if vector:
                 embedding_source = "model_provider"
 
         vector_task = (
-            asyncio.create_task(self._search_vector_context(query, vector))
+            asyncio.create_task(
+                _timed_search_operation(
+                    "search_vector_pipeline", self._search_vector_context(query, vector)
+                )
+            )
             if vector
             else None
         )
         lexical_task = (
-            asyncio.create_task(self._search_lexical_context(query))
+            asyncio.create_task(
+                _timed_search_operation(
+                    "search_lexical_pipeline", self._search_lexical_context(query)
+                )
+            )
             if query.query.strip()
             else None
         )
         summary_task = (
-            asyncio.create_task(self._search_summary_context(query))
+            asyncio.create_task(
+                _timed_search_operation(
+                    "search_summary_pipeline", self._search_summary_context(query)
+                )
+            )
             if query.query.strip()
             else None
         )
@@ -169,7 +308,8 @@ class CodeMeshReadStore:
         summary_hits = await summary_task if summary_task else []
         hits = [*vector_hits, *lexical_hits, *summary_hits]
 
-        ranked_hits = _ranked_unique_hits(hits, query.limit)
+        with _search_operation("search_ranking"):
+            ranked_hits = _ranked_unique_hits(hits, query.limit)
         vector_hit_count = _source_hit_count(ranked_hits, "vector_score")
         lexical_hit_count = _source_hit_count(ranked_hits, "lexical_score")
         summary_hit_count = _source_hit_count(ranked_hits, "summary_score")
@@ -198,118 +338,207 @@ class CodeMeshReadStore:
         return ContextResponse(query=query, hits=ranked_hits, diagnostics=diagnostics)
 
     async def get_context_package(
-        self, query: ContextPackageQuery
+        self,
+        query: ContextPackageQuery,
+        binding: RepositoryBinding | None = None,
     ) -> ContextPackageResponse:
-        requested_repository_id = query.repository_id
-        query = await self._resolve_package_query_repository(query)
-        search = await self.search_context(
-            ContextQuery(
-                query=query.query,
-                repository_id=query.repository_id,
-                limit=query.limit,
-                kinds=query.kinds,
-                filters=query.filters,
-                vector=query.vector,
-                expand_context=True,
-                context_depth=query.context_depth,
-                include_context_relationships=False,
-            )
+        timing = _ContextPackageTiming(
+            enabled=_context_package_timing_enabled(),
+            clock=getattr(self, "_context_package_clock", perf_counter),
         )
-        repository_summary = None
-        repository = None
-        latest_run = None
-        if requested_repository_id:
-            repository_summary = await self.get_repository(requested_repository_id)
-            if query.include_repository:
-                repository = (
-                    repository_summary.model_dump(mode="json")
-                    if repository_summary
-                    else None
-                )
-        if query.include_repository and requested_repository_id:
-            runs = await self.list_ingestion_runs(
-                repository_id=(
-                    repository_summary.repository_id
-                    if repository_summary
-                    else requested_repository_id
-                ),
-                limit=1,
+        timing_token = _active_package_timing.set(timing)
+        outcome = "failed"
+        try:
+            repository_started = timing.start()
+            requested_repository_id = bound_repository_reference(
+                binding,
+                query.repository_id,
+                required_when_unbound=False,
             )
-            latest_run = runs.runs[0].model_dump(mode="json") if runs.runs else None
+            repository_summary = None
+            if binding is not None:
+                status = await self.get_repository_status(
+                    binding.project_id,
+                    binding=binding,
+                )
+                require_accepted_binding(status.freshness.get("binding", {}))
+                repository_summary = status.repository
+                if repository_summary is None or not repository_summary.snapshot_id:
+                    raise RuntimeError(
+                        "CodeMesh accepted a repository binding without an active snapshot."
+                    )
+                query = query.model_copy(
+                    update={"repository_id": repository_summary.snapshot_id}
+                )
+            else:
+                query = await self._resolve_package_query_repository(query)
+            timing.record_stage("repository_resolution", repository_started)
 
-        max_characters = max(0, query.max_characters)
-        remaining_characters = max_characters
-        items: list[ContextPackageItem] = []
-        total_snippet_characters = 0
+            search_started = timing.start()
+            search = await self.search_context(
+                ContextQuery(
+                    query=query.query,
+                    repository_id=query.repository_id,
+                    limit=query.limit,
+                    kinds=query.kinds,
+                    filters=query.filters,
+                    vector=query.vector,
+                    expand_context=True,
+                    context_depth=query.context_depth,
+                    include_context_relationships=False,
+                )
+            )
+            timing.record_stage("search", search_started)
+            timing.counts["hits"] = len(search.hits)
+            timing.counts["hydration_concurrency"] = 1
 
-        for index, hit in enumerate(search.hits):
-            repository_id = hit.snapshot_id or query.repository_id
-            node_response = await self.get_node(
+            metadata_started = timing.start()
+            repository = None
+            latest_run = None
+            if requested_repository_id:
+                if repository_summary is None:
+                    repository_summary = await self.get_repository(
+                        requested_repository_id
+                    )
+                if query.include_repository:
+                    repository = (
+                        repository_summary.model_dump(mode="json")
+                        if repository_summary
+                        else None
+                    )
+            if query.include_repository and requested_repository_id:
+                runs = await self.list_ingestion_runs(
+                    repository_id=(
+                        repository_summary.repository_id
+                        if repository_summary
+                        else requested_repository_id
+                    ),
+                    limit=1,
+                )
+                latest_run = runs.runs[0].model_dump(mode="json") if runs.runs else None
+            timing.record_stage("repository_metadata", metadata_started)
+
+            hydration_started = timing.start()
+            hydrated_items = [
+                await self._hydrate_context_package_item(hit, query, timing)
+                for hit in search.hits
+            ]
+            timing.record_stage("item_hydration", hydration_started)
+
+            assembly_started = timing.start()
+            remaining_characters = max(0, query.max_characters)
+            items: list[ContextPackageItem] = []
+            total_snippet_characters = 0
+            for index, hydrated in enumerate(hydrated_items):
+                snippet = None
+                if (
+                    query.include_content
+                    and hydrated.content_document
+                    and remaining_characters > 0
+                ):
+                    remaining_items = max(1, len(hydrated_items) - index)
+                    item_budget = max(0, remaining_characters // remaining_items)
+                    snippet = _snippet_for_hit(
+                        hydrated.content_document, hydrated.hit, item_budget
+                    )
+                    total_snippet_characters += len(snippet or "")
+                    remaining_characters = max(
+                        0, remaining_characters - len(snippet or "")
+                    )
+
+                items.append(
+                    ContextPackageItem(
+                        hit=hydrated.hit,
+                        node=hydrated.node,
+                        content=hydrated.content,
+                        summary=hydrated.summary,
+                        snippet=snippet,
+                        relationships=hydrated.relationships,
+                        relationship_groups=_group_relationships(
+                            hydrated.relationships
+                        ),
+                        rationale={
+                            "rank": index + 1,
+                            "score": hydrated.hit.score,
+                            "score_components": hydrated.hit.score_components,
+                            "expanded": hydrated.hit.expanded_context is not None,
+                        },
+                    )
+                )
+            timing.record_stage("assembly", assembly_started)
+            outcome = "ok"
+            return ContextPackageResponse(
+                query=query,
+                repository=repository,
+                latest_run=latest_run,
+                items=items,
+                validation_recommendations=_validation_recommendations(
+                    items, repository_summary
+                ),
+                total_snippet_characters=total_snippet_characters,
+            )
+        finally:
+            _active_package_timing.reset(timing_token)
+            timing.emit(outcome)
+
+    async def _hydrate_context_package_item(
+        self,
+        hit: ContextHit,
+        query: ContextPackageQuery,
+        timing: _ContextPackageTiming,
+    ) -> _HydratedContextPackageItem:
+        repository_id = hit.snapshot_id or query.repository_id
+        node_response = await _timed_operation(
+            timing,
+            "node",
+            self.get_node(
                 NodeLookup(
                     node_id=hit.node_id,
                     repository_id=repository_id,
                     include_content=query.include_content,
                     include_neighbors=False,
                 )
-            )
-            content = _content_metadata(node_response.content)
-            snippet = None
-            content_document = node_response.content
-            if query.include_content and hit.content_hash:
-                if (
-                    content_document is None
-                    or str(content_document.get("hash") or "") != hit.content_hash
-                ):
-                    content_document = await self._get_content(hit.content_hash)
-                content = _content_metadata(content_document)
+            ),
+        )
+        content_document = node_response.content
+        if query.include_content and hit.content_hash:
+            if (
+                content_document is None
+                or str(content_document.get("hash") or "") != hit.content_hash
+            ):
+                timing.counts["content_fallbacks"] = (
+                    timing.counts.get("content_fallbacks", 0) + 1
+                )
+                content_document = await _timed_operation(
+                    timing,
+                    "content_fallback",
+                    self._get_content(hit.content_hash),
+                )
 
-            if query.include_content and content_document and remaining_characters > 0:
-                remaining_items = max(1, len(search.hits) - index)
-                item_budget = max(0, remaining_characters // remaining_items)
-                snippet = _snippet_for_hit(content_document, hit, item_budget)
-                total_snippet_characters += len(snippet or "")
-                remaining_characters = max(0, remaining_characters - len(snippet or ""))
-
-            summary = await self._get_node_summary(
-                repository_id, hit.node_id, hit.content_hash
-            )
-
-            relationships = []
-            if query.include_relationships:
-                relationships = await self._get_context_relationship_summaries(
+        summary = await _timed_operation(
+            timing,
+            "summary",
+            self._get_node_summary(repository_id, hit.node_id, hit.content_hash),
+        )
+        relationships = []
+        if query.include_relationships:
+            relationships = await _timed_operation(
+                timing,
+                "relationships",
+                self._get_context_relationship_summaries(
                     hit.node_id,
                     repository_id,
                     query.relationship_limit,
                     _relationship_group_limits(query),
-                )
-
-            items.append(
-                ContextPackageItem(
-                    hit=hit,
-                    node=node_response.node,
-                    content=content,
-                    summary=summary,
-                    snippet=snippet,
-                    relationships=relationships,
-                    relationship_groups=_group_relationships(relationships),
-                    rationale={
-                        "rank": index + 1,
-                        "score": hit.score,
-                        "score_components": hit.score_components,
-                        "expanded": hit.expanded_context is not None,
-                    },
-                )
+                ),
             )
-
-        return ContextPackageResponse(
-            query=query,
-            repository=repository,
-            latest_run=latest_run,
-            items=items,
-            validation_recommendations=_validation_recommendations(
-                items, repository_summary
-            ),
-            total_snippet_characters=total_snippet_characters,
+        return _HydratedContextPackageItem(
+            hit=hit,
+            node=node_response.node,
+            content=_content_metadata(content_document),
+            content_document=content_document,
+            summary=summary,
+            relationships=relationships,
         )
 
     async def search_symbols(self, query: SymbolQuery) -> SymbolSearchResponse:
@@ -362,8 +591,30 @@ class CodeMeshReadStore:
 
         return SymbolSearchResponse(query=query, symbols=symbols)
 
-    async def get_node(self, lookup: NodeLookup) -> NodeResponse:
-        lookup = await self._resolve_node_lookup_repository(lookup)
+    async def get_node(
+        self,
+        lookup: NodeLookup,
+        binding: RepositoryBinding | None = None,
+    ) -> NodeResponse:
+        if binding is not None:
+            bound_repository_reference(
+                binding,
+                lookup.repository_id,
+                required_when_unbound=False,
+            )
+            status = await self.get_repository_status(
+                binding.project_id,
+                binding=binding,
+            )
+            require_accepted_binding(status.freshness.get("binding", {}))
+            repository = status.repository
+            if repository is None or not repository.snapshot_id:
+                raise RuntimeError(
+                    "CodeMesh accepted a repository binding without an active snapshot."
+                )
+            lookup = lookup.model_copy(update={"repository_id": repository.snapshot_id})
+        else:
+            lookup = await self._resolve_node_lookup_repository(lookup)
         node = await self._get_node_properties(lookup.node_id, lookup.repository_id)
         if node is None or not _matches_repository(node, lookup.repository_id):
             return NodeResponse()
@@ -392,7 +643,19 @@ class CodeMeshReadStore:
         )
         return NodeResponse(relationships=relationships)
 
-    async def list_repositories(self, limit: int = 50) -> RepositoryListResponse:
+    async def list_repositories(
+        self,
+        limit: int = 50,
+        binding: RepositoryBinding | None = None,
+    ) -> RepositoryListResponse:
+        if binding is not None:
+            repository = await self._content.get_bound_repository(
+                binding.project_id,
+                binding.checkout_id,
+            )
+            return RepositoryListResponse(
+                repositories=[repository] if repository is not None else []
+            )
         return await self._content.list_repositories(limit)
 
     async def get_repository(self, repository_id: str) -> RepositorySummary | None:
@@ -455,24 +718,45 @@ class CodeMeshReadStore:
         return await self._content.list_ingestion_runs(repository_id, limit)
 
     async def get_repository_status(
-        self, repository_id: str
+        self,
+        repository_id: str,
+        binding: RepositoryBinding | None = None,
     ) -> RepositoryStatusResponse:
-        repository = await self.get_repository(repository_id)
+        resolved_reference = bound_repository_reference(
+            binding,
+            repository_id,
+            required_when_unbound=True,
+        )
+        repository = (
+            await self._content.get_bound_repository(
+                binding.project_id,
+                binding.checkout_id,
+            )
+            if binding is not None
+            else await self.get_repository(resolved_reference or repository_id)
+        )
         if repository is None:
+            freshness = {
+                "status": "missing",
+                "is_stale": None,
+                "detail": "Repository was not found in the CodeMesh registry.",
+            }
+            if binding is not None:
+                freshness["binding"] = assess_binding(binding, None, freshness)
             return RepositoryStatusResponse(
-                repository_id=repository_id,
-                freshness={
-                    "status": "missing",
-                    "is_stale": None,
-                    "detail": "Repository was not found in the CodeMesh registry.",
-                },
+                repository_id=resolved_reference or repository_id,
+                freshness=freshness,
                 refresh=_refresh_status(None),
             )
 
         runs = await self.list_ingestion_runs(repository.repository_id, limit=1)
         latest_run = runs.runs[0] if runs.runs else None
-        summary_coverage = await self.get_summary_coverage(repository.repository_id)
+        summary_coverage = await self.get_summary_coverage(
+            repository.snapshot_id or repository.repository_id
+        )
         freshness = await asyncio.to_thread(_repository_freshness, repository)
+        if binding is not None:
+            freshness["binding"] = assess_binding(binding, repository, freshness)
 
         return RepositoryStatusResponse(
             repository_id=repository.repository_id,
@@ -709,13 +993,16 @@ class CodeMeshReadStore:
         context_relationship_limit: int = 8,
     ) -> ContextHit:
         source = source_node or node
-        selected, expansion_reason = await self._select_context_node(
-            node,
-            repository_id,
-            expand_context,
-            context_depth,
+        selected, expansion_reason = await _timed_search_operation(
+            "search_expansion",
+            self._select_context_node(
+                node, repository_id, expand_context, context_depth
+            ),
         )
-        declaration = await self._get_primary_declaration_node(selected, repository_id)
+        declaration = await _timed_search_operation(
+            "search_declaration",
+            self._get_primary_declaration_node(selected, repository_id),
+        )
 
         content_node = declaration or selected
         content_hash = str(
@@ -724,7 +1011,9 @@ class CodeMeshReadStore:
             or source.get("contentHash")
             or ""
         )
-        content = await self._get_content(content_hash)
+        content = await _timed_search_operation(
+            "search_content", self._get_content(content_hash)
+        )
         selected_id = str(selected.get("id") or "")
         source_id = str(source.get("id") or "")
         declaration_id = str(declaration.get("id") or "") if declaration else ""
@@ -745,10 +1034,11 @@ class CodeMeshReadStore:
             }
 
         if include_context_relationships:
-            relationships = await self._get_context_relationship_summaries(
-                selected_id,
-                repository_id,
-                context_relationship_limit,
+            relationships = await _timed_search_operation(
+                "search_relationships",
+                self._get_context_relationship_summaries(
+                    selected_id, repository_id, context_relationship_limit
+                ),
             )
             if expanded_context is None:
                 expanded_context = {
@@ -774,23 +1064,27 @@ class CodeMeshReadStore:
         )
 
     async def _search_lexical_context(self, query: ContextQuery) -> list[ContextHit]:
-        search_text = query.query.casefold()
+        search_text = query.query
         kinds = [kind.casefold() for kind in query.kinds]
         candidate_limit = min(max(query.limit * 4, 16), 200)
         raw_limit = min(max(query.limit * 16, 64), 500)
         repository_id = query.repository_id
 
-        nodes = await self._graph.search_context_nodes(
-            search_text, kinds, repository_id, raw_limit
+        nodes = await _timed_search_operation(
+            "search_lexical_fetch",
+            self._graph.search_context_nodes(
+                search_text, kinds, repository_id, raw_limit
+            ),
         )
-        nodes = [
-            node
-            for node in nodes
-            if _matches_filters(node, query.filters)
-            and _matches_repository(node, query.repository_id)
-        ]
-        nodes.sort(key=lambda node: _lexical_score(node, search_text), reverse=True)
-        nodes = _diversify_lexical_nodes(nodes, candidate_limit)
+        with _search_operation("search_lexical_selection"):
+            nodes = [
+                node
+                for node in nodes
+                if _matches_filters(node, query.filters)
+                and _matches_repository(node, query.repository_id)
+            ]
+            nodes.sort(key=lambda node: _lexical_score(node, search_text), reverse=True)
+            nodes = _diversify_lexical_nodes(nodes, candidate_limit)
 
         hits = []
         for node in nodes:
@@ -812,8 +1106,11 @@ class CodeMeshReadStore:
     async def _search_vector_context(
         self, query: ContextQuery, vector: list[float]
     ) -> list[ContextHit]:
-        qdrant_hits = await self._vectors.search(
-            vector, _candidate_limit(query.limit), _effective_filters(query)
+        qdrant_hits = await _timed_search_operation(
+            "search_vector_fetch",
+            self._vectors.search(
+                vector, _candidate_limit(query.limit), _effective_filters(query)
+            ),
         )
         hits: list[ContextHit] = []
 
@@ -823,7 +1120,9 @@ class CodeMeshReadStore:
             repository_id = (
                 query.repository_id or str(item.get("repositoryId") or "") or None
             )
-            node = await self._get_node_properties(node_id, repository_id)
+            node = await _timed_search_operation(
+                "search_vector_node", self._get_node_properties(node_id, repository_id)
+            )
 
             if node is None:
                 node = {
@@ -857,11 +1156,11 @@ class CodeMeshReadStore:
     async def _search_summary_context(self, query: ContextQuery) -> list[ContextHit]:
         search_text = query.query.casefold()
         kinds = [kind for kind in query.kinds if kind]
-        summaries = await self._summaries.search_summaries(
-            query.query,
-            query.repository_id,
-            kinds,
-            _candidate_limit(query.limit),
+        summaries = await _timed_search_operation(
+            "search_summary_fetch",
+            self._summaries.search_summaries(
+                query.query, query.repository_id, kinds, _candidate_limit(query.limit)
+            ),
         )
         hits: list[ContextHit] = []
 
@@ -873,7 +1172,9 @@ class CodeMeshReadStore:
             repository_id = (
                 query.repository_id or str(summary.get("repository_id") or "") or None
             )
-            node = await self._get_node_properties(node_id, repository_id)
+            node = await _timed_search_operation(
+                "search_summary_node", self._get_node_properties(node_id, repository_id)
+            )
             if node is None:
                 node = _node_from_summary(summary)
 
@@ -917,22 +1218,42 @@ def _repository_freshness(repository: RepositorySummary) -> dict[str, Any]:
         "snapshotId"
     )
     observed_snapshot_id = repository.metadata.get("observedSnapshotId")
+    indexed_working_tree_dirty = _optional_bool(
+        repository.metadata.get("workingTreeDirty")
+    )
     git = _git_snapshot(root_path)
 
     if git["available"]:
         current_commit = git.get("current_commit")
         is_dirty = bool(git.get("working_tree_dirty"))
         commit_mismatch = bool(indexed_commit and indexed_commit != current_commit)
-        source_view_mismatch = (
+        snapshot_mismatch = (
             observed_snapshot_id != selected_snapshot_id
             if observed_snapshot_id and selected_snapshot_id
             else None
         )
+        dirty_state_mismatch = (
+            indexed_working_tree_dirty != is_dirty
+            if indexed_working_tree_dirty is not None
+            else None
+        )
+        source_view_mismatch = (
+            True
+            if snapshot_mismatch is True or dirty_state_mismatch is True
+            else None
+            if snapshot_mismatch is None and dirty_state_mismatch is None
+            else False
+        )
         if indexed_commit:
-            is_stale = commit_mismatch or is_dirty or source_view_mismatch is True
+            unverifiable_dirty_view = is_dirty or indexed_working_tree_dirty is True
+            is_stale = (
+                commit_mismatch
+                or unverifiable_dirty_view
+                or source_view_mismatch is True
+            )
             status = "stale" if is_stale else "fresh"
             detail = (
-                "Indexed commit differs from the local checkout or the working tree has uncommitted changes."
+                "Indexed commit, checkout state, or source-view provenance does not match a verifiable clean checkout."
                 if is_stale
                 else "Indexed commit matches the local checkout and the working tree is clean."
             )
@@ -947,7 +1268,9 @@ def _repository_freshness(repository: RepositorySummary) -> dict[str, Any]:
             "selected_snapshot_id": selected_snapshot_id,
             "indexed_source_view_hash": repository.source_view_hash
             or repository.metadata.get("sourceViewHash"),
+            "indexed_working_tree_dirty": indexed_working_tree_dirty,
             "commit_mismatch": commit_mismatch,
+            "dirty_state_mismatch": dirty_state_mismatch,
             "source_view_mismatch": source_view_mismatch,
             "provenance_status": "known" if selected_snapshot_id else "unknown",
             "is_stale": is_stale,
@@ -961,7 +1284,9 @@ def _repository_freshness(repository: RepositorySummary) -> dict[str, Any]:
         "selected_snapshot_id": selected_snapshot_id,
         "indexed_source_view_hash": repository.source_view_hash
         or repository.metadata.get("sourceViewHash"),
+        "indexed_working_tree_dirty": indexed_working_tree_dirty,
         "commit_mismatch": None,
+        "dirty_state_mismatch": None,
         "source_view_mismatch": None,
         "provenance_status": "unavailable",
         "is_stale": None,
@@ -1014,6 +1339,19 @@ def _run_git(root_path: str, *args: str) -> str | None:
         return None
 
     return result.stdout.strip()
+
+
+def _optional_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return None
+    normalized = str(value).strip().casefold()
+    if normalized == "true":
+        return True
+    if normalized == "false":
+        return False
+    return None
 
 
 def _refresh_status(
@@ -1131,6 +1469,30 @@ def _validation_recommendations(
     recommendations: list[dict[str, Any]] = []
     is_codemesh = repository is not None and repository.alias == "code_mesh"
 
+    if any(_is_rust_path(path) for path in file_paths):
+        recommendations.extend(
+            [
+                _validation_command(
+                    "rust-format",
+                    "cargo fmt --all -- --check",
+                    "Check Rust formatting from the repository or workspace root.",
+                    file_paths,
+                ),
+                _validation_command(
+                    "rust-clippy",
+                    "cargo clippy --all-targets --all-features -- -D warnings",
+                    "Run the Rust lint gate for affected targets and features.",
+                    file_paths,
+                ),
+                _validation_command(
+                    "rust-tests",
+                    "cargo test --all-targets --all-features",
+                    "Run Rust tests after native implementation or PyO3 boundary changes.",
+                    file_paths,
+                ),
+            ]
+        )
+
     if not is_codemesh:
         if any(_is_dotnet_path(path) for path in file_paths):
             recommendations.append(
@@ -1233,6 +1595,10 @@ def _validation_applies(identifier: str, path: str) -> bool:
             and _is_deployment_path(path)
         )
         or (identifier == "markdown-dry-run" and _is_markdown_path(path))
+        or (
+            identifier in {"rust-format", "rust-clippy", "rust-tests"}
+            and _is_rust_path(path)
+        )
     )
 
 
@@ -1270,6 +1636,11 @@ def _is_deployment_path(path: str) -> bool:
 def _is_markdown_path(path: str) -> bool:
     lower = path.casefold()
     return lower.endswith(".md") or lower.endswith(".markdown")
+
+
+def _is_rust_path(path: str) -> bool:
+    lower = path.casefold()
+    return lower.endswith(".rs") or lower.endswith("cargo.toml")
 
 
 def _normalize_node(node: dict[str, Any]) -> dict[str, Any]:
@@ -1547,11 +1918,50 @@ def _ranked_unique_hits(hits: list[ContextHit], limit: int) -> list[ContextHit]:
         else:
             best_by_node_id[hit.node_id] = _merge_hit_score_components(existing, hit)
 
-    return sorted(
+    ranked = sorted(
         best_by_node_id.values(),
-        key=lambda hit: (hit.score, _kind_weight_from_name(hit.kind), -hit.start_line),
+        key=lambda hit: (
+            hit.score,
+            _raw_relevance_score(hit),
+            _kind_weight_from_name(hit.kind),
+            -hit.start_line,
+        ),
         reverse=True,
-    )[:limit]
+    )
+    return _diversify_ranked_hits(ranked, limit)
+
+
+def _raw_relevance_score(hit: ContextHit) -> float:
+    return max(
+        (
+            float(hit.score_components.get(name, 0.0))
+            for name in ("vector_score", "lexical_score", "summary_score")
+        ),
+        default=0.0,
+    )
+
+
+def _diversify_ranked_hits(hits: list[ContextHit], limit: int) -> list[ContextHit]:
+    if limit <= 0:
+        return []
+
+    buckets: dict[str, list[ContextHit]] = {}
+    for hit in hits:
+        key = hit.file_path.replace("\\", "/").casefold() or hit.node_id
+        buckets.setdefault(key, []).append(hit)
+
+    selected: list[ContextHit] = []
+    while len(selected) < limit:
+        added = False
+        for bucket in buckets.values():
+            if bucket:
+                selected.append(bucket.pop(0))
+                added = True
+            if len(selected) >= limit:
+                break
+        if not added:
+            break
+    return selected
 
 
 def _merge_hit_score_components(
@@ -1786,42 +2196,76 @@ def _lexical_score(node: dict[str, Any], search_text: str) -> float:
     if not search_text:
         return 0.5
 
+    normalized_search_text = search_text.casefold()
+
+    metadata = _metadata(node.get("metadataJson"))
     fields = [
         str(node.get("id") or "").casefold(),
         str(node.get("stableKey") or "").casefold(),
         str(node.get("name") or "").casefold(),
         str(node.get("filePath") or "").casefold(),
+        str(node.get("language") or "").casefold(),
+        str(metadata.get("signature") or "").casefold(),
+        str(metadata.get("display") or "").casefold(),
+        str(metadata.get("pythonExportName") or "").casefold(),
+        str(metadata.get("attributes") or "").casefold(),
     ]
 
-    if any(field == search_text for field in fields):
+    if any(field == normalized_search_text for field in fields):
         return 1.0
-    if any(field.startswith(search_text) for field in fields):
+    if any(field.startswith(normalized_search_text) for field in fields):
         return 0.85
-    if any(search_text in field for field in fields):
+    if any(normalized_search_text in field for field in fields):
         return 0.65
 
     terms = lexical_terms(search_text)
     if not terms:
         return 0.0
 
-    matched_terms = sum(1 for term in terms if any(term in field for field in fields))
+    matched_terms = sum(1 for term in terms if _lexical_term_matches(term, fields))
     coverage = matched_terms / len(terms)
     best_field_coverage = max(
-        (sum(1 for term in terms if term in field) / len(terms) for field in fields),
+        (
+            sum(1 for term in terms if _lexical_term_matches(term, [field]))
+            / len(terms)
+            for field in fields
+        ),
         default=0.0,
     )
     file_name = fields[3].rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
     identifier_fields = [fields[2], file_name]
     identifier_coverage = sum(
-        1 for term in terms if any(term in field for field in identifier_fields)
+        1 for term in terms if _lexical_term_matches(term, identifier_fields)
+    ) / len(terms)
+    semantic_fields = fields[4:]
+    semantic_coverage = sum(
+        1 for term in terms if _lexical_term_matches(term, semantic_fields)
     ) / len(terms)
     return min(
         0.95,
         0.15
         + (coverage * 0.55)
         + (best_field_coverage * 0.10)
-        + (identifier_coverage * 0.25),
+        + (identifier_coverage * 0.25)
+        + (semantic_coverage * 0.18),
     )
+
+
+def _lexical_term_matches(term: str, fields: list[str]) -> bool:
+    return any(
+        variant in field for variant in _lexical_term_variants(term) for field in fields
+    )
+
+
+def _lexical_term_variants(term: str) -> tuple[str, ...]:
+    variants = [term]
+    if len(term) > 4 and term.endswith("ing"):
+        variants.append(term[:-3])
+    if len(term) > 4 and term.endswith("ies"):
+        variants.append(f"{term[:-3]}y")
+    elif len(term) > 4 and term.endswith("s") and not term.endswith("ss"):
+        variants.append(term[:-1])
+    return tuple(dict.fromkeys(variants))
 
 
 def _symbol_score(node: dict[str, Any], search_text: str) -> float:

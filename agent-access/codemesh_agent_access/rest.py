@@ -5,6 +5,7 @@ from typing import AsyncIterator
 
 from fastapi import Depends, FastAPI
 
+from . import __version__
 from .models import (
     ContextQuery,
     ContextResponse,
@@ -38,7 +39,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title="CodeMesh Agent Access",
-    version="0.1.0",
+    version=__version__,
     description="REST API for AI agents to read CodeMesh graph, content, and vector intelligence.",
     lifespan=lifespan,
 )

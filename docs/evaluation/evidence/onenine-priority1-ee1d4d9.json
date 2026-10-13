@@ -1,0 +1,100 @@
+{
+  "schema_version": "codemesh-priority1-candidate-evidence-v1",
+  "evidence_class": "provider-free-local-diagnostic",
+  "recorded_at": "2026-08-31T18:49:46Z",
+  "passed": true,
+  "codemesh": {
+    "commit": "ee1d4d9306a5fce2322d624ae17648c82ff0918a",
+    "clean_detached_worktree": true
+  },
+  "deterministic_verification": {
+    "dotnet": {
+      "restore": "passed",
+      "build": "passed",
+      "tests_passed": 64,
+      "tests_skipped": 1,
+      "format": "passed",
+      "warnings": 1
+    },
+    "python": {
+      "lint": "passed",
+      "format": "passed",
+      "tests_passed": 115,
+      "warnings": 2
+    },
+    "documentation": {
+      "markdownlint": "passed",
+      "links": "passed",
+      "publication_safety": "passed",
+      "diff_check": "passed"
+    },
+    "live_store_smoke": {
+      "status": "passed",
+      "compose_start": "skipped",
+      "compose_skip_reason": "The detached candidate intentionally has no local secret environment file; already-running local stores and Agent Access were used."
+    }
+  },
+  "youtube_downloader": {
+    "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+    "snapshot_id": "snp_1c7772010bcb7c8430fe062d975094271762a68627dbc53f4e2b9f0557687eae",
+    "ingestion": {
+      "nodes": 1685,
+      "relationships": 3634,
+      "content_items": 1310,
+      "embeddings": 0,
+      "summaries": 0,
+      "report_sha256": "4b44086b7e17d6e35abdadd8ecc818add9be9a751ec66e007067bede77f504da"
+    },
+    "live_gate": {
+      "passed": true,
+      "comparable": true,
+      "case_count": 6,
+      "tool_call_count": 18,
+      "tool_success_rate": 1.0,
+      "mean_recall_at_k": 1.0,
+      "mean_mrr": 0.9,
+      "mean_ndcg_at_k": 0.926186,
+      "secret_leaks": 0,
+      "provider": "none",
+      "report_sha256": "ee6edd3953d7775944d91656fd4e190b532a2a03d46c1da48bef15ea4804f380"
+    },
+    "corrective_evidence": {
+      "failed_candidate_commit": "90956eff80fe0a28fb431dcf4a7ea206fccd3c3e",
+      "failure": "Mean MRR 0.767 was below the frozen 0.800 gate after the SettingsService primary path ranked third.",
+      "failed_report_sha256": "3abc82116b36d80bbf720e9f401b43cecca50284d5831fecc26dd3ec95a0bb2f",
+      "correction": "Select and version a deterministic canonical source path for partial C# symbols.",
+      "verified_primary_rank": 1
+    }
+  },
+  "onenine_primary": {
+    "repository_commit": "e12d0281b687e58c2baac85f771a684df6fa8552",
+    "project_id": "prj_a570a726917d4d0ca596085aaf07af50",
+    "checkout_id": "chk_70c50c5494de4837ab0627aca021eab2",
+    "snapshot_id": "snp_52a2af6a662c8070cea0ccb6db837a68717f45422aa7574fe5db0af2543169e9",
+    "source_view_hash": "ce3c63a66e3e4821bf5431d9997314070d60ec61f9ab8b35aa0cdcafbacace4a",
+    "plan_hash": "6d37def879a062f8a93923514376f14707ddf430582e675aff44aa7b2e4ad40a",
+    "ingestion": {
+      "nodes": 45492,
+      "relationships": 94774,
+      "content_items": 12766,
+      "embeddings": 0,
+      "summaries": 0,
+      "report_sha256": "c9e013e640938cb0eff3291aa746ebe23e2ecb14921d304df1418cd2cd164026"
+    },
+    "pilot_gate": {
+      "passed": true,
+      "positive_cases": 4,
+      "negative_cases": 4,
+      "feedback_packets_validated": 3,
+      "provider": "none",
+      "report_sha256": "79d38a6dc5fe4519333d12acc872c64cd87e37c812b073b9054a94322281b0bd"
+    }
+  },
+  "boundaries": {
+    "model_backed_agent_evaluation": "not_run_requires_explicit_spend_authority",
+    "release": "not_authorized",
+    "deployment": "not_authorized",
+    "provider_access": "not_authorized",
+    "live_trading": "not_authorized"
+  }
+}

@@ -1,0 +1,11 @@
+<Project>
+  <!-- Installed as an additive SDK ImportBefore hook in the parser container.
+       Keep NuGet assets in the original project extensions directory. -->
+  <PropertyGroup Condition="'$(DesignTimeBuild)' == 'true' and '$(CodeMeshDesignTimeOutputRoot)' != ''">
+    <_CodeMeshProjectOutputKey>$([MSBuild]::StableStringHash('$(MSBuildProjectFullPath)|$(Configuration)|$(Platform)|$(TargetFramework)|$(RuntimeIdentifier)', 'Sha256'))</_CodeMeshProjectOutputKey>
+    <_CodeMeshProjectOutputRoot>$(CodeMeshDesignTimeOutputRoot)$(_CodeMeshProjectOutputKey)/</_CodeMeshProjectOutputRoot>
+    <IntermediateOutputPath>$(_CodeMeshProjectOutputRoot)obj/</IntermediateOutputPath>
+    <OutputPath>$(_CodeMeshProjectOutputRoot)bin/</OutputPath>
+    <OutDir>$(OutputPath)</OutDir>
+  </PropertyGroup>
+</Project>

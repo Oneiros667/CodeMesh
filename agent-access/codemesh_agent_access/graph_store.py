@@ -348,7 +348,16 @@ class Neo4jGraphStore:
         if _load_async_graph_database() is None:
             return []
 
+        normalized_search_text = search_text.casefold()
         search_terms = lexical_terms(search_text)
+        # Scope before lexical projection so other snapshots do not pay the
+        # cost of loading and matching every searchable property. Keep the
+        # administrative, unbound query and all values parameterized.
+        node_match = (
+            "MATCH (n:CodeMeshNode {repositoryId: $repository_id})"
+            if repository_id is not None
+            else "MATCH (n:CodeMeshNode)"
+        )
 
         try:
             driver = self._neo4j()
@@ -356,19 +365,20 @@ class Neo4jGraphStore:
                 database=self._settings.neo4j_database
             ) as session:
                 result = await session.run(
-                    """
-                    MATCH (n:CodeMeshNode)
+                    f"""
+                    {node_match}
                     WITH n,
                          [term IN $search_terms WHERE any(value IN [
                              toLower(coalesce(n.id, "")),
                              toLower(coalesce(n.stableKey, "")),
                              toLower(coalesce(n.name, "")),
-                             toLower(coalesce(n.filePath, ""))
+                             toLower(coalesce(n.filePath, "")),
+                             toLower(coalesce(n.language, "")),
+                             toLower(coalesce(n.metadataJson, ""))
                          ] WHERE value CONTAINS term)] AS matched_terms
                     WHERE
                         (size($search_terms) = 0 OR size(matched_terms) > 0)
                         AND (size($kinds) = 0 OR toLower(coalesce(n.kind, "")) IN $kinds)
-                        AND ($repository_id IS NULL OR n.repositoryId = $repository_id)
                     RETURN properties(n) AS node
                     ORDER BY size(matched_terms) DESC,
                              CASE
@@ -381,7 +391,7 @@ class Neo4jGraphStore:
                              toLower(coalesce(n.name, n.id, ""))
                     LIMIT $limit
                     """,
-                    search_text=search_text,
+                    search_text=normalized_search_text,
                     search_terms=search_terms,
                     kinds=kinds,
                     repository_id=repository_id,
@@ -433,10 +443,11 @@ class Neo4jGraphStore:
 
 
 def lexical_terms(search_text: str) -> list[str]:
+    expanded = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", search_text)
     return list(
         dict.fromkeys(
             term
-            for term in re.findall(r"[a-z0-9]+", search_text.casefold())
+            for term in re.findall(r"[a-z0-9]+", expanded.casefold())
             if term not in _LEXICAL_STOP_WORDS
         )
     )

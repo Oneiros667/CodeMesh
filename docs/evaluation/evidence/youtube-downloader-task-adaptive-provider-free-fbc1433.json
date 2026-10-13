@@ -1,0 +1,157 @@
+{
+  "schema_version": "codemesh-youtube-downloader-task-adaptive-provider-free-v1",
+  "evidence_class": "provider-free-local-configured-integration",
+  "recorded_at": "2026-09-01T15:45:31Z",
+  "codemesh": {
+    "commit": "fbc1433642ad9e20acd3379554f2ee09a6d635d9",
+    "clean_detached_checkout": true,
+    "adaptive_suite_sha256": "40b4d994ee704c7db22a973538c0a34f3bb28b6cab305857d553f2928f392ea8",
+    "python_tests_passed": 125,
+    "python_test_warnings": 2,
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "fixture_suite_cases_passed": 5,
+    "dotnet_verification": "not_selected_python_guidance_and_evaluation_suite_change"
+  },
+  "youtube_downloader": {
+    "repository_url": "https://github.com/Tyrrrz/YoutubeDownloader.git",
+    "commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+    "branch": "HEAD",
+    "tracked_files_changed": false,
+    "project_id": "prj_3425db238d0d4a5fbcc1e3c9a28d1945",
+    "checkout_id": "chk_7e4ecde2ae4e45b4b9e475e0a587aa47",
+    "snapshot_id": "snp_1c7772010bcb7c8430fe062d975094271762a68627dbc53f4e2b9f0557687eae",
+    "source_view_hash": "d741906fcdcc5aa33a9d14f8a5e0cbdf7d2e572266a098beadddb595ce6853d9",
+    "freshness_status": "fresh"
+  },
+  "diagnosis": {
+    "record": "youtube-downloader-task-adaptive-query-diagnosis-e2e1bca.json",
+    "task_shaped_required_target_coverage": "6_of_6",
+    "focused_set_required_target_coverage": "6_of_6",
+    "task_shaped_package_calls": 1,
+    "focused_package_calls": 3,
+    "task_shaped_agent_formatted_characters": 12000,
+    "focused_agent_formatted_characters": 35991,
+    "focused_duplicate_item_occurrences": 5,
+    "decision": "prefer_one_package_and_decompose_only_a_specific_unresolved_facet"
+  },
+  "configured_installation": {
+    "profile": "normal",
+    "provider": "none",
+    "configuration_only": true,
+    "plan_hash": "dfd774405b9895fa8427ad4af0817049c8eab4ff39982ead1395a09ba3891e92",
+    "plan_report_sha256": "a9d94c880e4b8c8fe474f7587656756e3c084244eaa80a62aff0add0b2cfebd0",
+    "launch_sha256": "bfa3df955bf09a066680345866f919978c165ef9d1be9b168e88ddc77f32a425",
+    "installation_file": {
+      "path": ".codex/config.toml",
+      "source": "installed-ignored",
+      "sha256": "80bff01aa66dcf6baf4620477c9a98ed8acfb9fe653e9d55326e38030465421c"
+    },
+    "guidance": {
+      "path": "AGENTS.override.md",
+      "source": "installed-ignored",
+      "sha256": "bd356195afbb8b945d003ff7b6802e270a8c6a97566697ce95b1c4a7c980aba3"
+    },
+    "expected_tools": [
+      "codemesh_get_context_package",
+      "codemesh_get_repository_status",
+      "codemesh_list_repositories",
+      "codemesh_get_node"
+    ]
+  },
+  "configured_preflight": {
+    "passed": true,
+    "integration_mode": "configured",
+    "prompt_parity": true,
+    "provider": "none",
+    "probe_query": "audio-only container VideoDownloadOption DownloadMultipleSetupViewModel",
+    "expected_paths": [
+      "YoutubeDownloader.Core/Downloading/VideoDownloadOption.cs"
+    ],
+    "returned_path_count": 8,
+    "wrong_checkout_rejected": true,
+    "positive_probe_sha256": "fbff77ffdc1c860bb2241b8e9acb2d4ac587b5fc69f2ae512b1d24fb39d76281",
+    "rejection_probe_sha256": "24e652f49c397e407632fba3d89cc8bc43a4f1c427a5f3bda8842be5f51f9209",
+    "report_sha256": "6a61b4c3996637157712ff487cc1390c9213749effe6568eb128fd0811680527"
+  },
+  "adaptive_live_gate": {
+    "suite": "youtube-downloader-impact-adaptive-live",
+    "passed": true,
+    "comparable": true,
+    "case_count": 5,
+    "tool_call_count": 15,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 0.875,
+    "mean_ndcg_at_k": 0.862253,
+    "task_shaped_primary_rank": 2,
+    "task_shaped_p50_latency_ms": 16839.529,
+    "focused_p50_latency_ms": [
+      5429.193,
+      7049.534,
+      5428.08
+    ],
+    "secret_leaks": 0,
+    "model_providers": [],
+    "report_sha256": "a483a8f4e83a1354df492778f1d49d86f202a13dbf2ff4f773638557480ef74f"
+  },
+  "unchanged_impact_live_gate": {
+    "suite": "youtube-downloader-impact-live",
+    "passed": true,
+    "comparable": true,
+    "case_count": 2,
+    "tool_call_count": 6,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 1.0,
+    "mean_ndcg_at_k": 0.891323,
+    "primary_rank": 2,
+    "secret_leaks": 0,
+    "model_providers": [],
+    "report_sha256": "96b260c33d4a6c271ed182d4d539bda726048dde6584bbb34aeab98785795fbf"
+  },
+  "unchanged_canonical_live_gate": {
+    "suite": "youtube-downloader-live",
+    "passed": true,
+    "comparable": true,
+    "case_count": 6,
+    "tool_call_count": 18,
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 0.9,
+    "mean_ndcg_at_k": 0.926186,
+    "secret_leaks": 0,
+    "model_providers": [
+      "none"
+    ],
+    "report_sha256": "5396821051adf196cd370b933eefcdfaf9cdfc833f9b3c826d33297ef10d238b"
+  },
+  "claim_ceiling": {
+    "established": [
+      "provider_free_configured_plan_and_runtime_identity",
+      "prompt_parity_preflight_configuration",
+      "fresh_fail_closed_youtube_downloader_binding",
+      "comparable_task_adaptive_retrieval_gate",
+      "unchanged_impact_retrieval_gate_preserved",
+      "unchanged_canonical_retrieval_gate_preserved"
+    ],
+    "not_established": [
+      "normal_agent_compliance_with_task_adaptive_guidance",
+      "codemesh_correctness_or_efficiency_benefit",
+      "causality_for_the_retained_efficiency_regression",
+      "repeatable_configured_product_benefit",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "boundaries": {
+    "provider_free_gates_invoked_model": false,
+    "paid_campaign_started": false,
+    "another_paid_campaign_requires_fresh_explicit_model_spend_authorization": true,
+    "automatic_paid_retry_authorized": false,
+    "additional_onenine_checkout_onboarding": "not_authorized_by_this_work",
+    "push": "not_performed",
+    "release": "not_performed",
+    "deployment": "not_performed"
+  }
+}

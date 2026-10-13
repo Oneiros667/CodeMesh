@@ -1,0 +1,133 @@
+{
+  "schema_version": "codemesh-local-package-verification-v1",
+  "recorded_at": "2026-09-05",
+  "evidence_class": "local-provider-free-package-and-container-verification",
+  "source_version": "0.1.0",
+  "application_candidate": "96b4ebf7680332f3feeb6341a13a236a70203144",
+  "parser_container_correction": "1ef5ca94c40a3dceca4a8d4b128bfb7eea261e98",
+  "candidate_clean_during_package_build": true,
+  "environment": {
+    "os": "Linux x86_64",
+    "dotnet_sdk": "10.0.111",
+    "python": "3.14.7",
+    "local_uv": "0.12.9",
+    "agent_access_docker_uv": "0.12.3"
+  },
+  "artifact_location": ".codemesh-evals/completion-packages-96b4ebf (ignored local archive in main checkout)",
+  "artifacts": [
+    {
+      "name": "codemesh_agent_access-0.1.0-py3-none-any.whl",
+      "size": 157651,
+      "sha256": "e56e5a32c8e196b03acc3f003a840c75c6521d91aae381f1be62e52a72fc7649"
+    },
+    {
+      "name": "codemesh_agent_access-0.1.0.tar.gz",
+      "size": 231269,
+      "sha256": "cd1b1acb5c84213ced36d36436586e461ed47dcacffb7c068477aa27f10b5522"
+    },
+    {
+      "name": "codemesh-dotnet-0.1.0-linux-build.tar.gz",
+      "size": 12581544,
+      "sha256": "e3457468a818bdc68ff9b238b96e9df1b6a543629b7987fe1fe3f29524d293b8"
+    },
+    {
+      "name": "dotnet-file-manifest.json",
+      "size": 21969,
+      "sha256": "c738181c8e10be7f475c43887f17fa28b3129bcb056c746f71b20a624f48cc0a"
+    }
+  ],
+  "container_images": [
+    {
+      "container": "codemesh-completion-20260905-agent-access-1",
+      "image_id": "sha256:272da83da7bdd81f071f198d33ebc47c6465cdd470201b2e5da1c5563e007e34"
+    },
+    {
+      "container": "codemesh-completion-20260905-neo4j-1",
+      "image_id": "sha256:362542416de6c09a971484d1893878016cc3b5cdec166e54b1c824a220ecd6b9"
+    },
+    {
+      "container": "codemesh-completion-20260905-qdrant-1",
+      "image_id": "sha256:0bd98fa7977f1e75694779359ca4e212822e5a71334e28421182f72f209d5286"
+    },
+    {
+      "container": "codemesh-completion-20260905-mongodb-1",
+      "image_id": "sha256:340c1c56fb10e95cf79ff547f8664b96bc6ead9909bc355238cbf865a9695a6f"
+    },
+    {
+      "container": "codemesh-completion-20260905-csharp-parser-1",
+      "image_id": "sha256:af15d4ac5ac8aa7d0b55efa2202a8aca9318f093b304b64b0ae0361df549be4b"
+    }
+  ],
+  "passed": {
+    "dotnet_tests": 70,
+    "dotnet_skipped": 0,
+    "python_tests": 228,
+    "python_skipped": 0,
+    "dotnet_build_and_format": true,
+    "python_lint_and_format": true,
+    "version_and_repository_standards": true,
+    "full_e2e_smoke_at_application_candidate": true,
+    "installed_wheel_fixture_cases": 5,
+    "installed_wheel_cli_version": "codemesh-agent-access 0.1.0",
+    "installed_wheel_rest_openapi_version": "0.1.0",
+    "installed_wheel_normal_manifest_tools": 4,
+    "installed_agent_and_model_suites_and_patches_load": true,
+    "dotnet_package_version": "CodeMesh 0.1.0+96b4ebf7680332f3feeb6341a13a236a70203144",
+    "runtime_dependencies_installed_from_locked_hashes": true,
+    "dotnet_advisory_check": "No vulnerable packages reported in 11 CodeMesh projects",
+    "python_advisory_check": "No known vulnerabilities or adverse statuses reported in 48 packages",
+    "parser_container_build_health_and_capabilities": true,
+    "parser_project_probe": {
+      "counts": {
+        "nodes": 1229,
+        "relationships": 1906,
+        "contents": 1229,
+        "diagnostics": 2
+      },
+      "diagnostics": [
+        {
+          "code": "CMSHARP015",
+          "message": "Msbuild failed when processing the file '/workspace/src/CodeMesh.Domain/CodeMesh.Domain.csproj' with message: Read-only file system : '/workspace/src/CodeMesh.Domain/obj/Debug/net10.0/CodeMesh.Domain.GeneratedMSBuildEditorConfig.editorconfig'",
+          "severity": "warning",
+          "span": null
+        },
+        {
+          "code": "CMSHARP011",
+          "message": "Loaded project with MSBuildWorkspace: /workspace/src/CodeMesh.Domain/CodeMesh.Domain.csproj",
+          "severity": "info",
+          "span": null
+        }
+      ]
+    }
+  },
+  "failed_then_corrected": [
+    {
+      "check": "dotnet publish -o output-directory",
+      "result": "MSB1008 during option parsing; equivalent -p:PublishDir=... command succeeded. Cause not attributed beyond observed command behavior."
+    },
+    {
+      "check": "parser Docker build after version introduction",
+      "result": "Restricted .dockerignore omitted Directory.Build.props and VERSION; allow-list corrected and image built."
+    },
+    {
+      "check": "runtime-only parser image project parse",
+      "result": "CMSHARP012 no SDK and CMSHARP010 filesystem fallback; corrected SDK runtime loaded the project without either diagnostic. One probe made before recreation still hit the old image and is retained separately."
+    }
+  ],
+  "warnings": [
+    "Existing .NET nullable warning CS8625 and two Python dependency warnings remain.",
+    "Read-only parser mount emits CMSHARP015 for generated editor-config output; project still loads with CMSHARP011. Environment acceptance must assess this limitation.",
+    "Frozen YoutubeDownloader dependency advisory is separate from CodeMesh own dependency checks."
+  ],
+  "unavailable_or_not_run": [
+    "Exact-current-head hosted CodeQL and workflow evidence; no publication performed.",
+    "Windows acceptance and supported upgrade baseline selection.",
+    "Quiesced multi-store backup and verified restoration for a selected supported upgrade environment.",
+    "A newly authorized model-backed configured benefit campaign.",
+    "Owner release-procedure acceptance, tag, package publication, deployment and stable promotion."
+  ],
+  "claim_limits": [
+    "Local verification and artifacts are not released products, security-clean evidence, repeatable agent benefit, or production authority.",
+    "Application tests and artifacts bind application candidate; the later parser-container correction changes Docker packaging only and has its separate image/probe evidence."
+  ]
+}

@@ -1,0 +1,221 @@
+{
+  "schema_version": "codemesh-local-recovery-rehearsal-v1",
+  "evidence_class": "provider-free-single-node-linux-volume-restore",
+  "recorded_at": "2026-09-05",
+  "application_candidate": "f314043305b335352061ddfa868981e6616e85c7",
+  "private_archive": ".codemesh-evals/recovery-f314043 in the main checkout",
+  "source_project": "codemesh-readonly-20260905",
+  "restore_project": "codemesh-recovery-f314043",
+  "source_stopped_before_copy": true,
+  "destination_volumes_were_new": true,
+  "source_volumes_preserved": true,
+  "same_image_identities_verified": {
+    "neo4j": "sha256:362542416de6c09a971484d1893878016cc3b5cdec166e54b1c824a220ecd6b9",
+    "mongodb": "sha256:340c1c56fb10e95cf79ff547f8664b96bc6ead9909bc355238cbf865a9695a6f",
+    "qdrant": "sha256:0bd98fa7977f1e75694779359ca4e212822e5a71334e28421182f72f209d5286",
+    "agent-access": "sha256:272da83da7bdd81f071f198d33ebc47c6465cdd470201b2e5da1c5563e007e34"
+  },
+  "archives": [
+    {
+      "logical_volume": "neo4j_data",
+      "archive": "neo4j_data.tar.gz",
+      "bytes": 4813484,
+      "sha256": "d718bb900df4e626a3aa76ed78b2d5b62f839d0e70bb32e1052069536f4827cd"
+    },
+    {
+      "logical_volume": "neo4j_logs",
+      "archive": "neo4j_logs.tar.gz",
+      "bytes": 10978,
+      "sha256": "1b9d54376f4ca29ad494f23435b0dd1c600d77f70db93440b1e5e4eaf78e41e8"
+    },
+    {
+      "logical_volume": "mongodb_data",
+      "archive": "mongodb_data.tar.gz",
+      "bytes": 1040386,
+      "sha256": "4e3d86c7981d94d3f12aa277e8b4dfb9962617c82814d1f59c3a0daa2c0048ed"
+    },
+    {
+      "logical_volume": "qdrant_data",
+      "archive": "qdrant_data.tar.gz",
+      "bytes": 389493,
+      "sha256": "ae0761671c01b5fb1aa4b5f618fb15efa32d26043c250ba0aeb37a73cf42824a"
+    }
+  ],
+  "verification": {
+    "context_package_items": {
+      "count": 8,
+      "sha256": "699aea8c30bb02d8649d69747ebd6f9bd6724ca92c16139552695128fbefdb0d"
+    },
+    "graph_indexes": [
+      {
+        "entityType": "NODE",
+        "labelsOrTypes": [
+          "CodeMeshNode"
+        ],
+        "name": "codemesh_node_code_id",
+        "properties": [
+          "id"
+        ],
+        "state": "ONLINE",
+        "type": "RANGE"
+      },
+      {
+        "entityType": "NODE",
+        "labelsOrTypes": [
+          "CodeMeshNode"
+        ],
+        "name": "codemesh_node_repository_id",
+        "properties": [
+          "repositoryId",
+          "id"
+        ],
+        "state": "ONLINE",
+        "type": "RANGE"
+      },
+      {
+        "entityType": "NODE",
+        "labelsOrTypes": [
+          "CodeMeshNode"
+        ],
+        "name": "codemesh_node_repository_run",
+        "properties": [
+          "repositoryId",
+          "ingestionRunId"
+        ],
+        "state": "ONLINE",
+        "type": "RANGE"
+      },
+      {
+        "entityType": "NODE",
+        "labelsOrTypes": [
+          "CodeMeshNode"
+        ],
+        "name": "codemesh_node_storage_key",
+        "properties": [
+          "storageKey"
+        ],
+        "state": "ONLINE",
+        "type": "RANGE"
+      },
+      {
+        "entityType": "RELATIONSHIP",
+        "labelsOrTypes": [
+          "CODEMESH_REL"
+        ],
+        "name": "codemesh_relationship_id",
+        "properties": [
+          "id"
+        ],
+        "state": "ONLINE",
+        "type": "RANGE"
+      },
+      {
+        "entityType": "RELATIONSHIP",
+        "labelsOrTypes": [
+          "CODEMESH_REL"
+        ],
+        "name": "codemesh_relationship_repository_run",
+        "properties": [
+          "repositoryId",
+          "ingestionRunId"
+        ],
+        "state": "ONLINE",
+        "type": "RANGE"
+      },
+      {
+        "entityType": "RELATIONSHIP",
+        "labelsOrTypes": [
+          "CODEMESH_REL"
+        ],
+        "name": "codemesh_relationship_storage_key",
+        "properties": [
+          "storageKey"
+        ],
+        "state": "ONLINE",
+        "type": "RANGE"
+      },
+      {
+        "entityType": "NODE",
+        "labelsOrTypes": null,
+        "name": "index_343aff4e",
+        "properties": null,
+        "state": "ONLINE",
+        "type": "LOOKUP"
+      },
+      {
+        "entityType": "RELATIONSHIP",
+        "labelsOrTypes": null,
+        "name": "index_f7700477",
+        "properties": null,
+        "state": "ONLINE",
+        "type": "LOOKUP"
+      }
+    ],
+    "graph_nodes": {
+      "count": 1685,
+      "sha256": "dbbf866e788a61499afc3ade84df83557a29d54254f91199148e2eb691577ec1"
+    },
+    "graph_relationships": {
+      "count": 3634,
+      "sha256": "7ebf668d1f3049b98ad2bc07f882d718222a884698f1067bee652adefec7d5e7"
+    },
+    "mongo": {
+      "content": {
+        "count": 1310,
+        "sha256": "81b3716c608dbf082051ecd6075d806a86a3cca55e5c06743d56579e9510214e"
+      },
+      "ingestion_generations": {
+        "count": 1,
+        "sha256": "25476250c959e677bb0bdae260e2729f61e004189a446b52e023214d68263679"
+      },
+      "ingestion_runs": {
+        "count": 1,
+        "sha256": "a93413b9a34322c22f97754dad5a57b6f99b45e0ed567aab97f1f0795777a483"
+      },
+      "node_summaries": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "repositories": {
+        "count": 1,
+        "sha256": "3560c23fa8ec0ce473176197db5efcae13b4a3dd440c5e2bf0927404eeb9b41e"
+      },
+      "snapshot_checkouts": {
+        "count": 1,
+        "sha256": "b308990dc0eb07f117df4258c2143bc6065692b8ae77a7e08102d7937db32d75"
+      },
+      "snapshot_observations": {
+        "count": 1,
+        "sha256": "6a779d80a39bdd881f6b815d0e083665dc6b8e4053cbca6038199fdf4335df02"
+      },
+      "snapshot_projects": {
+        "count": 1,
+        "sha256": "440f6cc7ddafc86566d6fd75f7e6c14138619a5e6f5912968d0613068f17e01a"
+      },
+      "snapshots": {
+        "count": 1,
+        "sha256": "a5719b4a011d020868ce5efd2f6d8a15ff2a06867e1bafef2bd7e220964b5718"
+      }
+    },
+    "repository_id": "prj_3425db238d0d4a5fbcc1e3c9a28d1945",
+    "vectors": {
+      "codemesh-recovery-probe": {
+        "count": 3,
+        "sha256": "d4b04d7f5e2b988bd69cb82120ebb4d5e0f85cd13f39e7449cf1ef30b50c333b"
+      }
+    }
+  },
+  "repository_metadata_sha256": "6ca1a086dfa690313f91076cad112f7347ad4c8eae9e8c999a5bbda18096f059",
+  "all_before_after_sections_identical": true,
+  "notes": [
+    "Graph includes the indexed YoutubeDownloader repository at frozen source 05e63cddb6d2a96fc2d21b097129a0765824f251.",
+    "All CodeMesh MongoDB collection documents, including registry and snapshot lineage, were compared.",
+    "The three vectors are synthetic recovery fixtures, not provider-generated embedding evidence.",
+    "Archive contents and source credentials remain private; no model provider was invoked."
+  ],
+  "limits": [
+    "One stopped single-node Linux Docker profile at identical image versions.",
+    "No upgrade/migration, Windows, online backup, clustered, production or release acceptance.",
+    "No existing user store replaced; no publication or deployment."
+  ]
+}

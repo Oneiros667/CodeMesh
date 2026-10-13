@@ -1,0 +1,69 @@
+{
+  "schema_version": "codemesh-python-runtime-verification-v1",
+  "candidate": "b73e19afef49fadb2c420cef24ebf0251d31f226",
+  "recorded_at": "2026-09-05",
+  "os": "Linux x86_64",
+  "environment": "Isolated uv environments with locked dependencies; 3.12/3.13 runtimes stored privately without changing system Python or PATH. Python 3.14 uses the completion worktree environment.",
+  "private_archive": ".codemesh-evals/runtime-matrix-b73e19a in main checkout",
+  "results": [
+    {
+      "python": "3.12.14",
+      "tests_passed": 235,
+      "tests_failed": 0,
+      "tests_skipped": 0,
+      "dependency_warnings": 2,
+      "fixture_cases_passed": 5,
+      "files": [
+        {
+          "name": "codemesh-python-3.12-b73e19a-tests.log",
+          "sha256": "004e273f671bd276f999e176b3cea65b2a9c3ae63af4802aafb32b109f4e496c"
+        },
+        {
+          "name": "codemesh-python-3.12-b73e19a-fixtures.json",
+          "sha256": "e5c76e6bb79d56c02a89430325890454759a865f7418497d920eb9523bb1052e"
+        }
+      ]
+    },
+    {
+      "python": "3.13.15",
+      "tests_passed": 235,
+      "tests_failed": 0,
+      "tests_skipped": 0,
+      "dependency_warnings": 2,
+      "fixture_cases_passed": 5,
+      "files": [
+        {
+          "name": "codemesh-python-3.13-b73e19a-tests.log",
+          "sha256": "a1a46b5299873703071973499fee261a8a9a4f969829503bff8f77ed1f6376d0"
+        },
+        {
+          "name": "codemesh-python-3.13-b73e19a-fixtures.json",
+          "sha256": "e5d5da3ced35eadc74d1dcca5028b53cb102c9da52b3c6817fcccc816597b2f3"
+        }
+      ]
+    },
+    {
+      "python": "3.14.7",
+      "tests_passed": 235,
+      "tests_failed": 0,
+      "tests_skipped": 0,
+      "dependency_warnings": 2,
+      "fixture_cases_passed": 5,
+      "files": [
+        {
+          "name": "codemesh-python-3.14-b73e19a-tests.log",
+          "sha256": "ca8f1edcc336121f320be8f0185a9b7fcfc5e8cad1669345993c2a015b235d64"
+        },
+        {
+          "name": "codemesh-python-3.14-b73e19a-fixtures.json",
+          "sha256": "5e484d234fa80007cad3b0e4d8762978a5f84e66807e795af29df3c35757c8bb"
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Source-checkout tests and deterministic fixture evidence only; no Windows acceptance or released-version support claim.",
+    "Full store smoke and parser-container evidence are separately bound to f314043.",
+    "No provider or paid model invocation."
+  ]
+}

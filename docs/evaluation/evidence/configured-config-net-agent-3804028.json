@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0",
+  "evidence_kind": "sanitized-configured-onboarded-agent-campaign",
+  "generated_at": "2026-09-01T14:49:29.048020+00:00",
+  "codemesh": {
+    "commit": "3804028ccc7d25304d95ff933c7291b79f3e43b5",
+    "clean_detached_checkout": true,
+    "configured_suite": "config-net-cache-configured-agent",
+    "focused_query_guidance_correction": true
+  },
+  "repository": {
+    "repository_url": "https://github.com/aloneguid/config.git",
+    "project_id": "prj_e5d8c89734dc41958892d6f8f9878b89",
+    "checkout_id": "chk_6d1d16158afa4964bd19c9bf4d3e9193",
+    "commit": "ae0af7d4b3781c66233bbb677b6e11df1f5b416b",
+    "branch": "master",
+    "tracked_files_changed": false,
+    "snapshot_id": "snp_165b1edc656765c92df79fa4369c7f49b0a99b1c9a6c884c96c2ab55b1cb0ec5",
+    "source_view_hash": "b4981658b9c7ae39100f3b92d871727234e4b6ec4adaee4e9918789187173e57"
+  },
+  "configured_integration": {
+    "profile": "normal",
+    "plan_hash": "af015e6371b524b79159ff648c3121eb7952c72e50df167c25582bd2ea0f90f7",
+    "plan_report_sha256": "cb603917add6122ac987a6b3a5cac133293abcd08d01e4937d0d5a88b5a02fb7",
+    "installation_file_sha256": "65e12917b25979d51562c06df5f982712e9687c72d72e4959db0007b048753f2",
+    "guidance_sha256": "abb5fcdce32a53d14c618b18e842f0070e83fe9061e52d61a380d3a3086dd371",
+    "baseline_mcp_servers": [],
+    "prompt_parity": true,
+    "evaluator_only_treatment_guidance": false,
+    "positive_probe_passed": true,
+    "wrong_checkout_rejected": true,
+    "preflight_report_sha256": "771e851049f0383cbacef15c5c6102cc64323178bd8ebad6dd2d68bda589feb2"
+  },
+  "campaign": {
+    "suite": "config-net-cache-configured-agent",
+    "provider": "default",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "medium",
+    "seed": 42,
+    "repetitions": 3,
+    "pair_count": 3,
+    "completed_pair_count": 3,
+    "all_runs_completed": true,
+    "verdict": "improved",
+    "harness_passed": true,
+    "harness_failure_count": 0,
+    "treatment_wins": 1,
+    "codemesh_attributable_wins": 1,
+    "treatment_regressions": 0,
+    "treatment_safety_violations": 0,
+    "control_success_rate": 0.666667,
+    "treatment_success_rate": 1.0,
+    "codemesh_adoption_rate": 1.0,
+    "codemesh_adopted_pair_count": 3,
+    "context_package_call_attempt_count": 8,
+    "context_package_call_attempts_per_treatment": [
+      3,
+      2,
+      3
+    ],
+    "mcp_failed_call_count": 0,
+    "command_policy_violation_count": 0,
+    "matched_successful_pair_count": 2,
+    "matched_control_duration_ms": 238113.932,
+    "matched_treatment_duration_ms": 205524.894,
+    "matched_duration_delta": -0.136863,
+    "matched_control_tokens": 428294.5,
+    "matched_treatment_tokens": 412906.5,
+    "matched_token_delta": -0.035929,
+    "report_sha256": "f18e70e160907f326afa1e52d87cce8134963dd6b6fd57cebe20054409514a1f"
+  },
+  "control_failures": [
+    {
+      "repetition": 2,
+      "missing_required_citations": [
+        "src/Config.Net/ConfigurationBuilder.cs"
+      ]
+    }
+  ],
+  "treatment_failures": [],
+  "measured_outcome": {
+    "context_package_adopted_in_every_treatment": true,
+    "multiple_context_package_attempts_in_every_treatment": true,
+    "all_treatments_correct_and_safe": true,
+    "correctness_result": "one_codemesh_attributable_win_and_zero_treatment_regressions",
+    "efficiency_result": "favorable_medians_across_two_jointly_successful_pairs"
+  },
+  "comparison_to_retained_b16eee7_campaign": {
+    "same_suite_prompt_targets_thresholds_repository_model_reasoning_seed_and_repetitions": true,
+    "prior_verdict": "regressed",
+    "prior_treatment_success_rate": 0.333333,
+    "prior_treatment_regressions": 2,
+    "current_verdict": "improved",
+    "current_treatment_success_rate": 1.0,
+    "current_treatment_regressions": 0,
+    "causal_attribution_to_guidance_wording_established": false
+  },
+  "claim_ceiling": {
+    "established": [
+      "configured_prompt_parity_and_exact_binding",
+      "context_package_adoption_in_every_treatment",
+      "all_three_treatments_correct_and_safe",
+      "one_codemesh_attributable_win",
+      "zero_treatment_regressions",
+      "favorable_efficiency_medians_across_two_jointly_successful_pairs",
+      "improved_verdict_for_this_single_config_net_campaign"
+    ],
+    "not_established": [
+      "causality_of_the_focused_query_wording",
+      "repeatable_configured_product_benefit",
+      "generalization_to_another_task_model_or_repository",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "limitations": [
+    "The campaign covers one answer task, one repository, one model, and three repetitions.",
+    "Efficiency medians use the two pairs where both control and treatment passed; the third control missed ConfigurationBuilder.cs.",
+    "Raw traces, context-package arguments and payloads, final messages, and temporary workspaces were not retained.",
+    "The report proves multiple context-package attempts in every treatment but not the exact query wording used."
+  ],
+  "boundaries": {
+    "campaign_consumed": true,
+    "automatic_retry_authorized": false,
+    "additional_model_spend": "not_authorized",
+    "next_work": "independent_configured_replication_requires_separate_authority",
+    "additional_onenine_checkout_onboarding": "not_authorized",
+    "push": "not_authorized",
+    "release": "not_authorized",
+    "deployment": "not_authorized",
+    "live_trading": "not_authorized"
+  }
+}

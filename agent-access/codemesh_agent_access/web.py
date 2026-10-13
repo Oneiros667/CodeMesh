@@ -95,7 +95,7 @@ async def repository_detail(
                 <h1>{heading}</h1>
                 <p class="muted">Repository status and recent ingestion history.</p>
             </div>
-            <a class="button-link" href="/repositories/{quote(repository_id, safe="")}">JSON</a>
+            <a class="button-link" href="/repositories/{_attr(quote(repository_id, safe=""))}">JSON</a>
         </section>
         <section class="grid">
             <div class="panel">
@@ -180,7 +180,7 @@ async def search(
             <form action="/ui/search" method="get" class="search-form">
                 <input name="query" type="search" placeholder="Search indexed context" value="{_attr(query)}" required>
                 <input name="repository_id" placeholder="Repository id or alias" value="{_attr(repository_id)}">
-                <input name="limit" type="number" min="1" max="50" value="{limit}">
+                <input name="limit" type="number" min="1" max="50" value="{_attr(limit)}">
                 <button type="submit">Search</button>
             </form>
         </section>
@@ -316,7 +316,7 @@ def _page(title: str, body: str, *, active: str) -> HTMLResponse:
 
 def _nav_link(label: str, href: str, active: bool) -> str:
     class_name = "active" if active else ""
-    return f'<a class="{class_name}" href="{href}">{escape(label)}</a>'
+    return f'<a class="{class_name}" href="{_attr(href)}">{escape(label)}</a>'
 
 
 def _repository_table(repositories: list, *, detailed: bool = False) -> str:
@@ -335,7 +335,7 @@ def _repository_table(repositories: list, *, detailed: bool = False) -> str:
         )
         rows.append(
             "<tr>"
-            f'<td><a href="{href}">{_value(identity)}</a><br><span class="muted">{_value(repository.repository_id)}</span></td>'
+            f'<td><a href="{_attr(href)}">{_value(identity)}</a><br><span class="muted">{_value(repository.repository_id)}</span></td>'
             f"<td>{_value(repository.node_count)}</td>"
             f"<td>{_value(repository.relationship_count)}</td>"
             f"<td>{_value(repository.content_count)}</td>"
@@ -359,7 +359,7 @@ def _run_table(runs: list) -> str:
         rows.append(
             "<tr>"
             f'<td>{_value(run.run_id)}<br><span class="muted">{_value(run.language)} / {_value(run.parser_name)}</span></td>'
-            f'<td><a href="{repo_href}">{_value(run.repository_id)}</a></td>'
+            f'<td><a href="{_attr(repo_href)}">{_value(run.repository_id)}</a></td>'
             f"<td>{_badge(run.stage)}</td>"
             f"<td>{_value(run.node_count)}</td>"
             f"<td>{_value(run.relationship_count)}</td>"

@@ -2,18 +2,37 @@ from __future__ import annotations
 
 import asyncio
 import fnmatch
+import hashlib
 import json
 import random
 import shutil
 import subprocess
 import tempfile
+import tomllib
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from statistics import median
 from time import perf_counter
 from typing import Any, Literal
 
-from .codex import AgentRunRequest, AgentRunner, CodexRunner, sanitize_text
+from ..installer import (
+    InstallationPlan,
+    codex_mcp_overrides,
+    verify_plan_applied,
+)
+from ..mcp import tool_manifest
+from ..probe import RuntimeProbeError, run_runtime_probe, run_runtime_rejection_probe
+from .codex import (
+    REPORTED_TOKEN_ACCOUNTING_DESCRIPTION,
+    REPORTED_TOKEN_ACCOUNTING_ID,
+    AgentRunRequest,
+    AgentRunner,
+    AgentRunnerCapabilities,
+    CodexRunner,
+    count_reported_tokens,
+    sanitize_text,
+)
 from .live import EvaluationInfrastructureError, get_repository_preflight
 from .metrics import target_matches
 from .models import (
@@ -22,7 +41,9 @@ from .models import (
     AgentSuite,
     CandidateRecord,
     ValidationCommand,
+    validate_suite_artifacts,
 )
+from .paths import managed_artifact_path, resolve_setup_patch, validate_artifact_id
 
 
 _ANSWER_SCHEMA = {
@@ -49,6 +70,99 @@ _ANSWER_SCHEMA = {
 }
 
 
+@dataclass(frozen=True)
+class AgentEvaluationContext:
+    root: Path
+    base_commit: str
+    preflight: dict[str, Any]
+    freshness: dict[str, Any]
+    mcp_cwd: Path
+    codemesh_root: Path
+    codemesh_source_commit: str
+    codemesh_source_branch: str
+    integration_mode: str
+    control_mcp_config: tuple[str, ...] | None
+    treatment_mcp_config: tuple[str, ...] | None
+    configured_integration: dict[str, Any] | None
+    configured_guidance_files: tuple[ConfiguredGuidanceFile, ...] = ()
+
+
+@dataclass(frozen=True)
+class ConfiguredGuidanceFile:
+    path: str
+    content: bytes
+    sha256: str
+
+
+@dataclass(frozen=True)
+class ReportedTokenBudget:
+    ceiling: int
+    runner_capabilities: AgentRunnerCapabilities
+
+
+def require_reported_token_hard_cap(
+    runner: AgentRunner, requested_tokens: int
+) -> ReportedTokenBudget:
+    if (
+        isinstance(requested_tokens, bool)
+        or not isinstance(requested_tokens, int)
+        or requested_tokens < 1
+    ):
+        raise ValueError("Reported-token cap must be a positive integer.")
+    capabilities = getattr(runner, "capabilities", None)
+    if not isinstance(capabilities, AgentRunnerCapabilities):
+        raise EvaluationInfrastructureError(
+            "Selected agent runner does not declare the required hard reported-token "
+            "cap capability; preflight refused before any model call."
+        )
+    if not capabilities.hard_reported_token_cap:
+        raise EvaluationInfrastructureError(
+            "Selected agent runner cannot guarantee the requested hard reported-token "
+            "cap; preflight refused before any model call."
+        )
+    if capabilities.reported_token_accounting != REPORTED_TOKEN_ACCOUNTING_ID:
+        raise EvaluationInfrastructureError(
+            "Selected agent runner does not guarantee the required reported-token "
+            f"accounting {REPORTED_TOKEN_ACCOUNTING_ID!r}; preflight refused before "
+            "any model call."
+        )
+    return ReportedTokenBudget(
+        ceiling=requested_tokens,
+        runner_capabilities=capabilities,
+    )
+
+
+async def run_agent_preflight(
+    suite: AgentSuite,
+    *,
+    max_reported_tokens: int,
+    runner: AgentRunner,
+    repository_root: str | Path | None = None,
+    repository_id: str | None = None,
+    configured_plan: InstallationPlan | None = None,
+    configured_guidance_paths: list[str] | None = None,
+    configured_probe_query: str = "repository implementation entry points",
+    configured_expected_paths: list[str] | None = None,
+    configured_probe_timeout_seconds: int = 30,
+) -> dict[str, Any]:
+    budget = require_reported_token_hard_cap(runner, max_reported_tokens)
+    if suite.resolved_integration_mode != "configured":
+        raise ValueError(
+            "Provider-free agent preflight is available only for configured suites."
+        )
+    context = await _prepare_agent_context(
+        suite,
+        repository_root=repository_root,
+        repository_id=repository_id,
+        configured_plan=configured_plan,
+        configured_guidance_paths=configured_guidance_paths,
+        configured_probe_query=configured_probe_query,
+        configured_expected_paths=configured_expected_paths,
+        configured_probe_timeout_seconds=configured_probe_timeout_seconds,
+    )
+    return _preflight_report(suite, context, budget)
+
+
 async def run_agent_evaluation(
     suite: AgentSuite,
     suite_path: Path,
@@ -57,6 +171,7 @@ async def run_agent_evaluation(
     local_provider: Literal["lmstudio", "ollama"] | None = None,
     codex_executable: str = "codex",
     reasoning_effort: str = "medium",
+    max_reported_tokens: int,
     repetitions: int = 3,
     seed: int = 42,
     repository_root: str | Path | None = None,
@@ -65,43 +180,31 @@ async def run_agent_evaluation(
     keep_raw_traces: bool = False,
     keep_workspaces: bool = False,
     runner: AgentRunner | None = None,
+    configured_plan: InstallationPlan | None = None,
+    configured_guidance_paths: list[str] | None = None,
+    configured_probe_query: str = "repository implementation entry points",
+    configured_expected_paths: list[str] | None = None,
+    configured_probe_timeout_seconds: int = 30,
 ) -> AgentReport:
     if repetitions < 1:
         raise ValueError("Agent evaluation requires repetitions >= 1.")
     started = perf_counter()
-    root = _git_root(Path(repository_root) if repository_root else Path.cwd())
-    if _git(root, "status", "--porcelain"):
-        raise EvaluationInfrastructureError(
-            "Agent evaluation requires a clean source checkout so both conditions use the same commit."
-        )
-    base_commit = _git(root, "rev-parse", "HEAD")
-    resolved_repository = repository_id or suite.repository_id
-    preflight = await get_repository_preflight(resolved_repository)
-    freshness = preflight.get("freshness") or {}
-    if (
-        freshness.get("indexed_commit") != base_commit
-        or freshness.get("current_commit") != base_commit
-    ):
-        raise EvaluationInfrastructureError(
-            "The CodeMesh indexed commit, repository checkout, and benchmark base commit must match."
-        )
-    if suite.repository_commit and base_commit != suite.repository_commit:
-        raise EvaluationInfrastructureError(
-            f"Benchmark commit {base_commit!r} does not match the suite's pinned "
-            f"commit {suite.repository_commit!r}."
-        )
-
     codex_runner = runner or CodexRunner(codex_executable)
+    budget = require_reported_token_hard_cap(codex_runner, max_reported_tokens)
+    validate_suite_artifacts(suite, suite_path)
+    context = await _prepare_agent_context(
+        suite,
+        repository_root=repository_root,
+        repository_id=repository_id,
+        configured_plan=configured_plan,
+        configured_guidance_paths=configured_guidance_paths,
+        configured_probe_query=configured_probe_query,
+        configured_expected_paths=configured_expected_paths,
+        configured_probe_timeout_seconds=configured_probe_timeout_seconds,
+    )
+    root = context.root
+    base_commit = context.base_commit
     rng = random.Random(seed)
-    mcp_cwd = Path(__file__).resolve().parents[2]
-    codemesh_root = _git_root(mcp_cwd)
-    if _git(codemesh_root, "status", "--porcelain"):
-        raise EvaluationInfrastructureError(
-            "Agent evaluation requires a clean CodeMesh tool-source checkout so "
-            "the treatment surface has a frozen commit identity."
-        )
-    codemesh_source_commit = _git(codemesh_root, "rev-parse", "HEAD")
-    codemesh_source_branch = _git(codemesh_root, "rev-parse", "--abbrev-ref", "HEAD")
     destination = (
         Path(output_dir)
         if output_dir
@@ -109,13 +212,29 @@ async def run_agent_evaluation(
     )
     destination.mkdir(parents=True, exist_ok=False)
     runs: list[AgentExecutionReport] = []
+    aggregate_reported_tokens = 0
+    campaign_failures: list[str] = []
+    stopped_for_reported_token_cap = False
 
     for task in suite.tasks:
+        if campaign_failures:
+            break
         for repetition in range(1, repetitions + 1):
+            if campaign_failures:
+                break
             conditions = ["control", "treatment"]
             if rng.random() < 0.5:
                 conditions.reverse()
             for condition in conditions:
+                remaining_reported_tokens = budget.ceiling - aggregate_reported_tokens
+                if remaining_reported_tokens == 0:
+                    stopped_for_reported_token_cap = True
+                    campaign_failures.append(
+                        "Campaign stopped at the hard reported-token cap before the "
+                        f"next scheduled run ({task.id}:{repetition}:{condition}); "
+                        "no retry was attempted."
+                    )
+                    break
                 report = await _run_task_condition(
                     suite_path=suite_path,
                     task=task,
@@ -126,16 +245,51 @@ async def run_agent_evaluation(
                     model=model,
                     local_provider=local_provider,
                     reasoning_effort=reasoning_effort,
-                    mcp_cwd=mcp_cwd,
+                    mcp_cwd=context.mcp_cwd,
                     keep_raw_traces=keep_raw_traces,
                     keep_workspaces=keep_workspaces,
                     runner=codex_runner,
                     artifact_dir=destination,
+                    mcp_config=(
+                        context.treatment_mcp_config
+                        if condition == "treatment"
+                        else context.control_mcp_config
+                    ),
                     treatment_guidance=suite.treatment_guidance,
+                    configured_guidance_files=context.configured_guidance_files,
+                    max_reported_tokens=remaining_reported_tokens,
                 )
+                used_reported_tokens = _execution_reported_tokens(report)
+                if used_reported_tokens > remaining_reported_tokens:
+                    raise EvaluationInfrastructureError(
+                        "Agent runner violated its declared hard reported-token cap: "
+                        f"run reported {used_reported_tokens} tokens against a "
+                        f"{remaining_reported_tokens}-token limit."
+                    )
                 runs.append(report)
+                aggregate_reported_tokens += used_reported_tokens
+                if not report.completed:
+                    campaign_failures.append(
+                        "Campaign stopped after an incomplete run "
+                        f"({task.id}:{repetition}:{condition}); no retry was attempted."
+                    )
+                    break
 
     verdict, summary = classify_agent_results(runs, suite)
+    if campaign_failures:
+        verdict = "insufficient"
+    summary.update(
+        {
+            "reported_token_accounting": REPORTED_TOKEN_ACCOUNTING_ID,
+            "reported_token_ceiling": budget.ceiling,
+            "aggregate_reported_tokens": aggregate_reported_tokens,
+            "remaining_reported_tokens": (budget.ceiling - aggregate_reported_tokens),
+            "reported_token_ceiling_met": (aggregate_reported_tokens <= budget.ceiling),
+            "stopped_for_reported_token_cap": stopped_for_reported_token_cap,
+            "automatic_retries": False,
+            "runner": budget.runner_capabilities.runner_id,
+        }
+    )
     report = AgentReport(
         suite=suite.name,
         model=model,
@@ -145,33 +299,505 @@ async def run_agent_evaluation(
         generated_at=datetime.now(timezone.utc).isoformat(),
         duration_ms=round((perf_counter() - started) * 1000, 3),
         verdict=verdict,
-        passed=verdict != "regressed",
+        passed=verdict != "regressed" and not campaign_failures,
         metadata={
-            "repository_id": preflight.get("repository_id") or resolved_repository,
+            "repository_id": context.preflight.get("repository_id")
+            or repository_id
+            or suite.repository_id,
             "base_commit": base_commit,
             "model_provider": local_provider or "default",
             "codex_executable": codex_executable,
-            "current_branch": freshness.get("current_branch"),
+            "current_branch": context.freshness.get("current_branch"),
             "suite_repository_url": suite.repository_url,
             "suite_repository_commit": suite.repository_commit,
             "raw_traces_retained": keep_raw_traces,
             "source_checkout_modified": False,
-            "codemesh_source_commit": codemesh_source_commit,
-            "codemesh_source_branch": codemesh_source_branch,
+            "codemesh_source_commit": context.codemesh_source_commit,
+            "codemesh_source_branch": context.codemesh_source_branch,
             "codemesh_source_checkout_modified": False,
             "classification_requires_codemesh_adoption": True,
-            "adoption_mode": "assisted" if suite.treatment_guidance else "spontaneous",
-            "prompt_parity": suite.treatment_guidance is None,
+            "adoption_mode": context.integration_mode,
+            "integration_mode": context.integration_mode,
+            "prompt_parity": context.integration_mode != "assisted",
             "treatment_guidance": suite.treatment_guidance,
+            "configured_integration": context.configured_integration,
             "artifact_directory": str(destination.resolve()),
+            "reported_token_budget": {
+                "accounting": REPORTED_TOKEN_ACCOUNTING_ID,
+                "accounting_description": REPORTED_TOKEN_ACCOUNTING_DESCRIPTION,
+                "ceiling": budget.ceiling,
+                "hard_cap_enforced": True,
+                "runner_hard_cap_capability": (
+                    budget.runner_capabilities.hard_reported_token_cap
+                ),
+                "automatic_retries": False,
+                "runner": budget.runner_capabilities.runner_id,
+            },
         },
         summary=summary,
         runs=runs,
+        failures=campaign_failures,
     )
     (destination / "report.json").write_text(
         json.dumps(report.model_dump(mode="json"), indent=2), encoding="utf-8"
     )
     return report
+
+
+async def _prepare_agent_context(
+    suite: AgentSuite,
+    *,
+    repository_root: str | Path | None,
+    repository_id: str | None,
+    configured_plan: InstallationPlan | None,
+    configured_guidance_paths: list[str] | None,
+    configured_probe_query: str,
+    configured_expected_paths: list[str] | None,
+    configured_probe_timeout_seconds: int,
+) -> AgentEvaluationContext:
+    root = _git_root(Path(repository_root) if repository_root else Path.cwd())
+    if _git(root, "status", "--porcelain"):
+        raise EvaluationInfrastructureError(
+            "Agent evaluation requires a clean source checkout so both conditions "
+            "use the same commit."
+        )
+    base_commit = _git(root, "rev-parse", "HEAD")
+    if suite.repository_commit and base_commit != suite.repository_commit:
+        raise EvaluationInfrastructureError(
+            f"Benchmark commit {base_commit!r} does not match the suite's pinned "
+            f"commit {suite.repository_commit!r}."
+        )
+
+    resolved_repository = repository_id or suite.repository_id
+    preflight = await get_repository_preflight(resolved_repository)
+    freshness = preflight.get("freshness") or {}
+    if (
+        freshness.get("indexed_commit") != base_commit
+        or freshness.get("current_commit") != base_commit
+        or freshness.get("working_tree_dirty") is True
+    ):
+        raise EvaluationInfrastructureError(
+            "The CodeMesh indexed commit, clean repository checkout, and benchmark "
+            "base commit must match."
+        )
+
+    mcp_cwd = Path(__file__).resolve().parents[2]
+    codemesh_root = _git_root(mcp_cwd)
+    if _git(codemesh_root, "status", "--porcelain"):
+        raise EvaluationInfrastructureError(
+            "Agent evaluation requires a clean CodeMesh tool-source checkout so "
+            "the treatment surface has a frozen commit identity."
+        )
+    codemesh_source_commit = _git(codemesh_root, "rev-parse", "HEAD")
+    codemesh_source_branch = _git(codemesh_root, "rev-parse", "--abbrev-ref", "HEAD")
+    integration_mode = suite.resolved_integration_mode
+    configured_integration: dict[str, Any] | None = None
+    configured_guidance_files: tuple[ConfiguredGuidanceFile, ...] = ()
+    control_mcp_config: tuple[str, ...] | None = None
+    treatment_mcp_config: tuple[str, ...] | None = None
+    if integration_mode == "configured":
+        if not suite.repository_commit:
+            raise EvaluationInfrastructureError(
+                "Configured agent evaluation requires a pinned repository commit."
+            )
+        if configured_plan is None:
+            raise EvaluationInfrastructureError(
+                "Configured agent evaluation requires a reviewed installation plan."
+            )
+        (
+            configured_integration,
+            control_mcp_config,
+            treatment_mcp_config,
+            configured_guidance_files,
+        ) = await _prepare_configured_integration(
+            configured_plan,
+            root=root,
+            base_commit=base_commit,
+            codemesh_root=codemesh_root,
+            preflight=preflight,
+            guidance_paths=configured_guidance_paths,
+            probe_query=configured_probe_query,
+            expected_paths=configured_expected_paths,
+            timeout_seconds=configured_probe_timeout_seconds,
+            baseline_mcp_servers=suite.baseline_mcp_servers,
+        )
+    elif configured_plan is not None:
+        raise EvaluationInfrastructureError(
+            "An installation plan can be used only by a configured agent suite."
+        )
+
+    return AgentEvaluationContext(
+        root=root,
+        base_commit=base_commit,
+        preflight=preflight,
+        freshness=freshness,
+        mcp_cwd=mcp_cwd,
+        codemesh_root=codemesh_root,
+        codemesh_source_commit=codemesh_source_commit,
+        codemesh_source_branch=codemesh_source_branch,
+        integration_mode=integration_mode,
+        control_mcp_config=control_mcp_config,
+        treatment_mcp_config=treatment_mcp_config,
+        configured_integration=configured_integration,
+        configured_guidance_files=configured_guidance_files,
+    )
+
+
+async def _prepare_configured_integration(
+    plan: InstallationPlan,
+    *,
+    root: Path,
+    base_commit: str,
+    codemesh_root: Path,
+    preflight: dict[str, Any],
+    guidance_paths: list[str] | None,
+    probe_query: str,
+    expected_paths: list[str] | None,
+    timeout_seconds: int,
+    baseline_mcp_servers: list[str],
+) -> tuple[
+    dict[str, Any],
+    tuple[str, ...],
+    tuple[str, ...],
+    tuple[ConfiguredGuidanceFile, ...],
+]:
+    if timeout_seconds < 1:
+        raise ValueError("Configured probe timeout must be positive.")
+    if plan.profile != "normal":
+        raise EvaluationInfrastructureError(
+            "Configured agent evaluation requires the shipped normal MCP profile."
+        )
+    try:
+        target_root = Path(plan.target_root).expanduser().resolve(strict=True)
+        plan_codemesh_root = Path(plan.codemesh_root).expanduser().resolve(strict=True)
+        verify_plan_applied(plan)
+        codemesh_config = codex_mcp_overrides(plan, approve_tools=True)
+    except (OSError, ValueError) as exc:
+        raise EvaluationInfrastructureError(
+            f"Configured installation plan is not applied unchanged: {exc}"
+        ) from exc
+    if target_root != root:
+        raise EvaluationInfrastructureError(
+            "Configured installation target does not match the benchmark checkout."
+        )
+    if plan_codemesh_root != codemesh_root:
+        raise EvaluationInfrastructureError(
+            "Configured installation does not use the current CodeMesh tool source."
+        )
+
+    binding = plan.binding
+    source_view_hash = str(binding.get("source_view_hash") or "")
+    if not source_view_hash:
+        raise EvaluationInfrastructureError(
+            "Configured agent evaluation requires an exact source-view binding."
+        )
+    repository = preflight.get("repository") or {}
+    expected_project = repository.get("project_id") or preflight.get("repository_id")
+    checks = {
+        "project": binding.get("project_id") == expected_project,
+        "checkout": binding.get("checkout_id") == repository.get("checkout_id"),
+        "root": _same_path(str(binding.get("repository_root") or ""), root),
+        "registered_root": _same_path(str(repository.get("root_path") or ""), root),
+        "source_view": source_view_hash == repository.get("source_view_hash"),
+    }
+    failed = sorted(name for name, passed in checks.items() if not passed)
+    if failed:
+        raise EvaluationInfrastructureError(
+            "Configured installation binding does not match repository preflight: "
+            + ", ".join(failed)
+            + "."
+        )
+
+    expected_tools = sorted(
+        item["name"] for item in tool_manifest(profile="normal")["tools"]
+    )
+    if (
+        sorted(str(value) for value in plan.launch.get("expected_tools", []))
+        != expected_tools
+    ):
+        raise EvaluationInfrastructureError(
+            "Configured installation tool surface is not the shipped normal profile."
+        )
+    guidance, guidance_files = _guidance_identities(
+        root, guidance_paths or ["AGENTS.md"]
+    )
+    baseline_config, baseline_identities = _baseline_mcp_overrides(
+        plan, baseline_mcp_servers
+    )
+    treatment_config = (*baseline_config, *codemesh_config)
+
+    wrong_checkout = f"{binding['checkout_id']}:codemesh-eval-rejection"
+    try:
+        positive = await run_runtime_probe(
+            plan,
+            timeout_seconds=timeout_seconds,
+            query=probe_query,
+            expected_paths=expected_paths or [],
+        )
+        negative = await run_runtime_rejection_probe(
+            plan,
+            timeout_seconds=timeout_seconds,
+            checkout_id=wrong_checkout,
+            expected_substrings=["bound_repository_missing"],
+        )
+    except (OSError, ValueError, RuntimeProbeError) as exc:
+        raise EvaluationInfrastructureError(
+            f"Configured installation probe failed: {exc}"
+        ) from exc
+    if (
+        positive.get("indexed_commit") != base_commit
+        or positive.get("current_commit") != base_commit
+        or positive.get("source_view_hash") != source_view_hash
+        or positive.get("binding_status") != "accepted"
+    ):
+        raise EvaluationInfrastructureError(
+            "Configured runtime probe identity does not match the benchmark candidate."
+        )
+    if negative.get("passed") is not True or negative.get("rejected") is not True:
+        raise EvaluationInfrastructureError(
+            "Configured rejection probe did not prove fail-closed checkout binding."
+        )
+
+    installation_files = [
+        {"path": item.path, "sha256": item.new_sha256} for item in plan.files
+    ]
+    metadata = {
+        "schema_version": "codemesh-configured-agent-integration-v1",
+        "plan_hash": plan.plan_hash,
+        "plan_schema_version": plan.schema_version,
+        "server_name": plan.server_name,
+        "profile": plan.profile,
+        "binding": dict(binding),
+        "launch_sha256": _identity_hash(plan.launch),
+        "installation_files": installation_files,
+        "guidance": guidance,
+        "baseline_mcp_servers": baseline_identities,
+        "positive_probe": _probe_identity(positive),
+        "rejection_probe": _probe_identity(negative),
+    }
+    return metadata, baseline_config, treatment_config, guidance_files
+
+
+def _preflight_report(
+    suite: AgentSuite,
+    context: AgentEvaluationContext,
+    budget: ReportedTokenBudget,
+) -> dict[str, Any]:
+    return {
+        "schema_version": "codemesh-agent-preflight-v1",
+        "passed": True,
+        "suite": suite.name,
+        "integration_mode": context.integration_mode,
+        "prompt_parity": context.integration_mode != "assisted",
+        "repository_id": context.preflight.get("repository_id") or suite.repository_id,
+        "base_commit": context.base_commit,
+        "current_branch": context.freshness.get("current_branch"),
+        "codemesh_source_commit": context.codemesh_source_commit,
+        "codemesh_source_branch": context.codemesh_source_branch,
+        "configured_integration": context.configured_integration,
+        "reported_token_budget": {
+            "accounting": REPORTED_TOKEN_ACCOUNTING_ID,
+            "accounting_description": REPORTED_TOKEN_ACCOUNTING_DESCRIPTION,
+            "ceiling": budget.ceiling,
+            "hard_cap_capability_verified": True,
+            "runner_hard_cap_capability": (
+                budget.runner_capabilities.hard_reported_token_cap
+            ),
+            "automatic_retries": False,
+            "runner": budget.runner_capabilities.runner_id,
+        },
+    }
+
+
+def _guidance_identities(
+    root: Path, paths: list[str]
+) -> tuple[list[dict[str, str]], tuple[ConfiguredGuidanceFile, ...]]:
+    identities: list[dict[str, str]] = []
+    guidance_files: list[ConfiguredGuidanceFile] = []
+    for value in paths:
+        relative = Path(value)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise EvaluationInfrastructureError(
+                f"Configured guidance path must be repository-relative: {value}."
+            )
+        path = (root / relative).resolve(strict=False)
+        if root != path and root not in path.parents:
+            raise EvaluationInfrastructureError(
+                f"Configured guidance path escapes the repository: {value}."
+            )
+        if not path.is_file():
+            raise EvaluationInfrastructureError(
+                f"Configured guidance file does not exist: {relative.as_posix()}."
+            )
+        tracked = _run_command(
+            [
+                "git",
+                "-C",
+                str(root),
+                "ls-files",
+                "--error-unmatch",
+                "--",
+                relative.as_posix(),
+            ],
+            timeout=30,
+        )
+        source = "tracked"
+        if tracked.returncode != 0:
+            ignored = _run_command(
+                [
+                    "git",
+                    "-C",
+                    str(root),
+                    "check-ignore",
+                    "--quiet",
+                    "--no-index",
+                    "--",
+                    relative.as_posix(),
+                ],
+                timeout=30,
+            )
+            if ignored.returncode != 0:
+                raise EvaluationInfrastructureError(
+                    "Configured guidance must be committed or an explicitly "
+                    f"ignored installed file: {relative.as_posix()}."
+                )
+            source = "installed-ignored"
+        content = path.read_bytes()
+        sha256 = hashlib.sha256(content).hexdigest()
+        identities.append(
+            {
+                "path": relative.as_posix(),
+                "sha256": sha256,
+                "source": source,
+            }
+        )
+        guidance_files.append(
+            ConfiguredGuidanceFile(
+                path=relative.as_posix(),
+                content=content,
+                sha256=sha256,
+            )
+        )
+    if not identities:
+        raise EvaluationInfrastructureError(
+            "Configured agent evaluation requires at least one guidance file."
+        )
+    return identities, tuple(guidance_files)
+
+
+def _baseline_mcp_overrides(
+    plan: InstallationPlan, server_names: list[str]
+) -> tuple[tuple[str, ...], list[dict[str, Any]]]:
+    overrides = ["mcp_servers={}"]
+    if not server_names:
+        return tuple(overrides), []
+    config_file = next(
+        (item for item in plan.files if item.path == ".codex/config.toml"), None
+    )
+    if config_file is None:
+        raise EvaluationInfrastructureError(
+            "Configured installation plan does not manage .codex/config.toml."
+        )
+    try:
+        payload = tomllib.loads(config_file.content)
+    except tomllib.TOMLDecodeError as exc:
+        raise EvaluationInfrastructureError(
+            f"Configured installation contains invalid Codex configuration: {exc}"
+        ) from exc
+    servers = payload.get("mcp_servers")
+    if not isinstance(servers, dict):
+        raise EvaluationInfrastructureError(
+            "Configured installation contains no MCP server table."
+        )
+
+    identities: list[dict[str, Any]] = []
+    allowed_fields = {
+        "command",
+        "args",
+        "cwd",
+        "required",
+        "startup_timeout_sec",
+        "tool_timeout_sec",
+        "enabled_tools",
+        "disabled_tools",
+        "env_vars",
+    }
+    for name in server_names:
+        if name == plan.server_name:
+            raise EvaluationInfrastructureError(
+                "The configured CodeMesh server cannot also be a control baseline."
+            )
+        config = servers.get(name)
+        if not isinstance(config, dict):
+            raise EvaluationInfrastructureError(
+                f"Configured baseline MCP server is missing: {name}."
+            )
+        unsupported = sorted(set(config) - allowed_fields - {"env"})
+        if unsupported:
+            raise EvaluationInfrastructureError(
+                f"Baseline MCP server '{name}' uses unsupported field(s): "
+                + ", ".join(unsupported)
+                + "."
+            )
+        if config.get("env"):
+            raise EvaluationInfrastructureError(
+                f"Baseline MCP server '{name}' embeds environment values; use "
+                "env_vars names instead."
+            )
+        if not isinstance(config.get("command"), str) or not config["command"]:
+            raise EvaluationInfrastructureError(
+                f"Baseline MCP server '{name}' has no launch command."
+            )
+        prefix = f"mcp_servers.{name}"
+        for key in sorted(allowed_fields):
+            if key not in config:
+                continue
+            overrides.append(f"{prefix}.{key}={_toml_override(config[key])}")
+        overrides.append(f'{prefix}.default_tools_approval_mode="approve"')
+        identities.append(
+            {
+                "name": name,
+                "configuration_sha256": _identity_hash(config),
+                "enabled_tools": list(config.get("enabled_tools") or []),
+                "env_vars": list(config.get("env_vars") or []),
+            }
+        )
+    return tuple(overrides), identities
+
+
+def _toml_override(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (str, int, float, list, dict)):
+        return json.dumps(value, separators=(",", ":"))
+    raise EvaluationInfrastructureError(
+        f"Unsupported MCP configuration value type: {type(value).__name__}."
+    )
+
+
+def _probe_identity(report: dict[str, Any]) -> dict[str, Any]:
+    stable = {
+        key: value
+        for key, value in report.items()
+        if key not in {"diagnostic", "duration_ms"}
+    }
+    return {**stable, "report_sha256": _identity_hash(stable)}
+
+
+def _identity_hash(value: Any) -> str:
+    encoded = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _same_path(value: str, expected: Path) -> bool:
+    if not value:
+        return False
+    return Path(value).expanduser().resolve(strict=False) == expected
 
 
 async def _run_task_condition(
@@ -192,7 +818,16 @@ async def _run_task_condition(
     artifact_dir: Path,
     mcp_config: tuple[str, ...] | None = None,
     treatment_guidance: str | None = None,
+    configured_guidance_files: tuple[ConfiguredGuidanceFile, ...] = (),
+    max_reported_tokens: int | None = None,
 ) -> AgentExecutionReport:
+    validate_artifact_id(task.id)
+    patch_path = (
+        resolve_setup_patch(suite_path, task.setup_patch) if task.setup_patch else None
+    )
+    run_name = f"{task.id}-{repetition}-{condition}"
+    run_dir = managed_artifact_path(artifact_dir, run_name)
+    retained = managed_artifact_path(artifact_dir, "workspaces", run_name)
     temp_parent = Path(tempfile.mkdtemp(prefix="codemesh-eval-"))
     workspace = temp_parent / "workspace"
     try:
@@ -218,12 +853,8 @@ async def _run_task_condition(
                 base_commit,
             ]
         )
-        if task.setup_patch:
-            patch_path = (suite_path.parent / task.setup_patch).resolve()
-            if not patch_path.is_file():
-                raise EvaluationInfrastructureError(
-                    f"Setup patch not found: {patch_path}"
-                )
+        _materialize_configured_guidance(workspace, configured_guidance_files)
+        if patch_path is not None:
             _run_checked(
                 ["git", "-C", str(workspace), "apply", "--check", str(patch_path)]
             )
@@ -288,8 +919,16 @@ async def _run_task_condition(
                 output_schema=schema_path if task.task_type == "answer" else None,
                 keep_raw_traces=keep_raw_traces,
                 mcp_config=mcp_config,
+                max_reported_tokens=max_reported_tokens,
             )
         )
+
+        try:
+            reported_tokens = count_reported_tokens(result.usage)
+        except ValueError as exc:
+            raise EvaluationInfrastructureError(
+                f"Agent runner returned invalid reported-token usage: {exc}"
+            ) from exc
 
         failures = list(result.failures)
         validation: list[dict[str, Any]] = []
@@ -335,6 +974,8 @@ async def _run_task_condition(
             cached_input_tokens=result.usage.get("cached_input_tokens", 0),
             output_tokens=result.usage.get("output_tokens", 0),
             reasoning_output_tokens=result.usage.get("reasoning_output_tokens", 0),
+            reported_tokens=reported_tokens,
+            reported_token_limit=max_reported_tokens,
             mcp_calls=result.mcp_calls,
             mcp_call_attempts=result.mcp_call_attempts,
             mcp_failed_calls=result.mcp_failed_calls,
@@ -349,10 +990,10 @@ async def _run_task_condition(
             sanitized_diff=sanitized_diff,
             raw_events=result.raw_events if keep_raw_traces else None,
             final_message=result.final_message if keep_raw_traces else None,
+            hard_cap_ledger=result.hard_cap_ledger,
         )
         if keep_raw_traces:
-            run_dir = artifact_dir / f"{task.id}-{repetition}-{condition}"
-            run_dir.mkdir(parents=True, exist_ok=True)
+            run_dir.mkdir(parents=True, exist_ok=False)
             (run_dir / "events.jsonl").write_text(
                 "\n".join(json.dumps(event) for event in result.raw_events),
                 encoding="utf-8",
@@ -362,15 +1003,30 @@ async def _run_task_condition(
             )
             (run_dir / "changes.diff").write_text(diff, encoding="utf-8")
         if keep_workspaces:
-            retained = (
-                artifact_dir / "workspaces" / f"{task.id}-{repetition}-{condition}"
-            )
             retained.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(workspace), retained)
         return run_report
     finally:
         if temp_parent.exists():
             shutil.rmtree(temp_parent)
+
+
+def _materialize_configured_guidance(
+    workspace: Path, guidance_files: tuple[ConfiguredGuidanceFile, ...]
+) -> None:
+    for item in guidance_files:
+        relative = Path(item.path)
+        target = (workspace / relative).resolve(strict=False)
+        if workspace != target and workspace not in target.parents:
+            raise EvaluationInfrastructureError(
+                f"Configured guidance path escapes evaluation workspace: {item.path}."
+            )
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(item.content)
+        if hashlib.sha256(target.read_bytes()).hexdigest() != item.sha256:
+            raise EvaluationInfrastructureError(
+                f"Configured guidance identity changed while preparing: {item.path}."
+            )
 
 
 def classify_agent_results(
@@ -694,7 +1350,23 @@ def _run_command(
 
 
 def _tokens(run: AgentExecutionReport) -> float:
-    return float(run.input_tokens + run.output_tokens + run.reasoning_output_tokens)
+    return float(_execution_reported_tokens(run))
+
+
+def _execution_reported_tokens(run: AgentExecutionReport) -> int:
+    counted = count_reported_tokens(
+        {
+            "input_tokens": run.input_tokens,
+            "cached_input_tokens": run.cached_input_tokens,
+            "output_tokens": run.output_tokens,
+            "reasoning_output_tokens": run.reasoning_output_tokens,
+        }
+    )
+    if run.reported_tokens not in {0, counted}:
+        raise EvaluationInfrastructureError(
+            "Agent execution report contains inconsistent reported-token accounting."
+        )
+    return counted
 
 
 def _median(values: list[float]) -> float:

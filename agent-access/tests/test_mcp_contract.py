@@ -5,8 +5,10 @@ import json
 from typing import Any
 
 import pytest
+from mcp.server.fastmcp.exceptions import ToolError
 
 from codemesh_agent_access import mcp
+from codemesh_agent_access.binding import RepositoryBinding
 from codemesh_agent_access.models import ToolResult
 
 
@@ -18,7 +20,13 @@ def test_mcp_manifest_matches_registered_tools() -> None:
     assert manifest["profile"] == "diagnostic"
     assert server.instructions == manifest["instructions"]
     assert "codemesh_get_context_package" in manifest["instructions"]
+    assert "one codemesh_get_context_package call" in manifest["instructions"]
+    assert "covers every required facet" in manifest["instructions"]
+    assert "at most three context packages" in manifest["instructions"]
+    assert "avoid overlapping queries" in manifest["instructions"]
     assert "targeted, batched checkout reads" in manifest["instructions"]
+    assert "fails closed" in manifest["instructions"]
+    assert "only for explicit" in manifest["instructions"]
     assert {tool["name"] for tool in manifest["tools"]} == set(registered_tools)
     assert set(manifest["contracts"]) == set(registered_tools)
 
@@ -62,6 +70,7 @@ def test_mcp_manifest_matches_registered_tools() -> None:
     ]
 
     package_contract = manifest["contracts"]["codemesh_get_context_package"]
+    assert "fails closed before search" in package_contract["description"]
     assert package_contract["response"]["fields"] == [
         "query",
         "repository",
@@ -104,6 +113,7 @@ def test_mcp_manifest_matches_registered_tools() -> None:
     assert "codemesh_delete_repository" not in manifest["contracts"]
 
     status_contract = manifest["contracts"]["codemesh_get_repository_status"]
+    assert "not a required first step" in status_contract["description"]
     assert status_contract["response"]["fields"] == [
         "repository_id",
         "repository",
@@ -112,6 +122,7 @@ def test_mcp_manifest_matches_registered_tools() -> None:
         "counts",
         "freshness",
         "refresh",
+        "codemesh_next_action",
         "generated_at",
     ]
 
@@ -156,8 +167,66 @@ def test_mcp_unknown_profile_fails_fast() -> None:
     with pytest.raises(ValueError, match="Unknown MCP tool profile 'admin'"):
         mcp.build_server(profile="admin")
 
-    with pytest.raises(ValueError, match="Expected one of: normal, diagnostic"):
+    with pytest.raises(ValueError, match="development-feedback"):
         mcp.tool_manifest(profile="admin")
+
+
+def test_normal_mcp_runtime_requires_checkout_binding() -> None:
+    with pytest.raises(ValueError, match="normal MCP profile requires"):
+        mcp.run(profile="normal")
+
+
+def test_bound_mcp_injects_identity_and_rejects_override(
+    monkeypatch: Any,
+    tmp_path,
+) -> None:
+    captured: dict[str, Any] = {}
+    binding = RepositoryBinding(
+        "project:test",
+        "checkout:test",
+        str(tmp_path),
+        "view:test",
+    )
+
+    async def fake_get_context_package(query: str, **kwargs: Any) -> ToolResult:
+        captured["query"] = query
+        captured.update(kwargs)
+        return ToolResult(
+            data={
+                "query": {"query": query, "repository_id": kwargs["repository_id"]},
+                "items": [],
+                "validation_recommendations": [],
+                "total_snippet_characters": 0,
+                "generated_at": "2026-08-31T00:00:00Z",
+            }
+        )
+
+    monkeypatch.setattr(mcp.tools, "get_context_package", fake_get_context_package)
+    server = mcp.build_server(binding=binding)
+
+    result = asyncio.run(
+        server.call_tool(
+            "codemesh_get_context_package",
+            {"query": "find native replay", "output_format": "json"},
+        )
+    )
+    with pytest.raises(ToolError, match="does not match the configured project"):
+        asyncio.run(
+            server.call_tool(
+                "codemesh_get_context_package",
+                {
+                    "query": "find native replay",
+                    "repository_id": "project:other",
+                    "output_format": "json",
+                },
+            )
+        )
+
+    assert result.isError is False
+    assert captured["repository_id"] == "project:test"
+    assert captured["binding"] is binding
+    assert server.instructions == mcp.tool_manifest(binding=binding)["instructions"]
+    assert "checkout:test" in server.instructions
 
 
 def test_mcp_context_package_forwards_group_limits(monkeypatch: Any) -> None:
@@ -375,7 +444,9 @@ def test_mcp_summary_coverage_forwards_repository_id(monkeypatch: Any) -> None:
 def test_mcp_repository_status_forwards_repository_id(monkeypatch: Any) -> None:
     captured: dict[str, Any] = {}
 
-    async def fake_get_repository_status(repository_id: str) -> ToolResult:
+    async def fake_get_repository_status(
+        repository_id: str, **kwargs: Any
+    ) -> ToolResult:
         captured["repository_id"] = repository_id
         return ToolResult(
             data={"repository_id": repository_id, "freshness": {"status": "unknown"}}
@@ -393,12 +464,65 @@ def test_mcp_repository_status_forwards_repository_id(monkeypatch: Any) -> None:
 
     assert captured["repository_id"] == "sample_repo"
     assert structured["data"]["freshness"]["status"] == "unknown"
+    assert structured["data"]["codemesh_next_action"] == {
+        "use_codemesh": False,
+        "next_tool": None,
+        "instruction": (
+            "Do not use CodeMesh context for this task because the exact binding "
+            "is not both accepted and fresh. Fall back to direct source inspection."
+        ),
+    }
+
+
+def test_bound_mcp_repository_status_directs_fresh_context_retrieval(
+    monkeypatch: Any,
+    tmp_path,
+) -> None:
+    binding = RepositoryBinding(
+        "project:test",
+        "checkout:test",
+        str(tmp_path),
+        "view:test",
+    )
+
+    async def fake_get_repository_status(
+        repository_id: str, **kwargs: Any
+    ) -> ToolResult:
+        assert repository_id == "project:test"
+        assert kwargs["binding"] is binding
+        return ToolResult(
+            data={
+                "repository_id": repository_id,
+                "freshness": {
+                    "status": "fresh",
+                    "binding": {"status": "accepted", "issues": []},
+                },
+            }
+        )
+
+    monkeypatch.setattr(mcp.tools, "get_repository_status", fake_get_repository_status)
+
+    server = mcp.build_server(binding=binding)
+    _content, structured = asyncio.run(
+        server.call_tool("codemesh_get_repository_status", {})
+    )
+
+    assert structured["data"]["codemesh_next_action"]["use_codemesh"] is True
+    assert (
+        structured["data"]["codemesh_next_action"]["next_tool"]
+        == "codemesh_get_context_package"
+    )
+    assert "Continue now" in structured["data"]["codemesh_next_action"]["instruction"]
+    instruction = structured["data"]["codemesh_next_action"]["instruction"]
+    assert "specific unresolved implementation or test facet" in instruction
+    assert "at most three packages" in instruction
 
 
 def test_mcp_profiles_do_not_expose_repository_deletion() -> None:
     for profile in mcp.tool_profile_names():
-        server = mcp.build_server(profile=profile)
-        registered_tools = {tool.name for tool in asyncio.run(server.list_tools())}
+        registered_tools = {
+            tool["name"] for tool in mcp.tool_manifest(profile=profile)["tools"]
+        }
 
         assert "codemesh_delete_repository" not in registered_tools
 

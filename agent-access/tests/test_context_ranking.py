@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 
+import pytest
+
 from codemesh_agent_access.config import Settings
 from codemesh_agent_access.graph_store import lexical_terms
 from codemesh_agent_access.models import (
@@ -17,6 +19,7 @@ from codemesh_agent_access.models import (
 from codemesh_agent_access.store import (
     CodeMeshReadStore,
     _diversify_lexical_nodes,
+    _diversify_ranked_hits,
     _lexical_score,
     _prioritize_context_relationships,
     _ranked_unique_hits,
@@ -204,6 +207,69 @@ def test_ranked_unique_hits_keeps_best_expanded_context() -> None:
     assert _ranked_unique_hits([lower, higher], 5) == [higher]
 
 
+def test_ranked_hits_cover_distinct_files_before_repeating() -> None:
+    hits = [
+        ContextHit(
+            node_id="a-1",
+            stable_key="a-1",
+            kind="Method",
+            file_path="A.py",
+            start_line=1,
+            end_line=2,
+            score=0.9,
+        ),
+        ContextHit(
+            node_id="a-2",
+            stable_key="a-2",
+            kind="Method",
+            file_path="A.py",
+            start_line=3,
+            end_line=4,
+            score=0.8,
+        ),
+        ContextHit(
+            node_id="b-1",
+            stable_key="b-1",
+            kind="Method",
+            file_path="B.rs",
+            start_line=1,
+            end_line=2,
+            score=0.7,
+        ),
+    ]
+
+    assert [hit.node_id for hit in _diversify_ranked_hits(hits, 3)] == [
+        "a-1",
+        "b-1",
+        "a-2",
+    ]
+
+
+def test_ranked_hits_break_saturated_scores_with_raw_relevance() -> None:
+    incidental = ContextHit(
+        node_id="incidental",
+        stable_key="incidental",
+        kind="Method",
+        file_path="MediaTagInjector.cs",
+        start_line=1,
+        end_line=2,
+        score=1.0,
+        score_components={"lexical_score": 0.745},
+    )
+    exact = ContextHit(
+        node_id="exact",
+        stable_key="exact",
+        kind="Method",
+        file_path="VideoDownloader.cs",
+        start_line=100,
+        end_line=101,
+        score=1.0,
+        score_components={"lexical_score": 0.87},
+    )
+
+    assert _ranked_unique_hits([incidental, exact], 2) == [exact, incidental]
+
+
 def test_lexical_score_ranks_multi_term_coverage() -> None:
     query = "repository cleanup removes indexed data"
     primary = {
@@ -242,6 +308,43 @@ def test_lexical_score_prefers_terms_in_symbol_and_file_names() -> None:
     )
 
 
+def test_lexical_score_uses_language_signature_and_inflection_for_native_boundary() -> (
+    None
+):
+    query = (
+        "Allow four workers in native feed-hub replay parallel processing across "
+        "Python PyO3 Rust telemetry evidence and tests"
+    )
+    rust_boundary = {
+        "id": "rust:fn:crate::native::feed_hub_replay::src:process_mbo_v3_parallel",
+        "stableKey": (
+            "rust:fn:crate::native::feed_hub_replay::src:process_mbo_v3_parallel"
+        ),
+        "name": "process_mbo_v3_parallel",
+        "filePath": "native/feed_hub_replay/src/lib.rs",
+        "language": "rust",
+        "metadataJson": json.dumps(
+            {
+                "signature": (
+                    "fn process_mbo_v3_parallel(py: Python, worker_count: usize)"
+                ),
+                "attributes": "#[allow(clippy::too_many_arguments)]",
+            }
+        ),
+    }
+    broad_python_test = {
+        "id": "python:testcase:tests.test_feed_hub_native_replay_adapter",
+        "stableKey": "python:testcase:tests.test_feed_hub_native_replay_adapter",
+        "name": "test_adapter_validates_parallel_limits_and_telemetry",
+        "filePath": "tests/test_feed_hub_native_replay_adapter.py",
+        "language": "python",
+    }
+
+    assert _lexical_score(rust_boundary, query) > _lexical_score(
+        broad_python_test, query
+    )
+
+
 def test_lexical_terms_remove_grammatical_noise() -> None:
     assert lexical_terms("trace the callers of a method and its writes") == [
         "trace",
@@ -249,6 +352,17 @@ def test_lexical_terms_remove_grammatical_noise() -> None:
         "method",
         "its",
         "writes",
+    ]
+
+
+def test_lexical_terms_split_language_identifiers_for_file_name_matching() -> None:
+    assert lexical_terms("NativeReplayAdapter processMboV3") == [
+        "native",
+        "replay",
+        "adapter",
+        "process",
+        "mbo",
+        "v3",
     ]
 
 
@@ -405,6 +519,134 @@ def test_context_package_includes_snippet_relationships_and_registry_metadata() 
     )
     assert item.rationale["rank"] == 1
     assert item.rationale["expanded"] is True
+
+
+def test_context_package_emits_sanitized_stage_timings_with_injected_delays(
+    monkeypatch, capsys
+) -> None:
+    monkeypatch.setenv("CODEMESH_CONTEXT_PACKAGE_TIMINGS", "1")
+    clock = AdvancingClock()
+    store = TimingReadStore(clock)
+
+    package = asyncio.run(
+        store.get_context_package(
+            ContextPackageQuery(
+                query="secret query text",
+                repository_id="repo:test",
+                limit=1,
+                vector=[1.0, 0.0],
+            )
+        )
+    )
+
+    assert len(package.items) == 1
+    timing_line = next(
+        line
+        for line in capsys.readouterr().err.splitlines()
+        if line.startswith("CODEMESH_CONTEXT_PACKAGE_TIMING ")
+    )
+    payload = json.loads(timing_line.partition(" ")[2])
+    assert payload["event"] == "context_package_timing"
+    assert payload["outcome"] == "ok"
+    assert payload["counts"]["content_fallbacks"] == 1
+    assert payload["counts"]["hits"] == 1
+    assert payload["counts"]["hydration_concurrency"] == 1
+    assert payload["stages_ms"]["repository_resolution"] >= 1
+    assert payload["stages_ms"]["search"] >= 2
+    assert payload["stages_ms"]["repository_metadata"] >= 7
+    assert payload["stages_ms"]["item_hydration"] >= 18
+    assert payload["operations_ms"]["node"] >= 5
+    assert payload["operations_ms"]["summary"] >= 6
+    assert payload["operations_ms"]["relationships"] >= 7
+    assert "secret query text" not in timing_line
+    assert "Downloader.cs" not in timing_line
+
+
+def test_search_timings_attribute_candidate_work_without_changing_results(
+    monkeypatch, capsys
+) -> None:
+    store = SearchTimingReadStore()
+    query = ContextPackageQuery(
+        query="download secret query", repository_id="repo:test"
+    )
+    monkeypatch.delenv("CODEMESH_CONTEXT_PACKAGE_TIMINGS", raising=False)
+    baseline = asyncio.run(store.get_context_package(query))
+    assert capsys.readouterr().err == ""
+
+    monkeypatch.setenv("CODEMESH_CONTEXT_PACKAGE_TIMINGS", "1")
+    measured = asyncio.run(store.get_context_package(query))
+    stderr = capsys.readouterr().err
+    payload = json.loads(stderr.partition(" ")[2])
+
+    assert measured.model_dump(exclude={"generated_at"}) == baseline.model_dump(
+        exclude={"generated_at"}
+    )
+    for name, expected in {
+        "search_lexical_fetch": 2,
+        "search_expansion": 3,
+        "search_declaration": 5,
+        "search_content": 7,
+    }.items():
+        assert payload["operations_ms"][name] == expected
+        assert payload["counts"][f"{name}_calls"] == 1
+    assert payload["operations_ms"]["search_lexical_pipeline"] == 17
+    assert payload["stages_ms"]["search"] == 17
+    assert "secret query" not in stderr
+    assert "Downloader.cs" not in stderr
+    assert "repo:test" not in stderr
+
+
+def test_search_timings_isolate_overlapping_requests_and_reset_after_failure(
+    monkeypatch, capsys
+) -> None:
+    monkeypatch.setenv("CODEMESH_CONTEXT_PACKAGE_TIMINGS", "1")
+
+    async def exercise() -> None:
+        started = asyncio.Event()
+        release = asyncio.Event()
+        slow = SearchTimingReadStore()
+        fast = slow
+        original = slow._get_context_candidates
+        pause_next = True
+
+        async def paused_expansion(*args, **kwargs):
+            nonlocal pause_next
+            if pause_next:
+                pause_next = False
+                started.set()
+                await release.wait()
+            return await original(*args, **kwargs)
+
+        monkeypatch.setattr(slow, "_get_context_candidates", paused_expansion)
+        query = ContextPackageQuery(query="download", repository_id="repo:test")
+        pending = asyncio.create_task(slow.get_context_package(query))
+        await started.wait()
+        await fast.get_context_package(query)
+        release.set()
+        await pending
+
+        async def failing_expansion(*args, **kwargs):
+            raise RuntimeError("synthetic search failure")
+
+        monkeypatch.setattr(fast, "_get_context_candidates", failing_expansion)
+        with pytest.raises(RuntimeError, match="synthetic search failure"):
+            await fast.get_context_package(query)
+        from codemesh_agent_access.store import _active_package_timing
+
+        assert _active_package_timing.get() is None
+
+    asyncio.run(exercise())
+    records = [
+        json.loads(line.partition(" ")[2])
+        for line in capsys.readouterr().err.splitlines()
+    ]
+    assert [record["outcome"] for record in records] == ["ok", "ok", "failed"]
+    for record in records[:2]:
+        assert record["operations_ms"]["search_expansion"] >= 3
+        assert record["counts"]["search_expansion_calls"] == 1
+        assert record["counts"]["search_content_calls"] == 1
+        assert record["operations_ms"]["search_lexical_pipeline"] >= 17
+    assert records[2]["counts"]["search_expansion_calls"] == 1
 
 
 def test_context_package_accepts_repository_alias() -> None:
@@ -812,6 +1054,98 @@ class FakeReadStore(CodeMeshReadStore):
                     embedding_model="test",
                 )
             ]
+        )
+
+
+class AdvancingClock:
+    def __init__(self) -> None:
+        self.value = 0.0
+
+    def __call__(self) -> float:
+        return self.value
+
+    def advance(self, seconds: float) -> None:
+        self.value += seconds
+
+
+class SearchTimingReadStore(FakeReadStore):
+    def __init__(self) -> None:
+        super().__init__()
+        self.clock = AdvancingClock()
+        self._context_package_clock = self.clock
+        self._graph.search_context_nodes = self._search_nodes
+
+    async def _search_nodes(self, *args):
+        self.clock.advance(0.002)
+        return [self.parameter_declaration]
+
+    async def _search_lexical_context(self, query):
+        return await CodeMeshReadStore._search_lexical_context(self, query)
+
+    async def _get_context_candidates(self, *args, **kwargs):
+        self.clock.advance(0.003)
+        return await super()._get_context_candidates(*args, **kwargs)
+
+    async def _get_primary_declaration_node(self, *args, **kwargs):
+        self.clock.advance(0.005)
+        return await super()._get_primary_declaration_node(*args, **kwargs)
+
+    async def _get_content(self, *args, **kwargs):
+        self.clock.advance(0.007)
+        return await super()._get_content(*args, **kwargs)
+
+
+class TimingReadStore(FakeReadStore):
+    def __init__(self, clock: AdvancingClock) -> None:
+        super().__init__()
+        self.clock = clock
+        self._context_package_clock = clock
+
+    async def _resolve_package_query_repository(
+        self, query: ContextPackageQuery
+    ) -> ContextPackageQuery:
+        self.clock.advance(0.001)
+        return await super()._resolve_package_query_repository(query)
+
+    async def search_context(self, query: ContextQuery):
+        self.clock.advance(0.002)
+        return await super().search_context(query)
+
+    async def get_repository(self, repository_id: str) -> RepositorySummary | None:
+        self.clock.advance(0.003)
+        return await super().get_repository(repository_id)
+
+    async def list_ingestion_runs(
+        self,
+        repository_id: str | None = None,
+        limit: int = 50,
+    ) -> IngestionRunListResponse:
+        self.clock.advance(0.004)
+        return await super().list_ingestion_runs(repository_id, limit)
+
+    async def get_node(self, lookup, binding=None):
+        self.clock.advance(0.005)
+        return await super().get_node(lookup, binding)
+
+    async def _get_node_summary(
+        self,
+        repository_id: str | None,
+        node_id: str,
+        content_hash: str | None = None,
+    ) -> dict[str, object] | None:
+        self.clock.advance(0.006)
+        return await super()._get_node_summary(repository_id, node_id, content_hash)
+
+    async def _get_context_relationship_summaries(
+        self,
+        node_id: str,
+        repository_id: str | None = None,
+        limit: int = 8,
+        group_limits: dict[str, int] | None = None,
+    ) -> list[dict[str, object]]:
+        self.clock.advance(0.007)
+        return await super()._get_context_relationship_summaries(
+            node_id, repository_id, limit, group_limits
         )
 
 

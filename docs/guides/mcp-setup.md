@@ -55,6 +55,33 @@ dotnet run --project src/CodeMesh.Cli -- ingest `
   --skip-embeddings
 ```
 
+For one atomic Python/Rust snapshot, select both languages in one ingestion;
+do not run separate replacement ingestions:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- ingest `
+  --root $repositoryRoot `
+  --languages python,rust `
+  --skip-embeddings
+```
+
+Known secret files are excluded by default. To restrict a repository further,
+repeat repository-relative allow or deny globs; deny patterns take precedence:
+
+```powershell
+dotnet run --project src/CodeMesh.Cli -- ingest `
+  --root $repositoryRoot `
+  --languages python,rust `
+  --allow-path "app/**" `
+  --allow-path "native/**" `
+  --deny-path "app/generated/**" `
+  --skip-embeddings
+```
+
+Use `--include-known-secret-files` only after reviewing the broadened scope. It
+does not disable value redaction, configured deny patterns, or generated/cache
+directory exclusions. See [Security and Redaction](../current/security-and-redaction.md).
+
 Verify repository discovery:
 
 ```powershell
@@ -69,6 +96,15 @@ dotnet run --project src/CodeMesh.Cli -- self smoke --skip-embeddings
 ```
 
 ## Run The MCP Server
+
+The normal runtime requires a complete checkout binding. Prefer the reviewed
+[installation plan](#repository-agent-onboarding), which puts the binding in
+the launch arguments. The generic launch examples in this section assume the
+parent process supplies `CODEMESH_PROJECT_ID`, `CODEMESH_CHECKOUT_ID`, and
+`CODEMESH_REPOSITORY_ROOT` (plus optional `CODEMESH_SOURCE_VIEW_HASH`) from the
+intended indexed checkout. Without arguments or those variables, normal startup
+fails before serving tools. The Python process also needs the intended store
+configuration; it does not load `.env` automatically.
 
 Use the Python package from `agent-access`:
 
@@ -144,49 +180,173 @@ descriptions and printable stable manifest.
 
 The `normal` profile is the default and exposes only the context-package,
 repository-status, repository-listing, and node-read tools. Use
-`--profile diagnostic` for non-destructive operational investigation. Unknown
-profile names fail before server startup, and neither profile exposes repository
-deletion.
+`--profile diagnostic` for non-destructive operational investigation. The
+`development-feedback` and `feedback-maintainer` profiles are available only
+through the explicit session procedure below. Unknown profile names fail before
+server startup, and no profile exposes repository deletion.
 
 ## Repository Agent Onboarding
 
 Explicit repository onboarding is the selected v1 product contract. MCP server
 instructions remain defense in depth because hosts differ in whether and how
-they present those instructions to an agent. The tool profiles are implemented;
-the future live runtime probe, checkout binding, fail-closed package freshness,
-and installation behavior are specified in
-[Agent Integration Contract](../planning/agent-integration-contract.md).
+they present those instructions to an agent. Generate a reviewable exact-
+checkout plan after ingestion reports the project, checkout, snapshot, and
+source-view identities:
 
-Until reviewable installation support exists, repository owners may manually
-add this canonical block to the repository's `AGENTS.md` or equivalent durable
-agent-instruction file:
-
-```markdown
-<!-- codemesh:onboarding:start -->
-## CodeMesh repository context
-
-For C#/.NET implementation discovery, likely change-impact analysis, and
-validation selection in this repository:
-
-1. Start with `codemesh_get_context_package` using the full task, the configured
-   repository id or unique alias, `output_format = "agent"`, and default limits.
-2. If the repository selector is unknown, use `codemesh_list_repositories`; do
-   not guess when more than one checkout could match.
-3. Before relying on the package, use `codemesh_get_repository_status` to confirm
-   that the indexed snapshot matches the intended checkout and is fresh.
-4. Verify consequential conclusions against the returned source spans with
-   targeted reads. Treat rankings and relationships as navigation evidence, not
-   runtime proof.
-5. If CodeMesh is unavailable, stale, or ambiguous, report that condition and
-   continue with normal repository exploration.
-<!-- codemesh:onboarding:end -->
+```powershell
+Set-Location agent-access
+uv run python -m codemesh_agent_access install plan `
+  --target-root C:\path\to\checkout `
+  --codemesh-root C:\path\to\CodeMesh `
+  --project-id prj_EXACT `
+  --checkout-id chk_EXACT `
+  --source-view-hash HASH_FROM_INGESTION `
+  --output C:\temp\codemesh-install-plan.json
 ```
 
-Review the block and repository selector before committing it. Do not replace
-unrelated instructions or assume that adding the text proves the MCP process is
-healthy. The current `mcp-manifest --profile normal|diagnostic` command validates
-static profile-specific contract output; it is not the planned live startup and
-freshness probe.
+Review the plan's exact launch, binding, complete file contents, diffs, target
+hashes, forwarded environment names, and `plan_hash`. Apply only that unchanged
+plan and hash, then run the live provider-free probe:
+
+```powershell
+uv run python -m codemesh_agent_access install apply `
+  C:\temp\codemesh-install-plan.json `
+  --approve-plan-hash REVIEWED_HASH
+uv run python -m codemesh_agent_access mcp-probe `
+  --plan C:\temp\codemesh-install-plan.json
+```
+
+The default plan manages `.codex/config.toml` and a marked onboarding block in
+`AGENTS.md` while preserving other content. Use `--configuration-only` only when
+an external instance manager owns repository guidance. Apply rejects a changed
+target or plan. The generated config forwards secret variable names, never
+their values, and forces provider mode to `none`.
+
+The bound normal server requires an exact project, checkout, and root. Its tools
+inject that project selector and reject caller overrides. Start with one
+`codemesh_get_context_package` request using a concise task-shaped query,
+agent output, and default limits. Stop retrieving when it covers every required
+facet. Only issue one focused follow-up for a specific unresolved implementation
+or test facet, use at most three packages for the task, and avoid overlapping
+queries. The package validates the binding
+and freshness before search; dirty, moved, stale, missing, or source-view-
+mismatched checkouts fail closed. Use repository status only for explicit
+ingestion, count, or freshness diagnostics.
+
+## Agent Feedback
+
+### Explicit development session
+
+Use this path only when a human is deliberately running a CodeMesh development
+session and wants client agents to submit local diagnostic feedback for review
+by an agent in the CodeMesh checkout. It does not authorize a CodeMesh edit.
+
+First add `/.codemesh-feedback/` to each participating client repository's
+managed ignore rules. Session planning validates this without editing ignore
+files. From `agent-access`, create a proposed manifest and activation plan. Each
+`--client-json` value names one exact participant:
+
+```powershell
+uv run python -m codemesh_agent_access feedback session plan `
+  --manifest-path C:\temp\codemesh-feedback-session.json `
+  --codemesh-root C:\path\to\CodeMesh `
+  --codemesh-project-id prj_CODEMESH `
+  --codemesh-checkout-id chk_CODEMESH `
+  --client-json '{"project_id":"prj_CLIENT","checkout_id":"chk_CLIENT","repository_root":"C:\\path\\to\\client","reporter_role":"client-agent"}' `
+  --expires-at 2026-09-10T18:00:00+02:00 `
+  --output C:\temp\codemesh-feedback-session-plan.json
+```
+
+Review the exact roots, identities, expiry, bounds, tools, manifest-file hash,
+and `plan_hash`. Activate only the unchanged plan:
+
+```powershell
+uv run python -m codemesh_agent_access feedback session activate `
+  C:\temp\codemesh-feedback-session-plan.json `
+  --approve-plan-hash REVIEWED_PLAN_HASH
+```
+
+Create separate reviewed installations for the client checkout and the CodeMesh
+maintainer checkout. Both pin the exact manifest path and file hash:
+
+```powershell
+uv run python -m codemesh_agent_access install plan `
+  --target-root C:\path\to\client `
+  --codemesh-root C:\path\to\CodeMesh `
+  --project-id prj_CLIENT --checkout-id chk_CLIENT `
+  --profile development-feedback `
+  --feedback-session C:\temp\codemesh-feedback-session.json `
+  --feedback-session-sha256 REVIEWED_MANIFEST_HASH `
+  --output C:\temp\client-feedback-install.json
+
+uv run python -m codemesh_agent_access install plan `
+  --target-root C:\path\to\CodeMesh `
+  --codemesh-root C:\path\to\CodeMesh `
+  --project-id prj_CODEMESH --checkout-id chk_CODEMESH `
+  --profile feedback-maintainer `
+  --feedback-session C:\temp\codemesh-feedback-session.json `
+  --feedback-session-sha256 REVIEWED_MANIFEST_HASH `
+  --output C:\temp\maintainer-feedback-install.json
+```
+
+Review and apply each installation with `install apply`, then run
+`mcp-probe --plan PLAN` for each one. The client probe checks session discovery
+without writing feedback. The maintainer probe lists only allowlisted outboxes.
+
+During the session, the client agent calls
+`codemesh_get_feedback_session`, source-verifies consequential CodeMesh output,
+and uses `codemesh_record_feedback` only for a bounded sanitized observation.
+The maintainer agent starts with `codemesh_list_feedback`, retrieves an exact id,
+reproduces it read-only, and calls `codemesh_prepare_feedback_resolution`. A
+human must approve the exact feedback ids and returned plan hash before the
+maintainer agent edits CodeMesh. An agent-supplied confirmation is not human
+approval.
+
+After reconfiguration and recheck, the client records a passing packet with
+`supersedes_feedback_ids` naming the exact failure. Resolution is derived only
+for a passing recheck from the same checkout with the same issue category and
+task family. Close the session without deleting evidence:
+
+```powershell
+uv run python -m codemesh_agent_access feedback session revoke `
+  --manifest C:\temp\codemesh-feedback-session.json `
+  --manifest-sha256 REVIEWED_MANIFEST_HASH `
+  --reason "Development session complete"
+```
+
+Expiry or revocation blocks subsequent calls. No feedback endpoint edits
+CodeMesh, starts ingestion, invokes a provider, creates an external issue, or
+transmits a packet.
+
+### Direct v1 recorder
+
+The existing operator/evaluator CLI remains available. Participating
+repositories must ignore `/.codemesh-feedback/` before recording. It writes a
+bounded v1 packet with caller-supplied accepted provenance:
+
+```powershell
+uv run python -m codemesh_agent_access feedback record `
+  --repository-root C:\path\to\checkout `
+  --role primary `
+  --classification diagnostic `
+  --confidence high `
+  --project-id prj_EXACT `
+  --checkout-id chk_EXACT `
+  --snapshot-id snp_EXACT `
+  --language python --language rust `
+  --parser-profile python-rust-v1 `
+  --task-family test-selection `
+  --issue-category ranking `
+  --validation-outcome failed `
+  --missed-path tests/test_expected.py
+```
+
+Use `feedback validate PACKET` before review. CodeMesh maintainers run
+`feedback summarize CHECKOUT... --output SUMMARY.json` to group open failures
+without losing commit/snapshot provenance. A passing recheck may use
+`--supersedes-feedback-id` to resolve an exact earlier failure. Never store raw
+prompts, MCP payloads, source excerpts, secrets, or environment values in a
+packet.
 
 ## Required Environment
 
@@ -246,6 +406,13 @@ The `diagnostic` profile additionally exposes:
 - `codemesh_get_repository`: inspect one repository registry record.
 - `codemesh_get_summary_coverage`: inspect generated-summary coverage.
 - `codemesh_list_ingestion_runs`: inspect recent indexing runs.
+
+The session-only profiles add:
+
+- `development-feedback`: `codemesh_get_feedback_session` and
+  `codemesh_record_feedback` alongside the normal tools.
+- `feedback-maintainer`: `codemesh_list_feedback`, `codemesh_get_feedback`, and
+  `codemesh_prepare_feedback_resolution` alongside the normal tools.
 
 ## Troubleshooting
 

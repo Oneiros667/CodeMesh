@@ -1,0 +1,153 @@
+{
+  "schema_version": "codemesh-youtube-downloader-task-adaptive-configured-agent-v1",
+  "evidence_class": "configured-onboarded-prompt-parity-agent",
+  "recorded_at": "2026-09-01T16:26:38.929368+00:00",
+  "codemesh": {
+    "commit": "fbc1433642ad9e20acd3379554f2ee09a6d635d9",
+    "clean_detached_checkout": true,
+    "configured_suite": "youtube-downloader-impact-configured-agent",
+    "task_adaptive_guidance": true
+  },
+  "youtube_downloader": {
+    "repository_url": "https://github.com/Tyrrrz/YoutubeDownloader.git",
+    "commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+    "branch": "HEAD",
+    "tracked_files_changed": false,
+    "project_id": "prj_3425db238d0d4a5fbcc1e3c9a28d1945",
+    "checkout_id": "chk_7e4ecde2ae4e45b4b9e475e0a587aa47",
+    "snapshot_id": "snp_c2aa867ffd967d7be6305ba8b051cfafadc8351421309772359d7c23ad24ae2f",
+    "source_view_hash": "7def3a130907855efb58f34158ce84c2420275456e2f1810ebed040ccd3e0425",
+    "freshness_status": "fresh"
+  },
+  "authorization": {
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "medium",
+    "seed": 42,
+    "repetitions": 3,
+    "pair_count": 3,
+    "automatic_retries": false,
+    "reported_token_ceiling": 1600000,
+    "aggregate_reported_tokens": 2596056,
+    "aggregate_uncached_tokens": 376792,
+    "aggregate_cached_input_tokens": 2219264,
+    "reported_token_ceiling_met": false,
+    "boundary_failure": "The evaluator had no hard aggregate-token stop and the six fixed executions exceeded the authorized reported-token ceiling. No retry or additional campaign was run."
+  },
+  "deterministic_checks": {
+    "python_tests_passed": 125,
+    "python_test_warnings": 2,
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "fixture_suite_cases_passed": 5,
+    "dotnet_verification": "not_selected_python_guidance_and_evaluation_suite_change"
+  },
+  "configured_preflight": {
+    "passed": true,
+    "integration_mode": "configured",
+    "prompt_parity": true,
+    "provider": "none",
+    "plan_hash": "ae7bedc3b62532e2c359f60f64fae4b221231ce733a712d53e7c4deecf33c65a",
+    "guidance_sha256": "bd356195afbb8b945d003ff7b6802e270a8c6a97566697ce95b1c4a7c980aba3",
+    "positive_probe_passed": true,
+    "wrong_checkout_rejected": true,
+    "report_sha256": "bad129ed0ba3609adfb7ff0796bc3940509cb616ae527fb55ae3677e00a0648f"
+  },
+  "provider_free_gates": {
+    "adaptive_live": {
+      "passed": true,
+      "comparable": true,
+      "case_count": 5,
+      "tool_call_count": 15,
+      "mean_recall_at_k": 1.0,
+      "mean_mrr": 0.875,
+      "mean_ndcg_at_k": 0.862253,
+      "secret_leaks": 0,
+      "report_sha256": "5cfe98e11cbb2c03ea6e1c1a3a7b7459d217f67fec828b940db833abec845746"
+    },
+    "impact_live": {
+      "passed": true,
+      "comparable": true,
+      "case_count": 2,
+      "tool_call_count": 6,
+      "mean_recall_at_k": 1.0,
+      "mean_mrr": 1.0,
+      "mean_ndcg_at_k": 0.891323,
+      "secret_leaks": 0,
+      "report_sha256": "094281adcfcdd37b95b84517d0f1148cbb582c3b312ef21b522ac1f5782d06b0"
+    },
+    "canonical_live": {
+      "passed": true,
+      "comparable": true,
+      "case_count": 6,
+      "tool_call_count": 18,
+      "mean_recall_at_k": 1.0,
+      "mean_mrr": 0.9,
+      "mean_ndcg_at_k": 0.926186,
+      "secret_leaks": 0,
+      "report_sha256": "6c3828337af8d4ca83269ed164630e7d527df593edefb25ddd2f6abbbd792fb4"
+    }
+  },
+  "campaign": {
+    "suite": "youtube-downloader-impact-configured-agent",
+    "provider": "default",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "medium",
+    "seed": 42,
+    "repetitions": 3,
+    "pair_count": 3,
+    "completed_pair_count": 3,
+    "all_runs_completed": true,
+    "all_runs_passed": true,
+    "verdict": "regressed",
+    "harness_passed": false,
+    "harness_failure_count": 0,
+    "treatment_wins": 0,
+    "codemesh_attributable_wins": 0,
+    "treatment_regressions": 0,
+    "treatment_safety_violations": 0,
+    "control_success_rate": 1.0,
+    "treatment_success_rate": 1.0,
+    "codemesh_adoption_rate": 1.0,
+    "codemesh_adopted_pair_count": 3,
+    "context_package_call_attempt_count": 3,
+    "context_package_call_attempts_per_treatment": [1, 1, 1],
+    "mcp_failed_call_count": 0,
+    "command_policy_violation_count": 0,
+    "median_control_duration_ms": 136218.474,
+    "median_treatment_duration_ms": 149866.42,
+    "duration_delta": 0.100192,
+    "median_control_tokens": 420798.0,
+    "median_treatment_tokens": 392904.0,
+    "token_delta": -0.066288,
+    "raw_traces_retained": false,
+    "report_sha256": "2249a0b2251b93aaf138ee31dbcd46cb8ac899f4defb95f988b27c6d25d9165b"
+  },
+  "claim_ceiling": {
+    "established": [
+      "configured_prompt_parity_and_exact_runtime_identity",
+      "single_context_package_adoption_in_all_three_treatments",
+      "correct_and_safe_completion_in_all_six_runs",
+      "no_mcp_or_command_policy_failures",
+      "bounded_token_efficiency_improvement_with_duration_regression"
+    ],
+    "not_established": [
+      "exact_agent_query_arguments",
+      "codemesh_attributable_correctness_win",
+      "overall_efficiency_benefit",
+      "causality_for_duration_or_token_deltas",
+      "repeatable_configured_product_benefit",
+      "release_readiness",
+      "deployment_or_production_acceptance"
+    ]
+  },
+  "boundaries": {
+    "campaign_consumed": true,
+    "automatic_retry_authorized": false,
+    "additional_model_spend_authorized": false,
+    "reported_token_ceiling_breached": true,
+    "raw_prompts_or_traces_retained": false,
+    "push": "not_performed",
+    "release": "not_performed",
+    "deployment": "not_performed"
+  }
+}

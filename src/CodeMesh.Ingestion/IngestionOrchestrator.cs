@@ -21,6 +21,11 @@ public sealed class IngestionOrchestrator(
         IngestionRequest request,
         CancellationToken cancellationToken = default)
     {
+        request = request with
+        {
+            Language = string.Join(',', CompositeParserClient.ParseLanguages(request.Language))
+        };
+        _ = RepositoryPathPolicy.StableFingerprint(request.PathFilter);
         var startedAt = DateTimeOffset.UtcNow;
         var repositoryRoot = Path.GetFullPath(request.RepositoryRoot);
         var git = await RepositoryGitSnapshot
@@ -57,10 +62,22 @@ public sealed class IngestionOrchestrator(
             request.SolutionPath,
             request.ProjectPath,
             request.Language,
-            request.Options ?? new Dictionary<string, string>());
+            request.Options ?? new Dictionary<string, string>(),
+            request.PathFilter);
 
         var parseResult = await parserClient.ParseAsync(parseRequest, cancellationToken)
             .ConfigureAwait(false);
+        var parseErrors = parseResult.Diagnostics
+            .Where(diagnostic => string.Equals(
+                diagnostic.Severity,
+                "error",
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (parseErrors.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"Parser failed before snapshot publication: {string.Join("; ", parseErrors.Select(error => $"{error.Code}: {error.Message}"))}");
+        }
 
         var redaction = ContentRedactor.Redact(parseResult.Contents);
         var diagnostics = parseResult.Diagnostics.ToList();

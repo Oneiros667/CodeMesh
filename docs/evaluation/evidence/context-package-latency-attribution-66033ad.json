@@ -1,0 +1,44 @@
+{
+  "schema_version": "codemesh-context-package-latency-attribution-v1",
+  "evidence_state": "provider-free-live-timing",
+  "generated_at": "2026-09-01T18:27:28.077465+00:00",
+  "codemesh_candidate": "66033addceb9537566fb67567e50ae1f21a55eea",
+  "repository_commit": "05e63cddb6d2a96fc2d21b097129a0765824f251",
+  "suite": "youtube-downloader-impact-adaptive-live",
+  "suite_sha256": "40b4d994ee704c7db22a973538c0a34f3bb28b6cab305857d553f2928f392ea8",
+  "retained_report_sha256": "54e806e4c1fdce99590ab15d5fea7105b6483e0e253b3107624c57992e140961",
+  "warmup": 1,
+  "repetitions": 5,
+  "provider": "none",
+  "passed": true,
+  "comparable": true,
+  "retrieval_summary": {
+    "tool_success_rate": 1.0,
+    "mean_recall_at_k": 1.0,
+    "mean_mrr": 0.875,
+    "mean_ndcg_at_k": 0.862253,
+    "secret_leaks": 0
+  },
+  "task_shaped_package_p50_ms": {
+    "total": 16830.931,
+    "repository_resolution": 1.05,
+    "search": 16725.37,
+    "repository_metadata": 1.515,
+    "item_hydration": 102.668,
+    "assembly": 0.298
+  },
+  "task_shaped_hydration_operation_p50_ms": {
+    "node": 45.305,
+    "content_fallback": 4.093,
+    "summary": 8.179,
+    "relationships": 44.055
+  },
+  "dominance_gate": {
+    "required_largest_stage": true,
+    "required_total_share": 0.5,
+    "measured_largest_stage": "search",
+    "measured_hydration_share": 0.0061,
+    "passed": false
+  },
+  "decision": "Do not apply bounded item-hydration concurrency or substitute another unmeasured optimization."
+}

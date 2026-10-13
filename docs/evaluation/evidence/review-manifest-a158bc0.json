@@ -1,0 +1,73 @@
+{
+  "source_candidate": "a158bc0308d9fdb8f373ec0d9d6f03233b984f9f",
+  "source_version": "0.1.0",
+  "artifact_checksums_reverified": true,
+  "dependency_locks": [
+    {
+      "file": "agent-access/uv.lock",
+      "sha256": "da4ea09cad507205965c37fc38c1a90235282ff2dc05668a0bada995929418df"
+    },
+    {
+      "file": "src/CodeMesh.Cli/packages.lock.json",
+      "sha256": "bc73263b9c57190c717180af41a626c6e42fd31ee7f62c6e887499a14f3963c0"
+    },
+    {
+      "file": "src/CodeMesh.Control/packages.lock.json",
+      "sha256": "7451cdea34ec51831f11519302a54b6733d8de02741b874456827a80e3b330f3"
+    },
+    {
+      "file": "src/CodeMesh.Domain/packages.lock.json",
+      "sha256": "a29c6aa8cfb81874ff8bb78dc369d7416f28c9b8cc47e99592bfc019b20c41eb"
+    },
+    {
+      "file": "src/CodeMesh.Ingestion/packages.lock.json",
+      "sha256": "ca0897279ad707f946c0a9ca590fa60db89ba665abfb74a9be5eb36a2a58479c"
+    },
+    {
+      "file": "src/CodeMesh.Parser.CSharp/packages.lock.json",
+      "sha256": "c9a5ddd18785a2e11a9f074b0fc569da36a9de8ce49ea7e992acd36d49e3ee86"
+    },
+    {
+      "file": "src/CodeMesh.Parser.Deployment/packages.lock.json",
+      "sha256": "7451cdea34ec51831f11519302a54b6733d8de02741b874456827a80e3b330f3"
+    },
+    {
+      "file": "src/CodeMesh.Parser.Markdown/packages.lock.json",
+      "sha256": "7451cdea34ec51831f11519302a54b6733d8de02741b874456827a80e3b330f3"
+    },
+    {
+      "file": "src/CodeMesh.Parser.Python/packages.lock.json",
+      "sha256": "7451cdea34ec51831f11519302a54b6733d8de02741b874456827a80e3b330f3"
+    },
+    {
+      "file": "src/CodeMesh.Parser.Rust/packages.lock.json",
+      "sha256": "1fc4baf334892374baf16d24e524a8ce6c099c283321c182ab9e7f5784a2476a"
+    },
+    {
+      "file": "src/CodeMesh.Storage/packages.lock.json",
+      "sha256": "41c2021c88bdadf9a73e58bfff9878759dffc325aa6791538204371da1520cf2"
+    },
+    {
+      "file": "tests/CodeMesh.Tests/packages.lock.json",
+      "sha256": "bc73263b9c57190c717180af41a626c6e42fd31ee7f62c6e887499a14f3963c0"
+    }
+  ],
+  "local_environment": {
+    "os": "Linux x86_64",
+    "dotnet_sdk": "10.0.111",
+    "python": "Python 3.14.7",
+    "uv": "uv 0.12.9 (9f9286029 2026-09-01 x86_64-unknown-linux-gnu)",
+    "providers": "none; no generated embeddings or summaries",
+    "support_acceptance": "pending; observed verification environment only"
+  },
+  "retained_source_test_logs": [
+    {
+      "file": "codemesh-readonly-output-tests.log",
+      "sha256": "c1907bde6a2c561e97cf9e7a5b6573d0cc7e7bab4eda1516870e02fe4f783951"
+    },
+    {
+      "file": "codemesh-feedback-corrected-tests.log",
+      "sha256": "7549e5e03206a491270c8f935cae98275a36969e6f4cc6f7944dadcf16db7ae1"
+    }
+  ]
+}

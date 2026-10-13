@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from types import SimpleNamespace
 from typing import Any
 
 from codemesh_agent_access import cli
@@ -316,18 +317,131 @@ def test_cli_prints_mcp_manifest(monkeypatch: Any, capsys: Any) -> None:
     ]
 
 
-def test_cli_uses_normal_mcp_profile_by_default(monkeypatch: Any) -> None:
-    captured: dict[str, str] = {}
+def test_cli_uses_normal_mcp_profile_by_default(monkeypatch: Any, tmp_path) -> None:
+    captured: dict[str, Any] = {}
 
-    def fake_run(profile: str) -> None:
+    def fake_run(profile: str, binding: Any) -> None:
         captured["profile"] = profile
+        captured["binding"] = binding
 
     monkeypatch.setattr(cli.mcp, "run", fake_run)
-    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "mcp"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "codemesh-agent-access",
+            "mcp",
+            "--project-id",
+            "project:test",
+            "--checkout-id",
+            "checkout:test",
+            "--repository-root",
+            str(tmp_path),
+        ],
+    )
 
     cli.main()
 
     assert captured["profile"] == "normal"
+    assert captured["binding"].project_id == "project:test"
+    assert captured["binding"].checkout_id == "checkout:test"
+
+
+def test_cli_runs_configured_agent_preflight_without_model(
+    monkeypatch: Any, capsys: Any, tmp_path
+) -> None:
+    captured: dict[str, Any] = {}
+    suite = SimpleNamespace(kind="agent", name="configured")
+    plan = object()
+
+    def fake_load_suite(value: str, kind: str) -> tuple[Any, Any]:
+        assert value == "configured-suite.json"
+        assert kind == "agent"
+        return suite, tmp_path / "configured-suite.json"
+
+    async def fake_preflight(received_suite: Any, **kwargs: Any) -> dict[str, Any]:
+        captured["suite"] = received_suite
+        captured.update(kwargs)
+        return {
+            "schema_version": "codemesh-agent-preflight-v1",
+            "passed": True,
+            "integration_mode": "configured",
+        }
+
+    monkeypatch.setattr(cli.evaluation, "load_suite", fake_load_suite)
+    monkeypatch.setattr(cli, "load_installation_plan", lambda _path: plan)
+    monkeypatch.setattr(cli.evaluation, "run_agent_preflight", fake_preflight)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "codemesh-agent-access",
+            "eval",
+            "agent",
+            "--suite",
+            "configured-suite.json",
+            "--configured-plan",
+            "plan.json",
+            "--configured-guidance-path",
+            "AGENTS.md",
+            "--configured-expected-path",
+            "src/A.py",
+            "--max-reported-tokens",
+            "1600000",
+            "--preflight-only",
+        ],
+    )
+
+    cli.main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["passed"] is True
+    assert captured["suite"] is suite
+    assert captured["configured_plan"] is plan
+    assert captured["configured_guidance_paths"] == ["AGENTS.md"]
+    assert captured["configured_expected_paths"] == ["src/A.py"]
+    assert captured["max_reported_tokens"] == 1600000
+    assert isinstance(captured["runner"], cli.evaluation.CodexRunner)
+
+
+def test_cli_selects_capped_codex_runner_for_agent_preflight(
+    monkeypatch: Any, capsys: Any, tmp_path
+) -> None:
+    captured: dict[str, Any] = {}
+    suite = SimpleNamespace(kind="agent", name="configured")
+
+    monkeypatch.setattr(
+        cli.evaluation,
+        "load_suite",
+        lambda _value, _kind: (suite, tmp_path / "suite.json"),
+    )
+
+    async def fake_preflight(_suite: Any, **kwargs: Any) -> dict[str, Any]:
+        captured.update(kwargs)
+        return {"passed": True}
+
+    monkeypatch.setattr(cli.evaluation, "run_agent_preflight", fake_preflight)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "codemesh-agent-access",
+            "eval",
+            "agent",
+            "--suite",
+            "suite.json",
+            "--runner",
+            "capped-codex",
+            "--max-reported-tokens",
+            "100",
+            "--preflight-only",
+        ],
+    )
+
+    cli.main()
+
+    assert json.loads(capsys.readouterr().out)["passed"] is True
+    assert isinstance(captured["runner"], cli.evaluation.CappedCodexRunner)
 
 
 def test_cli_filter_requires_key_value_pair(monkeypatch: Any) -> None:
@@ -343,3 +457,18 @@ def test_cli_filter_requires_key_value_pair(monkeypatch: Any) -> None:
         assert str(exc) == "Invalid --filter value 'broken'. Expected KEY=VALUE."
     else:
         raise AssertionError("Expected invalid filter to exit.")
+
+
+def test_version_exits_before_configuration_or_store_access(monkeypatch, capsys):
+    import pytest
+    from codemesh_agent_access import __version__
+
+    def unexpected_settings(*args, **kwargs):
+        raise AssertionError("version must not configure services")
+
+    monkeypatch.setattr(cli, "Settings", unexpected_settings)
+    monkeypatch.setattr(sys, "argv", ["codemesh-agent-access", "--version"])
+    with pytest.raises(SystemExit) as result:
+        cli.main()
+    assert result.value.code == 0
+    assert capsys.readouterr().out == f"codemesh-agent-access {__version__}\n"

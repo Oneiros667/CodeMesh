@@ -117,7 +117,12 @@ def test_query_report_flags_and_scrubs_canary_leakage(tmp_path: Path) -> None:
         completed=True,
         exit_code=0,
         duration_ms=10,
-        usage={"input_tokens": 10, "output_tokens": 2},
+        usage={
+            "input_tokens": 10,
+            "cached_input_tokens": 0,
+            "output_tokens": 2,
+            "reasoning_output_tokens": 0,
+        },
         mcp_call_attempts=[
             "codemesh.codemesh_search_context",
             "benchmark_response.submit_benchmark_answer",
